@@ -92,6 +92,28 @@ export default function Admin() {
         <Stat label="Announcements posted" value={stats.anns} />
       </div>
 
+      <SectionLabel>Add team member directly</SectionLabel>
+      <div className="bg-off rounded-xl py-[22px] px-6 mb-7">
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div><label className="form-label">Full name</label>
+            <input className="ipc-input" value={mName} onChange={(e)=>setMName(e.target.value)} placeholder="Full name" /></div>
+          <div><label className="form-label">Email</label>
+            <input className="ipc-input" type="email" value={mEmail} onChange={(e)=>setMEmail(e.target.value)} placeholder="name@ipc.in" /></div>
+          <div><label className="form-label">Temporary password</label>
+            <input className="ipc-input" type="text" value={mPass} onChange={(e)=>setMPass(e.target.value)} placeholder="Set a password" /></div>
+          <div><label className="form-label">Role</label>
+            <select className="ipc-input cursor-pointer" value={mRole} onChange={(e)=>setMRole(e.target.value)}>
+              {ROLES.map(r => <option key={r}>{r}</option>)}
+            </select></div>
+          <div className="col-span-2"><label className="form-label">Department (optional)</label>
+            <input className="ipc-input" value={mDept} onChange={(e)=>setMDept(e.target.value)} placeholder="e.g. Marketing" /></div>
+        </div>
+        <div className="flex justify-end">
+          <button disabled={mBusy} onClick={addMember} className="ipc-btn ipc-btn-black">{mBusy ? "Adding…" : "Add member"}</button>
+        </div>
+        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — share the credentials with them.</p>
+      </div>
+
       <SectionLabel>Pending access requests</SectionLabel>
       <div className="border border-line rounded-xl bg-white mb-7 overflow-hidden">
         {pending.length === 0 && <div className="px-5 py-6 font-sans text-sm text-muted-foreground">No pending requests.</div>}
