@@ -10,6 +10,19 @@ export default function Admin() {
   const [pending, setPending] = useState<any[]>([]);
   const [stats, setStats] = useState({ active:0, today:0, pending:0, anns:0 });
   const [logs, setLogs] = useState<any[]>([]);
+  const [studentCount, setStudentCount] = useState<number | null>(null);
+  const [syncBusy, setSyncBusy] = useState(false);
+
+  const syncStudents = async () => {
+    setSyncBusy(true);
+    const { data, error } = await supabase.functions.invoke("import-students");
+    setSyncBusy(false);
+    if (error || (data as any)?.error) return toast.error((data as any)?.error || error!.message);
+    const r = (data as any).results || {};
+    const parts = Object.entries(r).map(([k, v]: any) => `${k}: ${v.imported}`).join(" · ");
+    toast.success(`Student database synced — ${parts}`);
+    load();
+  };
 
   // announcement form
   const [aTitle, setATitle] = useState("");
@@ -50,6 +63,8 @@ export default function Admin() {
       .select("*", { count: "exact" }).eq("login_date", today).order("login_time",{ascending:true});
     setStats({ active: active??0, today: todayC??0, pending: pendingC??0, anns: annC??0 });
     setLogs(todayLogs ?? []);
+    const { count: sC } = await supabase.from("students").select("id",{count:"exact",head:true});
+    setStudentCount(sC ?? 0);
   };
   useEffect(() => { load(); }, []);
 
@@ -112,6 +127,15 @@ export default function Admin() {
           <button disabled={mBusy} onClick={addMember} className="ipc-btn ipc-btn-black">{mBusy ? "Adding…" : "Add member"}</button>
         </div>
         <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — share the credentials with them.</p>
+      </div>
+
+      <SectionLabel>Student database</SectionLabel>
+      <div className="bg-off rounded-xl py-[22px] px-6 mb-7 flex items-center gap-5">
+        <div className="flex-1">
+          <div className="font-serif text-[30px] font-medium text-black leading-none mb-1.5">{studentCount === null ? "—" : studentCount.toLocaleString()}</div>
+          <div className="font-sans text-[11px] text-muted-foreground">Premium members imported from the source sheets.</div>
+        </div>
+        <button disabled={syncBusy} onClick={syncStudents} className="ipc-btn ipc-btn-black">{syncBusy ? "Syncing…" : "Sync from sheets"}</button>
       </div>
 
       <SectionLabel>Pending access requests</SectionLabel>
