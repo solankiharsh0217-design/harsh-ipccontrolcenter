@@ -17,6 +17,28 @@ export default function Admin() {
   const [aTag, setATag] = useState<"info"|"update"|"urgent">("info");
   const [busy, setBusy] = useState(false);
 
+  // add member form
+  const ROLES = ["Media Buyer","Backend Operations","Community Manager","Content Creator","Operations Lead","Photography Lead","Admin"];
+  const [mName, setMName] = useState("");
+  const [mEmail, setMEmail] = useState("");
+  const [mPass, setMPass] = useState("");
+  const [mRole, setMRole] = useState("Media Buyer");
+  const [mDept, setMDept] = useState("");
+  const [mBusy, setMBusy] = useState(false);
+
+  const addMember = async () => {
+    if (!mName || !mEmail || !mPass) return toast.error("Name, email and password required.");
+    setMBusy(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-member", {
+      body: { full_name: mName, email: mEmail, password: mPass, role: mRole, department: mDept || null },
+    });
+    setMBusy(false);
+    if (error || (data as any)?.error) return toast.error((data as any)?.error || error!.message);
+    toast.success(`${mName} added and activated.`);
+    setMName(""); setMEmail(""); setMPass(""); setMDept("");
+    load();
+  };
+
   const load = async () => {
     const { data: p } = await supabase.from("profiles").select("*").eq("status","pending").order("created_at");
     setPending(p ?? []);
