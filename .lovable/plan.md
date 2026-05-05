@@ -1,64 +1,55 @@
-Here is what is happening and how I will fix it.
+You are right to question this. I checked your exact examples against the live published sheet and against the backend.
 
-Why you are not seeing the button / records
+What I found:
+- `Rahul khanna`, `Vishal (af uz)`, and `GEORGE` are present in the Diamond sheet around rows 1000, 1005, and 1018.
+- They are not present in the backend `students` table.
+- The backend currently has only 30 `diamond` records, not the full Diamond sheet.
 
-1. The backend database already has student records loaded.
-   - I checked it directly: there are 5,215 records currently loaded.
-   - The name in your screenshot, “Himashri Bora”, is present in the backend.
-   - So the Google Sheet import itself is not the missing piece right now.
+Root cause:
+The import function is structurally wrong in one important way: it inserts the sheet in 500-row batches, but if any duplicate exists inside a batch, the whole batch insert fails. Your Diamond sheet has duplicates and separator/date rows with blank email/phone. Because of that:
+- the first 500-row batch failed,
+- the second 500-row batch failed,
+- only the final small batch of about 30 rows inserted.
 
-2. The current Student Search page is relying on frontend role detection to show the “Sync from sheets” button.
-   - The button is currently shown only when the page detects the logged-in user as admin.
-   - In your screenshot, the left bottom user box is showing “U” and “—” instead of your admin profile name/role, which means the page is not correctly loading your profile/role in the frontend session.
-   - Because of that, the app hides the sync button even though your admin account exists in the backend.
+That is why the later rows near Himashri appeared, but rows like Rahul/Vishal/GEORGE did not. The issue is not that Google Sheets cannot be used. The issue is the importer is too fragile for this real-world sheet.
 
-3. The count showing “0 members” means the browser query is not seeing the student rows, even though the backend has them.
-   - This is most likely caused by frontend session/profile/role loading not being ready or not matching the backend access rules at the time the page queries students.
-   - The result is: no button, count 0, and searches return “No student found.”
+Plan to fix it properly:
 
-What I will change
+1. Make the importer robust for messy Google Sheets
+- Parse every row from both sheets.
+- Skip true blank/separator rows.
+- Do not let duplicate rows break an entire 500-row import batch.
+- Deduplicate records before inserting.
+- Use safe upsert/ignore-duplicate behavior instead of plain insert.
 
-1. Make Student Search work through a backend search function instead of relying only on direct browser database queries.
-   - The page will call a secure backend function to search students.
-   - The backend function will verify the logged-in user is an active team member/admin, then search the full student database.
-   - This avoids the current frontend access/role timing issue that is making the page see 0 records.
+2. Improve the database uniqueness rule
+- The current uniqueness rule treats every row with blank email and blank phone as the same record.
+- I will update it so blank-contact rows do not block other valid rows.
+- The real dedupe key will be based on usable contact data, not empty placeholders.
 
-2. Show the “Sync from sheets” button to all active logged-in team members on the Student Search page.
-   - Not admin-only anymore.
-   - If a user can access Student Search, they will see the sync button.
-   - The backend will still require the user to be logged in and active.
+3. Re-import all sheet data immediately
+- After fixing the importer, I will run the sync again.
+- The expected result should be around the full sheet size, not just 30 Diamond rows.
+- I will specifically verify that these records exist in the backend:
+  - `Vishal (af uz)` / `vishalshakya1539@gmail.com` / `7055471539`
+  - `Rahul khanna` / `rahulkhanna100090@gmail.com` / `8770092421`
+  - `GEORGE` / `georgekbaby@gmail.com` / `9539950537`
 
-3. Automatically sync from the sheets when needed.
-   - On Student Search page load, the app will check the real backend student count.
-   - If the count is 0 or the search backend reports no imported records, it will automatically run the sheet sync.
-   - The user will not need to hunt for an admin-only button just to make data appear.
+4. Keep search connected to the backend
+- The Student Search page will continue using the backend search function.
+- Once the backend has the correct imported rows, these students should show in search by name, email, or phone.
 
-4. Keep the manual sync button for refreshes.
-   - The button will remain visible in Student Search.
-   - Text will be clear, for example: “Refresh student database”.
-   - After sync, the count will update immediately.
+5. Make the refresh button reliable and visible
+- Keep the manual `Refresh student database` button on Student Search for active logged-in users.
+- If the user is not active/logged in, show a clear message instead of silently hiding everything.
+- Show clearer import stats after refresh, including how many rows were read, skipped, deduped, and imported per sheet.
 
-5. Fix the auth/profile loading behavior.
-   - I will update the app’s auth context so it waits properly for profile and role loading.
-   - The sidebar should show the real user name and role instead of “U / —”.
-   - Admin-only UI should no longer disappear because role loading is late.
-
-6. Improve the search behavior.
-   - Search by name, email, or phone.
-   - Trim spaces and handle case-insensitive search.
-   - Show a clear loading state while searching.
-   - Show the current imported record count from the backend.
-
-Technical changes
-
-- Add or update a secure backend function for student search and count.
-- Update the existing sheet import backend function so active team members can trigger it, not only admins.
-- Update `StudentSearch.tsx` to:
-  - use the backend search/count function,
-  - show the sync button for active logged-in users,
-  - auto-sync if the backend count is empty,
-  - refresh count/results after sync.
-- Update `AuthContext.tsx` to separate session loading from profile/role loading and prevent UI from rendering with incomplete role/profile state.
-- Keep the student table protected; the browser will not get broad public access to the full contact database.
-
-After approval, I’ll implement this and then verify that “Himashri Bora” returns from Student Search and that the sync button appears on the page.
+Technical changes:
+- Update `supabase/functions/import-students/index.ts`:
+  - dedupe rows before batch insert,
+  - use `upsert(..., { onConflict: ..., ignoreDuplicates: true })` or another safe insert strategy,
+  - skip unusable separator rows,
+  - return detailed import stats.
+- Add a schema migration to replace the fragile `students_unique_src_email_phone` index with a safer unique constraint/index.
+- Run the fixed import and verify backend counts plus the three exact records above.
+- If needed, adjust `StudentSearch.tsx` to show errors/states more clearly, but the main bug is the backend import failure.
