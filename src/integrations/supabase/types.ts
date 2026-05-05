@@ -186,8 +186,18 @@ export type Database = {
         Returns: boolean
       }
       is_active: { Args: { _user_id: string }; Returns: boolean }
+      search_students: {
+        Args: { _limit?: number; _q: string }
+        Returns: {
+          email: string
+          full_name: string
+          phone: string
+          source: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      students_count: { Args: never; Returns: number }
     }
     Enums: {
       announcement_tag: "info" | "update" | "urgent"
