@@ -25,13 +25,6 @@ export default function Roas() {
     };
   }, [spend, revenue, leads, conv]);
 
-  const Field = ({ label, value, onChange, placeholder }: any) => (
-    <div>
-      <label className="form-label">{label}</label>
-      <input className="ipc-input" type="number" placeholder={placeholder} value={value} onChange={(e)=>onChange(e.target.value)} />
-    </div>
-  );
-
   return (
     <div className="max-w-[700px]">
       <PageHead title="ROAS Calculator" sub="Calculate return on ad spend and all key media buying metrics instantly." back />
