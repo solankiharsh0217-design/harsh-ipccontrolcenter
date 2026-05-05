@@ -1,72 +1,59 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHead } from "@/components/ui-bits";
-import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
-interface Student { name: string; phone: string; email: string; }
+interface Student { full_name: string | null; phone: string | null; email: string | null; }
 
 export default function StudentSearch() {
-  const [url, setUrl] = useState(localStorage.getItem("ipc_sheet_url") ?? "");
-  const [data, setData] = useState<Student[]>([]);
-  const [status, setStatus] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [results, setResults] = useState<Student[]>([]);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (url) connect(url); /* auto on mount */ /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    supabase.from("students").select("id", { count: "exact", head: true }).then(({ count }) => setTotal(count ?? 0));
+  }, []);
 
-  const connect = async (u?: string) => {
-    const link = (u ?? url).trim();
-    if (!link) return toast.error("Paste a Google Sheet URL first.");
-    setBusy(true);
-    const csvUrl = link.includes("output=csv") ? link : link.replace(/\/edit.*/, "/export?format=csv");
-    try {
-      const res = await fetch(csvUrl);
-      const text = await res.text();
-      const rows = text.split("\n").map(r => r.split(",").map(c => c.replace(/^"|"$/g, "").trim()));
-      const parsed = rows.slice(1).filter(r => r[0]).map(r => ({ name: r[0]||"", phone: r[1]||"", email: r[2]||"" }));
-      setData(parsed);
-      setStatus(`✓ Connected — ${parsed.length} student records loaded.`);
-      localStorage.setItem("ipc_sheet_url", link);
-    } catch {
-      setData([]);
-      setStatus("Could not load — check that the sheet is published as CSV.");
-    }
-    setBusy(false);
-  };
+  useEffect(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) { setResults([]); return; }
+    setLoading(true);
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("students")
+        .select("full_name, email, phone")
+        .ilike("search_text", `%${term}%`)
+        .limit(50);
+      setResults((data ?? []) as Student[]);
+      setLoading(false);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [q]);
 
-  const found = q.trim() ? data.filter(s => s.name.toLowerCase().includes(q.trim().toLowerCase())) : [];
+  const sub = useMemo(
+    () => total === null ? "Search any student instantly from the member database." : `${total.toLocaleString()} members in the database. Search by name, email, or phone.`,
+    [total]
+  );
 
   return (
     <div className="max-w-[720px]">
-      <PageHead title="Student Search" sub="Search any student instantly from the connected Google Sheet database." back />
-
-      <div className="bg-off rounded-xl py-[22px] px-6 mb-7">
-        <div className="form-label">Connect Google Sheet</div>
-        <div className="flex gap-2.5 mt-3">
-          <input className="ipc-input flex-1" value={url} onChange={(e)=>setUrl(e.target.value)} placeholder="Paste published Google Sheet URL here" />
-          <button onClick={()=>connect()} disabled={busy} className="ipc-btn ipc-btn-black">{busy?"…":"Connect"}</button>
-        </div>
-        <div className="font-sans text-[11px] text-muted-foreground mt-2 leading-[1.6]">
-          Your sheet must be published to the web as CSV.<br/>
-          Go to File → Share → Publish to web → select CSV format → publish.
-        </div>
-        {status && <div className="mt-2.5 font-sans text-xs text-success">{status}</div>}
-      </div>
+      <PageHead title="Student Search" sub={sub} back />
 
       <div className="mb-5">
-        <label className="form-label">Search student by name</label>
-        <input className="ipc-input" value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Type a name to search…" />
+        <label className="form-label">Search student</label>
+        <input className="ipc-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a name, email, or phone…" />
       </div>
 
       <div>
-        {found.map((s, i) => (
+        {results.map((s, i) => (
           <div key={i} className="border border-line rounded-[10px] py-5 px-[22px] mb-2.5">
-            <div className="font-serif text-[22px] font-medium text-black mb-3">{s.name}</div>
+            <div className="font-serif text-[22px] font-medium text-black mb-3">{s.full_name || "—"}</div>
             <Row label="Phone" value={s.phone || "—"} />
             <Row label="Email" value={s.email || "—"} />
           </div>
         ))}
-        {q.trim() && found.length === 0 && data.length > 0 && (
-          <div className="text-center py-10 font-sans text-[13px] text-muted-foreground">No student found matching that name.</div>
+        {q.trim() && !loading && results.length === 0 && (
+          <div className="text-center py-10 font-sans text-[13px] text-muted-foreground">No student found matching that search.</div>
         )}
       </div>
     </div>
