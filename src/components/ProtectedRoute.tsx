@@ -1,0 +1,21 @@
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { ReactNode } from "react";
+
+export default function ProtectedRoute({ children, adminOnly }: { children: ReactNode; adminOnly?: boolean }) {
+  const { user, profile, isAdmin, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center font-sans text-sm text-muted-foreground">Loading…</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (profile && profile.status === "pending" && !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="max-w-md text-center">
+          <div className="font-serif text-2xl mb-3">Awaiting approval</div>
+          <p className="font-sans text-sm text-muted-foreground leading-relaxed">Your access request is under review by the admin. You'll receive an email once approved.</p>
+        </div>
+      </div>
+    );
+  }
+  if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
