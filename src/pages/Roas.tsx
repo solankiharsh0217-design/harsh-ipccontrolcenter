@@ -54,9 +54,17 @@ export default function Roas() {
   );
 }
 
+const Field = ({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string)=>void; placeholder: string }) => (
+  <div>
+    <label className="form-label">{label}</label>
+    <input className="ipc-input" type="number" placeholder={placeholder} value={value} onChange={(e)=>onChange(e.target.value)} />
+  </div>
+);
+
 const SubCard = ({ label, value }: { label: string; value: string }) => (
   <div className="bg-off rounded-md py-[14px] px-4">
     <div className="font-sans text-[9px] uppercase tracking-[0.1em] text-muted-foreground mb-[7px]">{label}</div>
     <div className="font-serif text-2xl font-medium text-black">{value}</div>
   </div>
 );
+
