@@ -2,104 +2,144 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* IPC Control Center — Design System
+ * Strict 3-color palette: black, white, gold + derived neutrals.
+ * Typography: Cormorant Garamond (display) + Jost (UI).
+ */
 
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 4%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --gold: 44 53% 54%;            /* #C8A84B */
+    --gold-pale: 46 73% 95%;       /* #FBF6E9 */
+    --gold-mid: 41 65% 76%;        /* #E8D49A */
+    --gold-deep: 41 78% 27%;       /* #7A5E10 */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --off: 40 14% 96%;             /* #F7F6F3 */
+    --line: 36 17% 89%;            /* #E8E5DE */
+    --muted: 0 0% 53%;             /* #888888 */
+    --muted-light: 0 0% 73%;       /* #BBBBBB */
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --black: 0 0% 4%;
+    --white: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* shadcn token mapping */
+    --card: var(--white);
+    --card-foreground: var(--black);
+    --popover: var(--white);
+    --popover-foreground: var(--black);
+    --primary: var(--black);
+    --primary-foreground: var(--white);
+    --secondary: var(--off);
+    --secondary-foreground: var(--black);
+    --muted-foreground: var(--muted);
+    --accent: var(--gold-pale);
+    --accent-foreground: var(--gold-deep);
+    --destructive: 0 73% 51%;
+    --destructive-foreground: var(--white);
+    --border: var(--line);
+    --input: var(--line);
+    --ring: var(--gold);
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --radius: 0.75rem; /* 12px cards */
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Status */
+    --success: 142 71% 45%;
+    --warn: 43 96% 40%;
+    --danger: 0 73% 51%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
+  * { @apply border-border; }
+  html { font-size: 16px; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Jost', sans-serif;
+    font-weight: 400;
+  }
+  .font-serif { font-family: 'Cormorant Garamond', serif; }
+  .font-sans  { font-family: 'Jost', sans-serif; }
+}
+
+@layer components {
+  .uppercase-label {
+    @apply uppercase;
+    font-family: 'Jost', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.13em;
+    color: hsl(var(--muted));
+  }
+  .nav-item {
+    @apply flex items-center gap-[9px] w-full text-left rounded-lg relative transition-colors;
+    padding: 9px 12px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    color: #666;
+    background: transparent;
+  }
+  .nav-item:hover { background: hsl(var(--off)); color: hsl(var(--black)); }
+  .nav-item[data-active="true"] { background: hsl(var(--gold-pale)); color: hsl(var(--black)); }
+  .nav-item[data-active="true"]::before {
+    content: '';
+    position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 2.5px; height: 54%;
+    background: hsl(var(--gold));
+    border-radius: 0 2px 2px 0;
+  }
+  .nav-item svg { width: 14px; height: 14px; opacity: 0.4; transition: opacity .13s; flex-shrink: 0; }
+  .nav-item:hover svg, .nav-item[data-active="true"] svg { opacity: 1; }
+
+  .ipc-input {
+    @apply w-full bg-white outline-none transition-colors;
+    height: 44px;
+    border: 1px solid hsl(var(--line));
+    border-radius: 9px;
+    padding: 0 15px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    color: hsl(var(--black));
+  }
+  .ipc-input:focus { border-color: hsl(var(--gold)); }
+  .ipc-input::placeholder { color: #ccc; }
+
+  .ipc-btn {
+    @apply inline-flex items-center justify-center gap-[7px] cursor-pointer transition-all;
+    height: 44px;
+    padding: 0 26px;
+    border-radius: 9px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+  }
+  .ipc-btn-black { background: hsl(var(--black)); color: hsl(var(--white)); }
+  .ipc-btn-black:hover { opacity: .82; }
+  .ipc-btn-ghost { background: hsl(var(--white)); color: hsl(var(--black)); border: 1px solid hsl(var(--line)); }
+  .ipc-btn-ghost:hover { background: hsl(var(--off)); border-color: #bbb; }
+
+  .form-label {
+    display: block;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: hsl(var(--black));
+    letter-spacing: .05em;
+    margin-bottom: 8px;
+    text-transform: uppercase;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  .section-divider {
+    font-family: 'Jost', sans-serif;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .15em;
+    color: hsl(var(--muted));
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid hsl(var(--line));
   }
 }
