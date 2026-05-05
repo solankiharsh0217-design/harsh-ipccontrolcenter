@@ -14,16 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      announcements: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          tag_type: Database["public"]["Enums"]["announcement_tag"]
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          tag_type?: Database["public"]["Enums"]["announcement_tag"]
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          tag_type?: Database["public"]["Enums"]["announcement_tag"]
+          title?: string
+        }
+        Relationships: []
+      }
+      attendance_logs: {
+        Row: {
+          full_name: string
+          id: string
+          login_date: string
+          login_time: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          full_name: string
+          id?: string
+          login_date?: string
+          login_time?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          full_name?: string
+          id?: string
+          login_date?: string
+          login_time?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lead_entries: {
+        Row: {
+          ad_spend: number
+          created_at: string
+          entry_date: string
+          id: string
+          leads: number
+          user_id: string
+        }
+        Insert: {
+          ad_spend: number
+          created_at?: string
+          entry_date: string
+          id?: string
+          leads: number
+          user_id: string
+        }
+        Update: {
+          ad_spend?: number
+          created_at?: string
+          entry_date?: string
+          id?: string
+          leads?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          department: string | null
+          email: string
+          full_name: string
+          id: string
+          role: string
+          status: Database["public"]["Enums"]["user_status"]
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          email: string
+          full_name: string
+          id: string
+          role: string
+          status?: Database["public"]["Enums"]["user_status"]
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          role?: string
+          status?: Database["public"]["Enums"]["user_status"]
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_active: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      announcement_tag: "info" | "update" | "urgent"
+      app_role: "admin" | "member"
+      user_status: "pending" | "active"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +287,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      announcement_tag: ["info", "update", "urgent"],
+      app_role: ["admin", "member"],
+      user_status: ["pending", "active"],
+    },
   },
 } as const
