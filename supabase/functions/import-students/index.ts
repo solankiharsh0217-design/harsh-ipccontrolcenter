@@ -100,19 +100,41 @@ Deno.serve(async (req) => {
         records.push({ source: sheet.source, full_name: name || null, email: email || null, phone: phone || null, search_text });
       }
 
-      // wipe and reinsert this source
+      // dedupe within sheet using contact key (email|phone). Blank-contact rows kept individually.
+      const seen = new Set<string>();
+      const deduped: any[] = [];
+      let dupSkipped = 0;
+      for (const rec of records) {
+        const key = (rec.email || "") + "|" + (rec.phone || "");
+        if (key === "|") { deduped.push(rec); continue; }
+        if (seen.has(key)) { dupSkipped++; continue; }
+        seen.add(key);
+        deduped.push(rec);
+      }
+
+      // wipe existing rows for this source
       await admin.from("students").delete().eq("source", sheet.source);
 
-      // chunk insert
+      // chunk insert with ignoreDuplicates upsert (safety net)
       let imported = 0;
+      let failedRows = 0;
       const chunkSize = 500;
-      for (let i = 0; i < records.length; i += chunkSize) {
-        const chunk = records.slice(i, i + chunkSize);
-        const { error, count } = await admin.from("students").insert(chunk, { count: "exact" });
-        if (error) { console.error("insert error", error); }
-        else imported += (count ?? chunk.length);
+      for (let i = 0; i < deduped.length; i += chunkSize) {
+        const chunk = deduped.slice(i, i + chunkSize);
+        const { error } = await admin
+          .from("students")
+          .upsert(chunk, { onConflict: "source,email,phone", ignoreDuplicates: true });
+        if (error) {
+          console.error("batch upsert error, falling back to row-by-row", error);
+          for (const row of chunk) {
+            const { error: e2 } = await admin.from("students").insert(row);
+            if (e2) { failedRows++; } else { imported++; }
+          }
+        } else {
+          imported += chunk.length;
+        }
       }
-      results[sheet.source] = { total: records.length, imported };
+      results[sheet.source] = { total: records.length, deduped: deduped.length, dupSkipped, imported, failedRows };
     }
 
     return new Response(JSON.stringify({ ok: true, results }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
