@@ -68,8 +68,10 @@ Deno.serve(async (req) => {
     if (!user) return new Response(JSON.stringify({ error: "Unauthenticated" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const admin = createClient(supaUrl, serviceKey);
-    const { data: roleRow } = await admin.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-    if (!roleRow) return new Response(JSON.stringify({ error: "Admin only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const { data: prof } = await admin.from("profiles").select("status").eq("id", user.id).maybeSingle();
+    if (!prof || prof.status !== "active") {
+      return new Response(JSON.stringify({ error: "Active members only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const results: Record<string, { total: number; imported: number }> = {};
 
