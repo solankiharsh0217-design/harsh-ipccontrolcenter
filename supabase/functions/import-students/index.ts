@@ -115,17 +115,14 @@ Deno.serve(async (req) => {
       // wipe existing rows for this source
       await admin.from("students").delete().eq("source", sheet.source);
 
-      // chunk insert with ignoreDuplicates upsert (safety net)
+      // chunk insert; on conflict/error fall back to row-by-row so one bad row can't kill a batch
       let imported = 0;
       let failedRows = 0;
       const chunkSize = 500;
       for (let i = 0; i < deduped.length; i += chunkSize) {
         const chunk = deduped.slice(i, i + chunkSize);
-        const { error } = await admin
-          .from("students")
-          .upsert(chunk, { onConflict: "source,email,phone", ignoreDuplicates: true });
+        const { error } = await admin.from("students").insert(chunk);
         if (error) {
-          console.error("batch upsert error, falling back to row-by-row", error);
           for (const row of chunk) {
             const { error: e2 } = await admin.from("students").insert(row);
             if (e2) { failedRows++; } else { imported++; }
