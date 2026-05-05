@@ -17,6 +17,28 @@ export default function Admin() {
   const [aTag, setATag] = useState<"info"|"update"|"urgent">("info");
   const [busy, setBusy] = useState(false);
 
+  // add member form
+  const ROLES = ["Media Buyer","Backend Operations","Community Manager","Content Creator","Operations Lead","Photography Lead","Admin"];
+  const [mName, setMName] = useState("");
+  const [mEmail, setMEmail] = useState("");
+  const [mPass, setMPass] = useState("");
+  const [mRole, setMRole] = useState("Media Buyer");
+  const [mDept, setMDept] = useState("");
+  const [mBusy, setMBusy] = useState(false);
+
+  const addMember = async () => {
+    if (!mName || !mEmail || !mPass) return toast.error("Name, email and password required.");
+    setMBusy(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-member", {
+      body: { full_name: mName, email: mEmail, password: mPass, role: mRole, department: mDept || null },
+    });
+    setMBusy(false);
+    if (error || (data as any)?.error) return toast.error((data as any)?.error || error!.message);
+    toast.success(`${mName} added and activated.`);
+    setMName(""); setMEmail(""); setMPass(""); setMDept("");
+    load();
+  };
+
   const load = async () => {
     const { data: p } = await supabase.from("profiles").select("*").eq("status","pending").order("created_at");
     setPending(p ?? []);
@@ -68,6 +90,28 @@ export default function Admin() {
         <Stat label="Logins today" value={stats.today} />
         <Stat label="Pending approvals" value={stats.pending} />
         <Stat label="Announcements posted" value={stats.anns} />
+      </div>
+
+      <SectionLabel>Add team member directly</SectionLabel>
+      <div className="bg-off rounded-xl py-[22px] px-6 mb-7">
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div><label className="form-label">Full name</label>
+            <input className="ipc-input" value={mName} onChange={(e)=>setMName(e.target.value)} placeholder="Full name" /></div>
+          <div><label className="form-label">Email</label>
+            <input className="ipc-input" type="email" value={mEmail} onChange={(e)=>setMEmail(e.target.value)} placeholder="name@ipc.in" /></div>
+          <div><label className="form-label">Temporary password</label>
+            <input className="ipc-input" type="text" value={mPass} onChange={(e)=>setMPass(e.target.value)} placeholder="Set a password" /></div>
+          <div><label className="form-label">Role</label>
+            <select className="ipc-input cursor-pointer" value={mRole} onChange={(e)=>setMRole(e.target.value)}>
+              {ROLES.map(r => <option key={r}>{r}</option>)}
+            </select></div>
+          <div className="col-span-2"><label className="form-label">Department (optional)</label>
+            <input className="ipc-input" value={mDept} onChange={(e)=>setMDept(e.target.value)} placeholder="e.g. Marketing" /></div>
+        </div>
+        <div className="flex justify-end">
+          <button disabled={mBusy} onClick={addMember} className="ipc-btn ipc-btn-black">{mBusy ? "Adding…" : "Add member"}</button>
+        </div>
+        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — share the credentials with them.</p>
       </div>
 
       <SectionLabel>Pending access requests</SectionLabel>
