@@ -53,15 +53,49 @@ export default function Crm() {
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
-    return list;
-  }, [leads, activePipeline, filter]);
+    if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
+    return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  }, [leads, activePipeline, filter, batchFilter]);
 
-  const onDrop = async (e: React.DragEvent, stageId: string) => {
+  // Group leads into webinar batches (cards on the Batches view)
+  const batches = useMemo(() => {
+    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; created: string | null }>();
+    for (const l of leads) {
+      const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
+      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, created: l.created_at };
+      cur.total++;
+      if (l.is_super_hot) cur.superHot++;
+      if (l.grade === "hot") cur.hot++;
+      else if (l.grade === "warm") cur.warm++;
+      else if (l.grade === "cold") cur.cold++;
+      if (!cur.created || (l.created_at && l.created_at > cur.created)) cur.created = l.created_at;
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
+  }, [leads]);
+
+  const onDrop = async (e: React.DragEvent, stageId: string, beforeLeadId?: string) => {
     e.preventDefault();
+    e.stopPropagation();
     const id = e.dataTransfer.getData("text/plain");
     if (!id) return;
-    await supabase.from("leads").update({ stage_id: stageId }).eq("id", id);
-    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage_id: stageId } : l));
+    // Compute new sort_order based on neighbors in target stage
+    const targetList = leads.filter((l) => l.pipeline_id === activePipeline && l.stage_id === stageId && l.id !== id)
+      .slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    let newOrder = 0;
+    if (beforeLeadId) {
+      const idx = targetList.findIndex((l) => l.id === beforeLeadId);
+      const before: any = targetList[idx - 1];
+      const after: any = targetList[idx];
+      const a = before ? Number(before.sort_order || 0) : (after ? Number(after.sort_order || 0) - 1000 : 0);
+      const b = after ? Number(after.sort_order || 0) : (before ? Number(before.sort_order || 0) + 1000 : 0);
+      newOrder = (a + b) / 2;
+    } else {
+      const last: any = targetList[targetList.length - 1];
+      newOrder = last ? Number(last.sort_order || 0) + 1000 : 0;
+    }
+    await supabase.from("leads").update({ stage_id: stageId, sort_order: newOrder }).eq("id", id);
+    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage_id: stageId, sort_order: newOrder } as any : l));
   };
 
   const createPipeline = async () => {
