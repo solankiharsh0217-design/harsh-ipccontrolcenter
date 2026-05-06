@@ -262,7 +262,42 @@ export default function Crm() {
         </div>
       )}
 
-      {/* List view */}
+      {/* Batches view — one card per webinar import */}
+      {view === "batches" && (
+        <div>
+          {batches.length === 0 && <div className="text-sm text-muted-foreground">No imports yet. Use Lead Qualifier → Send to CRM to import a batch.</div>}
+          <div className="grid grid-cols-3 gap-4">
+            {batches.map((b) => {
+              const pipe = pipelines.find((p) => p.id === b.pipelineId);
+              return (
+                <button
+                  key={b.key}
+                  onClick={() => {
+                    if (b.pipelineId) setActivePipeline(b.pipelineId);
+                    setBatchFilter(b.name);
+                    setView("kanban");
+                  }}
+                  className="text-left p-5 rounded-xl border border-line bg-white hover:shadow-md hover:border-gold transition-all"
+                >
+                  <div className="uppercase-label !text-[10px]">{b.date || "—"}</div>
+                  <div className="font-serif text-lg mt-1 line-clamp-2">{b.name}</div>
+                  <div className="text-[11px] text-muted-foreground mt-1">{pipe?.name || "—"}</div>
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="font-serif text-3xl">{b.total}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">leads</div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-3 text-[10px]">
+                    {b.superHot > 0 && <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES["super-hot"].bg, color: GRADE_STYLES["super-hot"].fg, border: `1px solid ${GRADE_STYLES["super-hot"].border}` }}>★ {b.superHot}</span>}
+                    <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.hot.bg, color: GRADE_STYLES.hot.fg, border: `1px solid ${GRADE_STYLES.hot.border}` }}>{b.hot} hot</span>
+                    <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.warm.bg, color: GRADE_STYLES.warm.fg, border: `1px solid ${GRADE_STYLES.warm.border}` }}>{b.warm} warm</span>
+                    <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.cold.bg, color: GRADE_STYLES.cold.fg, border: `1px solid ${GRADE_STYLES.cold.border}` }}>{b.cold} cold</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {view === "list" && (
         <div className="rounded-xl border border-line overflow-hidden">
           <table className="w-full font-sans text-sm">
