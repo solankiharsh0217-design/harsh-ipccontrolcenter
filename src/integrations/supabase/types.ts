@@ -229,6 +229,7 @@ export type Database = {
           program_name: string
           score: number
           sessions_count: number
+          sort_order: number
           stage_id: string | null
           total_minutes: number
           updated_at: string
@@ -255,6 +256,7 @@ export type Database = {
           program_name?: string
           score?: number
           sessions_count?: number
+          sort_order?: number
           stage_id?: string | null
           total_minutes?: number
           updated_at?: string
@@ -281,6 +283,7 @@ export type Database = {
           program_name?: string
           score?: number
           sessions_count?: number
+          sort_order?: number
           stage_id?: string | null
           total_minutes?: number
           updated_at?: string
