@@ -31,22 +31,41 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   // Load metadata when opening step 3
   const goToStep3 = async () => {
     setLoading(true);
-    const [{ data: ag }, { data: pl }, { data: st }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, role, status").eq("status", "active"),
-      supabase.from("pipelines").select("*").order("position"),
-      supabase.from("stages").select("*").order("position"),
-    ]);
-    setAgents((ag || []).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")) as any);
-    setPipelines(pl || []);
-    setStages(st || []);
-    // detect super hot by email match
-    const emails = result.leads.map((l) => l.email).filter(Boolean);
-    if (emails.length) {
-      const { data: existing } = await supabase.from("leads").select("email").in("email", emails);
-      setSuperHotEmails(new Set((existing || []).map((e: any) => (e.email || "").toLowerCase())));
+    setPipelineNotice("");
+    try {
+      // Make sure a pipeline of the chosen type exists; auto-create if not.
+      let createdNow = false;
+      let { data: pl } = await supabase.from("pipelines").select("*").order("position");
+      const matching = (pl || []).filter((p: any) => p.type === leadType);
+      if (matching.length === 0) {
+        setPipelineNotice("No pipeline found — creating default…");
+        await ensurePipelineExists(supabase, leadType);
+        createdNow = true;
+        const reload = await supabase.from("pipelines").select("*").order("position");
+        pl = reload.data || [];
+      }
+      const [{ data: ag }, { data: st }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, role, status").eq("status", "active"),
+        supabase.from("stages").select("*").order("position"),
+      ]);
+      setAgents((ag || []).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")) as any);
+      setPipelines(pl || []);
+      setStages(st || []);
+      const defaultPipe = (pl || []).find((p: any) => p.type === leadType) || (pl || [])[0];
+      setTargetPipelineId(defaultPipe?.id || "");
+      if (createdNow) setPipelineNotice(`Created default ${leadType} pipeline.`);
+      // detect super hot by email match
+      const emails = result.leads.map((l) => l.email).filter(Boolean);
+      if (emails.length) {
+        const { data: existing } = await supabase.from("leads").select("email").in("email", emails);
+        setSuperHotEmails(new Set((existing || []).map((e: any) => (e.email || "").toLowerCase())));
+      }
+      setStep(3);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to prepare pipeline");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    setStep(3);
   };
 
   const counts = useMemo(() => {
