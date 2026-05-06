@@ -17,6 +17,8 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const [step, setStep] = useState(1);
   const [date, setDate] = useState(result.webinarDate?.slice(0, 10) || new Date().toISOString().slice(0, 10));
   const [name, setName] = useState(result.webinarName || "");
+  const [productName, setProductName] = useState("IPC Diamond Program");
+  const [dealValue, setDealValue] = useState<number>(118000);
   const [leadType, setLeadType] = useState<"unpaid" | "paid">("unpaid");
   const [assignment, setAssignment] = useState<"round_robin"|"hot_to_top"|"unassigned">("unassigned");
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
