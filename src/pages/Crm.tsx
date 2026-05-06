@@ -252,44 +252,125 @@ export default function Crm() {
         </div>
       )}
 
-      {/* Stage manager */}
-      {view === "stages" && (
-        <div className="max-w-2xl space-y-2">
-          {pipelineStages.map((s) => {
-            const count = leads.filter((l) => l.stage_id === s.id).length;
-            const color = STAGE_COLORS[s.color] || "#888";
-            return (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg border border-line bg-white">
-                <span className="text-muted-foreground">⠿</span>
-                <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                <span className="font-sans text-sm flex-1">{s.name}</span>
-                <span className="text-xs text-muted-foreground">{count} leads</span>
-                {s.is_protected ? <span className="text-[10px] uppercase text-muted-foreground">Protected</span> :
-                  <button onClick={() => deleteStage(s)} className="text-muted-foreground hover:text-[#DC2626] text-xs">✕</button>}
+      {/* Pipeline Designer */}
+      {view === "stages" && (() => {
+        const pipe = pipelines.find((p) => p.id === activePipeline);
+        if (!pipe) return <div className="text-sm text-muted-foreground">Select or create a pipeline below.</div>;
+        const attachedLeads = leads.filter((l) => l.pipeline_id === pipe.id).length;
+        return (
+          <div className="max-w-3xl space-y-5">
+            {/* Pipeline header */}
+            <div className="p-4 rounded-xl border border-line bg-white space-y-3">
+              <div className="uppercase-label !text-[10px]">Pipeline</div>
+              <div className="flex flex-wrap gap-2 items-end">
+                <div className="flex-1 min-w-[220px]">
+                  <label className="form-label">Name</label>
+                  <input type="text" className="ipc-input" defaultValue={pipe.name}
+                    onBlur={(e) => e.target.value !== pipe.name && renamePipeline(pipe.id, e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label">Type</label>
+                  <select className="ipc-input" value={pipe.type} onChange={(e) => setPipelineType(pipe.id, e.target.value as any)}>
+                    <option value="unpaid">Unpaid (Sales)</option>
+                    <option value="paid">Paid (Onboarding)</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+                <button onClick={() => deletePipeline(pipe.id)} className="ipc-btn ipc-btn-ghost text-[#DC2626] hover:text-[#DC2626]">
+                  <Trash2 className="w-3.5 h-3.5" /> Delete pipeline
+                </button>
               </div>
-            );
-          })}
-          <div className="flex gap-2 pt-2">
-            <input type="text" className="ipc-input flex-1" placeholder="New stage name…" value={newStageName} onChange={(e) => setNewStageName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addStage()} />
-            <button onClick={addStage} className="ipc-btn ipc-btn-black"><Plus className="w-3.5 h-3.5" /> Add stage</button>
+              <div className="text-[11px] text-muted-foreground">{attachedLeads} leads attached · {pipelineStages.length} stages</div>
+            </div>
+
+            {/* Stages */}
+            <div className="space-y-2">
+              <div className="uppercase-label !text-[10px]">Stages</div>
+              {pipelineStages.map((s, i) => {
+                const count = leads.filter((l) => l.stage_id === s.id).length;
+                return (
+                  <div key={s.id} className="p-3 rounded-lg border border-line bg-white">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex flex-col">
+                        <button disabled={i === 0} onClick={() => moveStage(s, -1)} className="text-muted-foreground hover:text-black disabled:opacity-20"><ArrowUp className="w-3 h-3" /></button>
+                        <button disabled={i === pipelineStages.length - 1} onClick={() => moveStage(s, 1)} className="text-muted-foreground hover:text-black disabled:opacity-20"><ArrowDown className="w-3 h-3" /></button>
+                      </div>
+                      <input type="text" defaultValue={s.name}
+                        onBlur={(e) => e.target.value !== s.name && updateStage(s.id, { name: e.target.value })}
+                        className="ipc-input flex-1 min-w-[160px] !h-9" />
+                      <div className="flex items-center gap-1">
+                        {STAGE_COLOR_OPTIONS.map((c) => (
+                          <button key={c.key} title={c.key} onClick={() => updateStage(s.id, { color: c.key })}
+                            className={`w-5 h-5 rounded-full border-2 ${s.color === c.key ? "border-black" : "border-transparent"}`}
+                            style={{ background: c.hex }} />
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground">{count} leads</span>
+                      <button onClick={() => deleteStage(s)} className="text-muted-foreground hover:text-[#DC2626]" title="Delete stage"><XIcon className="w-4 h-4" /></button>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 ml-7 text-[11px]">
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={s.is_won} onChange={(e) => updateStage(s.id, { is_won: e.target.checked, is_lost: e.target.checked ? false : s.is_lost })} />
+                        <Trophy className="w-3 h-3 text-[#16A34A]" /> Won
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={s.is_lost} onChange={(e) => updateStage(s.id, { is_lost: e.target.checked, is_won: e.target.checked ? false : s.is_won })} />
+                        <span className="text-[#DC2626]">✕</span> Lost
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={s.is_protected} onChange={(e) => updateStage(s.id, { is_protected: e.target.checked })} />
+                        Protected
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+              {pipelineStages.length === 0 && <div className="text-xs text-muted-foreground p-4 border border-dashed border-line rounded-lg text-center">No stages yet — add one below.</div>}
+            </div>
+
+            {/* Add stage */}
+            <div className="p-3 rounded-lg border border-line bg-off flex flex-wrap gap-2 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="form-label">New stage name</label>
+                <input type="text" className="ipc-input" placeholder="e.g. Demo Booked" value={newStageName} onChange={(e) => setNewStageName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addStage()} />
+              </div>
+              <div>
+                <label className="form-label">Color</label>
+                <div className="flex items-center gap-1 h-10">
+                  {STAGE_COLOR_OPTIONS.map((c) => (
+                    <button key={c.key} onClick={() => setNewStageColor(c.key)}
+                      className={`w-6 h-6 rounded-full border-2 ${newStageColor === c.key ? "border-black" : "border-transparent"}`}
+                      style={{ background: c.hex }} />
+                  ))}
+                </div>
+              </div>
+              <button onClick={addStage} className="ipc-btn ipc-btn-black"><Plus className="w-3.5 h-3.5" /> Add stage</button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Pipeline tabs (bottom bar) */}
-      <div className="fixed bottom-0 left-[228px] right-0 bg-white border-t border-line px-10 py-2.5 flex items-center gap-2 z-40">
+      <div className="fixed bottom-0 left-[228px] right-0 bg-white border-t border-line px-10 py-2.5 flex items-center gap-2 z-40 overflow-x-auto">
         {pipelines.map((p) => {
           const isActive = p.id === activePipeline;
           const dot = p.type === "paid" ? "#16A34A" : p.type === "unpaid" ? "#2563EB" : "#C8A84B";
           return (
-            <button key={p.id} onClick={() => setActivePipeline(p.id)} className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 border ${isActive ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"}`}>
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
-              {p.name}
-              <span className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leads.filter((l) => l.pipeline_id === p.id).length}</span>
-            </button>
+            <div key={p.id} className={`flex items-center rounded-lg border ${isActive ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"}`}>
+              <button onClick={() => setActivePipeline(p.id)} className="px-3 py-1.5 text-xs flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
+                {p.name}
+                <span className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leads.filter((l) => l.pipeline_id === p.id).length}</span>
+              </button>
+              {isActive && (
+                <button onClick={() => setView("stages")} title="Design pipeline" className="px-2 py-1.5 border-l border-white/20 hover:bg-white/10">
+                  <Settings2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           );
         })}
-        <button onClick={() => setNewPipeline(true)} className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 border border-dashed border-line text-muted-foreground hover:text-black">
+        <button onClick={() => setNewPipeline(true)} className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 border border-dashed border-line text-muted-foreground hover:text-black flex-shrink-0">
           <Plus className="w-3.5 h-3.5" /> New Pipeline
         </button>
       </div>
@@ -297,9 +378,24 @@ export default function Crm() {
       {/* New pipeline modal */}
       {newPipeline && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setNewPipeline(false)}>
-          <div className="bg-white rounded-xl border border-line w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="font-serif text-xl mb-4">New pipeline</div>
-            <input type="text" className="ipc-input mb-4" placeholder="Pipeline name…" value={newPipelineName} onChange={(e) => setNewPipelineName(e.target.value)} autoFocus />
+          <div className="bg-white rounded-xl border border-line w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="font-serif text-xl">New pipeline</div>
+            <div>
+              <label className="form-label">Pipeline name</label>
+              <input type="text" className="ipc-input" placeholder="e.g. Q3 Webinar Funnel" value={newPipelineName} onChange={(e) => setNewPipelineName(e.target.value)} autoFocus />
+            </div>
+            <div>
+              <label className="form-label">Type</label>
+              <select className="ipc-input" value={newPipelineType} onChange={(e) => setNewPipelineType(e.target.value as any)}>
+                <option value="custom">Custom</option>
+                <option value="unpaid">Unpaid (Sales)</option>
+                <option value="paid">Paid (Onboarding)</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={newPipelineSeed} onChange={(e) => setNewPipelineSeed(e.target.checked)} />
+              Seed with default stages for this type
+            </label>
             <div className="flex justify-end gap-2">
               <button onClick={() => setNewPipeline(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
               <button onClick={createPipeline} className="ipc-btn ipc-btn-black">Create</button>
@@ -307,6 +403,7 @@ export default function Crm() {
           </div>
         </div>
       )}
+
 
       {/* Spacer for fixed bottom bar */}
       <div className="h-14" />
