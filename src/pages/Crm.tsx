@@ -227,6 +227,8 @@ export default function Crm() {
                         <div key={l.id}
                           draggable
                           onDragStart={(e) => e.dataTransfer.setData("text/plain", l.id)}
+                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          onDrop={(e) => onDrop(e, s.id, l.id)}
                           onClick={() => setOpenLead(l.id)}
                           className="p-3 rounded-lg border cursor-pointer hover:shadow-sm"
                           style={{ background: cardBg, borderColor: cardBorder }}>
