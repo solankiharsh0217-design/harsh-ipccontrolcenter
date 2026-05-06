@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          channel: Database["public"]["Enums"]["activity_channel"]
+          id: string
+          lead_id: string
+          logged_at: string
+          note: string
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_name?: string | null
+          channel?: Database["public"]["Enums"]["activity_channel"]
+          id?: string
+          lead_id: string
+          logged_at?: string
+          note: string
+        }
+        Update: {
+          agent_id?: string | null
+          agent_name?: string | null
+          channel?: Database["public"]["Enums"]["activity_channel"]
+          id?: string
+          lead_id?: string
+          logged_at?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           body: string
@@ -68,6 +106,50 @@ export type Database = {
         }
         Relationships: []
       }
+      follow_up_reminders: {
+        Row: {
+          agent_id: string | null
+          channel: Database["public"]["Enums"]["activity_channel"]
+          created_at: string
+          id: string
+          is_completed: boolean
+          lead_id: string
+          note: string | null
+          reminder_date: string
+          reminder_time: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          channel?: Database["public"]["Enums"]["activity_channel"]
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          lead_id: string
+          note?: string | null
+          reminder_date: string
+          reminder_time?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          channel?: Database["public"]["Enums"]["activity_channel"]
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          lead_id?: string
+          note?: string | null
+          reminder_date?: string
+          reminder_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_reminders_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_entries: {
         Row: {
           ad_spend: number
@@ -92,6 +174,162 @@ export type Database = {
           id?: string
           leads?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      lead_qualifier_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          registrants: number | null
+          total_duration: number | null
+          uploaded_by: string | null
+          viewers: number | null
+          webinar_date: string | null
+          webinar_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          registrants?: number | null
+          total_duration?: number | null
+          uploaded_by?: string | null
+          viewers?: number | null
+          webinar_date?: string | null
+          webinar_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          registrants?: number | null
+          total_duration?: number | null
+          uploaded_by?: string | null
+          viewers?: number | null
+          webinar_date?: string | null
+          webinar_name?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          assigned_agent_id: string | null
+          attendance_pct: number
+          country: string | null
+          created_at: string
+          deal_value: number
+          email: string | null
+          first_join_time: string | null
+          full_name: string | null
+          grade: Database["public"]["Enums"]["lead_grade"]
+          id: string
+          is_super_hot: boolean
+          lead_type: Database["public"]["Enums"]["lead_type"]
+          phone: string | null
+          pipeline_id: string | null
+          program_name: string
+          score: number
+          sessions_count: number
+          stage_id: string | null
+          total_minutes: number
+          updated_at: string
+          webinar_count: number
+          webinar_date: string | null
+          webinar_name: string | null
+          webinar_source: string | null
+        }
+        Insert: {
+          assigned_agent_id?: string | null
+          attendance_pct?: number
+          country?: string | null
+          created_at?: string
+          deal_value?: number
+          email?: string | null
+          first_join_time?: string | null
+          full_name?: string | null
+          grade?: Database["public"]["Enums"]["lead_grade"]
+          id?: string
+          is_super_hot?: boolean
+          lead_type?: Database["public"]["Enums"]["lead_type"]
+          phone?: string | null
+          pipeline_id?: string | null
+          program_name?: string
+          score?: number
+          sessions_count?: number
+          stage_id?: string | null
+          total_minutes?: number
+          updated_at?: string
+          webinar_count?: number
+          webinar_date?: string | null
+          webinar_name?: string | null
+          webinar_source?: string | null
+        }
+        Update: {
+          assigned_agent_id?: string | null
+          attendance_pct?: number
+          country?: string | null
+          created_at?: string
+          deal_value?: number
+          email?: string | null
+          first_join_time?: string | null
+          full_name?: string | null
+          grade?: Database["public"]["Enums"]["lead_grade"]
+          id?: string
+          is_super_hot?: boolean
+          lead_type?: Database["public"]["Enums"]["lead_type"]
+          phone?: string | null
+          pipeline_id?: string | null
+          program_name?: string
+          score?: number
+          sessions_count?: number
+          stage_id?: string | null
+          total_minutes?: number
+          updated_at?: string
+          webinar_count?: number
+          webinar_date?: string | null
+          webinar_name?: string | null
+          webinar_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipelines: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          position: number
+          type: Database["public"]["Enums"]["pipeline_type"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          position?: number
+          type?: Database["public"]["Enums"]["pipeline_type"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          position?: number
+          type?: Database["public"]["Enums"]["pipeline_type"]
         }
         Relationships: []
       }
@@ -124,6 +362,50 @@ export type Database = {
           status?: Database["public"]["Enums"]["user_status"]
         }
         Relationships: []
+      }
+      stages: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          is_lost: boolean
+          is_protected: boolean
+          is_won: boolean
+          name: string
+          pipeline_id: string
+          position: number
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_lost?: boolean
+          is_protected?: boolean
+          is_won?: boolean
+          name: string
+          pipeline_id: string
+          position?: number
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          is_lost?: boolean
+          is_protected?: boolean
+          is_won?: boolean
+          name?: string
+          pipeline_id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       students: {
         Row: {
@@ -200,8 +482,24 @@ export type Database = {
       students_count: { Args: never; Returns: number }
     }
     Enums: {
+      activity_channel:
+        | "call"
+        | "whatsapp"
+        | "email"
+        | "sms"
+        | "note"
+        | "system"
       announcement_tag: "info" | "update" | "urgent"
       app_role: "admin" | "member"
+      lead_grade:
+        | "hot"
+        | "warm"
+        | "cold"
+        | "non-attendee"
+        | "super-hot"
+        | "very-cold"
+      lead_type: "paid" | "unpaid"
+      pipeline_type: "unpaid" | "paid" | "custom"
       user_status: "pending" | "active"
     }
     CompositeTypes: {
@@ -330,8 +628,19 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      activity_channel: ["call", "whatsapp", "email", "sms", "note", "system"],
       announcement_tag: ["info", "update", "urgent"],
       app_role: ["admin", "member"],
+      lead_grade: [
+        "hot",
+        "warm",
+        "cold",
+        "non-attendee",
+        "super-hot",
+        "very-cold",
+      ],
+      lead_type: ["paid", "unpaid"],
+      pipeline_type: ["unpaid", "paid", "custom"],
       user_status: ["pending", "active"],
     },
   },
