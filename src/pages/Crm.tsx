@@ -17,6 +17,7 @@ export default function Crm() {
   const [view, setView] = useState<View>("kanban");
   const [openLead, setOpenLead] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
+  const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
   const [newPipeline, setNewPipeline] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState("");
   const [newPipelineType, setNewPipelineType] = useState<"unpaid"|"paid"|"custom">("custom");
