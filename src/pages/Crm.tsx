@@ -6,7 +6,7 @@ import LeadDrawer from "@/components/LeadDrawer";
 import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon } from "lucide-react";
 import { toast } from "sonner";
 
-type View = "kanban" | "list" | "stages";
+type View = "kanban" | "list" | "stages" | "batches";
 
 export default function Crm() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
