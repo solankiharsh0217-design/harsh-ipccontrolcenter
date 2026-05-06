@@ -216,6 +216,17 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
             ))}
           </div>
         </div>
+
+        {/* Sticky Save & Close */}
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex items-center justify-between gap-3">
+          <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
+          <button
+            onClick={() => { toast.success("Saved"); onChanged(); onClose(); }}
+            className="ipc-btn !bg-[#16A34A] hover:!bg-[#15803D] !text-white !h-10 flex-1"
+          >
+            Save & Close
+          </button>
+        </div>
       </div>
     </div>
   );
