@@ -223,8 +223,18 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
                 </button>
               ))}
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">Product / Program name</label>
+                <input type="text" className="ipc-input" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="e.g. Diamond Program" />
+              </div>
+              <div>
+                <label className="form-label">Deal value (₹) per lead</label>
+                <input type="number" min={0} className="ipc-input" value={dealValue} onChange={(e) => setDealValue(Number(e.target.value) || 0)} />
+              </div>
+            </div>
             <div className="p-3 rounded-lg bg-[#FBF6E9] border border-[#E8D49A] font-sans text-xs">
-              <span className="font-medium">IPC Diamond Program</span> · ₹1,00,000 + GST = ₹1,18,000 auto-attached as deal value.
+              <span className="font-medium">{productName || "Product"}</span> · ₹{dealValue.toLocaleString("en-IN")} will be attached as deal value to every imported lead. You can change this per lead later.
             </div>
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(1)} className="ipc-btn ipc-btn-ghost">Back</button>
