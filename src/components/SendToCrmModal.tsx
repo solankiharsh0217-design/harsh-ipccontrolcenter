@@ -83,9 +83,18 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const importNow = async () => {
     setImporting(true);
     try {
-      const pipeline = pipelines.find((p) => p.type === leadType) || pipelines[0];
-      if (!pipeline) { toast.error("No pipeline found"); setImporting(false); return; }
-      const pipelineStages = stages.filter((s) => s.pipeline_id === pipeline.id).sort((a, b) => a.position - b.position);
+      let pipeline = pipelines.find((p) => p.id === targetPipelineId)
+                  || pipelines.find((p) => p.type === leadType)
+                  || pipelines[0];
+      let pipelineStages = pipeline ? stages.filter((s) => s.pipeline_id === pipeline.id).sort((a, b) => a.position - b.position) : [];
+      // Last-resort fallback: auto-create if still missing
+      if (!pipeline || pipelineStages.length === 0) {
+        const ensured = await ensurePipelineExists(supabase, leadType);
+        const { data: pl } = await supabase.from("pipelines").select("*").eq("id", ensured.pipelineId).maybeSingle();
+        const { data: st } = await supabase.from("stages").select("*").eq("pipeline_id", ensured.pipelineId).order("position");
+        pipeline = pl;
+        pipelineStages = (st || []) as any;
+      }
       const firstStage = pipelineStages[0];
       const activeAgents = agents;
       let rr = 0;
