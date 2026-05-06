@@ -89,7 +89,6 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
                   || pipelines.find((p) => p.type === leadType)
                   || pipelines[0];
       let pipelineStages = pipeline ? stages.filter((s) => s.pipeline_id === pipeline.id).sort((a, b) => a.position - b.position) : [];
-      // Last-resort fallback: auto-create if still missing
       if (!pipeline || pipelineStages.length === 0) {
         const ensured = await ensurePipelineExists(supabase, leadType);
         const { data: pl } = await supabase.from("pipelines").select("*").eq("id", ensured.pipelineId).maybeSingle();
@@ -101,54 +100,80 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
       const activeAgents = agents;
       let rr = 0;
 
-      // Save session
       await supabase.from("lead_qualifier_sessions").insert({
         webinar_name: name, webinar_date: date,
         total_duration: result.durationMin, registrants: result.registrants,
         viewers: result.viewers, uploaded_by: profile?.id,
       });
 
-      let imported = 0; let updated = 0; let skipped = 0;
+      // 1) Find all existing emails in one query (for super-hot detection / dedupe)
+      const allEmails = result.leads.map((l) => l.email).filter(Boolean);
+      const existingMap = new Map<string, { id: string; webinar_count: number }>();
+      if (allEmails.length) {
+        const chunkSize = 500;
+        for (let i = 0; i < allEmails.length; i += chunkSize) {
+          const chunk = allEmails.slice(i, i + chunkSize);
+          const { data: ex } = await supabase.from("leads").select("id, email, webinar_count").in("email", chunk);
+          (ex || []).forEach((r: any) => existingMap.set((r.email || "").toLowerCase(), { id: r.id, webinar_count: r.webinar_count || 1 }));
+        }
+      }
+
+      const toInsert: any[] = [];
+      const toUpdate: { id: string; patch: any; activity: any }[] = [];
+      let skipped = 0;
+
       for (const l of result.leads) {
         if (!l.email) { skipped++; continue; }
-        const isSH = superHotEmails.has(l.email);
+        const existing = existingMap.get(l.email.toLowerCase());
+        const isSH = !!existing;
         let agentId: string | null = null;
         if (assignment === "round_robin" && activeAgents.length) {
           agentId = activeAgents[rr % activeAgents.length].id; rr++;
         } else if (assignment === "hot_to_top" && (l.grade === "hot" || isSH) && activeAgents.length) {
           agentId = activeAgents[rr % Math.min(2, activeAgents.length)].id; rr++;
         }
-
-        const grade = (isSH ? "super-hot" : l.grade) as "hot"|"warm"|"cold"|"non-attendee"|"super-hot"|"very-cold";
-        const payload = {
+        const grade = (isSH ? "super-hot" : l.grade) as any;
+        const payload: any = {
           full_name: l.name, email: l.email, phone: l.phone || null, country: l.country || null,
           score: l.score, grade,
           webinar_source: name, webinar_date: date, webinar_name: name,
           pipeline_id: pipeline.id, stage_id: firstStage?.id ?? null,
           assigned_agent_id: agentId, lead_type: leadType,
+          program_name: productName, deal_value: dealValue,
           total_minutes: l.totalMinutes, attendance_pct: l.attendancePct,
           sessions_count: l.sessions, first_join_time: l.firstJoin || null,
           is_super_hot: isSH,
         };
-
-        if (isSH) {
-          // update existing + bump webinar_count
-          const { data: ex } = await supabase.from("leads").select("id, webinar_count").eq("email", l.email).maybeSingle();
-          if (ex) {
-            await supabase.from("leads").update({ ...payload, webinar_count: (ex.webinar_count || 1) + 1 }).eq("id", ex.id);
-            await supabase.from("activity_logs").insert({
-              lead_id: ex.id, agent_id: profile?.id, agent_name: profile?.full_name,
-              channel: "system", note: `Auto-upgraded to Super Hot — attended ${name}`,
-            });
-            updated++;
-          } else {
-            const { data: ins } = await supabase.from("leads").insert(payload).select("id").maybeSingle();
-            if (ins) imported++;
-          }
+        if (existing) {
+          toUpdate.push({
+            id: existing.id,
+            patch: { ...payload, webinar_count: existing.webinar_count + 1 },
+            activity: { lead_id: existing.id, agent_id: profile?.id, agent_name: profile?.full_name, channel: "system", note: `Auto-upgraded to Super Hot — attended ${name}` },
+          });
         } else {
-          const { error } = await supabase.from("leads").insert(payload);
-          if (error) { skipped++; } else { imported++; }
+          toInsert.push(payload);
         }
+      }
+
+      // 2) Bulk insert in chunks
+      let imported = 0;
+      const insertChunk = 200;
+      for (let i = 0; i < toInsert.length; i += insertChunk) {
+        const chunk = toInsert.slice(i, i + insertChunk);
+        const { error, data } = await supabase.from("leads").insert(chunk).select("id");
+        if (error) { skipped += chunk.length; } else { imported += (data?.length || chunk.length); }
+      }
+
+      // 3) Run updates in parallel batches
+      let updated = 0;
+      const updBatch = 25;
+      for (let i = 0; i < toUpdate.length; i += updBatch) {
+        const slice = toUpdate.slice(i, i + updBatch);
+        await Promise.all(slice.map(async (u) => {
+          const { error } = await supabase.from("leads").update(u.patch).eq("id", u.id);
+          if (!error) updated++;
+        }));
+        if (slice.length) await supabase.from("activity_logs").insert(slice.map((u) => u.activity));
       }
 
       toast.success(`Imported ${imported} · Updated ${updated} · Skipped ${skipped}`);
