@@ -22,6 +22,8 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
+  const [targetPipelineId, setTargetPipelineId] = useState<string>("");
+  const [pipelineNotice, setPipelineNotice] = useState<string>("");
   const [superHotEmails, setSuperHotEmails] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
