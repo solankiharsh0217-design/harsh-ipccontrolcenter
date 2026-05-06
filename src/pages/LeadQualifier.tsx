@@ -75,7 +75,7 @@ export default function LeadQualifier() {
 
   return (
     <div>
-      <PageHead title="Lead Qualifier" subtitle="Upload Zoom webinar attendee report — auto-classify leads." />
+      <PageHead title="Lead Qualifier" sub="Upload Zoom webinar attendee report — auto-classify leads." />
 
       {!result && (
         <div className="max-w-3xl">

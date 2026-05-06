@@ -87,7 +87,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
           agentId = activeAgents[rr % Math.min(2, activeAgents.length)].id; rr++;
         }
 
-        const grade = isSH ? "super-hot" : l.grade;
+        const grade = (isSH ? "super-hot" : l.grade) as "hot"|"warm"|"cold"|"non-attendee"|"super-hot"|"very-cold";
         const payload = {
           full_name: l.name, email: l.email, phone: l.phone || null, country: l.country || null,
           score: l.score, grade,
