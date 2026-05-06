@@ -6,7 +6,7 @@ import LeadDrawer from "@/components/LeadDrawer";
 import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon } from "lucide-react";
 import { toast } from "sonner";
 
-type View = "kanban" | "list" | "stages";
+type View = "kanban" | "list" | "stages" | "batches";
 
 export default function Crm() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -17,6 +17,7 @@ export default function Crm() {
   const [view, setView] = useState<View>("kanban");
   const [openLead, setOpenLead] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
+  const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
   const [newPipeline, setNewPipeline] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState("");
   const [newPipelineType, setNewPipelineType] = useState<"unpaid"|"paid"|"custom">("custom");
@@ -52,15 +53,49 @@ export default function Crm() {
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
-    return list;
-  }, [leads, activePipeline, filter]);
+    if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
+    return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  }, [leads, activePipeline, filter, batchFilter]);
 
-  const onDrop = async (e: React.DragEvent, stageId: string) => {
+  // Group leads into webinar batches (cards on the Batches view)
+  const batches = useMemo(() => {
+    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; created: string | null }>();
+    for (const l of leads) {
+      const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
+      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, created: l.created_at };
+      cur.total++;
+      if (l.is_super_hot) cur.superHot++;
+      if (l.grade === "hot") cur.hot++;
+      else if (l.grade === "warm") cur.warm++;
+      else if (l.grade === "cold") cur.cold++;
+      if (!cur.created || (l.created_at && l.created_at > cur.created)) cur.created = l.created_at;
+      map.set(key, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
+  }, [leads]);
+
+  const onDrop = async (e: React.DragEvent, stageId: string, beforeLeadId?: string) => {
     e.preventDefault();
+    e.stopPropagation();
     const id = e.dataTransfer.getData("text/plain");
     if (!id) return;
-    await supabase.from("leads").update({ stage_id: stageId }).eq("id", id);
-    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage_id: stageId } : l));
+    // Compute new sort_order based on neighbors in target stage
+    const targetList = leads.filter((l) => l.pipeline_id === activePipeline && l.stage_id === stageId && l.id !== id)
+      .slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    let newOrder = 0;
+    if (beforeLeadId) {
+      const idx = targetList.findIndex((l) => l.id === beforeLeadId);
+      const before: any = targetList[idx - 1];
+      const after: any = targetList[idx];
+      const a = before ? Number(before.sort_order || 0) : (after ? Number(after.sort_order || 0) - 1000 : 0);
+      const b = after ? Number(after.sort_order || 0) : (before ? Number(before.sort_order || 0) + 1000 : 0);
+      newOrder = (a + b) / 2;
+    } else {
+      const last: any = targetList[targetList.length - 1];
+      newOrder = last ? Number(last.sort_order || 0) + 1000 : 0;
+    }
+    await supabase.from("leads").update({ stage_id: stageId, sort_order: newOrder }).eq("id", id);
+    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage_id: stageId, sort_order: newOrder } as any : l));
   };
 
   const createPipeline = async () => {
@@ -148,9 +183,18 @@ export default function Crm() {
         <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white">
           <button onClick={() => setView("kanban")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "kanban" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><LayoutGrid className="w-3.5 h-3.5" /> Kanban</button>
           <button onClick={() => setView("list")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "list" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><List className="w-3.5 h-3.5" /> List</button>
+          <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><LayoutGrid className="w-3.5 h-3.5" /> Batches</button>
           <button onClick={() => setView("stages")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "stages" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><Settings2 className="w-3.5 h-3.5" /> Stages</button>
         </div>
         <div className="flex items-center gap-2">
+          {(view === "kanban" || view === "list") && (
+            <select className="ipc-input !h-10 !text-xs max-w-[220px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
+              <option value="all">All webinar batches</option>
+              {Array.from(new Set(leads.filter((l) => l.pipeline_id === activePipeline).map((l) => l.webinar_source || "—"))).map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          )}
           <select className="ipc-input !h-10 !text-xs" value={filter} onChange={(e) => setFilter(e.target.value as any)}>
             <option value="all">All grades</option>
             <option value="super-hot">★ Super Hot</option>
@@ -192,6 +236,8 @@ export default function Crm() {
                         <div key={l.id}
                           draggable
                           onDragStart={(e) => e.dataTransfer.setData("text/plain", l.id)}
+                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          onDrop={(e) => onDrop(e, s.id, l.id)}
                           onClick={() => setOpenLead(l.id)}
                           className="p-3 rounded-lg border cursor-pointer hover:shadow-sm"
                           style={{ background: cardBg, borderColor: cardBorder }}>
@@ -216,7 +262,42 @@ export default function Crm() {
         </div>
       )}
 
-      {/* List view */}
+      {/* Batches view — one card per webinar import */}
+      {view === "batches" && (
+        <div>
+          {batches.length === 0 && <div className="text-sm text-muted-foreground">No imports yet. Use Lead Qualifier → Send to CRM to import a batch.</div>}
+          <div className="grid grid-cols-3 gap-4">
+            {batches.map((b) => {
+              const pipe = pipelines.find((p) => p.id === b.pipelineId);
+              return (
+                <button
+                  key={b.key}
+                  onClick={() => {
+                    if (b.pipelineId) setActivePipeline(b.pipelineId);
+                    setBatchFilter(b.name);
+                    setView("kanban");
+                  }}
+                  className="text-left p-5 rounded-xl border border-line bg-white hover:shadow-md hover:border-gold transition-all"
+                >
+                  <div className="uppercase-label !text-[10px]">{b.date || "—"}</div>
+                  <div className="font-serif text-lg mt-1 line-clamp-2">{b.name}</div>
+                  <div className="text-[11px] text-muted-foreground mt-1">{pipe?.name || "—"}</div>
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="font-serif text-3xl">{b.total}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">leads</div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-3 text-[10px]">
+                    {b.superHot > 0 && <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES["super-hot"].bg, color: GRADE_STYLES["super-hot"].fg, border: `1px solid ${GRADE_STYLES["super-hot"].border}` }}>★ {b.superHot}</span>}
+                    <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.hot.bg, color: GRADE_STYLES.hot.fg, border: `1px solid ${GRADE_STYLES.hot.border}` }}>{b.hot} hot</span>
+                    <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.warm.bg, color: GRADE_STYLES.warm.fg, border: `1px solid ${GRADE_STYLES.warm.border}` }}>{b.warm} warm</span>
+                    <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.cold.bg, color: GRADE_STYLES.cold.fg, border: `1px solid ${GRADE_STYLES.cold.border}` }}>{b.cold} cold</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {view === "list" && (
         <div className="rounded-xl border border-line overflow-hidden">
           <table className="w-full font-sans text-sm">

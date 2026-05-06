@@ -14,7 +14,7 @@ export interface Lead {
   deal_value: number; program_name: string; lead_type: "paid" | "unpaid";
   total_minutes: number; attendance_pct: number; sessions_count: number;
   first_join_time: string | null; is_super_hot: boolean; webinar_count: number;
-  created_at: string; updated_at: string;
+  created_at: string; updated_at: string; sort_order?: number;
 }
 export interface ActivityLog {
   id: string; lead_id: string; agent_id: string | null; agent_name: string | null;
