@@ -25,8 +25,17 @@ export default function Crm() {
   const [newStageColor, setNewStageColor] = useState("gray");
 
   const load = async () => {
-    const [{ data: p }, { data: s }, { data: l }, { data: ag }] = await Promise.all([
-      supabase.from("pipelines").select("*").order("position"),
+    let { data: p } = await supabase.from("pipelines").select("*").order("position");
+    // Auto-seed defaults if completely empty so the CRM is never blank
+    if (!p || p.length === 0) {
+      try {
+        await ensurePipelineExists(supabase, "unpaid");
+        await ensurePipelineExists(supabase, "paid");
+      } catch {/* ignore — RLS may block non-admins */}
+      const reload = await supabase.from("pipelines").select("*").order("position");
+      p = reload.data || [];
+    }
+    const [{ data: s }, { data: l }, { data: ag }] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
       supabase.from("leads").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, full_name, role, status").eq("status","active"),
@@ -56,30 +65,62 @@ export default function Crm() {
 
   const createPipeline = async () => {
     if (!newPipelineName.trim()) return;
-    const { data, error } = await supabase.from("pipelines").insert({ name: newPipelineName.trim(), type: "custom", position: pipelines.length }).select().maybeSingle();
+    const { data, error } = await supabase.from("pipelines").insert({ name: newPipelineName.trim(), type: newPipelineType, position: pipelines.length }).select().maybeSingle();
     if (error) { toast.error(error.message); return; }
     if (data) {
-      await supabase.from("stages").insert([
-        { pipeline_id: data.id, name: "New", color: "purple", position: 0 },
-        { pipeline_id: data.id, name: "In Progress", color: "blue", position: 1 },
-        { pipeline_id: data.id, name: "Closed Won", color: "green", position: 2, is_protected: true, is_won: true },
-        { pipeline_id: data.id, name: "Closed Lost", color: "red", position: 3, is_protected: true, is_lost: true },
-      ]);
-      setNewPipeline(false); setNewPipelineName("");
+      if (newPipelineSeed) {
+        const tmpl = DEFAULT_PIPELINE_TEMPLATES[newPipelineType];
+        await supabase.from("stages").insert(tmpl.map((s, i) => ({
+          pipeline_id: data.id, name: s.name, color: s.color, position: i,
+          is_won: !!s.is_won, is_lost: !!s.is_lost, is_protected: !!s.is_protected,
+        })));
+      }
+      setNewPipeline(false); setNewPipelineName(""); setNewPipelineType("custom"); setNewPipelineSeed(true);
       await load();
       setActivePipeline(data.id);
+      setView("stages");
     }
+  };
+
+  const renamePipeline = async (id: string, name: string) => {
+    if (!name.trim()) return;
+    await supabase.from("pipelines").update({ name: name.trim() }).eq("id", id);
+    await load();
+  };
+  const setPipelineType = async (id: string, type: "unpaid"|"paid"|"custom") => {
+    await supabase.from("pipelines").update({ type }).eq("id", id); await load();
+  };
+  const deletePipeline = async (id: string) => {
+    const count = leads.filter((l) => l.pipeline_id === id).length;
+    if (count > 0) { toast.error(`${count} leads attached — move or delete them first`); return; }
+    if (!confirm("Delete this pipeline and all its stages?")) return;
+    await supabase.from("stages").delete().eq("pipeline_id", id);
+    await supabase.from("pipelines").delete().eq("id", id);
+    if (activePipeline === id) setActivePipeline(null);
+    await load();
   };
 
   const addStage = async () => {
     if (!newStageName.trim() || !activePipeline) return;
-    await supabase.from("stages").insert({ pipeline_id: activePipeline, name: newStageName.trim(), color: "gray", position: pipelineStages.length });
-    setNewStageName("");
+    await supabase.from("stages").insert({ pipeline_id: activePipeline, name: newStageName.trim(), color: newStageColor, position: pipelineStages.length });
+    setNewStageName(""); setNewStageColor("gray");
+    await load();
+  };
+
+  const updateStage = async (id: string, patch: Partial<Stage>) => {
+    await supabase.from("stages").update(patch as any).eq("id", id); await load();
+  };
+  const moveStage = async (s: Stage, dir: -1 | 1) => {
+    const idx = pipelineStages.findIndex((x) => x.id === s.id);
+    const swap = pipelineStages[idx + dir];
+    if (!swap) return;
+    await supabase.from("stages").update({ position: swap.position }).eq("id", s.id);
+    await supabase.from("stages").update({ position: s.position }).eq("id", swap.id);
     await load();
   };
 
   const deleteStage = async (s: Stage) => {
-    if (s.is_protected) { toast.error("Protected stage"); return; }
+    if (s.is_protected) { toast.error("Protected stage — untoggle Protected first"); return; }
     const count = leads.filter((l) => l.stage_id === s.id).length;
     if (count > 0) { toast.error(`${count} leads in this stage`); return; }
     await supabase.from("stages").delete().eq("id", s.id);
