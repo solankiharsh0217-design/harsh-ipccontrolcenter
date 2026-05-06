@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import type { MergedLead, QualifierResult } from "@/lib/qualifier";
-import { GRADE_STYLES } from "@/lib/crmTypes";
+import { GRADE_STYLES, ensurePipelineExists } from "@/lib/crmTypes";
 import { X } from "lucide-react";
 
 interface Props {
