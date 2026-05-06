@@ -227,6 +227,17 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
                 <span className="font-medium">★ {counts.superHot} Super Hot leads detected</span> — already attended a previous webinar.
               </div>
             )}
+            {pipelineNotice && (
+              <div className="p-2 rounded-md bg-off border border-line text-xs text-muted-foreground">{pipelineNotice}</div>
+            )}
+            <div>
+              <label className="form-label">Target pipeline</label>
+              <select className="ipc-input" value={targetPipelineId} onChange={(e) => setTargetPipelineId(e.target.value)}>
+                {pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} · {p.type}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="form-label">Assignment method</label>
               <select className="ipc-input" value={assignment} onChange={(e) => setAssignment(e.target.value as any)}>
