@@ -19,7 +19,10 @@ export default function Crm() {
   const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
   const [newPipeline, setNewPipeline] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState("");
+  const [newPipelineType, setNewPipelineType] = useState<"unpaid"|"paid"|"custom">("custom");
+  const [newPipelineSeed, setNewPipelineSeed] = useState(true);
   const [newStageName, setNewStageName] = useState("");
+  const [newStageColor, setNewStageColor] = useState("gray");
 
   const load = async () => {
     const [{ data: p }, { data: s }, { data: l }, { data: ag }] = await Promise.all([
