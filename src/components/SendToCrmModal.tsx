@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import type { MergedLead, QualifierResult } from "@/lib/qualifier";
-import { GRADE_STYLES } from "@/lib/crmTypes";
+import { GRADE_STYLES, ensurePipelineExists } from "@/lib/crmTypes";
 import { X } from "lucide-react";
 
 interface Props {
@@ -22,6 +22,8 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
   const [pipelines, setPipelines] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
+  const [targetPipelineId, setTargetPipelineId] = useState<string>("");
+  const [pipelineNotice, setPipelineNotice] = useState<string>("");
   const [superHotEmails, setSuperHotEmails] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -29,22 +31,41 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   // Load metadata when opening step 3
   const goToStep3 = async () => {
     setLoading(true);
-    const [{ data: ag }, { data: pl }, { data: st }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, role, status").eq("status", "active"),
-      supabase.from("pipelines").select("*").order("position"),
-      supabase.from("stages").select("*").order("position"),
-    ]);
-    setAgents((ag || []).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")) as any);
-    setPipelines(pl || []);
-    setStages(st || []);
-    // detect super hot by email match
-    const emails = result.leads.map((l) => l.email).filter(Boolean);
-    if (emails.length) {
-      const { data: existing } = await supabase.from("leads").select("email").in("email", emails);
-      setSuperHotEmails(new Set((existing || []).map((e: any) => (e.email || "").toLowerCase())));
+    setPipelineNotice("");
+    try {
+      // Make sure a pipeline of the chosen type exists; auto-create if not.
+      let createdNow = false;
+      let { data: pl } = await supabase.from("pipelines").select("*").order("position");
+      const matching = (pl || []).filter((p: any) => p.type === leadType);
+      if (matching.length === 0) {
+        setPipelineNotice("No pipeline found — creating default…");
+        await ensurePipelineExists(supabase, leadType);
+        createdNow = true;
+        const reload = await supabase.from("pipelines").select("*").order("position");
+        pl = reload.data || [];
+      }
+      const [{ data: ag }, { data: st }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, role, status").eq("status", "active"),
+        supabase.from("stages").select("*").order("position"),
+      ]);
+      setAgents((ag || []).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")) as any);
+      setPipelines(pl || []);
+      setStages(st || []);
+      const defaultPipe = (pl || []).find((p: any) => p.type === leadType) || (pl || [])[0];
+      setTargetPipelineId(defaultPipe?.id || "");
+      if (createdNow) setPipelineNotice(`Created default ${leadType} pipeline.`);
+      // detect super hot by email match
+      const emails = result.leads.map((l) => l.email).filter(Boolean);
+      if (emails.length) {
+        const { data: existing } = await supabase.from("leads").select("email").in("email", emails);
+        setSuperHotEmails(new Set((existing || []).map((e: any) => (e.email || "").toLowerCase())));
+      }
+      setStep(3);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to prepare pipeline");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    setStep(3);
   };
 
   const counts = useMemo(() => {
@@ -62,9 +83,18 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const importNow = async () => {
     setImporting(true);
     try {
-      const pipeline = pipelines.find((p) => p.type === leadType) || pipelines[0];
-      if (!pipeline) { toast.error("No pipeline found"); setImporting(false); return; }
-      const pipelineStages = stages.filter((s) => s.pipeline_id === pipeline.id).sort((a, b) => a.position - b.position);
+      let pipeline = pipelines.find((p) => p.id === targetPipelineId)
+                  || pipelines.find((p) => p.type === leadType)
+                  || pipelines[0];
+      let pipelineStages = pipeline ? stages.filter((s) => s.pipeline_id === pipeline.id).sort((a, b) => a.position - b.position) : [];
+      // Last-resort fallback: auto-create if still missing
+      if (!pipeline || pipelineStages.length === 0) {
+        const ensured = await ensurePipelineExists(supabase, leadType);
+        const { data: pl } = await supabase.from("pipelines").select("*").eq("id", ensured.pipelineId).maybeSingle();
+        const { data: st } = await supabase.from("stages").select("*").eq("pipeline_id", ensured.pipelineId).order("position");
+        pipeline = pl;
+        pipelineStages = (st || []) as any;
+      }
       const firstStage = pipelineStages[0];
       const activeAgents = agents;
       let rr = 0;
@@ -197,6 +227,17 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
                 <span className="font-medium">★ {counts.superHot} Super Hot leads detected</span> — already attended a previous webinar.
               </div>
             )}
+            {pipelineNotice && (
+              <div className="p-2 rounded-md bg-off border border-line text-xs text-muted-foreground">{pipelineNotice}</div>
+            )}
+            <div>
+              <label className="form-label">Target pipeline</label>
+              <select className="ipc-input" value={targetPipelineId} onChange={(e) => setTargetPipelineId(e.target.value)}>
+                {pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} · {p.type}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="form-label">Assignment method</label>
               <select className="ipc-input" value={assignment} onChange={(e) => setAssignment(e.target.value as any)}>

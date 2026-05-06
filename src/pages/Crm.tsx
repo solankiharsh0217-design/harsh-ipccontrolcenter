@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHead } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
-import { GRADE_STYLES, STAGE_COLORS, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
+import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
 import LeadDrawer from "@/components/LeadDrawer";
-import { Plus, LayoutGrid, List, Settings2, Download } from "lucide-react";
+import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 type View = "kanban" | "list" | "stages";
@@ -19,11 +19,23 @@ export default function Crm() {
   const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
   const [newPipeline, setNewPipeline] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState("");
+  const [newPipelineType, setNewPipelineType] = useState<"unpaid"|"paid"|"custom">("custom");
+  const [newPipelineSeed, setNewPipelineSeed] = useState(true);
   const [newStageName, setNewStageName] = useState("");
+  const [newStageColor, setNewStageColor] = useState("gray");
 
   const load = async () => {
-    const [{ data: p }, { data: s }, { data: l }, { data: ag }] = await Promise.all([
-      supabase.from("pipelines").select("*").order("position"),
+    let { data: p } = await supabase.from("pipelines").select("*").order("position");
+    // Auto-seed defaults if completely empty so the CRM is never blank
+    if (!p || p.length === 0) {
+      try {
+        await ensurePipelineExists(supabase, "unpaid");
+        await ensurePipelineExists(supabase, "paid");
+      } catch {/* ignore — RLS may block non-admins */}
+      const reload = await supabase.from("pipelines").select("*").order("position");
+      p = reload.data || [];
+    }
+    const [{ data: s }, { data: l }, { data: ag }] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
       supabase.from("leads").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, full_name, role, status").eq("status","active"),
@@ -53,30 +65,62 @@ export default function Crm() {
 
   const createPipeline = async () => {
     if (!newPipelineName.trim()) return;
-    const { data, error } = await supabase.from("pipelines").insert({ name: newPipelineName.trim(), type: "custom", position: pipelines.length }).select().maybeSingle();
+    const { data, error } = await supabase.from("pipelines").insert({ name: newPipelineName.trim(), type: newPipelineType, position: pipelines.length }).select().maybeSingle();
     if (error) { toast.error(error.message); return; }
     if (data) {
-      await supabase.from("stages").insert([
-        { pipeline_id: data.id, name: "New", color: "purple", position: 0 },
-        { pipeline_id: data.id, name: "In Progress", color: "blue", position: 1 },
-        { pipeline_id: data.id, name: "Closed Won", color: "green", position: 2, is_protected: true, is_won: true },
-        { pipeline_id: data.id, name: "Closed Lost", color: "red", position: 3, is_protected: true, is_lost: true },
-      ]);
-      setNewPipeline(false); setNewPipelineName("");
+      if (newPipelineSeed) {
+        const tmpl = DEFAULT_PIPELINE_TEMPLATES[newPipelineType];
+        await supabase.from("stages").insert(tmpl.map((s, i) => ({
+          pipeline_id: data.id, name: s.name, color: s.color, position: i,
+          is_won: !!s.is_won, is_lost: !!s.is_lost, is_protected: !!s.is_protected,
+        })));
+      }
+      setNewPipeline(false); setNewPipelineName(""); setNewPipelineType("custom"); setNewPipelineSeed(true);
       await load();
       setActivePipeline(data.id);
+      setView("stages");
     }
+  };
+
+  const renamePipeline = async (id: string, name: string) => {
+    if (!name.trim()) return;
+    await supabase.from("pipelines").update({ name: name.trim() }).eq("id", id);
+    await load();
+  };
+  const setPipelineType = async (id: string, type: "unpaid"|"paid"|"custom") => {
+    await supabase.from("pipelines").update({ type }).eq("id", id); await load();
+  };
+  const deletePipeline = async (id: string) => {
+    const count = leads.filter((l) => l.pipeline_id === id).length;
+    if (count > 0) { toast.error(`${count} leads attached — move or delete them first`); return; }
+    if (!confirm("Delete this pipeline and all its stages?")) return;
+    await supabase.from("stages").delete().eq("pipeline_id", id);
+    await supabase.from("pipelines").delete().eq("id", id);
+    if (activePipeline === id) setActivePipeline(null);
+    await load();
   };
 
   const addStage = async () => {
     if (!newStageName.trim() || !activePipeline) return;
-    await supabase.from("stages").insert({ pipeline_id: activePipeline, name: newStageName.trim(), color: "gray", position: pipelineStages.length });
-    setNewStageName("");
+    await supabase.from("stages").insert({ pipeline_id: activePipeline, name: newStageName.trim(), color: newStageColor, position: pipelineStages.length });
+    setNewStageName(""); setNewStageColor("gray");
+    await load();
+  };
+
+  const updateStage = async (id: string, patch: Partial<Stage>) => {
+    await supabase.from("stages").update(patch as any).eq("id", id); await load();
+  };
+  const moveStage = async (s: Stage, dir: -1 | 1) => {
+    const idx = pipelineStages.findIndex((x) => x.id === s.id);
+    const swap = pipelineStages[idx + dir];
+    if (!swap) return;
+    await supabase.from("stages").update({ position: swap.position }).eq("id", s.id);
+    await supabase.from("stages").update({ position: s.position }).eq("id", swap.id);
     await load();
   };
 
   const deleteStage = async (s: Stage) => {
-    if (s.is_protected) { toast.error("Protected stage"); return; }
+    if (s.is_protected) { toast.error("Protected stage — untoggle Protected first"); return; }
     const count = leads.filter((l) => l.stage_id === s.id).length;
     if (count > 0) { toast.error(`${count} leads in this stage`); return; }
     await supabase.from("stages").delete().eq("id", s.id);
@@ -208,44 +252,125 @@ export default function Crm() {
         </div>
       )}
 
-      {/* Stage manager */}
-      {view === "stages" && (
-        <div className="max-w-2xl space-y-2">
-          {pipelineStages.map((s) => {
-            const count = leads.filter((l) => l.stage_id === s.id).length;
-            const color = STAGE_COLORS[s.color] || "#888";
-            return (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg border border-line bg-white">
-                <span className="text-muted-foreground">⠿</span>
-                <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                <span className="font-sans text-sm flex-1">{s.name}</span>
-                <span className="text-xs text-muted-foreground">{count} leads</span>
-                {s.is_protected ? <span className="text-[10px] uppercase text-muted-foreground">Protected</span> :
-                  <button onClick={() => deleteStage(s)} className="text-muted-foreground hover:text-[#DC2626] text-xs">✕</button>}
+      {/* Pipeline Designer */}
+      {view === "stages" && (() => {
+        const pipe = pipelines.find((p) => p.id === activePipeline);
+        if (!pipe) return <div className="text-sm text-muted-foreground">Select or create a pipeline below.</div>;
+        const attachedLeads = leads.filter((l) => l.pipeline_id === pipe.id).length;
+        return (
+          <div className="max-w-3xl space-y-5">
+            {/* Pipeline header */}
+            <div className="p-4 rounded-xl border border-line bg-white space-y-3">
+              <div className="uppercase-label !text-[10px]">Pipeline</div>
+              <div className="flex flex-wrap gap-2 items-end">
+                <div className="flex-1 min-w-[220px]">
+                  <label className="form-label">Name</label>
+                  <input type="text" className="ipc-input" defaultValue={pipe.name}
+                    onBlur={(e) => e.target.value !== pipe.name && renamePipeline(pipe.id, e.target.value)} />
+                </div>
+                <div>
+                  <label className="form-label">Type</label>
+                  <select className="ipc-input" value={pipe.type} onChange={(e) => setPipelineType(pipe.id, e.target.value as any)}>
+                    <option value="unpaid">Unpaid (Sales)</option>
+                    <option value="paid">Paid (Onboarding)</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+                <button onClick={() => deletePipeline(pipe.id)} className="ipc-btn ipc-btn-ghost text-[#DC2626] hover:text-[#DC2626]">
+                  <Trash2 className="w-3.5 h-3.5" /> Delete pipeline
+                </button>
               </div>
-            );
-          })}
-          <div className="flex gap-2 pt-2">
-            <input type="text" className="ipc-input flex-1" placeholder="New stage name…" value={newStageName} onChange={(e) => setNewStageName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addStage()} />
-            <button onClick={addStage} className="ipc-btn ipc-btn-black"><Plus className="w-3.5 h-3.5" /> Add stage</button>
+              <div className="text-[11px] text-muted-foreground">{attachedLeads} leads attached · {pipelineStages.length} stages</div>
+            </div>
+
+            {/* Stages */}
+            <div className="space-y-2">
+              <div className="uppercase-label !text-[10px]">Stages</div>
+              {pipelineStages.map((s, i) => {
+                const count = leads.filter((l) => l.stage_id === s.id).length;
+                return (
+                  <div key={s.id} className="p-3 rounded-lg border border-line bg-white">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex flex-col">
+                        <button disabled={i === 0} onClick={() => moveStage(s, -1)} className="text-muted-foreground hover:text-black disabled:opacity-20"><ArrowUp className="w-3 h-3" /></button>
+                        <button disabled={i === pipelineStages.length - 1} onClick={() => moveStage(s, 1)} className="text-muted-foreground hover:text-black disabled:opacity-20"><ArrowDown className="w-3 h-3" /></button>
+                      </div>
+                      <input type="text" defaultValue={s.name}
+                        onBlur={(e) => e.target.value !== s.name && updateStage(s.id, { name: e.target.value })}
+                        className="ipc-input flex-1 min-w-[160px] !h-9" />
+                      <div className="flex items-center gap-1">
+                        {STAGE_COLOR_OPTIONS.map((c) => (
+                          <button key={c.key} title={c.key} onClick={() => updateStage(s.id, { color: c.key })}
+                            className={`w-5 h-5 rounded-full border-2 ${s.color === c.key ? "border-black" : "border-transparent"}`}
+                            style={{ background: c.hex }} />
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground">{count} leads</span>
+                      <button onClick={() => deleteStage(s)} className="text-muted-foreground hover:text-[#DC2626]" title="Delete stage"><XIcon className="w-4 h-4" /></button>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 ml-7 text-[11px]">
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={s.is_won} onChange={(e) => updateStage(s.id, { is_won: e.target.checked, is_lost: e.target.checked ? false : s.is_lost })} />
+                        <Trophy className="w-3 h-3 text-[#16A34A]" /> Won
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={s.is_lost} onChange={(e) => updateStage(s.id, { is_lost: e.target.checked, is_won: e.target.checked ? false : s.is_won })} />
+                        <span className="text-[#DC2626]">✕</span> Lost
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" checked={s.is_protected} onChange={(e) => updateStage(s.id, { is_protected: e.target.checked })} />
+                        Protected
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+              {pipelineStages.length === 0 && <div className="text-xs text-muted-foreground p-4 border border-dashed border-line rounded-lg text-center">No stages yet — add one below.</div>}
+            </div>
+
+            {/* Add stage */}
+            <div className="p-3 rounded-lg border border-line bg-off flex flex-wrap gap-2 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <label className="form-label">New stage name</label>
+                <input type="text" className="ipc-input" placeholder="e.g. Demo Booked" value={newStageName} onChange={(e) => setNewStageName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addStage()} />
+              </div>
+              <div>
+                <label className="form-label">Color</label>
+                <div className="flex items-center gap-1 h-10">
+                  {STAGE_COLOR_OPTIONS.map((c) => (
+                    <button key={c.key} onClick={() => setNewStageColor(c.key)}
+                      className={`w-6 h-6 rounded-full border-2 ${newStageColor === c.key ? "border-black" : "border-transparent"}`}
+                      style={{ background: c.hex }} />
+                  ))}
+                </div>
+              </div>
+              <button onClick={addStage} className="ipc-btn ipc-btn-black"><Plus className="w-3.5 h-3.5" /> Add stage</button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Pipeline tabs (bottom bar) */}
-      <div className="fixed bottom-0 left-[228px] right-0 bg-white border-t border-line px-10 py-2.5 flex items-center gap-2 z-40">
+      <div className="fixed bottom-0 left-[228px] right-0 bg-white border-t border-line px-10 py-2.5 flex items-center gap-2 z-40 overflow-x-auto">
         {pipelines.map((p) => {
           const isActive = p.id === activePipeline;
           const dot = p.type === "paid" ? "#16A34A" : p.type === "unpaid" ? "#2563EB" : "#C8A84B";
           return (
-            <button key={p.id} onClick={() => setActivePipeline(p.id)} className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 border ${isActive ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"}`}>
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
-              {p.name}
-              <span className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leads.filter((l) => l.pipeline_id === p.id).length}</span>
-            </button>
+            <div key={p.id} className={`flex items-center rounded-lg border ${isActive ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"}`}>
+              <button onClick={() => setActivePipeline(p.id)} className="px-3 py-1.5 text-xs flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
+                {p.name}
+                <span className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leads.filter((l) => l.pipeline_id === p.id).length}</span>
+              </button>
+              {isActive && (
+                <button onClick={() => setView("stages")} title="Design pipeline" className="px-2 py-1.5 border-l border-white/20 hover:bg-white/10">
+                  <Settings2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           );
         })}
-        <button onClick={() => setNewPipeline(true)} className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 border border-dashed border-line text-muted-foreground hover:text-black">
+        <button onClick={() => setNewPipeline(true)} className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 border border-dashed border-line text-muted-foreground hover:text-black flex-shrink-0">
           <Plus className="w-3.5 h-3.5" /> New Pipeline
         </button>
       </div>
@@ -253,9 +378,24 @@ export default function Crm() {
       {/* New pipeline modal */}
       {newPipeline && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setNewPipeline(false)}>
-          <div className="bg-white rounded-xl border border-line w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="font-serif text-xl mb-4">New pipeline</div>
-            <input type="text" className="ipc-input mb-4" placeholder="Pipeline name…" value={newPipelineName} onChange={(e) => setNewPipelineName(e.target.value)} autoFocus />
+          <div className="bg-white rounded-xl border border-line w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="font-serif text-xl">New pipeline</div>
+            <div>
+              <label className="form-label">Pipeline name</label>
+              <input type="text" className="ipc-input" placeholder="e.g. Q3 Webinar Funnel" value={newPipelineName} onChange={(e) => setNewPipelineName(e.target.value)} autoFocus />
+            </div>
+            <div>
+              <label className="form-label">Type</label>
+              <select className="ipc-input" value={newPipelineType} onChange={(e) => setNewPipelineType(e.target.value as any)}>
+                <option value="custom">Custom</option>
+                <option value="unpaid">Unpaid (Sales)</option>
+                <option value="paid">Paid (Onboarding)</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={newPipelineSeed} onChange={(e) => setNewPipelineSeed(e.target.checked)} />
+              Seed with default stages for this type
+            </label>
             <div className="flex justify-end gap-2">
               <button onClick={() => setNewPipeline(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
               <button onClick={createPipeline} className="ipc-btn ipc-btn-black">Create</button>
@@ -263,6 +403,7 @@ export default function Crm() {
           </div>
         </div>
       )}
+
 
       {/* Spacer for fixed bottom bar */}
       <div className="h-14" />

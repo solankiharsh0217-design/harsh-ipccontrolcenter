@@ -1,55 +1,50 @@
-You are right to question this. I checked your exact examples against the live published sheet and against the backend.
+# Fix CRM import + add full pipeline designer
 
-What I found:
-- `Rahul khanna`, `Vishal (af uz)`, and `GEORGE` are present in the Diamond sheet around rows 1000, 1005, and 1018.
-- They are not present in the backend `students` table.
-- The backend currently has only 30 `diamond` records, not the full Diamond sheet.
+## Problem recap
 
-Root cause:
-The import function is structurally wrong in one important way: it inserts the sheet in 500-row batches, but if any duplicate exists inside a batch, the whole batch insert fails. Your Diamond sheet has duplicates and separator/date rows with blank email/phone. Because of that:
-- the first 500-row batch failed,
-- the second 500-row batch failed,
-- only the final small batch of about 30 rows inserted.
+1. **"No pipeline found" on Import** — `SendToCrmModal.importNow()` reads `pipelines.find(p => p.type === leadType)` from state loaded in `goToStep3`. If that fetch returns 0 rows (RLS hiccup, race, or genuinely empty DB), the import aborts with a useless error and 368 qualified leads are lost. Pipelines actually exist in your DB right now, but the modal has no fallback and no way to create one inline.
+2. **No pipeline management UI inside CRM** — There is a tiny "New Pipeline" pill in the bottom bar and a basic Stages tab, but you cannot: rename a pipeline, change its type, delete it, reorder stages, change stage colors, mark Won/Lost, or rename stages. The HTML reference shows a richer designer.
 
-That is why the later rows near Himashri appeared, but rows like Rahul/Vishal/GEORGE did not. The issue is not that Google Sheets cannot be used. The issue is the importer is too fragile for this real-world sheet.
+## What I'll build
 
-Plan to fix it properly:
+### 1. Make the import bullet-proof (`src/components/SendToCrmModal.tsx`)
 
-1. Make the importer robust for messy Google Sheets
-- Parse every row from both sheets.
-- Skip true blank/separator rows.
-- Do not let duplicate rows break an entire 500-row import batch.
-- Deduplicate records before inserting.
-- Use safe upsert/ignore-duplicate behavior instead of plain insert.
+- On Step 3 load, if `pipelines` returns empty for the selected `leadType`, **auto-create** a default pipeline + standard stages (same seed used for "Sales Pipeline (Unpaid)" / "Paid — Onboarding") server-side, then continue.
+- Show clear inline status: "No pipeline found — creating default…" with a spinner; never silently fail.
+- On `importNow`, if pipeline still missing for any reason, fall back to creating one on the fly instead of toasting an error.
+- Add a "Choose target pipeline" dropdown on Step 3 (defaults to the matching type) so you can route leads to any pipeline you've designed — including custom ones.
 
-2. Improve the database uniqueness rule
-- The current uniqueness rule treats every row with blank email and blank phone as the same record.
-- I will update it so blank-contact rows do not block other valid rows.
-- The real dedupe key will be based on usable contact data, not empty placeholders.
+### 2. Pipeline Designer view inside CRM (`src/pages/Crm.tsx`)
 
-3. Re-import all sheet data immediately
-- After fixing the importer, I will run the sync again.
-- The expected result should be around the full sheet size, not just 30 Diamond rows.
-- I will specifically verify that these records exist in the backend:
-  - `Vishal (af uz)` / `vishalshakya1539@gmail.com` / `7055471539`
-  - `Rahul khanna` / `rahulkhanna100090@gmail.com` / `8770092421`
-  - `GEORGE` / `georgekbaby@gmail.com` / `9539950537`
+Replace the minimal Stages tab with a proper **Designer** view:
 
-4. Keep search connected to the backend
-- The Student Search page will continue using the backend search function.
-- Once the backend has the correct imported rows, these students should show in search by name, email, or phone.
+- **Pipeline header row**: rename inline, change type (unpaid / paid / custom), delete pipeline (blocked if leads attached, with count shown).
+- **Stages list** (drag-to-reorder using `@dnd-kit/sortable` already supportable, or simple ↑/↓ buttons to avoid new deps):
+  - Inline rename
+  - Color picker from the existing `STAGE_COLORS` palette (purple / gray / blue / gold / amber / green / red / pink) with swatch dots
+  - Toggles: **Won stage**, **Lost stage**, **Protected** (protected stages can't be deleted)
+  - Delete (blocked if leads in stage, with count + "move them first" hint)
+  - Reorder via up/down arrows; positions persisted to `stages.position`
+- **Add Stage** form with name + color + optional won/lost flag.
+- **Create Pipeline** modal upgraded: name + type + checkbox "Seed with default stages" (New / In Progress / Closed Won / Closed Lost). Uncheck for a blank pipeline.
+- Keep the bottom bar pipeline switcher; add a small ⚙ next to each pipeline pill that jumps to Designer view for that pipeline.
 
-5. Make the refresh button reliable and visible
-- Keep the manual `Refresh student database` button on Student Search for active logged-in users.
-- If the user is not active/logged in, show a clear message instead of silently hiding everything.
-- Show clearer import stats after refresh, including how many rows were read, skipped, deduped, and imported per sheet.
+### 3. Re-seed safety
 
-Technical changes:
-- Update `supabase/functions/import-students/index.ts`:
-  - dedupe rows before batch insert,
-  - use `upsert(..., { onConflict: ..., ignoreDuplicates: true })` or another safe insert strategy,
-  - skip unusable separator rows,
-  - return detailed import stats.
-- Add a schema migration to replace the fragile `students_unique_src_email_phone` index with a safer unique constraint/index.
-- Run the fixed import and verify backend counts plus the three exact records above.
-- If needed, adjust `StudentSearch.tsx` to show errors/states more clearly, but the main bug is the backend import failure.
+- Add a one-time idempotent insert (`ON CONFLICT DO NOTHING` via existence check) when CRM page loads and `pipelines` is empty: creates the two defaults so a fresh project is never blank. Done client-side from the CRM page so we don't need a migration.
+
+## Files touched
+
+```text
+src/components/SendToCrmModal.tsx   — robust pipeline lookup + auto-create + target-pipeline picker
+src/pages/Crm.tsx                   — new Designer view, upgraded New Pipeline modal, ⚙ per pipeline
+src/lib/crmTypes.ts                 — add STAGE_COLOR_OPTIONS list helper (no schema change)
+```
+
+No DB migration needed — schema already supports everything (color text, is_won, is_lost, is_protected, position, type).
+
+## Out of scope (ask if you want them)
+
+- Drag-to-reorder pipelines themselves (we'll keep position fixed by creation order; can add later).
+- Per-stage automation rules (e.g., auto-move on payment).
+- Importing pipeline templates from JSON.
