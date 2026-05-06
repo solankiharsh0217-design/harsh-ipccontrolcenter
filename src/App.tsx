@@ -13,6 +13,9 @@ import LeadFlow from "./pages/LeadFlow";
 import Team from "./pages/Team";
 import Announcements from "./pages/Announcements";
 import Admin from "./pages/Admin";
+import LeadQualifier from "./pages/LeadQualifier";
+import Crm from "./pages/Crm";
+import CrmOverview from "./pages/CrmOverview";
 import NotFound from "./pages/NotFound";
 
 const qc = new QueryClient();
@@ -35,6 +38,9 @@ const App = () => (
             <Route path="/roas" element={<Shell><Roas /></Shell>} />
             <Route path="/search" element={<Shell><StudentSearch /></Shell>} />
             <Route path="/leadflow" element={<Shell><LeadFlow /></Shell>} />
+            <Route path="/lead-qualifier" element={<Shell><LeadQualifier /></Shell>} />
+            <Route path="/crm" element={<Shell><Crm /></Shell>} />
+            <Route path="/crm/overview" element={<Shell><CrmOverview /></Shell>} />
             <Route path="/team" element={<Shell><Team /></Shell>} />
             <Route path="/announcements" element={<Shell><Announcements /></Shell>} />
             <Route path="/admin" element={<Shell admin><Admin /></Shell>} />

@@ -16,6 +16,9 @@ const PAGE_TITLES: Record<string, string> = {
   "/roas": "ROAS Calculator",
   "/search": "Student Search",
   "/leadflow": "Daily Lead Flow",
+  "/lead-qualifier": "Lead Qualifier",
+  "/crm": "Calling CRM",
+  "/crm/overview": "CRM Overview",
   "/team": "Team Directory",
   "/admin": "Admin Panel",
 };
@@ -81,6 +84,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <NavItem to="/leadflow">
             <Icon d="M2 12l4-4 3 3 5-6" />
             Daily Lead Flow
+          </NavItem>
+          <NavItem to="/lead-qualifier">
+            <Icon><><path d="M3 3h10v10H3z"/><path d="M5 7h6M5 9h4"/></></Icon>
+            Lead Qualifier
+          </NavItem>
+          <NavItem to="/crm">
+            <Icon><><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M2 14c0-2 1.5-3 3-3s3 1 3 3M8 14c0-2 1.5-3 3-3s3 1 3 3"/></></Icon>
+            Calling CRM
           </NavItem>
 
           <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">People</span>
