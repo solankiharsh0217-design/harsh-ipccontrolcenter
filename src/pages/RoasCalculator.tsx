@@ -462,14 +462,41 @@ function AttrTab({ userId }: { userId?: string }) {
 
     const tally: AttrRow[] = mbResolved.map((x) => ({ name: x.mb.name, spend: parseFloat(x.mb.spend) || 0, leads: x.leads, matched: 0, revenue: 0 }));
     const unmatched: Person[] = [];
+    const salesDetail: SaleDetail[] = [];
     salesPeople.forEach((sale) => {
-      let attr = false;
+      let attrIdx = -1;
+      let method: SaleDetail["matchMethod"] = "unmatched";
       for (let i = 0; i < mbResolved.length; i++) {
-        if (matchSale(sale, mbResolved[i].people)) {
-          tally[i].matched++; tally[i].revenue += DEAL_VALUE; attr = true; break;
+        const list = mbResolved[i].people;
+        if (sale.email && list.find((p) => p.email && p.email === sale.email)) { attrIdx = i; method = "email"; break; }
+        if (sale.phone && sale.phone.length >= 8 && list.find((p) => p.phone && p.phone === sale.phone)) { attrIdx = i; method = "phone"; break; }
+        if (sale.name && sale.name.length > 2) {
+          const sn = normName(sale.name);
+          const m = list.find((p) => {
+            const pn = normName(p.name); if (!pn) return false;
+            if (pn === sn) return true;
+            const sp = sn.split(" "), pp = pn.split(" ");
+            return sp.some((s) => s.length > 3 && pp.some((q) => q === s));
+          });
+          if (m) { attrIdx = i; method = "name"; break; }
         }
       }
-      if (!attr) unmatched.push(sale);
+      if (attrIdx >= 0) {
+        tally[attrIdx].matched++;
+        tally[attrIdx].revenue += DEAL_VALUE;
+        salesDetail.push({
+          name: sale.name, email: sale.email, phone: sale.phone,
+          attributedTo: tally[attrIdx].name, matchMethod: method,
+          revenue: DEAL_VALUE, webinarDate: wbDate,
+        });
+      } else {
+        unmatched.push(sale);
+        salesDetail.push({
+          name: sale.name, email: sale.email, phone: sale.phone,
+          attributedTo: null, matchMethod: "unmatched",
+          revenue: 0, webinarDate: wbDate,
+        });
+      }
     });
 
     setTimeout(() => {
@@ -480,7 +507,7 @@ function AttrTab({ userId }: { userId?: string }) {
         sales: tally.reduce((a, b) => a + b.matched, 0),
         leads: tally.reduce((a, b) => a + b.leads, 0),
       };
-      setResults({ rows: tally, unmatched, totals });
+      setResults({ rows: tally, unmatched, salesDetail, totals });
       setCalculating(false);
     }, 2400);
   };
