@@ -118,6 +118,9 @@ export type Database = {
           revenue: number
           roas_value: number
           session_id: string
+          source_tab_gid: string | null
+          source_tab_name: string | null
+          source_type: string
           total_leads: number
         }
         Insert: {
@@ -131,6 +134,9 @@ export type Database = {
           revenue?: number
           roas_value?: number
           session_id: string
+          source_tab_gid?: string | null
+          source_tab_name?: string | null
+          source_type?: string
           total_leads?: number
         }
         Update: {
@@ -144,6 +150,9 @@ export type Database = {
           revenue?: number
           roas_value?: number
           session_id?: string
+          source_tab_gid?: string | null
+          source_tab_name?: string | null
+          source_type?: string
           total_leads?: number
         }
         Relationships: [
@@ -167,6 +176,9 @@ export type Database = {
           phone: string | null
           revenue: number
           session_id: string
+          source_sales_tab_gid: string | null
+          source_sales_tab_name: string | null
+          source_type: string
           webinar_date: string | null
         }
         Insert: {
@@ -179,6 +191,9 @@ export type Database = {
           phone?: string | null
           revenue?: number
           session_id: string
+          source_sales_tab_gid?: string | null
+          source_sales_tab_name?: string | null
+          source_type?: string
           webinar_date?: string | null
         }
         Update: {
@@ -191,6 +206,9 @@ export type Database = {
           phone?: string | null
           revenue?: number
           session_id?: string
+          source_sales_tab_gid?: string | null
+          source_sales_tab_name?: string | null
+          source_type?: string
           webinar_date?: string | null
         }
         Relationships: [
@@ -205,9 +223,12 @@ export type Database = {
       }
       attribution_sessions: {
         Row: {
+          calculation_method: string
           created_at: string
           created_by: string | null
+          fetch_log_id: string | null
           id: string
+          master_sheet_id: string | null
           overall_roas: number
           total_ad_spend: number
           total_leads: number
@@ -219,9 +240,12 @@ export type Database = {
           webinar_type: string | null
         }
         Insert: {
+          calculation_method?: string
           created_at?: string
           created_by?: string | null
+          fetch_log_id?: string | null
           id?: string
+          master_sheet_id?: string | null
           overall_roas?: number
           total_ad_spend?: number
           total_leads?: number
@@ -233,9 +257,12 @@ export type Database = {
           webinar_type?: string | null
         }
         Update: {
+          calculation_method?: string
           created_at?: string
           created_by?: string | null
+          fetch_log_id?: string | null
           id?: string
+          master_sheet_id?: string | null
           overall_roas?: number
           total_ad_spend?: number
           total_leads?: number
@@ -246,7 +273,22 @@ export type Database = {
           webinar_name?: string
           webinar_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attribution_sessions_fetch_log_id_fkey"
+            columns: ["fetch_log_id"]
+            isOneToOne: false
+            referencedRelation: "roas_fetch_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attribution_sessions_master_sheet_id_fkey"
+            columns: ["master_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "roas_master_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       data_sources: {
         Row: {
@@ -958,6 +1000,50 @@ export type Database = {
           },
         ]
       }
+      roas_fetch_logs: {
+        Row: {
+          attribution_session_id: string | null
+          created_at: string
+          error_summary: string | null
+          failed_tabs_count: number
+          fetch_status: string
+          fetched_by: string | null
+          fetched_tabs_count: number
+          id: string
+          master_sheet_id: string | null
+        }
+        Insert: {
+          attribution_session_id?: string | null
+          created_at?: string
+          error_summary?: string | null
+          failed_tabs_count?: number
+          fetch_status: string
+          fetched_by?: string | null
+          fetched_tabs_count?: number
+          id?: string
+          master_sheet_id?: string | null
+        }
+        Update: {
+          attribution_session_id?: string | null
+          created_at?: string
+          error_summary?: string | null
+          failed_tabs_count?: number
+          fetch_status?: string
+          fetched_by?: string | null
+          fetched_tabs_count?: number
+          id?: string
+          master_sheet_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roas_fetch_logs_master_sheet_id_fkey"
+            columns: ["master_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "roas_master_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roas_history: {
         Row: {
           campaign_name: string
@@ -1095,6 +1181,95 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      roas_master_sheet_tabs: {
+        Row: {
+          column_mapping: Json | null
+          created_at: string
+          csv_url: string | null
+          id: string
+          is_active: boolean
+          master_sheet_id: string
+          media_buyer_name: string | null
+          tab_gid: string | null
+          tab_name: string | null
+          tab_role: string
+          tab_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          column_mapping?: Json | null
+          created_at?: string
+          csv_url?: string | null
+          id?: string
+          is_active?: boolean
+          master_sheet_id: string
+          media_buyer_name?: string | null
+          tab_gid?: string | null
+          tab_name?: string | null
+          tab_role: string
+          tab_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          column_mapping?: Json | null
+          created_at?: string
+          csv_url?: string | null
+          id?: string
+          is_active?: boolean
+          master_sheet_id?: string
+          media_buyer_name?: string | null
+          tab_gid?: string | null
+          tab_name?: string | null
+          tab_role?: string
+          tab_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roas_master_sheet_tabs_master_sheet_id_fkey"
+            columns: ["master_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "roas_master_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roas_master_sheets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fetch_method: string
+          id: string
+          master_sheet_url: string
+          source_name: string
+          spreadsheet_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fetch_method?: string
+          id?: string
+          master_sheet_url: string
+          source_name: string
+          spreadsheet_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fetch_method?: string
+          id?: string
+          master_sheet_url?: string
+          source_name?: string
+          spreadsheet_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       roas_media_buyers: {
         Row: {
