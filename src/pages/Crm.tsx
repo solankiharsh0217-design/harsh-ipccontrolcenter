@@ -191,7 +191,7 @@ export default function Crm() {
           <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><LayoutGrid className="w-3.5 h-3.5" /> Batches</button>
           <button onClick={() => setView("stages")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "stages" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><Settings2 className="w-3.5 h-3.5" /> Stages</button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {(view === "kanban" || view === "list") && (
             <select className="ipc-input !h-10 !text-xs max-w-[220px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
               <option value="all">All webinar batches</option>
@@ -199,6 +199,18 @@ export default function Crm() {
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
+          )}
+          {(view === "kanban" || view === "list") && (
+            <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white h-10">
+              <select className="!text-xs bg-transparent border-0 outline-none px-1" value={dateField} onChange={(e) => setDateField(e.target.value as any)} title="Date field">
+                <option value="webinar_date">Webinar date</option>
+                <option value="created_at">Imported on</option>
+              </select>
+              <input type="date" className="!text-xs border-0 outline-none px-1 w-[125px]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="From" />
+              <span className="text-muted-foreground text-xs">–</span>
+              <input type="date" className="!text-xs border-0 outline-none px-1 w-[125px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To" />
+              {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-muted-foreground hover:text-black px-1" title="Clear"><XIcon className="w-3 h-3" /></button>}
+            </div>
           )}
           <select className="ipc-input !h-10 !text-xs" value={filter} onChange={(e) => setFilter(e.target.value as any)}>
             <option value="all">All grades</option>
