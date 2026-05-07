@@ -3,7 +3,7 @@ import { PageHead } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
 import LeadDrawer from "@/components/LeadDrawer";
-import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon } from "lucide-react";
+import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users } from "lucide-react";
 import { toast } from "sonner";
 
 type View = "kanban" | "list" | "stages" | "batches";
@@ -18,6 +18,9 @@ export default function Crm() {
   const [openLead, setOpenLead] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
   const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [dateField, setDateField] = useState<"webinar_date"|"created_at">("webinar_date");
   const [newPipeline, setNewPipeline] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState("");
   const [newPipelineType, setNewPipelineType] = useState<"unpaid"|"paid"|"custom">("custom");
@@ -54,8 +57,10 @@ export default function Crm() {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
     if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
+    if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
+    if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter]);
+  }, [leads, activePipeline, filter, batchFilter, dateFrom, dateTo, dateField]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
@@ -174,6 +179,45 @@ export default function Crm() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `crm-leads-${Date.now()}.csv`; a.click();
   };
 
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignMode, setAssignMode] = useState<"round_robin"|"manual"|"unassign">("round_robin");
+  const [assignAgentId, setAssignAgentId] = useState<string>("");
+  const [assignScope, setAssignScope] = useState<"unassigned"|"all">("unassigned");
+  const [assignBusy, setAssignBusy] = useState(false);
+
+  const runAssignment = async () => {
+    setAssignBusy(true);
+    try {
+      const target = pipelineLeads.filter((l) => assignScope === "all" ? true : !l.assigned_agent_id);
+      if (target.length === 0) { toast.info("No leads to assign in current view"); setAssignBusy(false); return; }
+      if (assignMode === "unassign") {
+        const ids = target.map((l) => l.id);
+        await supabase.from("leads").update({ assigned_agent_id: null }).in("id", ids);
+        toast.success(`Unassigned ${ids.length} leads`);
+      } else if (assignMode === "manual") {
+        if (!assignAgentId) { toast.error("Pick an agent"); setAssignBusy(false); return; }
+        const ids = target.map((l) => l.id);
+        await supabase.from("leads").update({ assigned_agent_id: assignAgentId }).in("id", ids);
+        toast.success(`Assigned ${ids.length} leads`);
+      } else {
+        if (agents.length === 0) { toast.error("No active sales agents available"); setAssignBusy(false); return; }
+        const buckets = new Map<string, string[]>();
+        target.forEach((l, i) => {
+          const a = agents[i % agents.length].id;
+          if (!buckets.has(a)) buckets.set(a, []);
+          buckets.get(a)!.push(l.id);
+        });
+        for (const [aid, ids] of buckets) {
+          await supabase.from("leads").update({ assigned_agent_id: aid }).in("id", ids);
+        }
+        toast.success(`Round-robin assigned ${target.length} leads to ${buckets.size} agents`);
+      }
+      setAssignOpen(false);
+      await load();
+    } catch (e: any) { toast.error(e.message || "Assignment failed"); }
+    finally { setAssignBusy(false); }
+  };
+
   return (
     <div>
       <PageHead title="Calling CRM" sub="Diamond Program sales pipeline" />
@@ -186,7 +230,7 @@ export default function Crm() {
           <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><LayoutGrid className="w-3.5 h-3.5" /> Batches</button>
           <button onClick={() => setView("stages")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "stages" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><Settings2 className="w-3.5 h-3.5" /> Stages</button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {(view === "kanban" || view === "list") && (
             <select className="ipc-input !h-10 !text-xs max-w-[220px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
               <option value="all">All webinar batches</option>
@@ -195,6 +239,18 @@ export default function Crm() {
               ))}
             </select>
           )}
+          {(view === "kanban" || view === "list") && (
+            <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white h-10">
+              <select className="!text-xs bg-transparent border-0 outline-none px-1" value={dateField} onChange={(e) => setDateField(e.target.value as any)} title="Date field">
+                <option value="webinar_date">Webinar date</option>
+                <option value="created_at">Imported on</option>
+              </select>
+              <input type="date" className="!text-xs border-0 outline-none px-1 w-[125px]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="From" />
+              <span className="text-muted-foreground text-xs">–</span>
+              <input type="date" className="!text-xs border-0 outline-none px-1 w-[125px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To" />
+              {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-muted-foreground hover:text-black px-1" title="Clear"><XIcon className="w-3 h-3" /></button>}
+            </div>
+          )}
           <select className="ipc-input !h-10 !text-xs" value={filter} onChange={(e) => setFilter(e.target.value as any)}>
             <option value="all">All grades</option>
             <option value="super-hot">★ Super Hot</option>
@@ -202,6 +258,7 @@ export default function Crm() {
             <option value="warm">Warm</option>
             <option value="cold">Cold</option>
           </select>
+          <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
           <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-10"><Download className="w-3.5 h-3.5" /> Export</button>
         </div>
       </div>
@@ -490,6 +547,51 @@ export default function Crm() {
       <div className="h-14" />
 
       {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={() => setOpenLead(null)} onChanged={load} />}
+
+      {/* Assign agents modal */}
+      {assignOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setAssignOpen(false)}>
+          <div className="bg-white rounded-xl border border-line w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div>
+              <div className="font-serif text-xl">Assign leads to agents</div>
+              <div className="text-xs text-muted-foreground mt-1">{pipelineLeads.length} leads in current view · {agents.length} active sales agents</div>
+            </div>
+            <div>
+              <label className="form-label">Method</label>
+              <select className="ipc-input" value={assignMode} onChange={(e) => setAssignMode(e.target.value as any)}>
+                <option value="round_robin">Round-robin to all agents (equal split)</option>
+                <option value="manual">Assign all to one specific agent</option>
+                <option value="unassign">Unassign (clear agent)</option>
+              </select>
+            </div>
+            {assignMode === "manual" && (
+              <div>
+                <label className="form-label">Agent</label>
+                <select className="ipc-input" value={assignAgentId} onChange={(e) => setAssignAgentId(e.target.value)}>
+                  <option value="">Select agent…</option>
+                  {agents.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="form-label">Scope</label>
+              <select className="ipc-input" value={assignScope} onChange={(e) => setAssignScope(e.target.value as any)}>
+                <option value="unassigned">Only unassigned leads in current view</option>
+                <option value="all">All leads in current view (overwrites)</option>
+              </select>
+            </div>
+            {agents.length === 0 && (
+              <div className="p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs">
+                No active sales agents found. Create members with role <strong>BDE</strong>, <strong>Sales</strong>, or <strong>Agent</strong> from the Admin Panel first.
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setAssignOpen(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
+              <button onClick={runAssignment} disabled={assignBusy} className="ipc-btn ipc-btn-black">{assignBusy ? "Assigning…" : "Assign"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

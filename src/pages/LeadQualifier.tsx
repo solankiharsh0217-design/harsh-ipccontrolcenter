@@ -289,6 +289,20 @@ export default function LeadQualifier() {
     <div>
       <PageHead title="Lead Qualifier" sub={isMode2 ? "True Absentee Finder · cross-matched results" : "Attendee Analysis · Zoom-only results"} />
 
+      {/* Sticky top action bar — always visible while reviewing leads */}
+      <div className="sticky top-0 z-30 -mx-10 px-10 py-3 mb-4 bg-white/95 backdrop-blur border-b border-line flex items-center justify-between gap-3 flex-wrap">
+        <div className="text-xs text-muted-foreground">
+          <span className="font-serif text-base text-foreground mr-2">{result.webinarName}</span>
+          {counts.total} leads · <span style={{ color: GRADE_STYLES.hot.fg }}>{counts.hot} Hot</span> · <span style={{ color: GRADE_STYLES.warm.fg }}>{counts.warm} Warm</span> · <span style={{ color: GRADE_STYLES.cold.fg }}>{counts.cold} Cold</span>{isMode2 ? ` · ${counts.ta} True Absentees` : ` · ${counts.na} No Show`}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => exportSet("all")} className="ipc-btn ipc-btn-ghost !h-9">Download CSV</button>
+          <button onClick={() => setShowModal(true)} className="ipc-btn !h-9" style={{ background: "#C8A84B", color: "#0a0a0a" }}>
+            <Send className="w-3.5 h-3.5" /> Send to CRM →
+          </button>
+        </div>
+      </div>
+
       <div className="space-y-6">
         <div className="p-5 rounded-xl border border-line">
           <div className="flex items-start justify-between gap-4">

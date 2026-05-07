@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import type { MergedLead, QualifierResult } from "@/lib/qualifier";
 import { GRADE_STYLES, ensurePipelineExists } from "@/lib/crmTypes";
-import { X } from "lucide-react";
+import { X, Plus } from "lucide-react";
 
 interface Props {
   result: QualifierResult;
@@ -29,6 +29,29 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const [superHotEmails, setSuperHotEmails] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [webinars, setWebinars] = useState<{ id: string; name: string }[]>([]);
+  const [addingNew, setAddingNew] = useState(false);
+
+  useEffect(() => {
+    supabase.from("webinars").select("id, name").order("name").then(({ data }) => {
+      setWebinars((data || []) as any);
+      // If qualifier had a name and it isn't in DB yet, mark as add mode
+      if (result.webinarName && !(data || []).some((w: any) => w.name === result.webinarName)) {
+        setAddingNew(true);
+      }
+    });
+  }, []);
+
+  const saveWebinarToDb = async () => {
+    const n = name.trim();
+    if (!n) return;
+    if (webinars.some((w) => w.name.toLowerCase() === n.toLowerCase())) {
+      toast.info("Already in database"); setAddingNew(false); return;
+    }
+    const { data, error } = await supabase.from("webinars").insert({ name: n }).select().maybeSingle();
+    if (error) { toast.error(error.message); return; }
+    if (data) { setWebinars((p) => [...p, data as any].sort((a, b) => a.name.localeCompare(b.name))); setAddingNew(false); toast.success("Webinar saved"); }
+  };
 
   // Load metadata when opening step 3
   const goToStep3 = async () => {
@@ -213,7 +236,28 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
             </div>
             <div>
               <label className="form-label">Webinar name / title</label>
-              <input type="text" className="ipc-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Diamond Program Masterclass — Apr 8" />
+              {!addingNew ? (
+                <div className="flex gap-2">
+                  <select className="ipc-input flex-1" value={name} onChange={(e) => setName(e.target.value)}>
+                    <option value="">Select a webinar…</option>
+                    {webinars.map((w) => <option key={w.id} value={w.name}>{w.name}</option>)}
+                  </select>
+                  <button type="button" onClick={() => { setAddingNew(true); setName(""); }} className="ipc-btn ipc-btn-ghost" title="Add new webinar">
+                    <Plus className="w-3.5 h-3.5" /> New
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input type="text" className="ipc-input flex-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Diamond Program Masterclass — Apr 8" autoFocus />
+                  <button type="button" onClick={saveWebinarToDb} disabled={!name.trim()} className="ipc-btn ipc-btn-black disabled:opacity-50" title="Save to database">
+                    <Plus className="w-3.5 h-3.5" /> Save
+                  </button>
+                  {webinars.length > 0 && (
+                    <button type="button" onClick={() => setAddingNew(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
+                  )}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground mt-1.5">Saved webinars appear in the dropdown next time you import — no retyping needed.</p>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
