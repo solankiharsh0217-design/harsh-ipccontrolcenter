@@ -1,0 +1,1 @@
+ALTER TYPE public.lead_grade ADD VALUE IF NOT EXISTS 'true-absentee';

@@ -181,32 +181,44 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          mode: number | null
           registrants: number | null
+          registration_file_name: string | null
           total_duration: number | null
+          true_absentee_count: number | null
           uploaded_by: string | null
           viewers: number | null
           webinar_date: string | null
           webinar_name: string
+          zoom_file_name: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          mode?: number | null
           registrants?: number | null
+          registration_file_name?: string | null
           total_duration?: number | null
+          true_absentee_count?: number | null
           uploaded_by?: string | null
           viewers?: number | null
           webinar_date?: string | null
           webinar_name: string
+          zoom_file_name?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          mode?: number | null
           registrants?: number | null
+          registration_file_name?: string | null
           total_duration?: number | null
+          true_absentee_count?: number | null
           uploaded_by?: string | null
           viewers?: number | null
           webinar_date?: string | null
           webinar_name?: string
+          zoom_file_name?: string | null
         }
         Relationships: []
       }
@@ -223,6 +235,7 @@ export type Database = {
           grade: Database["public"]["Enums"]["lead_grade"]
           id: string
           is_super_hot: boolean
+          lead_source_type: string | null
           lead_type: Database["public"]["Enums"]["lead_type"]
           phone: string | null
           pipeline_id: string | null
@@ -250,6 +263,7 @@ export type Database = {
           grade?: Database["public"]["Enums"]["lead_grade"]
           id?: string
           is_super_hot?: boolean
+          lead_source_type?: string | null
           lead_type?: Database["public"]["Enums"]["lead_type"]
           phone?: string | null
           pipeline_id?: string | null
@@ -277,6 +291,7 @@ export type Database = {
           grade?: Database["public"]["Enums"]["lead_grade"]
           id?: string
           is_super_hot?: boolean
+          lead_source_type?: string | null
           lead_type?: Database["public"]["Enums"]["lead_type"]
           phone?: string | null
           pipeline_id?: string | null
@@ -501,6 +516,7 @@ export type Database = {
         | "non-attendee"
         | "super-hot"
         | "very-cold"
+        | "true-absentee"
       lead_type: "paid" | "unpaid"
       pipeline_type: "unpaid" | "paid" | "custom"
       user_status: "pending" | "active"
@@ -641,6 +657,7 @@ export const Constants = {
         "non-attendee",
         "super-hot",
         "very-cold",
+        "true-absentee",
       ],
       lead_type: ["paid", "unpaid"],
       pipeline_type: ["unpaid", "paid", "custom"],
