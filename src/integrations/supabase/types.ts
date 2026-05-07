@@ -516,6 +516,7 @@ export type Database = {
         | "non-attendee"
         | "super-hot"
         | "very-cold"
+        | "true-absentee"
       lead_type: "paid" | "unpaid"
       pipeline_type: "unpaid" | "paid" | "custom"
       user_status: "pending" | "active"
@@ -656,6 +657,7 @@ export const Constants = {
         "non-attendee",
         "super-hot",
         "very-cold",
+        "true-absentee",
       ],
       lead_type: ["paid", "unpaid"],
       pipeline_type: ["unpaid", "paid", "custom"],
