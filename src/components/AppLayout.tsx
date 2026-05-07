@@ -115,9 +115,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <Icon d="M8 1l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9l-3 1.5.5-3.5L3 4.5 6.5 4z" />
                 Admin Panel
               </NavItem>
-              <NavItem to="/roas/setup/data-sources"><Icon d="M3 4h10v3H3zM3 9h10v3H3z" />ROAS Data Sources</NavItem>
-              <NavItem to="/roas/setup/webinars"><Icon d="M3 3h10v10H3zM3 6h10" />ROAS Webinars</NavItem>
-              <NavItem to="/roas/setup/media-buyers"><Icon><><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 3-5 6-5s6 2 6 5"/></></Icon>ROAS Media Buyers</NavItem>
             </>
           )}
         </div>
