@@ -88,7 +88,7 @@ export async function runAutoAttribution(
   for (const m of all) {
     const r = resolveSheetCsvUrl(input.masterSheetUrl, m.tabInput);
     if (r.ok) allTabs.push({ mapping: m, csvUrl: r.csvUrl, gid: r.gid });
-    else allTabs.push({ mapping: m, error: r.error });
+    else allTabs.push({ mapping: m, error: (r as { ok: false; error: string }).error });
   }
 
   // Fetch in parallel
