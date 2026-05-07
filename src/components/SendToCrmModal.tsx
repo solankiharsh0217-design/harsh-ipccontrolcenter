@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import type { MergedLead, QualifierResult } from "@/lib/qualifier";
 import { GRADE_STYLES, ensurePipelineExists } from "@/lib/crmTypes";
-import { X } from "lucide-react";
+import { X, Plus } from "lucide-react";
 
 interface Props {
   result: QualifierResult;
