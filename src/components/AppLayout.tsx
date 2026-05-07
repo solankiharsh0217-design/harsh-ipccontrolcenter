@@ -13,8 +13,9 @@ const Icon = ({ d, children }: { d?: string; children?: ReactNode }) => (
 const PAGE_TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/announcements": "Announcements",
-  "/roas/calculator": "ROAS Calculator",
-  "/roas": "ROAS Dashboard",
+  "/roas": "ROAS Calculator",
+  "/roas/calculator": "Simple ROAS Calculator",
+  "/roas/dashboard": "ROAS Dashboard",
   "/roas/leads": "ROAS Leads",
   "/roas/enrollments": "ROAS Enrollments",
   "/roas/manual-review": "Manual Review",
@@ -90,20 +91,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></></Icon>
             Student Search
           </NavItem>
-          <NavItem to="/roas/calculator">
-            <Icon d="M2 8h3l2-5 2 10 2-5h3" />
-            ROAS Calculator
-          </NavItem>
-          <NavItem to="/roas">
-            <Icon d="M2 12l3-3 3 3 5-7" />
-            ROAS Dashboard
-          </NavItem>
-          <NavItem to="/roas/leads"><Icon><><circle cx="8" cy="6" r="3"/><path d="M2 14c0-3 3-5 6-5s6 2 6 5"/></></Icon>ROAS Leads</NavItem>
-          <NavItem to="/roas/enrollments"><Icon d="M3 5h10v9H3zM5 8h6M5 11h4" />Enrollments</NavItem>
-          <NavItem to="/roas/manual-review"><Icon><><path d="M8 2l6 11H2z"/><path d="M8 7v3M8 11.5v.5"/></></Icon>Manual Review</NavItem>
-          <NavItem to="/roas/ad-spend"><Icon d="M3 13V5h10v8M6 9h4" />Ad Spend</NavItem>
-          <NavItem to="/roas/sync"><Icon d="M2 8a6 6 0 0110-4M14 8a6 6 0 01-10 4M11 4h3v3M5 12H2v-3" />Sync</NavItem>
-          <NavItem to="/search"><Icon><><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></></Icon>Student Search</NavItem>
           <NavItem to="/leadflow">
             <Icon d="M2 12l4-4 3 3 5-6" />
             Daily Lead Flow
