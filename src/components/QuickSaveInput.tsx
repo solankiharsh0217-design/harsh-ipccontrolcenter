@@ -148,11 +148,36 @@ export default function QuickSaveInput({
           style={inputStyle}
           value={v}
           placeholder={placeholder}
-          onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+          onChange={(e) => { onChange(e.target.value); setOpen(true); setHi(-1); }}
           onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
+          onDoubleClick={() => setOpen(true)}
+          onBlur={() => {
+            if (blurTimer.current) window.clearTimeout(blurTimer.current);
+            blurTimer.current = window.setTimeout(() => setOpen(false), 180);
+          }}
           onKeyDown={(e) => {
-            if (e.key === "Escape") setOpen(false);
-            if (e.key === "Enter" && showPlus) { e.preventDefault(); save(); }
+            if (e.key === "Escape") { setOpen(false); return; }
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setOpen(true);
+              setHi((h) => Math.min((filtered.length - 1), h + 1));
+              return;
+            }
+            if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setHi((h) => Math.max(0, h - 1));
+              return;
+            }
+            if (e.key === "Enter") {
+              if (open && hi >= 0 && filtered[hi]) {
+                e.preventDefault();
+                onChange(filtered[hi].value);
+                setOpen(false);
+                return;
+              }
+              if (showPlus) { e.preventDefault(); save(); }
+            }
           }}
         />
         {showPlus && (
@@ -166,7 +191,7 @@ export default function QuickSaveInput({
         )}
 
         {open && (
-          <div className={"qsi-dd" + (openUp ? " qsi-dd-up" : "")}>
+          <div className={"qsi-dd" + (openUp ? " qsi-dd-up" : "")} onMouseDown={(e) => e.preventDefault()}>
             <div className="qsi-dd-hdr">Saved entries</div>
             {entries.length === 0 && (
               <div className="qsi-dd-empty">No saved entries yet — type and press + to save</div>
@@ -174,10 +199,11 @@ export default function QuickSaveInput({
             {entries.length > 0 && filtered.length === 0 && trimmed && (
               <div className="qsi-dd-empty">Press + to save "{trimmed}"</div>
             )}
-            {filtered.map((e) => (
+            {filtered.map((e, i) => (
               <div
                 key={e.id}
-                className="qsi-dd-row"
+                className={"qsi-dd-row" + (i === hi ? " qsi-dd-row-hi" : "")}
+                onMouseEnter={() => setHi(i)}
                 onClick={() => { onChange(e.value); setOpen(false); }}
               >
                 <span className="qsi-dd-val">{e.value}</span>
