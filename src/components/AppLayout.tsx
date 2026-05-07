@@ -87,6 +87,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon d="M2 12l4-4 3 3 5-6" />
             Daily Lead Flow
           </NavItem>
+          <NavItem to="/reports">
+            <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></></Icon>
+            Reports & History
+          </NavItem>
           <NavItem to="/lead-qualifier">
             <Icon><><path d="M3 3h10v10H3z"/><path d="M5 7h6M5 9h4"/></></Icon>
             Lead Qualifier
