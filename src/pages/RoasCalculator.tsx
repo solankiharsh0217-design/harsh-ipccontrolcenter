@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -126,6 +126,79 @@ const styles = `
 .rcv2 .ds-status.manual{background:var(--off);color:var(--mt);border:1px solid var(--bd)}
 .rcv2 .add-ds-form{border:1.5px dashed var(--bd);border-radius:11px;padding:20px 22px}
 .rcv2 .add-ds-title{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--mt);margin-bottom:14px}
+
+/* === Wizard === */
+.rcv2 .wiz{max-width:680px;padding:32px 36px 8px}
+.rcv2 .wiz.wide{max-width:900px}
+.rcv2 .wiz-prog{display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;background:var(--ww);padding:14px 0 18px;z-index:5;border-bottom:1px solid transparent}
+.rcv2 .wiz-step{display:flex;flex-direction:column;align-items:center;flex:0 0 auto;width:90px;text-align:center}
+.rcv2 .wiz-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:13px;border:1px solid var(--bd);background:var(--off);color:var(--mt);transition:all .25s}
+.rcv2 .wiz-step.active .wiz-circle{background:var(--kk);color:var(--ww);border-color:var(--kk)}
+.rcv2 .wiz-step.done .wiz-circle{background:var(--gold);color:var(--ww);border-color:var(--gold)}
+.rcv2 .wiz-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mt);margin-top:8px}
+.rcv2 .wiz-step.active .wiz-lbl{color:var(--kk)}
+.rcv2 .wiz-step.done .wiz-lbl{color:var(--gold)}
+.rcv2 .wiz-line{flex:1;height:2px;background:var(--bd);margin:14px 4px 0;transition:background .25s}
+.rcv2 .wiz-line.done{background:var(--gold)}
+.rcv2 .wiz-body{padding-top:10px;animation:wzfade .2s ease-out}
+@keyframes wzfade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.rcv2 .wiz-h{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;margin-bottom:6px}
+.rcv2 .wiz-sub{font-size:13px;font-weight:300;color:var(--mt);margin-bottom:28px;line-height:1.6}
+.rcv2 .wiz-nav{display:flex;justify-content:flex-end;gap:10px;margin-top:28px;padding-top:18px;border-top:1px solid var(--bd)}
+.rcv2 .wiz-btn{height:40px;padding:0 22px;border-radius:8px;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:6px;transition:opacity .12s}
+.rcv2 .wiz-btn-k{background:var(--kk);color:var(--ww)}
+.rcv2 .wiz-btn-k:hover{opacity:.85}
+.rcv2 .wiz-btn-g{background:var(--ww);color:var(--kk);border:1px solid var(--bd)}
+.rcv2 .wiz-btn-g:hover{background:var(--off)}
+.rcv2 .err{color:var(--rd);font-size:11px;margin-top:6px}
+.rcv2 .fi-wrap{position:relative}
+.rcv2 .fi-h{height:44px}
+.rcv2 .fi-plus{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:6px;border:none;background:transparent;color:var(--mt);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .12s}
+.rcv2 .fi-plus:hover{background:var(--gp);color:var(--gold)}
+.rcv2 .saved-conf{color:var(--gn);font-size:11px;margin-top:6px;animation:wzfade .25s ease-out}
+.rcv2 .tpl-dd{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--ww);border:1px solid var(--bd);border-radius:8px;max-height:220px;overflow-y:auto;z-index:10;padding:6px 0}
+.rcv2 .tpl-dd-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--mt);padding:6px 12px}
+.rcv2 .tpl-it{padding:8px 12px;font-size:13px;cursor:pointer}
+.rcv2 .tpl-it:hover{background:var(--off)}
+
+/* media buyer compact card (step 2) */
+.rcv2 .mb-card{background:var(--ww);border:1px solid var(--bd);border-radius:12px;padding:18px 20px;margin-bottom:12px;position:relative;animation:wzfade .18s ease-out}
+.rcv2 .mb-card.warn{border-color:var(--ab)}
+.rcv2 .mb-card-hd{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.rcv2 .mb-av{width:32px;height:32px;border-radius:50%;background:var(--kk);color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rcv2 .mb-hd-t{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:500}
+.rcv2 .mb-hd-s{font-size:11px;color:var(--mt);margin-top:1px}
+.rcv2 .mb-card-x{margin-left:auto;width:28px;height:28px;border:1px solid var(--bd);border-radius:6px;background:var(--ww);cursor:pointer;color:var(--mt);font-size:12px;transition:all .12s}
+.rcv2 .mb-card-x:hover{background:var(--rp);color:var(--rd);border-color:var(--rb)}
+.rcv2 .fl-sm{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--mt);margin-bottom:6px}
+.rcv2 .fi-sm{height:38px;width:100%;border:1px solid var(--bd);border-radius:8px;padding:0 12px;font-family:'Jost',sans-serif;font-size:13px;background:var(--ww);outline:none;transition:border-color .12s}
+.rcv2 .fi-sm:focus{border-color:var(--gold)}
+.rcv2 .fi-sm.bad{border-color:var(--rd)}
+.rcv2 .src-opt{border:1px solid var(--bd);border-radius:8px;padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all .12s;background:var(--ww);height:52px}
+.rcv2 .src-opt:hover{background:var(--off)}
+.rcv2 .src-opt.sel{border-color:var(--gold);background:var(--gp)}
+.rcv2 .src-opt-ic{width:24px;height:24px;border-radius:6px;background:var(--off);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.rcv2 .src-opt-t{font-size:12px;font-weight:500;line-height:1.2}
+.rcv2 .src-opt-s{font-size:10px;color:var(--mt);margin-top:1px}
+.rcv2 .row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rcv2 .conn-good{color:var(--gn);font-size:10px;margin-top:8px}
+.rcv2 .conn-bad{color:var(--amb);font-size:10px;margin-top:8px}
+.rcv2 .helper{font-size:10px;color:var(--mt);margin-top:6px}
+.rcv2 .spend-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--bd);gap:12px}
+.rcv2 .spend-row:last-child{border-bottom:none}
+.rcv2 .spend-row .left{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.rcv2 .spend-av{width:28px;height:28px;border-radius:50%;background:var(--kk);color:var(--gold);font-family:'Cormorant Garamond',serif;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rcv2 .spend-name{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:500}
+.rcv2 .spend-input-wrap{position:relative;width:160px;flex-shrink:0}
+.rcv2 .spend-input-wrap .pfx{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--mt);font-size:13px;pointer-events:none}
+.rcv2 .spend-inp{width:100%;height:38px;border:1px solid var(--bd);border-radius:8px;padding:0 12px 0 24px;font-family:'Jost',sans-serif;font-size:13px;outline:none;transition:border-color .12s}
+.rcv2 .spend-inp:focus{border-color:var(--gold)}
+.rcv2 .spend-inp.bad{border-color:var(--rd)}
+.rcv2 .spend-tot{text-align:right;font-size:12px;color:var(--mt);margin-top:14px}
+.rcv2 .calc-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px}
+.rcv2 .calc-bar{width:320px;height:3px;background:var(--off);border-radius:2px;overflow:hidden;margin-top:14px}
+.rcv2 .calc-bar-fill{height:100%;background:var(--gold);transition:width .15s linear}
+.rcv2 .calc-msg{font-size:13px;color:var(--mt);font-weight:300}
 `;
 
 // ───────────── helpers ─────────────
@@ -220,23 +293,81 @@ export default function RoasCalculator() {
 }
 
 // ===================================================================
-// TAB 1: MEDIA BUYER ATTRIBUTION
+// TAB 1: MEDIA BUYER ATTRIBUTION — 4-STEP WIZARD
 // ===================================================================
+function initials(name: string) {
+  const w = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return "";
+  if (w.length === 1) return w[0][0].toUpperCase();
+  return (w[0][0] + w[w.length - 1][0]).toUpperCase();
+}
+
 function AttrTab({ userId }: { userId?: string }) {
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [calculating, setCalculating] = useState(false);
+
+  // Step 1
   const [wbName, setWbName] = useState("");
   const [wbDate, setWbDate] = useState(new Date().toISOString().slice(0, 10));
   const [wbType, setWbType] = useState("1-day");
+  const [wbErr, setWbErr] = useState("");
+  const [dateErr, setDateErr] = useState("");
+  const [savedConf, setSavedConf] = useState(false);
+  const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [showDD, setShowDD] = useState(false);
+  const ddRef = useRef<HTMLDivElement>(null);
+
+  // Step 2 — buyers (no spend here)
   const [mbs, setMbs] = useState<MB[]>([{ id: 1, name: "", spend: "", leads: "", mode: "url", url: "", data: [] }]);
+  const idRef = useRef(2);
+
+  // Step 3 — sales sheet + spends
   const [salesMode, setSalesMode] = useState<SheetMode>("url");
   const [salesUrl, setSalesUrl] = useState("");
   const [salesData, setSalesData] = useState<string[][]>([]);
   const [salesFile, setSalesFile] = useState<{ name: string; meta: string } | null>(null);
-  const [running, setRunning] = useState(false);
-  const [progPct, setProgPct] = useState(0);
-  const [progLbl, setProgLbl] = useState("");
-  const [results, setResults] = useState<{ rows: AttrRow[]; unmatched: Person[]; totals: { spend: number; revenue: number; sales: number; leads: number } } | null>(null);
-  const idRef = useRef(2);
+  const [touchedCalc, setTouchedCalc] = useState(false);
 
+  // Step 4
+  const [progPct, setProgPct] = useState(0);
+  const [calcMsg, setCalcMsg] = useState("");
+  const [results, setResults] = useState<{ rows: AttrRow[]; unmatched: Person[]; totals: { spend: number; revenue: number; sales: number; leads: number } } | null>(null);
+  const [savedHist, setSavedHist] = useState(false);
+
+  // load templates
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("webinar_templates").select("id,name").order("created_at", { ascending: false }).limit(200);
+      setTemplates((data || []) as any);
+    })();
+  }, []);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (ddRef.current && !ddRef.current.contains(e.target as Node)) setShowDD(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const filteredTpl = templates.filter((t) =>
+    !wbName.trim() ? true : t.name.toLowerCase().includes(wbName.toLowerCase())
+  );
+
+  const saveTemplate = async () => {
+    const n = wbName.trim();
+    if (!n || !userId) return;
+    const exists = templates.some((t) => t.name.toLowerCase() === n.toLowerCase());
+    if (exists) { setSavedConf(true); setTimeout(() => setSavedConf(false), 1500); return; }
+    const { data, error } = await supabase.from("webinar_templates").insert({ name: n, created_by: userId }).select().single();
+    if (!error && data) {
+      setTemplates((p) => [{ id: data.id, name: data.name }, ...p]);
+      setSavedConf(true);
+      setTimeout(() => setSavedConf(false), 1500);
+    }
+  };
+
+  // buyer ops
   const addMB = () => setMbs((p) => [...p, { id: idRef.current++, name: "", spend: "", leads: "", mode: "url", url: "", data: [] }]);
   const removeMB = (id: number) => setMbs((p) => p.filter((m) => m.id !== id));
   const updateMB = (id: number, patch: Partial<MB>) => setMbs((p) => p.map((m) => (m.id === id ? { ...m, ...patch } : m)));
@@ -275,19 +406,46 @@ function AttrTab({ userId }: { userId?: string }) {
     }
   };
 
-  const run = async () => {
-    setRunning(true);
-    const labels = ["Fetching lead sheets…", "Reading sales data…", "Matching sales to leads…", "Calculating ROAS…", "Preparing results…"];
-    let pct = 0, li = 0;
-    const iv = setInterval(() => {
-      pct += Math.random() * 22 + 6;
-      if (pct > 100) pct = 100;
-      setProgPct(pct);
-      setProgLbl(labels[Math.min(li++, labels.length - 1)]);
-    }, 200);
+  // step nav
+  const goNext = () => {
+    if (step === 1) {
+      let ok = true;
+      if (!wbName.trim()) { setWbErr("Please enter a webinar name"); ok = false; } else setWbErr("");
+      if (!wbDate) { setDateErr("Please select a date"); ok = false; } else setDateErr("");
+      if (!ok) return;
+      setStep(2);
+    } else if (step === 2) {
+      const named = mbs.filter((m) => m.name.trim());
+      if (!named.length) { toast.error("Please add at least one media buyer with a name"); return; }
+      const incomplete = named.find((m) => !(m.mode === "url" ? m.url.trim() : m.fileName));
+      if (incomplete) { toast.error("Please connect a lead sheet for each media buyer"); return; }
+      setStep(3);
+    } else if (step === 3) {
+      run();
+    }
+  };
+  const goBack = () => { if (step > 1) setStep((s) => (s - 1) as any); };
 
-    // collect MB people
-    const mbResolved = await Promise.all(mbs.map(async (m) => {
+  const run = async () => {
+    setTouchedCalc(true);
+    const sheetOk = salesMode === "url" ? salesUrl.trim() : !!salesFile;
+    const named = mbs.filter((m) => m.name.trim());
+    const allSpend = named.every((m) => parseFloat(m.spend) > 0);
+    if (!sheetOk || !allSpend) { toast.error("Please connect sales sheet and enter ad spend for each media buyer"); return; }
+
+    setCalculating(true);
+    setStep(4);
+    const labels = ["Reading lead sheets…", "Reading sales data…", "Matching by email…", "Matching by phone…", "Matching by name…", "Calculating ROAS…", "Preparing your results…"];
+    let pct = 0, li = 0;
+    setProgPct(0); setCalcMsg(labels[0]);
+    const iv = setInterval(() => {
+      pct += 6 + Math.random() * 10; if (pct > 95) pct = 95;
+      setProgPct(pct);
+      li = Math.min(li + 1, labels.length - 1);
+      setCalcMsg(labels[li]);
+    }, 350);
+
+    const mbResolved = await Promise.all(named.map(async (m) => {
       let rows = m.data;
       if (m.mode === "url" && m.url && rows.length === 0) rows = await fetchURL(m.url);
       const people = rows.length ? extractPeople(rows) : [];
@@ -297,7 +455,7 @@ function AttrTab({ userId }: { userId?: string }) {
     if (salesMode === "url" && salesUrl && sales.length === 0) sales = await fetchURL(salesUrl);
     const salesPeople = extractPeople(sales);
 
-    const tally: AttrRow[] = mbResolved.map((x) => ({ name: x.mb.name || `Media Buyer ${x.mb.id}`, spend: parseFloat(x.mb.spend) || 0, leads: x.leads, matched: 0, revenue: 0 }));
+    const tally: AttrRow[] = mbResolved.map((x) => ({ name: x.mb.name, spend: parseFloat(x.mb.spend) || 0, leads: x.leads, matched: 0, revenue: 0 }));
     const unmatched: Person[] = [];
     salesPeople.forEach((sale) => {
       let attr = false;
@@ -318,14 +476,17 @@ function AttrTab({ userId }: { userId?: string }) {
         leads: tally.reduce((a, b) => a + b.leads, 0),
       };
       setResults({ rows: tally, unmatched, totals });
-      setRunning(false);
-    }, 600);
+      setCalculating(false);
+    }, 2400);
   };
 
   const reset = () => {
+    setStep(1); setCalculating(false); setResults(null); setProgPct(0);
+    setWbName(""); setWbErr(""); setDateErr("");
     setMbs([{ id: 1, name: "", spend: "", leads: "", mode: "url", url: "", data: [] }]);
-    setSalesData([]); setSalesFile(null); setSalesUrl("");
-    setResults(null); setProgPct(0);
+    idRef.current = 2;
+    setSalesData([]); setSalesFile(null); setSalesUrl(""); setSalesMode("url");
+    setTouchedCalc(false);
   };
 
   const exportReport = () => {
@@ -365,170 +526,303 @@ function AttrTab({ userId }: { userId?: string }) {
       created_by: userId,
     }));
     const { error } = await supabase.from("media_buyer_attribution").insert(records);
-    if (error) toast.error("Save failed: " + error.message);
-    else toast.success("Saved to history ✓");
+    if (error) { toast.error("Save failed: " + error.message); return; }
+    setSavedHist(true); setTimeout(() => setSavedHist(false), 1500);
   };
 
+  const namedMbs = mbs.filter((m) => m.name.trim());
+  const totalSpend = namedMbs.reduce((a, m) => a + (parseFloat(m.spend) || 0), 0);
+
+  const stepLabels = ["Webinar", "Media Buyers", "Sales & Spend", "Results"];
+
   return (
-    <>
-      <div className="page-title">Media Buyer Attribution</div>
-      <p className="page-sub">Add your media buyers, link their lead sheets, upload the sales sheet, and enter ad spends. The system matches sales to leads and calculates ROAS for each media buyer.</p>
-
-      {/* STEP 1 */}
-      <div className="step-card active">
-        <div className="step-header">
-          <div className="step-num">1</div>
-          <div><div className="step-title">Webinar details</div><div className="step-sub">Tell us which webinar this attribution is for</div></div>
-        </div>
-        <div className="two-col" style={{ marginBottom: 14 }}>
-          <div><label className="fl">Webinar name</label><input className="fi" value={wbName} onChange={(e) => setWbName(e.target.value)} placeholder="e.g. Learn 6 Secrets to ₹1 Crore Turnover" /></div>
-          <div><label className="fl">Webinar date</label><input className="fi" type="date" value={wbDate} onChange={(e) => setWbDate(e.target.value)} /></div>
-        </div>
-        <div>
-          <label className="fl">Webinar type</label>
-          <div className="wpills">
-            {[["1-day", "1 Day"], ["2-day", "2 Days"], ["3-day", "3 Days"], ["series", "Series"]].map(([v, l]) => (
-              <button key={v} className={"wpill" + (wbType === v ? " sel" : "")} onClick={() => setWbType(v)}>{l}</button>
-            ))}
-          </div>
-        </div>
+    <div className={"wiz" + (step === 4 ? " wide" : "")}>
+      {/* Progress indicator */}
+      <div className="wiz-prog">
+        {stepLabels.map((lbl, i) => {
+          const n = i + 1;
+          const status = step > n ? "done" : step === n ? "active" : "";
+          return (
+            <React.Fragment key={n}>
+              <div className={"wiz-step " + status}>
+                <div className="wiz-circle">{step > n ? "✓" : n}</div>
+                <div className="wiz-lbl">{lbl}</div>
+              </div>
+              {i < 3 && <div className={"wiz-line" + (step > n ? " done" : "")} />}
+            </React.Fragment>
+          );
+        })}
       </div>
 
-      {/* STEP 2 */}
-      <div className="step-card">
-        <div className="step-header">
-          <div className="step-num">2</div>
-          <div><div className="step-title">Media buyers & lead sheets</div><div className="step-sub">Add each media buyer and connect their lead source</div></div>
-        </div>
-        <div className="mb-list">
-          {mbs.map((m, idx) => (
-            <div className="mb-row" key={m.id}>
-              <div className="mb-row-head">
-                <div className="mb-row-title">Media Buyer {idx + 1}</div>
-                <button className="mb-remove" onClick={() => removeMB(m.id)} title="Remove">✕</button>
+      <div className="wiz-body" key={step}>
+        {/* STEP 1 */}
+        {step === 1 && (
+          <>
+            <div className="wiz-h">Which webinar are we attributing?</div>
+            <div className="wiz-sub">Enter the webinar details so results are clearly labelled and saved to history.</div>
+
+            <div style={{ marginBottom: 18 }}>
+              <label className="fl">Webinar name</label>
+              <div className="fi-wrap" ref={ddRef}>
+                <input
+                  className="fi fi-h"
+                  style={{ paddingRight: 38 }}
+                  value={wbName}
+                  onChange={(e) => { setWbName(e.target.value); setShowDD(true); if (wbErr) setWbErr(""); }}
+                  onFocus={() => setShowDD(true)}
+                  placeholder="e.g. Learn 6 Secrets to ₹1 Crore Turnover"
+                />
+                {wbName.trim() && (
+                  <button type="button" className="fi-plus" title="Save to webinar templates" onClick={saveTemplate}>+</button>
+                )}
+                {showDD && filteredTpl.length > 0 && (
+                  <div className="tpl-dd">
+                    <div className="tpl-dd-lbl">Saved templates</div>
+                    {filteredTpl.slice(0, 5).map((t) => (
+                      <div key={t.id} className="tpl-it" onClick={() => { setWbName(t.name); setShowDD(false); }}>{t.name}</div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="three-col" style={{ marginBottom: 14 }}>
-                <div><label className="fl">Media buyer name</label><input className="fi" value={m.name} onChange={(e) => updateMB(m.id, { name: e.target.value })} placeholder="e.g. Priya Kapoor" /></div>
-                <div><label className="fl">Ad spend (₹)</label><input className="fi" type="number" value={m.spend} onChange={(e) => updateMB(m.id, { spend: e.target.value })} placeholder="e.g. 25000" /></div>
-                <div><label className="fl">Total leads generated</label><input className="fi" type="number" value={m.leads} onChange={(e) => updateMB(m.id, { leads: e.target.value })} placeholder="Auto-filled from sheet" style={{ background: "#F7F6F3" }} /></div>
-              </div>
-              <label className="fl">Lead sheet source</label>
-              <div className="sheet-opts">
-                <div className={"sheet-opt" + (m.mode === "url" ? " sel" : "")} onClick={() => updateMB(m.id, { mode: "url" })}>
-                  <div className="so-icon">🔗</div><div className="so-title">Google Sheet URL</div><div className="so-desc">Paste published sheet link for live fetch</div>
-                </div>
-                <div className={"sheet-opt" + (m.mode === "csv" ? " sel" : "")} onClick={() => updateMB(m.id, { mode: "csv" })}>
-                  <div className="so-icon">📄</div><div className="so-title">Upload CSV</div><div className="so-desc">Export and upload the lead sheet as CSV</div>
-                </div>
-              </div>
-              {m.mode === "url" ? (
-                <div style={{ marginTop: 10 }}>
-                  <input className="fi" value={m.url} onChange={(e) => updateMB(m.id, { url: e.target.value })} placeholder="Paste Google Sheet published CSV URL…" />
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>Sheet → File → Share → Publish to web → CSV</div>
-                </div>
-              ) : (
-                <UploadZone done={!!m.fileName} fileName={m.fileName} fileMeta={m.fileMeta}
-                  onFile={(f) => handleMBFile(m.id, f)} idleIcon="📄" idleTitle="Drop lead sheet CSV here" idleSub="Any format — auto-detected" />
-              )}
+              {wbErr && <div className="err">{wbErr}</div>}
+              {savedConf && <div className="saved-conf">✓ Saved to webinar templates</div>}
             </div>
-          ))}
-        </div>
-        <button className="add-mb-btn" onClick={addMB}>+ Add another media buyer</button>
-      </div>
 
-      {/* STEP 3 */}
-      <div className="step-card">
-        <div className="step-header">
-          <div className="step-num">3</div>
-          <div><div className="step-title">Sales sheet</div><div className="step-sub">The final list of people who purchased — manually entered by your team</div></div>
-        </div>
-        <div className="info-box">📋 <strong>How matching works:</strong> The system matches sales to leads using email first, phone number second, and name third. Even if names are spelled differently, phone matching will catch them. Unmatched sales will be shown separately so you can review them manually.</div>
-        <div className="sheet-opts">
-          <div className={"sheet-opt" + (salesMode === "url" ? " sel" : "")} onClick={() => setSalesMode("url")}>
-            <div className="so-icon">🔗</div><div className="so-title">Google Sheet URL</div><div className="so-desc">Fetch sales data live — works with manual rows and gaps</div>
-          </div>
-          <div className={"sheet-opt" + (salesMode === "csv" ? " sel" : "")} onClick={() => setSalesMode("csv")}>
-            <div className="so-icon">📄</div><div className="so-title">Upload CSV</div><div className="so-desc">Export your sales sheet and upload manually</div>
-          </div>
-        </div>
-        {salesMode === "url" ? (
-          <div style={{ marginTop: 10 }}>
-            <input className="fi" value={salesUrl} onChange={(e) => setSalesUrl(e.target.value)} placeholder="Paste Google Sheet published CSV URL…" />
-            <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>Works with manually entered data and gaps between rows</div>
-          </div>
-        ) : (
-          <UploadZone done={!!salesFile} fileName={salesFile?.name} fileMeta={salesFile?.meta}
-            onFile={handleSalesFile} idleIcon="📊" idleTitle="Drop sales sheet CSV here" idleSub="Any format — system auto-detects name, email, phone columns" />
+            <div style={{ marginBottom: 18 }}>
+              <label className="fl">Webinar date</label>
+              <input className="fi fi-h" type="date" value={wbDate} onChange={(e) => { setWbDate(e.target.value); if (dateErr) setDateErr(""); }} />
+              {dateErr && <div className="err">{dateErr}</div>}
+            </div>
+
+            <div>
+              <label className="fl">Webinar type</label>
+              <div className="wpills">
+                {[["1-day", "1 Day"], ["2-day", "2 Days"], ["3-day", "3 Days"], ["series", "Series"]].map(([v, l]) => (
+                  <button key={v} className={"wpill" + (wbType === v ? " sel" : "")} onClick={() => setWbType(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="wiz-nav">
+              <button className="wiz-btn wiz-btn-k" onClick={goNext}>Next →</button>
+            </div>
+          </>
         )}
-      </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-        <button className="btn btn-k" onClick={run} disabled={running}>★ Calculate attribution</button>
-        <button className="btn btn-g" onClick={reset}>Clear all</button>
-      </div>
+        {/* STEP 2 */}
+        {step === 2 && (
+          <>
+            <div className="wiz-h">Who are your media buyers?</div>
+            <div className="wiz-sub">Add each media buyer and connect the Google Sheet or CSV file where their leads are stored.</div>
 
-      {running && (
-        <div className="prog-wrap">
-          <div className="prog-lbl">{progLbl}</div>
-          <div className="prog-bg"><div className="prog-fill" style={{ width: progPct + "%" }} /></div>
-        </div>
-      )}
+            {mbs.map((m, idx) => {
+              const ini = initials(m.name);
+              const connected = m.mode === "url" ? !!m.url.trim() : !!m.fileName;
+              return (
+                <div className={"mb-card" + (m.name && !connected ? " warn" : "")} key={m.id}>
+                  <div className="mb-card-hd">
+                    <div className="mb-av">{ini || "?"}</div>
+                    <div>
+                      <div className="mb-hd-t">Media Buyer {idx + 1}</div>
+                      {m.name && <div className="mb-hd-s">{m.name}</div>}
+                    </div>
+                    <button className="mb-card-x" onClick={() => removeMB(m.id)} title="Remove">✕</button>
+                  </div>
 
-      {results && (
-        <div style={{ marginTop: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 400 }}>Attribution Results</div>
-            <div style={{ display: "flex", gap: 7 }}>
-              <button className="btn btn-g btn-sm" onClick={exportReport}>Export report</button>
-              <button className="btn btn-k btn-sm" onClick={saveHistory}>Save to history</button>
+                  <div style={{ marginBottom: 12 }}>
+                    <label className="fl-sm">Media buyer name</label>
+                    <input className="fi-sm" value={m.name} onChange={(e) => updateMB(m.id, { name: e.target.value })} placeholder="Full name" />
+                  </div>
+
+                  <label className="fl-sm">Lead sheet</label>
+                  <div className="row-2">
+                    <div className={"src-opt" + (m.mode === "url" ? " sel" : "")} onClick={() => updateMB(m.id, { mode: "url" })}>
+                      <div className="src-opt-ic">🔗</div>
+                      <div><div className="src-opt-t">Google Sheet</div><div className="src-opt-s">Live fetch via URL</div></div>
+                    </div>
+                    <div className={"src-opt" + (m.mode === "csv" ? " sel" : "")} onClick={() => updateMB(m.id, { mode: "csv" })}>
+                      <div className="src-opt-ic">📄</div>
+                      <div><div className="src-opt-t">Upload CSV</div><div className="src-opt-s">Manual upload</div></div>
+                    </div>
+                  </div>
+
+                  {m.mode === "url" ? (
+                    <div style={{ marginTop: 10 }}>
+                      <input className="fi-sm" value={m.url} onChange={(e) => updateMB(m.id, { url: e.target.value })} placeholder="Paste published CSV URL…" />
+                      <div className="helper">File → Share → Publish to web → CSV format</div>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 10 }}>
+                      <UploadZone done={!!m.fileName} fileName={m.fileName} fileMeta={m.fileMeta}
+                        onFile={(f) => handleMBFile(m.id, f)} idleIcon="📄" idleTitle="Drop CSV file here or click to browse" idleSub="Any format — auto-detected" />
+                    </div>
+                  )}
+
+                  {m.name && (
+                    connected
+                      ? <div className="conn-good">● {m.mode === "url" ? "Sheet connected" : `${m.fileName} uploaded`}</div>
+                      : <div className="conn-bad">● No lead sheet connected</div>
+                  )}
+                </div>
+              );
+            })}
+
+            <button className="add-mb-btn" onClick={addMB} style={{ height: 52 }}>＋ Add media buyer</button>
+
+            <div className="wiz-nav">
+              <button className="wiz-btn wiz-btn-g" onClick={goBack}>← Back</button>
+              <button className="wiz-btn wiz-btn-k" onClick={goNext}>Next →</button>
             </div>
-          </div>
-          <div className="sum-row">
-            <SumCard kind="gold" label="Overall ROAS" value={results.totals.spend > 0 ? (results.totals.revenue / results.totals.spend).toFixed(2) + "×" : "—"} note="Total revenue / total spend" />
-            <SumCard kind="plain" label="Total leads" value={results.totals.leads.toLocaleString("en-IN")} note="Across all media buyers" />
-            <SumCard kind="grn" label="Total sales" value={String(results.totals.sales)} note={inr(results.totals.revenue)} />
-            <SumCard kind="plain" label="Total ad spend" value={inr(results.totals.spend)} note="All media buyers combined" />
-          </div>
-          {results.unmatched.length > 0 && (
-            <div className="unmatched-box">
-              <div className="unmatched-title">⚠ {results.unmatched.length} sales could not be matched to any media buyer</div>
-              <div className="unmatched-list">
-                {results.unmatched.slice(0, 5).map((p, i) => (<div key={i}>• {p.name || "Unknown"} ({p.email || p.phone || "no contact info"})</div>))}
-                {results.unmatched.length > 5 && <div>…and {results.unmatched.length - 5} more</div>}
+          </>
+        )}
+
+        {/* STEP 3 */}
+        {step === 3 && (
+          <>
+            <div className="wiz-h">Sales data & ad spends</div>
+            <div className="wiz-sub">Upload your sales sheet and enter how much each media buyer spent on ads for this webinar.</div>
+
+            <div className="sl">Sales sheet</div>
+            <div className="info-box">💡 The system will match sales to leads using email, phone, and name. Works with manually entered data and gaps in rows.</div>
+            <div className="sheet-opts">
+              <div className={"sheet-opt" + (salesMode === "url" ? " sel" : "")} onClick={() => setSalesMode("url")}>
+                <div className="so-icon">🔗</div><div className="so-title">Google Sheet URL</div><div className="so-desc">Fetch live from your sheet</div>
               </div>
-              <div style={{ fontSize: 11, color: "#CA8A04", marginTop: 8 }}>These may be direct sales or leads from an unlisted source. Review manually.</div>
+              <div className={"sheet-opt" + (salesMode === "csv" ? " sel" : "")} onClick={() => setSalesMode("csv")}>
+                <div className="so-icon">📄</div><div className="so-title">Upload CSV</div><div className="so-desc">Export and upload manually</div>
+              </div>
             </div>
-          )}
-          <div className="sl">Per media buyer breakdown</div>
-          <table className="attr-table">
-            <thead><tr><th>Media Buyer</th><th>Leads</th><th>Matched Sales</th><th>Revenue</th><th>Ad Spend</th><th>CPL</th><th>Conv. Rate</th><th>ROAS</th></tr></thead>
-            <tbody>
-              {results.rows.map((r, i) => {
-                const roasN = r.spend > 0 ? r.revenue / r.spend : 0;
-                const cpl = r.leads > 0 ? "₹" + Math.round(r.spend / r.leads).toLocaleString("en-IN") : "—";
-                const cvr = r.leads > 0 ? ((r.matched / r.leads) * 100).toFixed(1) + "%" : "—";
-                const barPct = results.totals.sales > 0 ? (r.matched / results.totals.sales) * 100 : 0;
+            {salesMode === "url" ? (
+              <div style={{ marginTop: 10 }}>
+                <input className="fi" value={salesUrl} onChange={(e) => setSalesUrl(e.target.value)} placeholder="Paste Google Sheet published CSV URL…" />
+                <div className="helper">File → Share → Publish to web → CSV format</div>
+              </div>
+            ) : (
+              <UploadZone done={!!salesFile} fileName={salesFile?.name} fileMeta={salesFile?.meta}
+                onFile={handleSalesFile} idleIcon="📊" idleTitle="Drop sales sheet CSV here or click to browse" idleSub="Any format — auto-detects name, email, phone columns" />
+            )}
+
+            <div style={{ marginTop: 28 }}>
+              <div className="sl">Ad spend per media buyer</div>
+              {namedMbs.length === 0 && <div style={{ color: "#888", fontSize: 12.5, padding: "10px 0" }}>Add at least one named media buyer in Step 2.</div>}
+              {namedMbs.map((m) => {
+                const connected = m.mode === "url" ? !!m.url.trim() : !!m.fileName;
+                const bad = touchedCalc && !(parseFloat(m.spend) > 0);
                 return (
-                  <tr key={i}>
-                    <td><div className="mb-name-cell">{r.name}</div><div className="mb-sub2">{r.leads} leads · ₹{r.spend.toLocaleString("en-IN")} spent</div></td>
-                    <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.leads}</td>
-                    <td><div className="mini-bar-wrap"><div className="mini-bar"><div className="mini-bar-fill" style={{ width: barPct + "%" }} /></div><span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.matched}</span></div></td>
-                    <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500, color: "#16A34A" }}>{inr(r.revenue)}</td>
-                    <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{inr(r.spend)}</td>
-                    <td style={{ fontSize: 13, color: "#888" }}>{cpl}</td>
-                    <td style={{ fontSize: 13, color: "#888" }}>{cvr}</td>
-                    <td><span className={"roas-val " + roasClass(roasN)}>{r.spend > 0 ? (r.revenue / r.spend).toFixed(2) + "×" : "—"}</span></td>
-                  </tr>
+                  <div className="spend-row" key={m.id}>
+                    <div className="left">
+                      <div className="spend-av">{initials(m.name)}</div>
+                      <div>
+                        <div className="spend-name">{m.name}</div>
+                        <div style={{ fontSize: 10, color: connected ? "#16A34A" : "#CA8A04" }}>{connected ? "Lead sheet connected ●" : "Sheet not connected ●"}</div>
+                      </div>
+                    </div>
+                    <div className="spend-input-wrap">
+                      <span className="pfx">₹</span>
+                      <input className={"spend-inp" + (bad ? " bad" : "")} type="number" value={m.spend}
+                        onChange={(e) => updateMB(m.id, { spend: e.target.value })} placeholder="Amount spent" />
+                      {bad && <div className="err" style={{ marginTop: 4 }}>Please enter ad spend</div>}
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-          <div style={{ fontSize: 11.5, color: "#888", lineHeight: 1.6, padding: "12px 16px", background: "#F7F6F3", borderRadius: 8 }}>
-            <strong style={{ color: "#0a0a0a" }}>Matching method used:</strong> Email → Phone → Name (fuzzy). Each sale is attributed to the first media buyer whose lead sheet contains a matching record.
+              {namedMbs.length > 0 && <div className="spend-tot">Total ad spend: <strong style={{ color: "#0a0a0a" }}>{totalSpend > 0 ? inr(totalSpend) : "—"}</strong></div>}
+            </div>
+
+            <div className="wiz-nav">
+              <button className="wiz-btn wiz-btn-g" onClick={goBack}>← Back</button>
+              <button className="wiz-btn wiz-btn-k" onClick={goNext}>Calculate attribution →</button>
+            </div>
+          </>
+        )}
+
+        {/* STEP 4 */}
+        {step === 4 && calculating && (
+          <div className="calc-wrap">
+            <div className="calc-msg">{calcMsg}</div>
+            <div className="calc-bar"><div className="calc-bar-fill" style={{ width: progPct + "%" }} /></div>
           </div>
-        </div>
-      )}
-    </>
+        )}
+
+        {step === 4 && !calculating && results && (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, gap: 12 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 400 }}>Attribution Results</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-g btn-sm" onClick={exportReport}>Export CSV</button>
+                <button className="btn btn-k btn-sm" onClick={saveHistory}>{savedHist ? "Saved ✓" : "Save to history"}</button>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: "#888", marginBottom: 24 }}>
+              {wbName} · {fmtDate(wbDate)} · {wbType.replace("-", " ")}
+            </div>
+
+            <div className="sum-row">
+              <SumCard kind="gold" label="Overall ROAS" value={results.totals.spend > 0 ? (results.totals.revenue / results.totals.spend).toFixed(2) + "×" : "—"} note="Total revenue ÷ total ad spend" />
+              <SumCard kind="plain" label="Total leads" value={results.totals.leads.toLocaleString("en-IN")} note="Across all media buyers" />
+              <SumCard kind="grn" label="Total sales" value={String(results.totals.sales)} note={inr(results.totals.revenue)} />
+              <SumCard kind="plain" label="Total ad spend" value={inr(results.totals.spend)} note="All media buyers combined" />
+            </div>
+
+            {results.unmatched.length > 0 && (
+              <div className="unmatched-box">
+                <div className="unmatched-title">⚠ {results.unmatched.length} sales could not be matched to any media buyer</div>
+                <div className="unmatched-list">
+                  {results.unmatched.slice(0, 5).map((p, i) => (<div key={i}>• {p.name || "Unknown"} ({p.email || p.phone || "no contact info"})</div>))}
+                  {results.unmatched.length > 5 && <div>…and {results.unmatched.length - 5} more</div>}
+                </div>
+                <div style={{ fontSize: 11, color: "#CA8A04", marginTop: 8 }}>These may be direct sales or walk-ins not from any ad. Review manually.</div>
+              </div>
+            )}
+
+            <div className="sl">Per media buyer breakdown</div>
+            <table className="attr-table">
+              <thead><tr><th>Media Buyer</th><th>Leads</th><th>Sales Attributed</th><th>Revenue</th><th>Ad Spend</th><th>CPL</th><th>Conv. Rate</th><th>ROAS</th></tr></thead>
+              <tbody>
+                {results.rows.map((r, i) => {
+                  const roasN = r.spend > 0 ? r.revenue / r.spend : 0;
+                  const cpl = r.leads > 0 ? "₹" + Math.round(r.spend / r.leads).toLocaleString("en-IN") : "—";
+                  const cvr = r.leads > 0 ? ((r.matched / r.leads) * 100).toFixed(1) + "%" : "—";
+                  const barPct = results.totals.sales > 0 ? (r.matched / results.totals.sales) * 100 : 0;
+                  const lbl = roasN >= 10 ? "Excellent" : roasN >= 5 ? "Good" : "Below target";
+                  return (
+                    <tr key={i}>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div className="spend-av">{initials(r.name)}</div>
+                          <div>
+                            <div className="mb-name-cell">{r.name}</div>
+                            <div className="mb-sub2">{r.leads} leads · {inr(r.spend)} spent</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.leads}</td>
+                      <td><div className="mini-bar-wrap"><div className="mini-bar"><div className="mini-bar-fill" style={{ width: barPct + "%" }} /></div><span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.matched}</span></div></td>
+                      <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500, color: "#16A34A" }}>{inr(r.revenue)}</td>
+                      <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{inr(r.spend)}</td>
+                      <td style={{ fontSize: 13, color: "#888" }}>{cpl}</td>
+                      <td style={{ fontSize: 13, color: "#888" }}>{cvr}</td>
+                      <td>
+                        <span className={"roas-val " + roasClass(roasN)}>{r.spend > 0 ? roasN.toFixed(2) + "×" : "—"}</span>
+                        {r.spend > 0 && <div style={{ fontSize: 10, marginTop: 2 }} className={roasClass(roasN)}>{lbl}</div>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div style={{ fontSize: 11.5, color: "#888", lineHeight: 1.6, padding: "12px 16px", background: "#F7F6F3", borderRadius: 8 }}>
+              <strong style={{ color: "#0a0a0a" }}>Matching method:</strong> Email → Phone → Name (fuzzy). Each sale is attributed to the first media buyer whose lead sheet contains a matching record.
+            </div>
+
+            <div style={{ textAlign: "center", marginTop: 24 }}>
+              <button onClick={reset} style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif" }}>← Start a new attribution</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
