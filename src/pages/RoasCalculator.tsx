@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import type { SaleDetail } from "@/lib/roasExport";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
 import QuickSaveInput from "@/components/QuickSaveInput";
+import AttributionMethodSelect from "@/components/roas/AttributionMethodSelect";
+import AutoFetchWizard from "@/components/roas/AutoFetchWizard";
 
 /* ====================================================================
    ROAS Calculator v2 — single-page module with three tabs:
