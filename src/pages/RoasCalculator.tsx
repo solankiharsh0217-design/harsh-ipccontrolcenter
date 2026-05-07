@@ -143,6 +143,9 @@ const styles = `
 .rcv2 .wiz-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mt);margin-top:8px}
 .rcv2 .wiz-step.active .wiz-lbl{color:var(--kk)}
 .rcv2 .wiz-step.done .wiz-lbl{color:var(--gold)}
+.rcv2 .wiz-step.locked .wiz-circle{background:var(--ww);color:var(--ml);border-color:var(--bd)}
+.rcv2 .wiz-step.locked .wiz-lbl{color:var(--ml)}
+.rcv2 .wiz-step:not(.active):not(.locked):hover .wiz-lbl{color:var(--gold)}
 .rcv2 .wiz-line{flex:1;height:2px;background:var(--bd);margin:14px 4px 0;transition:background .25s}
 .rcv2 .wiz-line.done{background:var(--gold)}
 .rcv2 .wiz-body{padding-top:10px;animation:wzfade .2s ease-out}
