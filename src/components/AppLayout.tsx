@@ -23,6 +23,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/crm/overview": "CRM Overview",
   "/team": "Team Directory",
   "/admin": "Admin Panel",
+  "/master-data": "Master Data",
 };
 
 const NavItem = ({ to, children, badge }: { to: string; children: ReactNode; badge?: boolean }) => {
@@ -106,13 +107,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             Team Directory
           </NavItem>
           {isAdmin && (
-            <>
-              <NavItem to="/admin">
-                <Icon d="M8 1l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9l-3 1.5.5-3.5L3 4.5 6.5 4z" />
-                Admin Panel
-              </NavItem>
-            </>
+            <NavItem to="/admin">
+              <Icon d="M8 1l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9l-3 1.5.5-3.5L3 4.5 6.5 4z" />
+              Admin Panel
+            </NavItem>
           )}
+          <NavItem to="/master-data">
+            <Icon><><rect x="2" y="2" width="3" height="3" rx="0.5"/><rect x="6.5" y="2" width="3" height="3" rx="0.5"/><rect x="11" y="2" width="3" height="3" rx="0.5"/><rect x="2" y="6.5" width="3" height="3" rx="0.5"/><rect x="6.5" y="6.5" width="3" height="3" rx="0.5"/><rect x="11" y="6.5" width="3" height="3" rx="0.5"/><rect x="2" y="11" width="3" height="3" rx="0.5"/><rect x="6.5" y="11" width="3" height="3" rx="0.5"/><rect x="11" y="11" width="3" height="3" rx="0.5"/></></Icon>
+            Master Data
+          </NavItem>
         </div>
 
         <div className="px-3 py-[14px] border-t border-line">

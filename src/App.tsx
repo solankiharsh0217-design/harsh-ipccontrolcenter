@@ -17,6 +17,7 @@ import Admin from "./pages/Admin";
 import LeadQualifier from "./pages/LeadQualifier";
 import Crm from "./pages/Crm";
 import CrmOverview from "./pages/CrmOverview";
+import MasterData from "./pages/MasterData";
 import NotFound from "./pages/NotFound";
 
 const qc = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/team" element={<Shell><Team /></Shell>} />
             <Route path="/announcements" element={<Shell><Announcements /></Shell>} />
             <Route path="/admin" element={<Shell admin><Admin /></Shell>} />
+            <Route path="/master-data" element={<Shell><MasterData /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
