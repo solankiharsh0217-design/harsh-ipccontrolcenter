@@ -35,17 +35,15 @@ export default function Dashboard() {
     })();
   }, []);
 
-  // Today's ROAS = approximate from latest entry
+  // Today's ROAS = most recent saved calculation
   const [todayRoas, setTodayRoas] = useState<string>("—");
+  const [todayRoasNote, setTodayRoasNote] = useState<string>("No calculations yet");
   useEffect(() => {
     (async () => {
-      const today = new Date().toISOString().slice(0,10);
-      const { data } = await supabase.from("lead_entries").select("ad_spend, leads").eq("entry_date", today);
+      const { data } = await supabase.from("roas_history").select("roas_value, campaign_name, created_at").order("created_at", { ascending: false }).limit(1);
       if (data && data.length) {
-        const spend = data.reduce((a,b)=>a+Number(b.ad_spend||0),0);
-        const leads = data.reduce((a,b)=>a+(b.leads||0),0);
-        // proxy: leads * 1000 / spend as a directional metric
-        if (spend > 0) setTodayRoas((leads/(spend/1000)).toFixed(1)+"×");
+        setTodayRoas(Number(data[0].roas_value || 0).toFixed(1) + "×");
+        setTodayRoasNote("Latest: " + (data[0].campaign_name || "—"));
       }
     })();
   }, []);
