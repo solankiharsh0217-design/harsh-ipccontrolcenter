@@ -106,6 +106,148 @@ export type Database = {
         }
         Relationships: []
       }
+      attribution_media_buyers: {
+        Row: {
+          ad_spend: number
+          conversion_rate: number
+          cpl: number
+          created_at: string
+          id: string
+          matched_sales: number
+          media_buyer_name: string
+          revenue: number
+          roas_value: number
+          session_id: string
+          total_leads: number
+        }
+        Insert: {
+          ad_spend?: number
+          conversion_rate?: number
+          cpl?: number
+          created_at?: string
+          id?: string
+          matched_sales?: number
+          media_buyer_name: string
+          revenue?: number
+          roas_value?: number
+          session_id: string
+          total_leads?: number
+        }
+        Update: {
+          ad_spend?: number
+          conversion_rate?: number
+          cpl?: number
+          created_at?: string
+          id?: string
+          matched_sales?: number
+          media_buyer_name?: string
+          revenue?: number
+          roas_value?: number
+          session_id?: string
+          total_leads?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attribution_media_buyers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attribution_sales_detail: {
+        Row: {
+          attributed_to: string | null
+          buyer_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          match_method: string | null
+          phone: string | null
+          revenue: number
+          session_id: string
+          webinar_date: string | null
+        }
+        Insert: {
+          attributed_to?: string | null
+          buyer_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          match_method?: string | null
+          phone?: string | null
+          revenue?: number
+          session_id: string
+          webinar_date?: string | null
+        }
+        Update: {
+          attributed_to?: string | null
+          buyer_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          match_method?: string | null
+          phone?: string | null
+          revenue?: number
+          session_id?: string
+          webinar_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attribution_sales_detail_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attribution_sessions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          overall_roas: number
+          total_ad_spend: number
+          total_leads: number
+          total_revenue: number
+          total_sales: number
+          unmatched_count: number
+          webinar_date: string | null
+          webinar_name: string
+          webinar_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          overall_roas?: number
+          total_ad_spend?: number
+          total_leads?: number
+          total_revenue?: number
+          total_sales?: number
+          unmatched_count?: number
+          webinar_date?: string | null
+          webinar_name: string
+          webinar_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          overall_roas?: number
+          total_ad_spend?: number
+          total_leads?: number
+          total_revenue?: number
+          total_sales?: number
+          unmatched_count?: number
+          webinar_date?: string | null
+          webinar_name?: string
+          webinar_type?: string | null
+        }
+        Relationships: []
+      }
       data_sources: {
         Row: {
           created_at: string
