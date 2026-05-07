@@ -1,7 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { downloadCSV, downloadPDF, type SaleDetail } from "@/lib/roasExport";
+import {
+  ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine,
+} from "recharts";
 
 /* ====================================================================
    ROAS Calculator v2 — single-page module with three tabs:
