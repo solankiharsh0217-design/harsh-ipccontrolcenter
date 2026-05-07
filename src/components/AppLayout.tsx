@@ -74,7 +74,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </NavItem>
 
           <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">Tools</span>
-          <NavItem to="/roas">
+          <NavItem to="/roas-calculator">
             <Icon d="M2 8h3l2-5 2 10 2-5h3" />
             ROAS Calculator
           </NavItem>
