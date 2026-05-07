@@ -66,8 +66,10 @@ export default function QuickSaveInput({
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [removedMsg, setRemovedMsg] = useState(false);
   const [pulse, setPulse] = useState(false);
+  const [hi, setHi] = useState(-1);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const blurTimer = useRef<number | null>(null);
 
   const v = value || "";
   const trimmed = v.trim();
