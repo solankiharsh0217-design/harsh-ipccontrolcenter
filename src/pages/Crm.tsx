@@ -18,6 +18,9 @@ export default function Crm() {
   const [openLead, setOpenLead] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
   const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [dateField, setDateField] = useState<"webinar_date"|"created_at">("webinar_date");
   const [newPipeline, setNewPipeline] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState("");
   const [newPipelineType, setNewPipelineType] = useState<"unpaid"|"paid"|"custom">("custom");
