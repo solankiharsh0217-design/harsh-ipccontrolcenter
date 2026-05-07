@@ -289,7 +289,7 @@ export default function RoasCalculator() {
         <button className={"ptab" + (tab === "sources" ? " on" : "")} onClick={() => setTab("sources")}>Data Sources</button>
       </div>
       <div className="content">
-        {tab === "attr" && <AttrTab userId={user?.id} />}
+        {tab === "attr" && <AttrTabWrapper userId={user?.id} />}
         {tab === "total" && <TotalTab userId={user?.id} />}
         {tab === "sources" && <SourcesTab userId={user?.id} />}
       </div>
