@@ -106,6 +106,48 @@ export type Database = {
         }
         Relationships: []
       }
+      data_sources: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          last_fetched: string | null
+          row_count: number | null
+          sheet_url: string | null
+          source_name: string
+          source_type: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          last_fetched?: string | null
+          row_count?: number | null
+          sheet_url?: string | null
+          source_name: string
+          source_type?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          last_fetched?: string | null
+          row_count?: number | null
+          sheet_url?: string | null
+          source_name?: string
+          source_type?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       follow_up_reminders: {
         Row: {
           agent_id: string | null
@@ -323,6 +365,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      media_buyer_attribution: {
+        Row: {
+          ad_spend: number | null
+          conversion_rate: number | null
+          cpl: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          matched_sales: number | null
+          media_buyer_name: string
+          revenue: number | null
+          roas_value: number | null
+          session_id: string
+          total_leads: number | null
+          webinar_date: string | null
+          webinar_name: string | null
+          webinar_type: string | null
+        }
+        Insert: {
+          ad_spend?: number | null
+          conversion_rate?: number | null
+          cpl?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          matched_sales?: number | null
+          media_buyer_name: string
+          revenue?: number | null
+          roas_value?: number | null
+          session_id: string
+          total_leads?: number | null
+          webinar_date?: string | null
+          webinar_name?: string | null
+          webinar_type?: string | null
+        }
+        Update: {
+          ad_spend?: number | null
+          conversion_rate?: number | null
+          cpl?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          matched_sales?: number | null
+          media_buyer_name?: string
+          revenue?: number | null
+          roas_value?: number | null
+          session_id?: string
+          total_leads?: number | null
+          webinar_date?: string | null
+          webinar_name?: string | null
+          webinar_type?: string | null
+        }
+        Relationships: []
       }
       pipelines: {
         Row: {
@@ -686,6 +782,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      roas_history: {
+        Row: {
+          campaign_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          roas_value: number | null
+          total_ad_spend: number
+          total_revenue: number | null
+          total_sales: number | null
+          webinar_date: string | null
+        }
+        Insert: {
+          campaign_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          roas_value?: number | null
+          total_ad_spend?: number
+          total_revenue?: number | null
+          total_sales?: number | null
+          webinar_date?: string | null
+        }
+        Update: {
+          campaign_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          roas_value?: number | null
+          total_ad_spend?: number
+          total_revenue?: number | null
+          total_sales?: number | null
+          webinar_date?: string | null
+        }
+        Relationships: []
       }
       roas_leads: {
         Row: {
