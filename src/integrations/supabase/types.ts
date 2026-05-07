@@ -619,6 +619,39 @@ export type Database = {
         }
         Relationships: []
       }
+      quick_save_entries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          field_key: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          field_key: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          field_key?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       roas_ad_spends: {
         Row: {
           created_at: string
