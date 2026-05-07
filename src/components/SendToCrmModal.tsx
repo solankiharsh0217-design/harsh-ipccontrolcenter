@@ -260,7 +260,9 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
                 { k: "Hot", v: counts.hot, c: GRADE_STYLES.hot },
                 { k: "Warm", v: counts.warm, c: GRADE_STYLES.warm },
                 { k: "Cold", v: counts.cold, c: GRADE_STYLES.cold },
-                { k: "No Show", v: counts.na, c: GRADE_STYLES["non-attendee"] },
+                result.mode === 2
+                  ? { k: "True Absentees", v: counts.ta, c: GRADE_STYLES["true-absentee"] }
+                  : { k: "No Show", v: counts.na, c: GRADE_STYLES["non-attendee"] },
               ].map((s) => (
                 <div key={s.k} className="p-3 rounded-lg border border-line text-center">
                   <div className="font-serif text-2xl" style={{ color: (s as any).c?.fg }}>{s.v}</div>
