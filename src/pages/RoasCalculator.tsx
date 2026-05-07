@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import type { SaleDetail } from "@/lib/roasExport";
+import AttributionResultsView from "@/components/roas/AttributionResultsView";
 
 /* ====================================================================
    ROAS Calculator v2 — single-page module with three tabs:
@@ -331,7 +333,7 @@ function AttrTab({ userId }: { userId?: string }) {
   // Step 4
   const [progPct, setProgPct] = useState(0);
   const [calcMsg, setCalcMsg] = useState("");
-  const [results, setResults] = useState<{ rows: AttrRow[]; unmatched: Person[]; totals: { spend: number; revenue: number; sales: number; leads: number } } | null>(null);
+  const [results, setResults] = useState<{ rows: AttrRow[]; unmatched: Person[]; salesDetail: SaleDetail[]; totals: { spend: number; revenue: number; sales: number; leads: number } } | null>(null);
   const [savedHist, setSavedHist] = useState(false);
 
   // load templates
@@ -457,14 +459,41 @@ function AttrTab({ userId }: { userId?: string }) {
 
     const tally: AttrRow[] = mbResolved.map((x) => ({ name: x.mb.name, spend: parseFloat(x.mb.spend) || 0, leads: x.leads, matched: 0, revenue: 0 }));
     const unmatched: Person[] = [];
+    const salesDetail: SaleDetail[] = [];
     salesPeople.forEach((sale) => {
-      let attr = false;
+      let attrIdx = -1;
+      let method: SaleDetail["matchMethod"] = "unmatched";
       for (let i = 0; i < mbResolved.length; i++) {
-        if (matchSale(sale, mbResolved[i].people)) {
-          tally[i].matched++; tally[i].revenue += DEAL_VALUE; attr = true; break;
+        const list = mbResolved[i].people;
+        if (sale.email && list.find((p) => p.email && p.email === sale.email)) { attrIdx = i; method = "email"; break; }
+        if (sale.phone && sale.phone.length >= 8 && list.find((p) => p.phone && p.phone === sale.phone)) { attrIdx = i; method = "phone"; break; }
+        if (sale.name && sale.name.length > 2) {
+          const sn = normName(sale.name);
+          const m = list.find((p) => {
+            const pn = normName(p.name); if (!pn) return false;
+            if (pn === sn) return true;
+            const sp = sn.split(" "), pp = pn.split(" ");
+            return sp.some((s) => s.length > 3 && pp.some((q) => q === s));
+          });
+          if (m) { attrIdx = i; method = "name"; break; }
         }
       }
-      if (!attr) unmatched.push(sale);
+      if (attrIdx >= 0) {
+        tally[attrIdx].matched++;
+        tally[attrIdx].revenue += DEAL_VALUE;
+        salesDetail.push({
+          name: sale.name, email: sale.email, phone: sale.phone,
+          attributedTo: tally[attrIdx].name, matchMethod: method,
+          revenue: DEAL_VALUE, webinarDate: wbDate,
+        });
+      } else {
+        unmatched.push(sale);
+        salesDetail.push({
+          name: sale.name, email: sale.email, phone: sale.phone,
+          attributedTo: null, matchMethod: "unmatched",
+          revenue: 0, webinarDate: wbDate,
+        });
+      }
     });
 
     setTimeout(() => {
@@ -475,7 +504,7 @@ function AttrTab({ userId }: { userId?: string }) {
         sales: tally.reduce((a, b) => a + b.matched, 0),
         leads: tally.reduce((a, b) => a + b.leads, 0),
       };
-      setResults({ rows: tally, unmatched, totals });
+      setResults({ rows: tally, unmatched, salesDetail, totals });
       setCalculating(false);
     }, 2400);
   };
@@ -489,45 +518,46 @@ function AttrTab({ userId }: { userId?: string }) {
     setTouchedCalc(false);
   };
 
-  const exportReport = () => {
-    if (!results) return;
-    const lines = [
-      ["Media Buyer", "Leads", "Matched Sales", "Revenue", "Ad Spend", "CPL", "Conversion Rate", "ROAS"].join(","),
-      ...results.rows.map((r) => {
-        const cpl = r.leads > 0 ? Math.round(r.spend / r.leads) : 0;
-        const cvr = r.leads > 0 ? ((r.matched / r.leads) * 100).toFixed(1) : "0";
-        const roas = r.spend > 0 ? (r.revenue / r.spend).toFixed(2) : "0";
-        return [r.name, r.leads, r.matched, r.revenue, r.spend, cpl, cvr + "%", roas + "x"].join(",");
-      }),
-    ].join("\n");
-    const blob = new Blob([lines], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `IPC_Attribution_${(wbName || "webinar").replace(/\s+/g, "_")}_${wbDate}.csv`;
-    a.click(); URL.revokeObjectURL(url);
-  };
+  // Export handled inside AttributionResultsView
 
   const saveHistory = async () => {
     if (!results || !userId) return;
-    const sessionId = crypto.randomUUID();
-    const records = results.rows.map((r) => ({
-      session_id: sessionId,
-      webinar_name: wbName || null,
-      webinar_date: wbDate || null,
-      webinar_type: wbType,
-      media_buyer_name: r.name,
-      ad_spend: r.spend,
-      total_leads: r.leads,
-      matched_sales: r.matched,
-      revenue: r.revenue,
+    const totals = results.totals;
+    const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
+    const { data: session, error: sessErr } = await supabase
+      .from("attribution_sessions")
+      .insert({
+        webinar_name: wbName || "Untitled",
+        webinar_date: wbDate || null,
+        webinar_type: wbType,
+        total_leads: totals.leads,
+        total_sales: totals.sales,
+        total_ad_spend: totals.spend,
+        total_revenue: totals.revenue,
+        overall_roas: overall,
+        unmatched_count: results.unmatched.length,
+        created_by: userId,
+      })
+      .select().single();
+    if (sessErr || !session) { toast.error("Save failed: " + (sessErr?.message || "")); return; }
+
+    const sid = session.id;
+    const buyerRows = results.rows.map((r) => ({
+      session_id: sid, media_buyer_name: r.name,
+      ad_spend: r.spend, total_leads: r.leads, matched_sales: r.matched, revenue: r.revenue,
       roas_value: r.spend > 0 ? r.revenue / r.spend : 0,
       cpl: r.leads > 0 ? r.spend / r.leads : 0,
       conversion_rate: r.leads > 0 ? (r.matched / r.leads) * 100 : 0,
-      created_by: userId,
     }));
-    const { error } = await supabase.from("media_buyer_attribution").insert(records);
-    if (error) { toast.error("Save failed: " + error.message); return; }
+    const saleRows = results.salesDetail.map((s) => ({
+      session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
+      attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
+      webinar_date: s.webinarDate || null,
+    }));
+    await supabase.from("attribution_media_buyers").insert(buyerRows);
+    if (saleRows.length) await supabase.from("attribution_sales_detail").insert(saleRows);
     setSavedHist(true); setTimeout(() => setSavedHist(false), 1500);
+    toast.success("Attribution saved to history ✓");
   };
 
   const namedMbs = mbs.filter((m) => m.name.trim());
@@ -746,76 +776,14 @@ function AttrTab({ userId }: { userId?: string }) {
 
         {step === 4 && !calculating && results && (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, gap: 12 }}>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 400 }}>Attribution Results</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-g btn-sm" onClick={exportReport}>Export CSV</button>
-                <button className="btn btn-k btn-sm" onClick={saveHistory}>{savedHist ? "Saved ✓" : "Save to history"}</button>
-              </div>
-            </div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 24 }}>
-              {wbName} · {fmtDate(wbDate)} · {wbType.replace("-", " ")}
-            </div>
-
-            <div className="sum-row">
-              <SumCard kind="gold" label="Overall ROAS" value={results.totals.spend > 0 ? (results.totals.revenue / results.totals.spend).toFixed(2) + "×" : "—"} note="Total revenue ÷ total ad spend" />
-              <SumCard kind="plain" label="Total leads" value={results.totals.leads.toLocaleString("en-IN")} note="Across all media buyers" />
-              <SumCard kind="grn" label="Total sales" value={String(results.totals.sales)} note={inr(results.totals.revenue)} />
-              <SumCard kind="plain" label="Total ad spend" value={inr(results.totals.spend)} note="All media buyers combined" />
-            </div>
-
-            {results.unmatched.length > 0 && (
-              <div className="unmatched-box">
-                <div className="unmatched-title">⚠ {results.unmatched.length} sales could not be matched to any media buyer</div>
-                <div className="unmatched-list">
-                  {results.unmatched.slice(0, 5).map((p, i) => (<div key={i}>• {p.name || "Unknown"} ({p.email || p.phone || "no contact info"})</div>))}
-                  {results.unmatched.length > 5 && <div>…and {results.unmatched.length - 5} more</div>}
-                </div>
-                <div style={{ fontSize: 11, color: "#CA8A04", marginTop: 8 }}>These may be direct sales or walk-ins not from any ad. Review manually.</div>
-              </div>
-            )}
-
-            <div className="sl">Per media buyer breakdown</div>
-            <table className="attr-table">
-              <thead><tr><th>Media Buyer</th><th>Leads</th><th>Sales Attributed</th><th>Revenue</th><th>Ad Spend</th><th>CPL</th><th>Conv. Rate</th><th>ROAS</th></tr></thead>
-              <tbody>
-                {results.rows.map((r, i) => {
-                  const roasN = r.spend > 0 ? r.revenue / r.spend : 0;
-                  const cpl = r.leads > 0 ? "₹" + Math.round(r.spend / r.leads).toLocaleString("en-IN") : "—";
-                  const cvr = r.leads > 0 ? ((r.matched / r.leads) * 100).toFixed(1) + "%" : "—";
-                  const barPct = results.totals.sales > 0 ? (r.matched / results.totals.sales) * 100 : 0;
-                  const lbl = roasN >= 10 ? "Excellent" : roasN >= 5 ? "Good" : "Below target";
-                  return (
-                    <tr key={i}>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <div className="spend-av">{initials(r.name)}</div>
-                          <div>
-                            <div className="mb-name-cell">{r.name}</div>
-                            <div className="mb-sub2">{r.leads} leads · {inr(r.spend)} spent</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.leads}</td>
-                      <td><div className="mini-bar-wrap"><div className="mini-bar"><div className="mini-bar-fill" style={{ width: barPct + "%" }} /></div><span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.matched}</span></div></td>
-                      <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500, color: "#16A34A" }}>{inr(r.revenue)}</td>
-                      <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{inr(r.spend)}</td>
-                      <td style={{ fontSize: 13, color: "#888" }}>{cpl}</td>
-                      <td style={{ fontSize: 13, color: "#888" }}>{cvr}</td>
-                      <td>
-                        <span className={"roas-val " + roasClass(roasN)}>{r.spend > 0 ? roasN.toFixed(2) + "×" : "—"}</span>
-                        {r.spend > 0 && <div style={{ fontSize: 10, marginTop: 2 }} className={roasClass(roasN)}>{lbl}</div>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            <div style={{ fontSize: 11.5, color: "#888", lineHeight: 1.6, padding: "12px 16px", background: "#F7F6F3", borderRadius: 8 }}>
-              <strong style={{ color: "#0a0a0a" }}>Matching method:</strong> Email → Phone → Name (fuzzy). Each sale is attributed to the first media buyer whose lead sheet contains a matching record.
-            </div>
-
+            <AttributionResultsView
+              payload={{
+                webinarName: wbName, webinarDate: wbDate, webinarType: wbType,
+                totals: results.totals, rows: results.rows, salesDetail: results.salesDetail,
+              }}
+              onSave={saveHistory}
+              savedHist={savedHist}
+            />
             <div style={{ textAlign: "center", marginTop: 24 }}>
               <button onClick={reset} style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif" }}>← Start a new attribution</button>
             </div>
