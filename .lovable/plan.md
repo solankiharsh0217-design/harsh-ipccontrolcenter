@@ -1,50 +1,48 @@
-# Fix CRM import + add full pipeline designer
+## Goal
+Collapse all ROAS-related sidebar entries into a single "ROAS Calculator" item. Clicking it opens a hub page with cards linking to every ROAS sub-tool. Remove all the duplicate/scattered ROAS links from the sidebar.
 
-## Problem recap
+## Current clutter (in `AppLayout.tsx`)
+The Tools section currently shows: ROAS Calculator (twice), ROAS Dashboard, ROAS Leads, Enrollments, Manual Review, Ad Spend, Sync, Student Search (twice), Daily Lead Flow, Lead Qualifier, Calling CRM. The People/admin section also adds: ROAS Data Sources, ROAS Webinars, ROAS Media Buyers.
 
-1. **"No pipeline found" on Import** — `SendToCrmModal.importNow()` reads `pipelines.find(p => p.type === leadType)` from state loaded in `goToStep3`. If that fetch returns 0 rows (RLS hiccup, race, or genuinely empty DB), the import aborts with a useless error and 368 qualified leads are lost. Pipelines actually exist in your DB right now, but the modal has no fallback and no way to create one inline.
-2. **No pipeline management UI inside CRM** — There is a tiny "New Pipeline" pill in the bottom bar and a basic Stages tab, but you cannot: rename a pipeline, change its type, delete it, reorder stages, change stage colors, mark Won/Lost, or rename stages. The HTML reference shows a richer designer.
+## New sidebar (clean)
+Tools:
+- ROAS Calculator (single entry → `/roas`)
+- Student Search
+- Daily Lead Flow
+- Lead Qualifier
+- Calling CRM
 
-## What I'll build
+People:
+- Team Directory
+- Admin Panel (admin only) — remove the three ROAS setup links from here
 
-### 1. Make the import bullet-proof (`src/components/SendToCrmModal.tsx`)
+## New ROAS hub page (`/roas`)
+Replace the current `RoasDashboard` route at `/roas` with a new **`RoasHub`** landing page that shows a grid of cards. Each card navigates to its existing route (no logic changes to those pages):
 
-- On Step 3 load, if `pipelines` returns empty for the selected `leadType`, **auto-create** a default pipeline + standard stages (same seed used for "Sales Pipeline (Unpaid)" / "Paid — Onboarding") server-side, then continue.
-- Show clear inline status: "No pipeline found — creating default…" with a spinner; never silently fail.
-- On `importNow`, if pipeline still missing for any reason, fall back to creating one on the fly instead of toasting an error.
-- Add a "Choose target pipeline" dropdown on Step 3 (defaults to the matching type) so you can route leads to any pipeline you've designed — including custom ones.
+- Dashboard → `/roas/dashboard` (move current `RoasDashboard` here)
+- Leads → `/roas/leads`
+- Enrollments → `/roas/enrollments`
+- Manual Review → `/roas/manual-review`
+- Ad Spend → `/roas/ad-spend`
+- Sync → `/roas/sync`
+- Simple ROAS Calculator (the standalone one) → `/roas/calculator`
+- Admin-only cards (shown only when `isAdmin`):
+  - Data Sources → `/roas/setup/data-sources`
+  - Webinars → `/roas/setup/webinars`
+  - Media Buyers → `/roas/setup/media-buyers`
 
-### 2. Pipeline Designer view inside CRM (`src/pages/Crm.tsx`)
+Each card: icon + title + 1-line description. Uses existing semantic tokens (no hard-coded colors). On every ROAS sub-page, add a small "← Back to ROAS" link at the top so users can return to the hub.
 
-Replace the minimal Stages tab with a proper **Designer** view:
+## Files to change
+1. `src/pages/roas/Hub.tsx` — new landing page with card grid.
+2. `src/App.tsx`:
+   - Add `/roas` → `RoasHub`
+   - Move dashboard to `/roas/dashboard`
+   - Keep all other `/roas/*` routes as-is.
+3. `src/components/AppLayout.tsx`:
+   - Remove all duplicate ROAS NavItems and the admin ROAS setup NavItems.
+   - Keep only one ROAS entry pointing to `/roas`.
+   - Update `PAGE_TITLES` accordingly (add `/roas` = "ROAS", `/roas/dashboard` = "ROAS Dashboard").
+4. Sub-pages under `src/pages/roas/*` — add a small "Back to ROAS" link at the top of each (cosmetic only).
 
-- **Pipeline header row**: rename inline, change type (unpaid / paid / custom), delete pipeline (blocked if leads attached, with count shown).
-- **Stages list** (drag-to-reorder using `@dnd-kit/sortable` already supportable, or simple ↑/↓ buttons to avoid new deps):
-  - Inline rename
-  - Color picker from the existing `STAGE_COLORS` palette (purple / gray / blue / gold / amber / green / red / pink) with swatch dots
-  - Toggles: **Won stage**, **Lost stage**, **Protected** (protected stages can't be deleted)
-  - Delete (blocked if leads in stage, with count + "move them first" hint)
-  - Reorder via up/down arrows; positions persisted to `stages.position`
-- **Add Stage** form with name + color + optional won/lost flag.
-- **Create Pipeline** modal upgraded: name + type + checkbox "Seed with default stages" (New / In Progress / Closed Won / Closed Lost). Uncheck for a blank pipeline.
-- Keep the bottom bar pipeline switcher; add a small ⚙ next to each pipeline pill that jumps to Designer view for that pipeline.
-
-### 3. Re-seed safety
-
-- Add a one-time idempotent insert (`ON CONFLICT DO NOTHING` via existence check) when CRM page loads and `pipelines` is empty: creates the two defaults so a fresh project is never blank. Done client-side from the CRM page so we don't need a migration.
-
-## Files touched
-
-```text
-src/components/SendToCrmModal.tsx   — robust pipeline lookup + auto-create + target-pipeline picker
-src/pages/Crm.tsx                   — new Designer view, upgraded New Pipeline modal, ⚙ per pipeline
-src/lib/crmTypes.ts                 — add STAGE_COLOR_OPTIONS list helper (no schema change)
-```
-
-No DB migration needed — schema already supports everything (color text, is_won, is_lost, is_protected, position, type).
-
-## Out of scope (ask if you want them)
-
-- Drag-to-reorder pipelines themselves (we'll keep position fixed by creation order; can add later).
-- Per-stage automation rules (e.g., auto-move on payment).
-- Importing pipeline templates from JSON.
+No database, edge function, or business-logic changes. Pure navigation/IA refactor.

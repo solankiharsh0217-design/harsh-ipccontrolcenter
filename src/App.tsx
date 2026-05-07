@@ -8,6 +8,7 @@ import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Roas from "./pages/Roas";
+import RoasHub from "./pages/roas/Hub";
 import RoasDashboard from "./pages/roas/Dashboard";
 import RoasLeads from "./pages/roas/Leads";
 import RoasEnrollments from "./pages/roas/Enrollments";
@@ -45,7 +46,8 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Shell><Dashboard /></Shell>} />
             <Route path="/roas/calculator" element={<Shell><Roas /></Shell>} />
-            <Route path="/roas" element={<Shell><RoasDashboard /></Shell>} />
+            <Route path="/roas" element={<Shell><RoasHub /></Shell>} />
+            <Route path="/roas/dashboard" element={<Shell><RoasDashboard /></Shell>} />
             <Route path="/roas/leads" element={<Shell><RoasLeads /></Shell>} />
             <Route path="/roas/enrollments" element={<Shell><RoasEnrollments /></Shell>} />
             <Route path="/roas/manual-review" element={<Shell><RoasManualReview /></Shell>} />
