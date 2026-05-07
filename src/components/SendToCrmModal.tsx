@@ -236,7 +236,28 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
             </div>
             <div>
               <label className="form-label">Webinar name / title</label>
-              <input type="text" className="ipc-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Diamond Program Masterclass — Apr 8" />
+              {!addingNew ? (
+                <div className="flex gap-2">
+                  <select className="ipc-input flex-1" value={name} onChange={(e) => setName(e.target.value)}>
+                    <option value="">Select a webinar…</option>
+                    {webinars.map((w) => <option key={w.id} value={w.name}>{w.name}</option>)}
+                  </select>
+                  <button type="button" onClick={() => { setAddingNew(true); setName(""); }} className="ipc-btn ipc-btn-ghost" title="Add new webinar">
+                    <Plus className="w-3.5 h-3.5" /> New
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input type="text" className="ipc-input flex-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Diamond Program Masterclass — Apr 8" autoFocus />
+                  <button type="button" onClick={saveWebinarToDb} disabled={!name.trim()} className="ipc-btn ipc-btn-black disabled:opacity-50" title="Save to database">
+                    <Plus className="w-3.5 h-3.5" /> Save
+                  </button>
+                  {webinars.length > 0 && (
+                    <button type="button" onClick={() => setAddingNew(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
+                  )}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground mt-1.5">Saved webinars appear in the dropdown next time you import — no retyping needed.</p>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
