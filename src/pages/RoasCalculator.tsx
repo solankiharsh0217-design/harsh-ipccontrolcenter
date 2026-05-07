@@ -521,45 +521,58 @@ function AttrTab({ userId }: { userId?: string }) {
     setTouchedCalc(false);
   };
 
-  const exportReport = () => {
-    if (!results) return;
-    const lines = [
-      ["Media Buyer", "Leads", "Matched Sales", "Revenue", "Ad Spend", "CPL", "Conversion Rate", "ROAS"].join(","),
-      ...results.rows.map((r) => {
-        const cpl = r.leads > 0 ? Math.round(r.spend / r.leads) : 0;
-        const cvr = r.leads > 0 ? ((r.matched / r.leads) * 100).toFixed(1) : "0";
-        const roas = r.spend > 0 ? (r.revenue / r.spend).toFixed(2) : "0";
-        return [r.name, r.leads, r.matched, r.revenue, r.spend, cpl, cvr + "%", roas + "x"].join(",");
-      }),
-    ].join("\n");
-    const blob = new Blob([lines], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `IPC_Attribution_${(wbName || "webinar").replace(/\s+/g, "_")}_${wbDate}.csv`;
-    a.click(); URL.revokeObjectURL(url);
+  const buildPayload = () => {
+    if (!results) return null;
+    return {
+      webinarName: wbName,
+      webinarDate: wbDate,
+      webinarType: wbType,
+      totals: results.totals,
+      rows: results.rows,
+      salesDetail: results.salesDetail,
+    };
   };
+  const exportCSV = () => { const p = buildPayload(); if (p) downloadCSV(p); };
+  const exportPDF = () => { const p = buildPayload(); if (p) downloadPDF(p); };
 
   const saveHistory = async () => {
     if (!results || !userId) return;
-    const sessionId = crypto.randomUUID();
-    const records = results.rows.map((r) => ({
-      session_id: sessionId,
-      webinar_name: wbName || null,
-      webinar_date: wbDate || null,
-      webinar_type: wbType,
-      media_buyer_name: r.name,
-      ad_spend: r.spend,
-      total_leads: r.leads,
-      matched_sales: r.matched,
-      revenue: r.revenue,
+    const totals = results.totals;
+    const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
+    const { data: session, error: sessErr } = await supabase
+      .from("attribution_sessions")
+      .insert({
+        webinar_name: wbName || "Untitled",
+        webinar_date: wbDate || null,
+        webinar_type: wbType,
+        total_leads: totals.leads,
+        total_sales: totals.sales,
+        total_ad_spend: totals.spend,
+        total_revenue: totals.revenue,
+        overall_roas: overall,
+        unmatched_count: results.unmatched.length,
+        created_by: userId,
+      })
+      .select().single();
+    if (sessErr || !session) { toast.error("Save failed: " + (sessErr?.message || "")); return; }
+
+    const sid = session.id;
+    const buyerRows = results.rows.map((r) => ({
+      session_id: sid, media_buyer_name: r.name,
+      ad_spend: r.spend, total_leads: r.leads, matched_sales: r.matched, revenue: r.revenue,
       roas_value: r.spend > 0 ? r.revenue / r.spend : 0,
       cpl: r.leads > 0 ? r.spend / r.leads : 0,
       conversion_rate: r.leads > 0 ? (r.matched / r.leads) * 100 : 0,
-      created_by: userId,
     }));
-    const { error } = await supabase.from("media_buyer_attribution").insert(records);
-    if (error) { toast.error("Save failed: " + error.message); return; }
+    const saleRows = results.salesDetail.map((s) => ({
+      session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
+      attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
+      webinar_date: s.webinarDate || null,
+    }));
+    await supabase.from("attribution_media_buyers").insert(buyerRows);
+    if (saleRows.length) await supabase.from("attribution_sales_detail").insert(saleRows);
     setSavedHist(true); setTimeout(() => setSavedHist(false), 1500);
+    toast.success("Attribution saved to history ✓");
   };
 
   const namedMbs = mbs.filter((m) => m.name.trim());
