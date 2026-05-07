@@ -9,12 +9,12 @@ interface ModuleCard {
 }
 
 const MODULES: ModuleCard[] = [
-  { to:"/roas", tag:"Media Buying", name:"ROAS Calculator", featured:true, desc:"Enter ad spend and revenue to instantly compute return on ad spend, cost per lead, and profit.",
+  { to:"/roas-calculator", tag:"Media Buying", name:"ROAS Calculator", featured:true, desc:"Media buyer attribution & total ROAS — match sales to leads and measure return on ad spend.",
     icon:<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="hsl(var(--gold))" strokeWidth={1.5}><path d="M2 8h3l2-5 2 10 2-5h3"/></svg> },
-  { to:"/search", tag:"Student Data", name:"Student Search", desc:"Search any student by name. Pulls name, phone, and email live from your connected Google Sheet.",
-    icon:<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#0a0a0a" strokeWidth={1.5}><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg> },
-  { to:"/leadflow", tag:"Performance", name:"Daily Lead Flow", desc:"Log daily ad spend and leads. Auto-generates a trend graph to track performance over time.",
-    icon:<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#0a0a0a" strokeWidth={1.5}><path d="M2 12l4-4 3 3 5-6"/></svg> },
+  { to:"/lead-qualifier", tag:"Webinar", name:"Lead Qualifier", desc:"Classify webinar attendees and find true absentees from your registration & attendance data.",
+    icon:<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#0a0a0a" strokeWidth={1.5}><path d="M3 3h10v10H3z"/><path d="M5 7h6M5 9h4"/></svg> },
+  { to:"/crm", tag:"Sales", name:"Calling CRM", desc:"Sales pipeline & follow-up management for your calling team.",
+    icon:<svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#0a0a0a" strokeWidth={1.5}><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M2 14c0-2 1.5-3 3-3s3 1 3 3M8 14c0-2 1.5-3 3-3s3 1 3 3"/></svg> },
 ];
 
 export default function Dashboard() {
