@@ -5,7 +5,7 @@ export interface Stage {
   id: string; pipeline_id: string; name: string; color: string; position: number;
   is_protected: boolean; is_won: boolean; is_lost: boolean;
 }
-export type LeadGrade = "hot" | "warm" | "cold" | "non-attendee" | "super-hot" | "very-cold";
+export type LeadGrade = "hot" | "warm" | "cold" | "non-attendee" | "super-hot" | "very-cold" | "true-absentee";
 export interface Lead {
   id: string; full_name: string | null; email: string | null; phone: string | null;
   country: string | null; score: number; grade: LeadGrade;
@@ -108,4 +108,5 @@ export const GRADE_STYLES: Record<LeadGrade, { bg: string; fg: string; border: s
   "non-attendee": { bg: "#F7F6F3", fg: "#888888", border: "#E8E5DE", label: "No Show" },
   "very-cold":    { bg: "#F7F6F3", fg: "#888888", border: "#E8E5DE", label: "Very Cold" },
   "super-hot":    { bg: "#FDF2F8", fg: "#BE185D", border: "#FBCFE8", label: "★ Super Hot" },
+  "true-absentee":{ bg: "#FFF7ED", fg: "#C2410C", border: "#FED7AA", label: "True Absentee" },
 };
