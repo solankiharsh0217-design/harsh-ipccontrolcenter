@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import type { SaleDetail } from "@/lib/roasExport";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
 import QuickSaveInput from "@/components/QuickSaveInput";
+import AttributionMethodSelect from "@/components/roas/AttributionMethodSelect";
+import AutoFetchWizard from "@/components/roas/AutoFetchWizard";
 
 /* ====================================================================
    ROAS Calculator v2 — single-page module with three tabs:
@@ -287,12 +289,31 @@ export default function RoasCalculator() {
         <button className={"ptab" + (tab === "sources" ? " on" : "")} onClick={() => setTab("sources")}>Data Sources</button>
       </div>
       <div className="content">
-        {tab === "attr" && <AttrTab userId={user?.id} />}
+        {tab === "attr" && <AttrTabWrapper userId={user?.id} />}
         {tab === "total" && <TotalTab userId={user?.id} />}
         {tab === "sources" && <SourcesTab userId={user?.id} />}
       </div>
     </div>
   );
+}
+
+// ===================================================================
+// TAB 1 WRAPPER: Method selection → Manual or Automatic wizard
+// ===================================================================
+function AttrTabWrapper({ userId }: { userId?: string }) {
+  const [method, setMethod] = useState<"none" | "manual" | "auto">("none");
+  if (method === "none") {
+    return (
+      <AttributionMethodSelect
+        onPickManual={() => setMethod("manual")}
+        onPickAuto={() => setMethod("auto")}
+      />
+    );
+  }
+  if (method === "auto") {
+    return <AutoFetchWizard onBackToMethod={() => setMethod("none")} />;
+  }
+  return <AttrTab userId={userId} onBackToMethod={() => setMethod("none")} />;
 }
 
 // ===================================================================
@@ -305,7 +326,7 @@ function initials(name: string) {
   return (w[0][0] + w[w.length - 1][0]).toUpperCase();
 }
 
-function AttrTab({ userId }: { userId?: string }) {
+function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?: () => void }) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [calculating, setCalculating] = useState(false);
 
@@ -767,6 +788,9 @@ function AttrTab({ userId }: { userId?: string }) {
 
         {step === 4 && !calculating && results && (
           <>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em", color: "#C8A84B", marginBottom: 6, fontWeight: 500 }}>
+              Calculation Method: Manual Upload
+            </div>
             <AttributionResultsView
               payload={{
                 webinarName: wbName, webinarDate: wbDate, webinarType: wbType,
@@ -775,8 +799,11 @@ function AttrTab({ userId }: { userId?: string }) {
               onSave={saveHistory}
               savedHist={savedHist}
             />
-            <div style={{ textAlign: "center", marginTop: 24 }}>
+            <div style={{ textAlign: "center", marginTop: 24, display: "flex", gap: 16, justifyContent: "center" }}>
               <button onClick={reset} style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif" }}>← Start a new attribution</button>
+              {onBackToMethod && (
+                <button onClick={onBackToMethod} style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif" }}>← Change method</button>
+              )}
             </div>
           </>
         )}
