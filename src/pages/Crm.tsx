@@ -179,6 +179,45 @@ export default function Crm() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `crm-leads-${Date.now()}.csv`; a.click();
   };
 
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignMode, setAssignMode] = useState<"round_robin"|"manual"|"unassign">("round_robin");
+  const [assignAgentId, setAssignAgentId] = useState<string>("");
+  const [assignScope, setAssignScope] = useState<"unassigned"|"all">("unassigned");
+  const [assignBusy, setAssignBusy] = useState(false);
+
+  const runAssignment = async () => {
+    setAssignBusy(true);
+    try {
+      const target = pipelineLeads.filter((l) => assignScope === "all" ? true : !l.assigned_agent_id);
+      if (target.length === 0) { toast.info("No leads to assign in current view"); setAssignBusy(false); return; }
+      if (assignMode === "unassign") {
+        const ids = target.map((l) => l.id);
+        await supabase.from("leads").update({ assigned_agent_id: null }).in("id", ids);
+        toast.success(`Unassigned ${ids.length} leads`);
+      } else if (assignMode === "manual") {
+        if (!assignAgentId) { toast.error("Pick an agent"); setAssignBusy(false); return; }
+        const ids = target.map((l) => l.id);
+        await supabase.from("leads").update({ assigned_agent_id: assignAgentId }).in("id", ids);
+        toast.success(`Assigned ${ids.length} leads`);
+      } else {
+        if (agents.length === 0) { toast.error("No active sales agents available"); setAssignBusy(false); return; }
+        const buckets = new Map<string, string[]>();
+        target.forEach((l, i) => {
+          const a = agents[i % agents.length].id;
+          if (!buckets.has(a)) buckets.set(a, []);
+          buckets.get(a)!.push(l.id);
+        });
+        for (const [aid, ids] of buckets) {
+          await supabase.from("leads").update({ assigned_agent_id: aid }).in("id", ids);
+        }
+        toast.success(`Round-robin assigned ${target.length} leads to ${buckets.size} agents`);
+      }
+      setAssignOpen(false);
+      await load();
+    } catch (e: any) { toast.error(e.message || "Assignment failed"); }
+    finally { setAssignBusy(false); }
+  };
+
   return (
     <div>
       <PageHead title="Calling CRM" sub="Diamond Program sales pipeline" />
