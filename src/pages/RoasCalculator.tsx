@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import type { SaleDetail } from "@/lib/roasExport";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
+import QuickSaveInput from "@/components/QuickSaveInput";
 
 /* ====================================================================
    ROAS Calculator v2 — single-page module with three tabs:
@@ -592,30 +593,14 @@ function AttrTab({ userId }: { userId?: string }) {
             <div className="wiz-sub">Enter the webinar details so results are clearly labelled and saved to history.</div>
 
             <div style={{ marginBottom: 18 }}>
-              <label className="fl">Webinar name</label>
-              <div className="fi-wrap" ref={ddRef}>
-                <input
-                  className="fi fi-h"
-                  style={{ paddingRight: 38 }}
-                  value={wbName}
-                  onChange={(e) => { setWbName(e.target.value); setShowDD(true); if (wbErr) setWbErr(""); }}
-                  onFocus={() => setShowDD(true)}
-                  placeholder="e.g. Learn 6 Secrets to ₹1 Crore Turnover"
-                />
-                {wbName.trim() && (
-                  <button type="button" className="fi-plus" title="Save to webinar templates" onClick={saveTemplate}>+</button>
-                )}
-                {showDD && filteredTpl.length > 0 && (
-                  <div className="tpl-dd">
-                    <div className="tpl-dd-lbl">Saved templates</div>
-                    {filteredTpl.slice(0, 5).map((t) => (
-                      <div key={t.id} className="tpl-it" onClick={() => { setWbName(t.name); setShowDD(false); }}>{t.name}</div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <QuickSaveInput
+                fieldKey="webinar_name"
+                label="Webinar name"
+                placeholder="e.g. Learn 6 Secrets to ₹1 Crore Turnover"
+                value={wbName}
+                onChange={(v) => { setWbName(v); if (wbErr) setWbErr(""); }}
+              />
               {wbErr && <div className="err">{wbErr}</div>}
-              {savedConf && <div className="saved-conf">✓ Saved to webinar templates</div>}
             </div>
 
             <div style={{ marginBottom: 18 }}>
@@ -660,8 +645,14 @@ function AttrTab({ userId }: { userId?: string }) {
                   </div>
 
                   <div style={{ marginBottom: 12 }}>
-                    <label className="fl-sm">Media buyer name</label>
-                    <input className="fi-sm" value={m.name} onChange={(e) => updateMB(m.id, { name: e.target.value })} placeholder="Full name" />
+                    <QuickSaveInput
+                      fieldKey="media_buyer_name"
+                      label="Media buyer name"
+                      placeholder="Full name"
+                      value={m.name}
+                      onChange={(v) => updateMB(m.id, { name: v })}
+                      height={40}
+                    />
                   </div>
 
                   <label className="fl-sm">Lead sheet</label>
