@@ -543,13 +543,13 @@ function AttrTab({ userId }: { userId?: string }) {
           const n = i + 1;
           const status = step > n ? "done" : step === n ? "active" : "";
           return (
-            <>
-              <div key={"s" + n} className={"wiz-step " + status}>
+            <React.Fragment key={n}>
+              <div className={"wiz-step " + status}>
                 <div className="wiz-circle">{step > n ? "✓" : n}</div>
                 <div className="wiz-lbl">{lbl}</div>
               </div>
-              {i < 3 && <div key={"l" + n} className={"wiz-line" + (step > n ? " done" : "")} />}
-            </>
+              {i < 3 && <div className={"wiz-line" + (step > n ? " done" : "")} />}
+            </React.Fragment>
           );
         })}
       </div>
