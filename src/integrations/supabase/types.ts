@@ -381,6 +381,533 @@ export type Database = {
         }
         Relationships: []
       }
+      roas_ad_spends: {
+        Row: {
+          created_at: string
+          entered_by: string | null
+          id: string
+          media_buyer_id: string
+          remarks: string | null
+          spend_amount: number
+          spend_date: string
+          updated_at: string
+          webinar_date: string | null
+          webinar_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          entered_by?: string | null
+          id?: string
+          media_buyer_id: string
+          remarks?: string | null
+          spend_amount?: number
+          spend_date: string
+          updated_at?: string
+          webinar_date?: string | null
+          webinar_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          entered_by?: string | null
+          id?: string
+          media_buyer_id?: string
+          remarks?: string | null
+          spend_amount?: number
+          spend_date?: string
+          updated_at?: string
+          webinar_date?: string | null
+          webinar_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roas_ad_spends_media_buyer_id_fkey"
+            columns: ["media_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "roas_media_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roas_ad_spends_webinar_id_fkey"
+            columns: ["webinar_id"]
+            isOneToOne: false
+            referencedRelation: "roas_webinars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roas_attribution_logs: {
+        Row: {
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string
+          enrollment_id: string | null
+          id: string
+          new_media_buyer_id: string | null
+          new_status: string | null
+          old_media_buyer_id: string | null
+          old_status: string | null
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          enrollment_id?: string | null
+          id?: string
+          new_media_buyer_id?: string | null
+          new_status?: string | null
+          old_media_buyer_id?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          enrollment_id?: string | null
+          id?: string
+          new_media_buyer_id?: string | null
+          new_status?: string | null
+          old_media_buyer_id?: string | null
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roas_attribution_logs_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "roas_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roas_data_sources: {
+        Row: {
+          column_mapping_json: Json
+          created_at: string
+          id: string
+          last_duplicates_skipped: number | null
+          last_rows_fetched: number | null
+          last_rows_imported: number | null
+          last_sync_error: string | null
+          last_sync_status: string | null
+          last_synced_at: string | null
+          media_buyer_id: string | null
+          published_sheet_url: string
+          source_name: string
+          source_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          column_mapping_json?: Json
+          created_at?: string
+          id?: string
+          last_duplicates_skipped?: number | null
+          last_rows_fetched?: number | null
+          last_rows_imported?: number | null
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          last_synced_at?: string | null
+          media_buyer_id?: string | null
+          published_sheet_url: string
+          source_name: string
+          source_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          column_mapping_json?: Json
+          created_at?: string
+          id?: string
+          last_duplicates_skipped?: number | null
+          last_rows_fetched?: number | null
+          last_rows_imported?: number | null
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          last_synced_at?: string | null
+          media_buyer_id?: string | null
+          published_sheet_url?: string
+          source_name?: string
+          source_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roas_data_sources_media_buyer_id_fkey"
+            columns: ["media_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "roas_media_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roas_enrollments: {
+        Row: {
+          amount_paid: number | null
+          attributed_media_buyer_id: string | null
+          attributed_webinar_id: string | null
+          attribution_confidence: string | null
+          attribution_method: string | null
+          attribution_status: string | null
+          buyer_name: string | null
+          clean_email: string | null
+          clean_phone: string | null
+          cycle_attribution_flag: string | null
+          cycle_window_end: string | null
+          cycle_window_start: string | null
+          data_flags: Json | null
+          data_source_id: string | null
+          gst_amount: number | null
+          id: string
+          imported_at: string
+          manual_override: boolean | null
+          manual_override_at: string | null
+          manual_override_by: string | null
+          manual_override_reason: string | null
+          matched_lead_id: string | null
+          net_revenue: number | null
+          payment_date: string | null
+          payment_gateway: string | null
+          payment_status: string | null
+          program_price: number | null
+          raw_email: string | null
+          raw_phone: string | null
+          remarks: string | null
+          salesperson: string | null
+          source_row_hash: string
+          total_invoice_value: number | null
+          transaction_id: string | null
+          updated_at: string
+          webinar_date: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          attributed_media_buyer_id?: string | null
+          attributed_webinar_id?: string | null
+          attribution_confidence?: string | null
+          attribution_method?: string | null
+          attribution_status?: string | null
+          buyer_name?: string | null
+          clean_email?: string | null
+          clean_phone?: string | null
+          cycle_attribution_flag?: string | null
+          cycle_window_end?: string | null
+          cycle_window_start?: string | null
+          data_flags?: Json | null
+          data_source_id?: string | null
+          gst_amount?: number | null
+          id?: string
+          imported_at?: string
+          manual_override?: boolean | null
+          manual_override_at?: string | null
+          manual_override_by?: string | null
+          manual_override_reason?: string | null
+          matched_lead_id?: string | null
+          net_revenue?: number | null
+          payment_date?: string | null
+          payment_gateway?: string | null
+          payment_status?: string | null
+          program_price?: number | null
+          raw_email?: string | null
+          raw_phone?: string | null
+          remarks?: string | null
+          salesperson?: string | null
+          source_row_hash: string
+          total_invoice_value?: number | null
+          transaction_id?: string | null
+          updated_at?: string
+          webinar_date?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          attributed_media_buyer_id?: string | null
+          attributed_webinar_id?: string | null
+          attribution_confidence?: string | null
+          attribution_method?: string | null
+          attribution_status?: string | null
+          buyer_name?: string | null
+          clean_email?: string | null
+          clean_phone?: string | null
+          cycle_attribution_flag?: string | null
+          cycle_window_end?: string | null
+          cycle_window_start?: string | null
+          data_flags?: Json | null
+          data_source_id?: string | null
+          gst_amount?: number | null
+          id?: string
+          imported_at?: string
+          manual_override?: boolean | null
+          manual_override_at?: string | null
+          manual_override_by?: string | null
+          manual_override_reason?: string | null
+          matched_lead_id?: string | null
+          net_revenue?: number | null
+          payment_date?: string | null
+          payment_gateway?: string | null
+          payment_status?: string | null
+          program_price?: number | null
+          raw_email?: string | null
+          raw_phone?: string | null
+          remarks?: string | null
+          salesperson?: string | null
+          source_row_hash?: string
+          total_invoice_value?: number | null
+          transaction_id?: string | null
+          updated_at?: string
+          webinar_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roas_enrollments_attributed_media_buyer_id_fkey"
+            columns: ["attributed_media_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "roas_media_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roas_enrollments_attributed_webinar_id_fkey"
+            columns: ["attributed_webinar_id"]
+            isOneToOne: false
+            referencedRelation: "roas_webinars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roas_enrollments_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "roas_data_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roas_enrollments_matched_lead_id_fkey"
+            columns: ["matched_lead_id"]
+            isOneToOne: false
+            referencedRelation: "roas_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roas_leads: {
+        Row: {
+          ad_name: string | null
+          adset_name: string | null
+          campaign_name: string | null
+          city: string | null
+          clean_email: string | null
+          clean_phone: string | null
+          created_at_from_sheet: string | null
+          data_flags: Json | null
+          data_source_id: string | null
+          duplicate_status: string | null
+          id: string
+          imported_at: string
+          landing_page: string | null
+          lead_name: string | null
+          lead_status: string | null
+          media_buyer_id: string | null
+          notes: string | null
+          raw_email: string | null
+          raw_phone: string | null
+          source_row_hash: string
+          state: string | null
+          updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_source: string | null
+          webinar_date: string | null
+        }
+        Insert: {
+          ad_name?: string | null
+          adset_name?: string | null
+          campaign_name?: string | null
+          city?: string | null
+          clean_email?: string | null
+          clean_phone?: string | null
+          created_at_from_sheet?: string | null
+          data_flags?: Json | null
+          data_source_id?: string | null
+          duplicate_status?: string | null
+          id?: string
+          imported_at?: string
+          landing_page?: string | null
+          lead_name?: string | null
+          lead_status?: string | null
+          media_buyer_id?: string | null
+          notes?: string | null
+          raw_email?: string | null
+          raw_phone?: string | null
+          source_row_hash: string
+          state?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_source?: string | null
+          webinar_date?: string | null
+        }
+        Update: {
+          ad_name?: string | null
+          adset_name?: string | null
+          campaign_name?: string | null
+          city?: string | null
+          clean_email?: string | null
+          clean_phone?: string | null
+          created_at_from_sheet?: string | null
+          data_flags?: Json | null
+          data_source_id?: string | null
+          duplicate_status?: string | null
+          id?: string
+          imported_at?: string
+          landing_page?: string | null
+          lead_name?: string | null
+          lead_status?: string | null
+          media_buyer_id?: string | null
+          notes?: string | null
+          raw_email?: string | null
+          raw_phone?: string | null
+          source_row_hash?: string
+          state?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_source?: string | null
+          webinar_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roas_leads_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "roas_data_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roas_leads_media_buyer_id_fkey"
+            columns: ["media_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "roas_media_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roas_media_buyers: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      roas_sync_logs: {
+        Row: {
+          created_at: string
+          data_source_id: string | null
+          duplicate_rows_skipped: number | null
+          error_message: string | null
+          id: string
+          rows_fetched: number | null
+          rows_imported: number | null
+          rows_updated: number | null
+          sync_completed_at: string | null
+          sync_started_at: string
+          sync_status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          data_source_id?: string | null
+          duplicate_rows_skipped?: number | null
+          error_message?: string | null
+          id?: string
+          rows_fetched?: number | null
+          rows_imported?: number | null
+          rows_updated?: number | null
+          sync_completed_at?: string | null
+          sync_started_at?: string
+          sync_status?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          data_source_id?: string | null
+          duplicate_rows_skipped?: number | null
+          error_message?: string | null
+          id?: string
+          rows_fetched?: number | null
+          rows_imported?: number | null
+          rows_updated?: number | null
+          sync_completed_at?: string | null
+          sync_started_at?: string
+          sync_status?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roas_sync_logs_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "roas_data_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roas_webinars: {
+        Row: {
+          created_at: string
+          gst_rate: number
+          id: string
+          landing_page_url: string | null
+          offer_name: string | null
+          program_price: number
+          status: string
+          updated_at: string
+          webinar_end_date: string | null
+          webinar_name: string
+          webinar_start_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          gst_rate?: number
+          id?: string
+          landing_page_url?: string | null
+          offer_name?: string | null
+          program_price?: number
+          status?: string
+          updated_at?: string
+          webinar_end_date?: string | null
+          webinar_name: string
+          webinar_start_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          gst_rate?: number
+          id?: string
+          landing_page_url?: string | null
+          offer_name?: string | null
+          program_price?: number
+          status?: string
+          updated_at?: string
+          webinar_end_date?: string | null
+          webinar_name?: string
+          webinar_start_date?: string | null
+        }
+        Relationships: []
+      }
       stages: {
         Row: {
           color: string
