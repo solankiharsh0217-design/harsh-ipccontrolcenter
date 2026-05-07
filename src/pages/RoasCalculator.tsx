@@ -788,6 +788,9 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
 
         {step === 4 && !calculating && results && (
           <>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em", color: "#C8A84B", marginBottom: 6, fontWeight: 500 }}>
+              Calculation Method: Manual Upload
+            </div>
             <AttributionResultsView
               payload={{
                 webinarName: wbName, webinarDate: wbDate, webinarType: wbType,
@@ -796,8 +799,11 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
               onSave={saveHistory}
               savedHist={savedHist}
             />
-            <div style={{ textAlign: "center", marginTop: 24 }}>
+            <div style={{ textAlign: "center", marginTop: 24, display: "flex", gap: 16, justifyContent: "center" }}>
               <button onClick={reset} style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif" }}>← Start a new attribution</button>
+              {onBackToMethod && (
+                <button onClick={onBackToMethod} style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif" }}>← Change method</button>
+              )}
             </div>
           </>
         )}
