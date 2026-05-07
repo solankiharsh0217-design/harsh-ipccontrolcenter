@@ -326,7 +326,7 @@ function initials(name: string) {
   return (w[0][0] + w[w.length - 1][0]).toUpperCase();
 }
 
-function AttrTab({ userId }: { userId?: string }) {
+function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?: () => void }) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [calculating, setCalculating] = useState(false);
 
