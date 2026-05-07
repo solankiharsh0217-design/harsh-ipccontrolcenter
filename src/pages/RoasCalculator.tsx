@@ -336,7 +336,7 @@ function AttrTab({ userId }: { userId?: string }) {
   // Step 4
   const [progPct, setProgPct] = useState(0);
   const [calcMsg, setCalcMsg] = useState("");
-  const [results, setResults] = useState<{ rows: AttrRow[]; unmatched: Person[]; totals: { spend: number; revenue: number; sales: number; leads: number } } | null>(null);
+  const [results, setResults] = useState<{ rows: AttrRow[]; unmatched: Person[]; salesDetail: SaleDetail[]; totals: { spend: number; revenue: number; sales: number; leads: number } } | null>(null);
   const [savedHist, setSavedHist] = useState(false);
 
   // load templates
