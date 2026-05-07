@@ -14,16 +14,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/announcements": "Announcements",
   "/roas": "ROAS Calculator",
-  "/roas/calculator": "Simple ROAS Calculator",
-  "/roas/dashboard": "ROAS Dashboard",
-  "/roas/leads": "ROAS Leads",
-  "/roas/enrollments": "ROAS Enrollments",
-  "/roas/manual-review": "Manual Review",
-  "/roas/ad-spend": "Ad Spend",
-  "/roas/sync": "Sync",
-  "/roas/setup/data-sources": "Data Sources",
-  "/roas/setup/webinars": "ROAS Webinars",
-  "/roas/setup/media-buyers": "Media Buyers",
+  "/roas-calculator": "ROAS Calculator",
   "/search": "Student Search",
   "/leadflow": "Daily Lead Flow",
   "/lead-qualifier": "Lead Qualifier",
@@ -83,7 +74,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </NavItem>
 
           <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">Tools</span>
-          <NavItem to="/roas">
+          <NavItem to="/roas-calculator">
             <Icon d="M2 8h3l2-5 2 10 2-5h3" />
             ROAS Calculator
           </NavItem>

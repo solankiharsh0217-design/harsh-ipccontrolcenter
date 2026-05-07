@@ -7,17 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Roas from "./pages/Roas";
-import RoasHub from "./pages/roas/Hub";
-import RoasDashboard from "./pages/roas/Dashboard";
-import RoasLeads from "./pages/roas/Leads";
-import RoasEnrollments from "./pages/roas/Enrollments";
-import RoasManualReview from "./pages/roas/ManualReview";
-import RoasAdSpend from "./pages/roas/AdSpend";
-import RoasSync from "./pages/roas/Sync";
-import RoasDataSources from "./pages/roas/DataSources";
-import RoasWebinars from "./pages/roas/Webinars";
-import RoasMediaBuyers from "./pages/roas/MediaBuyers";
+import RoasCalculator from "./pages/RoasCalculator";
 import StudentSearch from "./pages/StudentSearch";
 import LeadFlow from "./pages/LeadFlow";
 import Team from "./pages/Team";
@@ -45,17 +35,8 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Shell><Dashboard /></Shell>} />
-            <Route path="/roas/calculator" element={<Shell><Roas /></Shell>} />
-            <Route path="/roas" element={<Shell><RoasHub /></Shell>} />
-            <Route path="/roas/dashboard" element={<Shell><RoasDashboard /></Shell>} />
-            <Route path="/roas/leads" element={<Shell><RoasLeads /></Shell>} />
-            <Route path="/roas/enrollments" element={<Shell><RoasEnrollments /></Shell>} />
-            <Route path="/roas/manual-review" element={<Shell><RoasManualReview /></Shell>} />
-            <Route path="/roas/ad-spend" element={<Shell><RoasAdSpend /></Shell>} />
-            <Route path="/roas/sync" element={<Shell><RoasSync /></Shell>} />
-            <Route path="/roas/setup/data-sources" element={<Shell admin><RoasDataSources /></Shell>} />
-            <Route path="/roas/setup/webinars" element={<Shell admin><RoasWebinars /></Shell>} />
-            <Route path="/roas/setup/media-buyers" element={<Shell admin><RoasMediaBuyers /></Shell>} />
+            <Route path="/roas-calculator" element={<Shell><RoasCalculator /></Shell>} />
+            <Route path="/roas" element={<Shell><RoasCalculator /></Shell>} />
             <Route path="/search" element={<Shell><StudentSearch /></Shell>} />
             <Route path="/leadflow" element={<Shell><LeadFlow /></Shell>} />
             <Route path="/lead-qualifier" element={<Shell><LeadQualifier /></Shell>} />
