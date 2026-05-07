@@ -298,6 +298,25 @@ export default function RoasCalculator() {
 }
 
 // ===================================================================
+// TAB 1 WRAPPER: Method selection → Manual or Automatic wizard
+// ===================================================================
+function AttrTabWrapper({ userId }: { userId?: string }) {
+  const [method, setMethod] = useState<"none" | "manual" | "auto">("none");
+  if (method === "none") {
+    return (
+      <AttributionMethodSelect
+        onPickManual={() => setMethod("manual")}
+        onPickAuto={() => setMethod("auto")}
+      />
+    );
+  }
+  if (method === "auto") {
+    return <AutoFetchWizard onBackToMethod={() => setMethod("none")} />;
+  }
+  return <AttrTab userId={userId} onBackToMethod={() => setMethod("none")} />;
+}
+
+// ===================================================================
 // TAB 1: MEDIA BUYER ATTRIBUTION — 4-STEP WIZARD
 // ===================================================================
 function initials(name: string) {
