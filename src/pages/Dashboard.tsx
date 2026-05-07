@@ -56,7 +56,7 @@ export default function Dashboard() {
         <div className="rounded-xl py-[22px] px-6 bg-gold-pale border border-gold-mid">
           <div className="uppercase-label mb-2.5">Today's ROAS</div>
           <div className="font-serif text-[40px] font-medium text-gold leading-none mb-1">{todayRoas}</div>
-          <div className="font-sans text-[11px] text-muted-foreground">Live · today's lead-to-spend ratio</div>
+          <div className="font-sans text-[11px] text-muted-foreground">{todayRoasNote}</div>
         </div>
         <div className="rounded-xl py-[22px] px-6 bg-off">
           <div className="uppercase-label mb-2.5">Leads this week</div>
