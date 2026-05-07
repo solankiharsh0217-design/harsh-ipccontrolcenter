@@ -518,19 +518,7 @@ function AttrTab({ userId }: { userId?: string }) {
     setTouchedCalc(false);
   };
 
-  const buildPayload = () => {
-    if (!results) return null;
-    return {
-      webinarName: wbName,
-      webinarDate: wbDate,
-      webinarType: wbType,
-      totals: results.totals,
-      rows: results.rows,
-      salesDetail: results.salesDetail,
-    };
-  };
-  const exportCSV = () => { const p = buildPayload(); if (p) downloadCSV(p); };
-  const exportPDF = () => { const p = buildPayload(); if (p) downloadPDF(p); };
+  // Export handled inside AttributionResultsView
 
   const saveHistory = async () => {
     if (!results || !userId) return;
