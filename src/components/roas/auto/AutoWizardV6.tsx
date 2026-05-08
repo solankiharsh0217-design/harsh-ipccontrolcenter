@@ -1152,6 +1152,7 @@ function Step4Results(p: {
   showDataUsed: boolean; setShowDataUsed: (b: boolean) => void;
   tabRoles: TabRoleAssignment[];
   adSpends: Record<string, string>;
+  consistency: { sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean };
 }) {
   const w = p.webinar;
   const dateLabel = w.dateMode === "single" ? w.singleDate
