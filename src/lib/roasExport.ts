@@ -188,6 +188,33 @@ export function downloadPDF(p: AttributionPayload) {
     doc.text(`⚠ ${unmatched.length} sales could not be attributed to any media buyer.`, 40, 320);
   }
 
+  // Metadata block on Summary page
+  const m = p.meta || {};
+  const metaRows: Array<[string, string]> = [
+    ["Created On", m.createdOn || ""],
+    ["Calculation Method", m.calculationMethod || ""],
+    ["Webinar Date / Period", m.webinarPeriod || fmtDate(p.webinarDate)],
+    ["Webinar Format", m.webinarFormat || ""],
+    ["Webinar Operator", m.webinarOperator || ""],
+    ["Session Slot", m.sessionSlot || ""],
+    ["Platform", m.webinarPlatform || ""],
+    ["Zoom Account", m.zoomAccount || ""],
+    ["Ad Spend Source", m.adSpendSource || ""],
+    ["Calculation ID", m.calculationId || ""],
+    ["Engine Version", m.engineVersion || ""],
+  ].filter(([, v]) => v) as Array<[string, string]>;
+  if (metaRows.length) {
+    autoTable(doc, {
+      startY: unmatched.length ? 340 : 320,
+      head: [["Report Metadata", ""]],
+      body: metaRows,
+      headStyles: { fillColor: [247, 246, 243], textColor: BLACK, fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: BLACK },
+      columnStyles: { 0: { cellWidth: 160, textColor: MUTED }, 1: { cellWidth: "auto" } },
+      margin: { left: 40, right: 40 },
+    });
+  }
+
   // Page 3 — Per buyer breakdown
   doc.addPage();
   header(doc, p, GOLD, MUTED);
