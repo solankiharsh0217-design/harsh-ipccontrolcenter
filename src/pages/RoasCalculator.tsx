@@ -281,22 +281,67 @@ type DataSource = { id?: string; name: string; type: string; url: string; descri
 const DEAL_VALUE = 118000;
 
 // ───────────── component ─────────────
+type ToolKey = "home" | "attr" | "total" | "daily" | "sources";
+
 export default function RoasCalculator() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"attr" | "total" | "sources">("attr");
+  const [tool, setTool] = useState<ToolKey>("home");
 
   return (
     <div className="rcv2">
       <style>{styles}</style>
-      <div className="page-tabs">
-        <button className={"ptab" + (tab === "attr" ? " on" : "")} onClick={() => setTab("attr")}>Media Buyer Attribution</button>
-        <button className={"ptab" + (tab === "total" ? " on" : "")} onClick={() => setTab("total")}>Total ROAS</button>
-        <button className={"ptab" + (tab === "sources" ? " on" : "")} onClick={() => setTab("sources")}>Data Sources</button>
-      </div>
       <div className="content">
-        {tab === "attr" && <AttrTabWrapper userId={user?.id} />}
-        {tab === "total" && <TotalTab userId={user?.id} />}
-        {tab === "sources" && <SourcesTab userId={user?.id} />}
+        {tool === "home" && <RoasLauncher onPick={(t) => setTool(t)} />}
+        {tool !== "home" && (
+          <button
+            onClick={() => setTool("home")}
+            style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif", marginBottom: 8 }}
+          >
+            ← Back to ROAS Tools
+          </button>
+        )}
+        {tool === "attr" && <AttrTabWrapper userId={user?.id} />}
+        {tool === "total" && <TotalTab userId={user?.id} />}
+        {tool === "daily" && <DailyLeadReportingModule onBack={() => setTool("home")} />}
+        {tool === "sources" && <SourcesTab userId={user?.id} />}
+      </div>
+    </div>
+  );
+}
+
+function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
+  const cards: { key: ToolKey; tag: string; title: string; desc: string; btn: string; primary?: boolean }[] = [
+    { key: "attr", tag: "Sales Attribution", title: "Media Buyer Attribution",
+      desc: "Attribute sales to media buyers using manual uploads or automatic attribution from a master Google Sheet.",
+      btn: "Open Attribution" },
+    { key: "total", tag: "Overall ROAS", title: "Total ROAS / Row-Level Calculation",
+      desc: "Calculate overall ROAS for a webinar or campaign using total ad spend and sales data.",
+      btn: "Open Total ROAS" },
+    { key: "daily", tag: "New", title: "Daily Lead Reporting",
+      desc: "Enter daily Meta ad spends and metrics manually, fetch lead counts from Google Sheets by date, and calculate daily CPL per media buyer.",
+      btn: "Open Daily Reporting", primary: true },
+    { key: "sources", tag: "Settings", title: "Data Sources",
+      desc: "Manage saved Google Sheet links, reusable names, data sources, and reporting templates.",
+      btn: "Open Data Sources" },
+  ];
+  return (
+    <div style={{ maxWidth: 980, padding: "32px 4px" }}>
+      <div className="page-title">ROAS Calculator</div>
+      <p className="page-sub">Choose the ROAS or reporting tool you want to use.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {cards.map((c) => (
+          <div key={c.key} style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: 24, background: "#fff", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{c.title}</div>
+              <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 12, background: c.tag === "New" ? "#FBF6E9" : "#F7F6F3", color: c.tag === "New" ? "#7A5E10" : "#888", textTransform: "uppercase", letterSpacing: ".08em", fontWeight: 500 }}>{c.tag}</span>
+            </div>
+            <p style={{ fontSize: 12.5, color: "#888", lineHeight: 1.6, marginBottom: 20, flex: 1 }}>{c.desc}</p>
+            <button
+              onClick={() => onPick(c.key)}
+              style={{ height: 42, borderRadius: 8, border: "none", background: c.primary ? "#C8A84B" : "#0a0a0a", color: c.primary ? "#0a0a0a" : "#fff", fontFamily: "'Jost',sans-serif", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+            >{c.btn}</button>
+          </div>
+        ))}
       </div>
     </div>
   );
