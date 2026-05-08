@@ -792,6 +792,7 @@ function Step2Connect(p: {
   tabs: DetectedTab[]; tabRoles: TabRoleAssignment[];
   setRole: (id: string, r: TabRole) => void;
   setMBName: (id: string, n: string) => void;
+  onOpenMapping: (sheetId: string) => void;
   selectedSales: TabRoleAssignment | undefined;
   selectedMBs: TabRoleAssignment[];
   ignoredCount: number;
