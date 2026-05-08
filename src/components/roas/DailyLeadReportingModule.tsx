@@ -55,6 +55,65 @@ function defaultReport(): DailyReport {
   };
 }
 
+async function insertReportChildren(reportId: string, report: DailyReport, userId: string | null) {
+  for (const mb of report.media_buyers) {
+    const spend = calcMediaBuyerSpend(mb);
+    const cpl = calcCpl(spend, mb.total_leads);
+    const { data: mbRow, error: mbErr } = await (supabase as any)
+      .from("daily_lead_report_media_buyers")
+      .insert({
+        report_id: reportId,
+        media_buyer_name: mb.media_buyer_name,
+        media_buyer_key: mb.media_buyer_name.toLowerCase().trim(),
+        lead_source_url: mb.lead_source_url || null,
+        spreadsheet_id: mb.spreadsheet_id || null,
+        spreadsheet_title: mb.spreadsheet_title || null,
+        tab_name: mb.tab_name || null,
+        sheet_id: mb.sheet_id || null,
+        date_column: mb.date_column || null,
+        total_leads: mb.total_leads || 0,
+        lead_count_source: mb.lead_count_source,
+        total_ad_spend: spend,
+        cpl: cpl ?? 0,
+        status: mb.status,
+        fetch_metadata: mb.fetch_metadata || null,
+      })
+      .select()
+      .single();
+    if (mbErr || !mbRow) continue;
+    if (mb.spend_mode === "combined") {
+      await (supabase as any).from("daily_lead_report_ad_accounts").insert({
+        report_media_buyer_id: mbRow.id,
+        ad_account_name: "(combined)",
+        ad_spend: spend,
+        metrics: mb.combined_metrics || {},
+      });
+    } else {
+      for (const a of mb.ad_accounts) {
+        if (!a.ad_account_name && !a.ad_spend) continue;
+        await (supabase as any).from("daily_lead_report_ad_accounts").insert({
+          report_media_buyer_id: mbRow.id,
+          ad_account_name: a.ad_account_name || "(unnamed)",
+          ad_spend: Number(a.ad_spend) || 0,
+          metrics: a.metrics || {},
+        });
+      }
+    }
+    if (mb.save_mapping && mb.media_buyer_name && mb.lead_source_url && mb.tab_name) {
+      await (supabase as any).from("daily_lead_source_mappings").insert({
+        media_buyer_name: mb.media_buyer_name,
+        sheet_url: mb.lead_source_url,
+        spreadsheet_id: mb.spreadsheet_id || null,
+        spreadsheet_title: mb.spreadsheet_title || null,
+        tab_name: mb.tab_name,
+        sheet_id: mb.sheet_id || null,
+        date_column: mb.date_column || null,
+        created_by: userId,
+      });
+    }
+  }
+}
+
 type ViewMode = "create" | "history" | "analytics";
 
 export default function DailyLeadReportingModule({ onBack }: { onBack: () => void }) {
@@ -232,31 +291,70 @@ export default function DailyLeadReportingModule({ onBack }: { onBack: () => voi
               totals={totals}
               saving={saving}
               savedReportId={savedReportId}
+              editingExistingId={editingExistingId}
               onBack={() => setStep(2)}
-              onSave={async () => {
+              onSave={async (mode) => {
+                const effectiveMode = mode || (editingExistingId ? "update" : "new");
                 setSaving(true);
                 try {
+                  const whatsapp_message = buildWhatsApp(report);
                   const hash = await hashReport(report, user?.id || null);
-                  // Duplicate check
-                  const { data: existing } = await (supabase as any)
-                    .from("daily_lead_reports")
-                    .select("id")
-                    .eq("input_hash", hash)
-                    .eq("created_by", user?.id || "")
-                    .eq("is_deleted", false)
-                    .limit(1);
-                  if (existing && existing.length) {
-                    toast.error("This daily report has already been saved.");
-                    setSavedReportId(existing[0].id);
-                    setSaving(false);
+
+                  if (effectiveMode === "update" && editingExistingId) {
+                    const { error: updErr } = await (supabase as any)
+                      .from("daily_lead_reports")
+                      .update({
+                        report_name: report.report_name,
+                        report_date: report.report_date,
+                        notes: report.notes || null,
+                        metric_template_id: report.metric_template_id || null,
+                        total_ad_spend: totals.spend,
+                        total_leads: totals.leads,
+                        overall_cpl: totals.cpl ?? 0,
+                        whatsapp_message,
+                        input_hash: hash,
+                        report_status: "edited",
+                        updated_at: new Date().toISOString(),
+                      })
+                      .eq("id", editingExistingId);
+                    if (updErr) throw updErr;
+                    const { data: oldMbs } = await (supabase as any)
+                      .from("daily_lead_report_media_buyers")
+                      .select("id").eq("report_id", editingExistingId);
+                    const oldIds = (oldMbs || []).map((x: any) => x.id);
+                    if (oldIds.length) {
+                      await (supabase as any).from("daily_lead_report_ad_accounts").delete().in("report_media_buyer_id", oldIds);
+                      await (supabase as any).from("daily_lead_report_media_buyers").delete().eq("report_id", editingExistingId);
+                    }
+                    await insertReportChildren(editingExistingId, report, user?.id || null);
+                    toast.success("Daily report updated.");
+                    setSavedReportId(editingExistingId);
+                    setEditingExistingId(null);
                     setStep(4);
                     return;
                   }
-                  const whatsapp_message = buildWhatsApp(report);
+
+                  if (effectiveMode === "new") {
+                    const { data: existing } = await (supabase as any)
+                      .from("daily_lead_reports")
+                      .select("id")
+                      .eq("input_hash", hash)
+                      .eq("created_by", user?.id || "")
+                      .eq("is_deleted", false)
+                      .limit(1);
+                    if (existing && existing.length) {
+                      toast.error("This daily report has already been saved.");
+                      setSavedReportId(existing[0].id);
+                      setSaving(false);
+                      setStep(4);
+                      return;
+                    }
+                  }
+
                   const { data: inserted, error } = await (supabase as any)
                     .from("daily_lead_reports")
                     .insert({
-                      report_name: report.report_name,
+                      report_name: effectiveMode === "copy" ? `${report.report_name} (Copy)` : report.report_name,
                       report_date: report.report_date,
                       notes: report.notes || null,
                       metric_template_id: report.metric_template_id || null,
@@ -264,75 +362,17 @@ export default function DailyLeadReportingModule({ onBack }: { onBack: () => voi
                       total_leads: totals.leads,
                       overall_cpl: totals.cpl ?? 0,
                       whatsapp_message,
-                      input_hash: hash,
+                      input_hash: effectiveMode === "copy" ? hash + "-copy-" + Date.now() : hash,
+                      report_status: "saved",
                       created_by: user?.id || null,
                     })
                     .select()
                     .single();
                   if (error || !inserted) throw error || new Error("Failed to save");
-
-                  const reportId = inserted.id;
-                  for (const mb of report.media_buyers) {
-                    const spend = calcMediaBuyerSpend(mb);
-                    const cpl = calcCpl(spend, mb.total_leads);
-                    const { data: mbRow, error: mbErr } = await (supabase as any)
-                      .from("daily_lead_report_media_buyers")
-                      .insert({
-                        report_id: reportId,
-                        media_buyer_name: mb.media_buyer_name,
-                        media_buyer_key: mb.media_buyer_name.toLowerCase().trim(),
-                        lead_source_url: mb.lead_source_url || null,
-                        spreadsheet_id: mb.spreadsheet_id || null,
-                        spreadsheet_title: mb.spreadsheet_title || null,
-                        tab_name: mb.tab_name || null,
-                        sheet_id: mb.sheet_id || null,
-                        date_column: mb.date_column || null,
-                        total_leads: mb.total_leads || 0,
-                        lead_count_source: mb.lead_count_source,
-                        total_ad_spend: spend,
-                        cpl: cpl ?? 0,
-                        status: mb.status,
-                        fetch_metadata: mb.fetch_metadata || null,
-                      })
-                      .select()
-                      .single();
-                    if (mbErr || !mbRow) continue;
-
-                    if (mb.spend_mode === "combined") {
-                      await (supabase as any).from("daily_lead_report_ad_accounts").insert({
-                        report_media_buyer_id: mbRow.id,
-                        ad_account_name: "(combined)",
-                        ad_spend: spend,
-                        metrics: mb.combined_metrics || {},
-                      });
-                    } else {
-                      for (const a of mb.ad_accounts) {
-                        if (!a.ad_account_name && !a.ad_spend) continue;
-                        await (supabase as any).from("daily_lead_report_ad_accounts").insert({
-                          report_media_buyer_id: mbRow.id,
-                          ad_account_name: a.ad_account_name || "(unnamed)",
-                          ad_spend: Number(a.ad_spend) || 0,
-                          metrics: a.metrics || {},
-                        });
-                      }
-                    }
-
-                    // Save mapping if requested
-                    if (mb.save_mapping && mb.media_buyer_name && mb.lead_source_url && mb.tab_name) {
-                      await (supabase as any).from("daily_lead_source_mappings").insert({
-                        media_buyer_name: mb.media_buyer_name,
-                        sheet_url: mb.lead_source_url,
-                        spreadsheet_id: mb.spreadsheet_id || null,
-                        spreadsheet_title: mb.spreadsheet_title || null,
-                        tab_name: mb.tab_name,
-                        sheet_id: mb.sheet_id || null,
-                        date_column: mb.date_column || null,
-                        created_by: user?.id || null,
-                      });
-                    }
-                  }
-                  toast.success("Daily report saved.");
-                  setSavedReportId(reportId);
+                  await insertReportChildren(inserted.id, report, user?.id || null);
+                  toast.success(effectiveMode === "copy" ? "Saved as new copy." : "Daily report saved.");
+                  setSavedReportId(inserted.id);
+                  setEditingExistingId(null);
                   setStep(4);
                 } catch (e: any) {
                   toast.error(e?.message || "Failed to save daily report.");
@@ -946,7 +986,7 @@ function MediaBuyerCard({
 }
 
 // ============ Step 3 ============
-function Step3Review({ report, totals, saving, savedReportId, onBack, onSave }: any) {
+function Step3Review({ report, totals, saving, savedReportId, editingExistingId, onBack, onSave }: any) {
   return (
     <div>
       <div style={{ marginBottom: 14 }}>
@@ -974,7 +1014,7 @@ function Step3Review({ report, totals, saving, savedReportId, onBack, onSave }: 
             return (
               <tr key={mb.id}>
                 <td className="mb-name-cell">{mb.media_buyer_name || "(unnamed)"}</td>
-                <td>{mb.spend_mode === "combined" ? "(combined)" : mb.ad_accounts.map((a) => a.ad_account_name).filter(Boolean).join(", ") || "—"}</td>
+                <td>{mb.spend_mode === "combined" ? "(combined)" : mb.ad_accounts.map((a: any) => a.ad_account_name).filter(Boolean).join(", ") || "—"}</td>
                 <td>{inr(spend)}</td>
                 <td>{fmtNum(mb.total_leads)}</td>
                 <td>{cpl == null ? "—" : inr(cpl)}</td>
@@ -987,11 +1027,22 @@ function Step3Review({ report, totals, saving, savedReportId, onBack, onSave }: 
 
       <ExportRow report={report} />
 
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24, paddingTop: 16, borderTop: "1px solid #E8E5DE" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24, paddingTop: 16, borderTop: "1px solid #E8E5DE", gap: 8, flexWrap: "wrap" }}>
         <button className="btn btn-g" onClick={onBack}>← Back</button>
-        <button className="btn btn-k" onClick={onSave} disabled={saving || !!savedReportId}>
-          {saving ? "Saving…" : savedReportId ? "Saved ✓" : "Save Daily Report"}
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {editingExistingId ? (
+            <>
+              <button className="btn btn-g" onClick={() => onSave("copy")} disabled={saving}>Save as New Copy</button>
+              <button className="btn btn-k" onClick={() => onSave("update")} disabled={saving}>
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-k" onClick={() => onSave("new")} disabled={saving || !!savedReportId}>
+              {saving ? "Saving…" : savedReportId ? "Saved ✓" : "Save Daily Report"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1002,14 +1053,15 @@ function ExportRow({ report }: { report: DailyReport }) {
   const wa = useMemo(() => buildWhatsApp(report), [report]);
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button className="btn btn-g btn-sm" onClick={() => downloadFile(`daily-lead-report-${report.report_date}.csv`, buildCsv(report), "text/csv")}>Export CSV</button>
-        <button className="btn btn-g btn-sm" onClick={() => buildAndDownloadPdf(report)}>Export PDF</button>
-        <button className="btn btn-g btn-sm" onClick={async () => {
-          try { await navigator.clipboard.writeText(wa); toast.success("WhatsApp report copied."); }
-          catch { toast.error("Could not copy WhatsApp report. Please copy from preview."); }
-        }}>Copy WhatsApp Report</button>
-        <button className="btn btn-g btn-sm" onClick={() => setPreview(!preview)}>{preview ? "Hide preview" : "Preview WhatsApp"}</button>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <ExportMenu
+          includeWhatsapp
+          align="left"
+          onSelect={(action) => runExportAction(action, report)}
+        />
+        <button className="btn btn-g btn-sm" onClick={() => setPreview(!preview)}>
+          {preview ? "Hide preview" : "Preview WhatsApp"}
+        </button>
       </div>
       {preview && (
         <pre style={{ marginTop: 12, background: "#F7F6F3", border: "1px solid #E8E5DE", borderRadius: 8, padding: 14, whiteSpace: "pre-wrap", fontFamily: "'Jost',sans-serif", fontSize: 12, lineHeight: 1.6 }}>{wa}</pre>
