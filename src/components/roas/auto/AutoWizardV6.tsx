@@ -31,6 +31,7 @@ type TabRoleAssignment = {
   tabName: string;
   role: TabRole; // user's selection ("unknown" treated as ignore)
   mediaBuyerName?: string;
+  columnMapping?: ColumnMapping | null;
 };
 type WebinarTiming = {
   mode: "none" | "same" | "per_day";
