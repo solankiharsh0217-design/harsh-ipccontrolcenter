@@ -365,6 +365,8 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
   const [lastHashes, setLastHashes] = useState<{ input: string; output: string } | null>(null);
   const [consistency, setConsistency] = useState<{ sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean }>({ sameInputSameOutput: null, sameInputDifferentOutput: false });
   const [savedHist, setSavedHist] = useState(false);
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // load templates
   useEffect(() => {
