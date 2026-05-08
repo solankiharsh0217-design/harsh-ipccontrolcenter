@@ -49,6 +49,27 @@ export const roasColor = (n: number) => (n >= 10 ? "#16A34A" : n >= 5 ? "#CA8A04
 
 export function downloadCSV(p: AttributionPayload) {
   const overall = p.totals.spend > 0 ? (p.totals.revenue / p.totals.spend).toFixed(2) : "0";
+  const m = p.meta || {};
+  const sec0 = [
+    "SECTION 0 — REPORT METADATA",
+    "Field,Value",
+    ...[
+      ["Created On", m.createdOn || ""],
+      ["Calculation Method", m.calculationMethod || ""],
+      ["Webinar Date / Period", m.webinarPeriod || p.webinarDate],
+      ["Webinar Format", m.webinarFormat || ""],
+      ["Webinar Operator", m.webinarOperator || ""],
+      ["Session Slot", m.sessionSlot || ""],
+      ["Platform", m.webinarPlatform || ""],
+      ["Zoom Account", m.zoomAccount || ""],
+      ["Ad Spend Source", m.adSpendSource || ""],
+      ["Calculation ID", m.calculationId || ""],
+      ["Engine Version", m.engineVersion || ""],
+      ["Input Hash", m.inputSnapshotHash || ""],
+      ["Output Hash", m.outputHash || ""],
+    ].filter(([, v]) => v).map(([k, v]) => [q(k), q(String(v))].join(",")),
+    "",
+  ];
   const sec1 = [
     "SECTION 1 — SUMMARY",
     "Webinar Name,Date,Type,Total Leads,Total Sales,Total Ad Spend,Total Revenue,Overall ROAS,Generated",
