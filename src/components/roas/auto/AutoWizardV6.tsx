@@ -647,6 +647,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
           <Step3AdSpends
             mbs={selectedMBs} adSpends={adSpends} setAdSpends={setAdSpends}
             totalSpend={totalManualSpend}
+            priorityOrder={priorityOrder} setPriorityOrder={setPriorityOrder}
           />
         )}
         {step === 4 && results && (
@@ -662,6 +663,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             onRecalc={calculate}
             showDataUsed={showDataUsed} setShowDataUsed={setShowDataUsed}
             tabRoles={tabRoles} adSpends={adSpends}
+            consistency={consistency}
           />
         )}
       </div>
