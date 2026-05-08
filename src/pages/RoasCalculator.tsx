@@ -551,80 +551,101 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
 
   const saveHistory = async () => {
     if (!results || !userId) return;
-    const totals = results.totals;
-    const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
-    const er = engineResult;
-    const { data: session, error: sessErr } = await supabase
-      .from("attribution_sessions")
-      .insert({
-        webinar_name: wbName || "Untitled",
-        webinar_date: wbDate || null,
-        webinar_type: wbType,
-        total_leads: totals.leads,
-        total_sales: totals.sales,
-        total_ad_spend: totals.spend,
-        total_revenue: totals.revenue,
-        overall_roas: overall,
-        unmatched_count: results.unmatched.length,
-        created_by: userId,
-        calculation_method: "manual",
-        attribution_engine_version: er?.engineVersion || null,
-        calculation_id: er?.calculationId || null,
-        input_snapshot_hash: er?.inputSnapshotHash || null,
-        output_hash: er?.outputHash || null,
-        media_buyer_order: er ? er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) : null,
-        duplicate_conflicts_count: er?.duplicateLeadConflicts.length || 0,
-        result_status: "fresh",
-      } as any)
-      .select().single();
-    if (sessErr || !session) { toast.error("Save failed: " + (sessErr?.message || "")); return; }
+    if (savedSessionId) { toast.info("This report has already been saved to history."); return; }
+    if (saving) return;
+    setSaving(true);
+    try {
+      const er = engineResult;
+      // Duplicate detection
+      if (er) {
+        const { data: dup } = await supabase
+          .from("attribution_sessions")
+          .select("id")
+          .or(`calculation_id.eq.${er.calculationId},and(input_snapshot_hash.eq.${er.inputSnapshotHash},output_hash.eq.${er.outputHash},created_by.eq.${userId})`)
+          .limit(1)
+          .maybeSingle();
+        if (dup?.id) {
+          setSavedSessionId(dup.id); setSavedHist(true);
+          toast.info("This report has already been saved to history.");
+          return;
+        }
+      }
+      const totals = results.totals;
+      const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
+      const { data: session, error: sessErr } = await supabase
+        .from("attribution_sessions")
+        .insert({
+          webinar_name: wbName || "Untitled",
+          webinar_date: wbDate || null,
+          webinar_type: wbType,
+          total_leads: totals.leads,
+          total_sales: totals.sales,
+          total_ad_spend: totals.spend,
+          total_revenue: totals.revenue,
+          overall_roas: overall,
+          unmatched_count: results.unmatched.length,
+          created_by: userId,
+          calculation_method: "manual",
+          calculation_display_method: "Manual Upload",
+          attribution_engine_version: er?.engineVersion || null,
+          calculation_id: er?.calculationId || null,
+          input_snapshot_hash: er?.inputSnapshotHash || null,
+          output_hash: er?.outputHash || null,
+          media_buyer_order: er ? er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) : null,
+          duplicate_conflicts_count: er?.duplicateLeadConflicts.length || 0,
+          result_status: "fresh",
+        } as any)
+        .select().single();
+      if (sessErr || !session) { toast.error("Save failed: " + (sessErr?.message || "")); return; }
 
-    const sid = session.id;
-    const buyerRows = results.rows.map((r) => ({
-      session_id: sid, media_buyer_name: r.name,
-      ad_spend: r.spend, total_leads: r.leads, matched_sales: r.matched, revenue: r.revenue,
-      roas_value: r.spend > 0 ? r.revenue / r.spend : 0,
-      cpl: r.leads > 0 ? r.spend / r.leads : 0,
-      conversion_rate: r.leads > 0 ? (r.matched / r.leads) * 100 : 0,
-    }));
-    const auditById = new Map(er ? er.auditLog.map((a) => [a.saleId, a]) : []);
-    const saleRows = results.salesDetail.map((s, i) => {
-      const a = er ? er.auditLog[i] : null;
-      return {
-        session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
-        attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
-        webinar_date: s.webinarDate || null,
-        sale_id: a?.saleId || null,
-        matched_lead_id: a?.matchedLeadId || null,
-        matched_lead_name: a?.matchedLeadName || null,
-        matched_lead_email: a?.matchedLeadEmail || null,
-        matched_lead_phone: a?.matchedLeadPhone || null,
-        source_media_buyer: a?.sourceMediaBuyer || null,
-        source_row_index: a?.sourceRowIndex ?? null,
-        confidence_score: a?.confidenceScore ?? null,
-        competing_matches: a ? a.competingMatches as any : null,
-        match_reason: a?.matchReason || null,
-        needs_review: a?.needsReview || false,
-      };
-    });
-    await supabase.from("attribution_media_buyers").insert(buyerRows);
-    if (saleRows.length) await supabase.from("attribution_sales_detail").insert(saleRows);
-    if (er) {
-      await supabase.from("roas_attribution_audit_logs").insert({
-        attribution_session_id: sid,
-        calculation_id: er.calculationId,
-        input_snapshot_hash: er.inputSnapshotHash,
-        output_hash: er.outputHash,
-        media_buyer_order: er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) as any,
-        column_mappings_used: null,
-        audit_rows: er.auditLog as any,
-        duplicate_conflicts: er.duplicateLeadConflicts as any,
-        created_by: userId,
-      } as any);
+      const sid = session.id;
+      const buyerRows = results.rows.map((r) => ({
+        session_id: sid, media_buyer_name: r.name,
+        ad_spend: r.spend, total_leads: r.leads, matched_sales: r.matched, revenue: r.revenue,
+        roas_value: r.spend > 0 ? r.revenue / r.spend : 0,
+        cpl: r.leads > 0 ? r.spend / r.leads : 0,
+        conversion_rate: r.leads > 0 ? (r.matched / r.leads) * 100 : 0,
+      }));
+      const saleRows = results.salesDetail.map((s, i) => {
+        const a = er ? er.auditLog[i] : null;
+        return {
+          session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
+          attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
+          webinar_date: s.webinarDate || null,
+          sale_id: a?.saleId || null,
+          matched_lead_id: a?.matchedLeadId || null,
+          matched_lead_name: a?.matchedLeadName || null,
+          matched_lead_email: a?.matchedLeadEmail || null,
+          matched_lead_phone: a?.matchedLeadPhone || null,
+          source_media_buyer: a?.sourceMediaBuyer || null,
+          source_row_index: a?.sourceRowIndex ?? null,
+          confidence_score: a?.confidenceScore ?? null,
+          competing_matches: a ? a.competingMatches as any : null,
+          match_reason: a?.matchReason || null,
+          needs_review: a?.needsReview || false,
+        };
+      });
+      await supabase.from("attribution_media_buyers").insert(buyerRows);
+      if (saleRows.length) await supabase.from("attribution_sales_detail").insert(saleRows);
+      if (er) {
+        await supabase.from("roas_attribution_audit_logs").insert({
+          attribution_session_id: sid,
+          calculation_id: er.calculationId,
+          input_snapshot_hash: er.inputSnapshotHash,
+          output_hash: er.outputHash,
+          media_buyer_order: er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) as any,
+          column_mappings_used: null,
+          audit_rows: er.auditLog as any,
+          duplicate_conflicts: er.duplicateLeadConflicts as any,
+          created_by: userId,
+        } as any);
+      }
+      setSavedSessionId(sid);
+      setSavedHist(true);
+      toast.success("Attribution saved to history ✓");
+    } finally {
+      setSaving(false);
     }
-    setSavedHist(true); setTimeout(() => setSavedHist(false), 1500);
-    toast.success("Attribution saved to history ✓");
-    void auditById; // satisfy TS unused
   };
 
   const namedMbs = mbs.filter((m) => m.name.trim());
