@@ -361,6 +361,9 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
   const [progPct, setProgPct] = useState(0);
   const [calcMsg, setCalcMsg] = useState("");
   const [results, setResults] = useState<{ rows: AttrRow[]; unmatched: Person[]; salesDetail: SaleDetail[]; totals: { spend: number; revenue: number; sales: number; leads: number } } | null>(null);
+  const [engineResult, setEngineResult] = useState<AttributionResult | null>(null);
+  const [lastHashes, setLastHashes] = useState<{ input: string; output: string } | null>(null);
+  const [consistency, setConsistency] = useState<{ sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean }>({ sameInputSameOutput: null, sameInputDifferentOutput: false });
   const [savedHist, setSavedHist] = useState(false);
 
   // load templates
