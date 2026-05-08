@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { downloadCSV, downloadPDF, type AttributionPayload, type SaleDetail } from "@/lib/roasExport";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
+import AttributionAuditPanel from "@/components/roas/AttributionAuditPanel";
+import type { AttributionResult } from "@/lib/roas/attributionEngine";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, Tooltip as RTooltip,
 } from "recharts";
@@ -484,6 +486,7 @@ async function loadPayload(s: SessionRow): Promise<AttributionPayload | null> {
     supabase.from("attribution_media_buyers").select("*").eq("session_id", s.id),
     supabase.from("attribution_sales_detail").select("*").eq("session_id", s.id),
   ]);
+  const sx = s as any;
   return {
     webinarName: s.webinar_name,
     webinarDate: s.webinar_date || "",
@@ -501,14 +504,114 @@ async function loadPayload(s: SessionRow): Promise<AttributionPayload | null> {
       attributedTo: x.attributed_to, matchMethod: (x.match_method as SaleDetail["matchMethod"]) || "unmatched",
       revenue: Number(x.revenue), webinarDate: x.webinar_date || s.webinar_date || "",
     })),
+    meta: {
+      createdOn: s.created_at ? fmtDateTime(s.created_at) : "",
+      calculationMethod: methodLabel(s),
+      webinarPeriod: webinarPeriod(s),
+      webinarFormat: s.webinar_format || "",
+      webinarOperator: s.webinar_operator || "",
+      sessionSlot: s.session_slot || "",
+      webinarPlatform: s.webinar_platform || "",
+      zoomAccount: s.zoom_account_used || "",
+      adSpendSource: (s.calculation_method || "").toLowerCase().includes("auto") ? "Master Sheet" : "Manual Entry",
+      calculationId: sx.calculation_id || "",
+      inputSnapshotHash: sx.input_snapshot_hash || "",
+      outputHash: sx.output_hash || "",
+      engineVersion: sx.attribution_engine_version || "",
+    },
   };
 }
 
 function ReportDrawer({ session, onClose }: { session: SessionRow | null; onClose: () => void }) {
   const [payload, setPayload] = useState<AttributionPayload | null>(null);
+  const [auditData, setAuditData] = useState<{
+    result: AttributionResult;
+    mediaBuyerOrder: Array<{ id: string; displayName: string; leads: number; source: string }>;
+    columnMappingsUsed: Array<{ source: string; tabName: string; mapping: any }>;
+  } | null>(null);
+
   useEffect(() => {
-    if (!session) { setPayload(null); return; }
-    loadPayload(session).then(setPayload);
+    if (!session) { setPayload(null); setAuditData(null); return; }
+    (async () => {
+      const p = await loadPayload(session);
+      setPayload(p);
+      const sx = session as any;
+      const calcId = sx.calculation_id;
+      if (!calcId) { setAuditData(null); return; }
+      const [{ data: log }, { data: sd }, { data: bs }] = await Promise.all([
+        supabase.from("roas_attribution_audit_logs").select("*").eq("calculation_id", calcId).maybeSingle(),
+        supabase.from("attribution_sales_detail").select("*").eq("session_id", session.id),
+        supabase.from("attribution_media_buyers").select("*").eq("session_id", session.id),
+      ]);
+      if (!log) { setAuditData(null); return; }
+      const auditRows: any[] = Array.isArray((log as any).audit_rows) ? (log as any).audit_rows : [];
+      // Prefer the saved audit_rows; otherwise derive from sales_detail.
+      const audits = auditRows.length ? auditRows : (sd || []).map((x: any, i: number) => ({
+        saleId: x.sale_id || `sale-${i}`,
+        buyerName: x.buyer_name || "",
+        buyerEmail: x.email || "",
+        buyerPhone: x.phone || "",
+        attributedTo: x.attributed_to || null,
+        attributedToMediaBuyerId: null,
+        matchMethod: x.match_method || "unmatched",
+        matchedLeadId: x.matched_lead_id || null,
+        matchedLeadName: x.matched_lead_name || null,
+        matchedLeadEmail: x.matched_lead_email || null,
+        matchedLeadPhone: x.matched_lead_phone || null,
+        sourceMediaBuyer: x.source_media_buyer || null,
+        sourceRowIndex: x.source_row_index ?? null,
+        competingMatches: Array.isArray(x.competing_matches) ? x.competing_matches : [],
+        confidenceScore: Number(x.confidence_score || 0),
+        matchReason: x.match_reason || "",
+        needsReview: !!x.needs_review,
+        revenue: Number(x.revenue || 0),
+        webinarDate: x.webinar_date || "",
+      }));
+      const mediaBuyerBreakdown = (bs || []).map((b: any) => ({
+        mediaBuyerId: b.id,
+        mediaBuyerName: b.media_buyer_name,
+        leads: b.total_leads,
+        salesAttributed: b.matched_sales,
+        revenue: Number(b.revenue),
+        adSpend: Number(b.ad_spend),
+        cpl: Number(b.cpl),
+        conversionRate: Number(b.conversion_rate),
+        roas: Number(b.roas_value),
+      }));
+      const result: AttributionResult = {
+        calculationId: calcId,
+        inputSnapshotHash: sx.input_snapshot_hash || "",
+        outputHash: sx.output_hash || "",
+        engineVersion: sx.attribution_engine_version || "deterministic_v1",
+        calculatedAt: session.created_at,
+        hashes: { leadRowsHash: "", salesRowsHash: "", mediaBuyerOrderHash: "", columnMappingHash: "" },
+        summary: {
+          totalLeads: session.total_leads,
+          totalSales: session.total_sales,
+          totalMatchedSales: audits.filter((a) => a.matchMethod !== "unmatched").length,
+          totalUnmatchedSales: audits.filter((a) => a.matchMethod === "unmatched").length,
+          totalRevenue: Number(session.total_revenue),
+          totalAdSpend: Number(session.total_ad_spend),
+          overallRoas: Number(session.overall_roas),
+        },
+        mediaBuyerBreakdown,
+        salesAttribution: audits,
+        unmatchedSales: audits.filter((a) => a.matchMethod === "unmatched"),
+        duplicateLeadConflicts: Array.isArray((log as any).duplicate_conflicts) ? (log as any).duplicate_conflicts : [],
+        auditLog: audits,
+      };
+      const orderArr: any[] = Array.isArray((log as any).media_buyer_order) ? (log as any).media_buyer_order : [];
+      const mediaBuyerOrder = orderArr.length
+        ? orderArr.map((o: any, i: number) => ({
+            id: o.id || o.mediaBuyerId || String(i),
+            displayName: o.displayName || o.name || o.mediaBuyerName || "—",
+            leads: Number(o.leads || 0),
+            source: o.source || "",
+          }))
+        : mediaBuyerBreakdown.map((m) => ({ id: m.mediaBuyerId, displayName: m.mediaBuyerName, leads: m.leads, source: "saved" }));
+      const cmuArr: any[] = Array.isArray((log as any).column_mappings_used) ? (log as any).column_mappings_used : [];
+      setAuditData({ result, mediaBuyerOrder, columnMappingsUsed: cmuArr });
+    })();
   }, [session]);
 
   const opt = (label: string, val?: string | null) => val ? (
@@ -535,9 +638,16 @@ function ReportDrawer({ session, onClose }: { session: SessionRow | null; onClos
                 {opt("Session Slot", session.session_slot)}
                 {opt("Platform", session.webinar_platform)}
                 {opt("Zoom Account", session.zoom_account_used)}
-                {opt("Ad Spend Source", "Manual Entry")}
+                {opt("Ad Spend Source", (session.calculation_method || "").toLowerCase().includes("auto") ? "Master Sheet" : "Manual Entry")}
               </div>
               <AttributionResultsView payload={payload} allowSave={false} />
+              {auditData && (
+                <AttributionAuditPanel
+                  result={auditData.result}
+                  mediaBuyerOrder={auditData.mediaBuyerOrder}
+                  columnMappingsUsed={auditData.columnMappingsUsed}
+                />
+              )}
             </>
           )}
         </div>

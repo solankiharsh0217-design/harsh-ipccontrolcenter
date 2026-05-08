@@ -17,6 +17,21 @@ export type SaleDetail = {
   revenue: number;
   webinarDate: string;
 };
+export type AttributionMeta = {
+  createdOn?: string;
+  calculationMethod?: string;
+  webinarPeriod?: string;
+  webinarFormat?: string;
+  webinarOperator?: string;
+  sessionSlot?: string;
+  webinarPlatform?: string;
+  zoomAccount?: string;
+  adSpendSource?: string;
+  calculationId?: string;
+  inputSnapshotHash?: string;
+  outputHash?: string;
+  engineVersion?: string;
+};
 export type AttributionPayload = {
   webinarName: string;
   webinarDate: string;
@@ -24,6 +39,7 @@ export type AttributionPayload = {
   totals: { spend: number; revenue: number; sales: number; leads: number };
   rows: AttrRow[];
   salesDetail: SaleDetail[];
+  meta?: AttributionMeta;
 };
 
 export const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
@@ -33,6 +49,27 @@ export const roasColor = (n: number) => (n >= 10 ? "#16A34A" : n >= 5 ? "#CA8A04
 
 export function downloadCSV(p: AttributionPayload) {
   const overall = p.totals.spend > 0 ? (p.totals.revenue / p.totals.spend).toFixed(2) : "0";
+  const m = p.meta || {};
+  const sec0 = [
+    "SECTION 0 — REPORT METADATA",
+    "Field,Value",
+    ...[
+      ["Created On", m.createdOn || ""],
+      ["Calculation Method", m.calculationMethod || ""],
+      ["Webinar Date / Period", m.webinarPeriod || p.webinarDate],
+      ["Webinar Format", m.webinarFormat || ""],
+      ["Webinar Operator", m.webinarOperator || ""],
+      ["Session Slot", m.sessionSlot || ""],
+      ["Platform", m.webinarPlatform || ""],
+      ["Zoom Account", m.zoomAccount || ""],
+      ["Ad Spend Source", m.adSpendSource || ""],
+      ["Calculation ID", m.calculationId || ""],
+      ["Engine Version", m.engineVersion || ""],
+      ["Input Hash", m.inputSnapshotHash || ""],
+      ["Output Hash", m.outputHash || ""],
+    ].filter(([, v]) => v).map(([k, v]) => [q(k), q(String(v))].join(",")),
+    "",
+  ];
   const sec1 = [
     "SECTION 1 — SUMMARY",
     "Webinar Name,Date,Type,Total Leads,Total Sales,Total Ad Spend,Total Revenue,Overall ROAS,Generated",
@@ -69,7 +106,7 @@ export function downloadCSV(p: AttributionPayload) {
     "Buyer Name,Email,Phone,Reason",
     ...unm.map((s) => [q(s.name), q(s.email), q(s.phone), "No match found in any lead sheet"].join(",")),
   ];
-  const csv = [...sec1, ...sec2, ...sec3, ...sec4].join("\n");
+  const csv = [...sec0, ...sec1, ...sec2, ...sec3, ...sec4].join("\n");
   triggerDownload(csv, `IPC_Attribution_${slug(p.webinarName)}_${p.webinarDate}.csv`, "text/csv");
 }
 
@@ -149,6 +186,33 @@ export function downloadPDF(p: AttributionPayload) {
   if (unmatched.length) {
     doc.setTextColor(202, 138, 4); doc.setFont("helvetica", "normal"); doc.setFontSize(10);
     doc.text(`⚠ ${unmatched.length} sales could not be attributed to any media buyer.`, 40, 320);
+  }
+
+  // Metadata block on Summary page
+  const m = p.meta || {};
+  const metaRows: Array<[string, string]> = [
+    ["Created On", m.createdOn || ""],
+    ["Calculation Method", m.calculationMethod || ""],
+    ["Webinar Date / Period", m.webinarPeriod || fmtDate(p.webinarDate)],
+    ["Webinar Format", m.webinarFormat || ""],
+    ["Webinar Operator", m.webinarOperator || ""],
+    ["Session Slot", m.sessionSlot || ""],
+    ["Platform", m.webinarPlatform || ""],
+    ["Zoom Account", m.zoomAccount || ""],
+    ["Ad Spend Source", m.adSpendSource || ""],
+    ["Calculation ID", m.calculationId || ""],
+    ["Engine Version", m.engineVersion || ""],
+  ].filter(([, v]) => v) as Array<[string, string]>;
+  if (metaRows.length) {
+    autoTable(doc, {
+      startY: unmatched.length ? 340 : 320,
+      head: [["Report Metadata", ""]],
+      body: metaRows,
+      headStyles: { fillColor: [247, 246, 243], textColor: BLACK, fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: BLACK },
+      columnStyles: { 0: { cellWidth: 160, textColor: MUTED }, 1: { cellWidth: "auto" } },
+      margin: { left: 40, right: 40 },
+    });
   }
 
   // Page 3 — Per buyer breakdown
