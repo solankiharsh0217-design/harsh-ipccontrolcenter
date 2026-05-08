@@ -904,6 +904,16 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
               payload={{
                 webinarName: wbName, webinarDate: wbDate, webinarType: wbType,
                 totals: results.totals, rows: results.rows, salesDetail: results.salesDetail,
+                meta: {
+                  createdOn: new Date().toLocaleString("en-IN"),
+                  calculationMethod: "Manual Upload",
+                  webinarPeriod: wbDate ? fmtDate(wbDate) : "",
+                  adSpendSource: "Manual Entry",
+                  calculationId: engineResult?.calculationId,
+                  inputSnapshotHash: engineResult?.inputSnapshotHash,
+                  outputHash: engineResult?.outputHash,
+                  engineVersion: engineResult?.engineVersion,
+                },
               }}
               onSave={saveHistory}
               savedHist={savedHist || !!savedSessionId}
