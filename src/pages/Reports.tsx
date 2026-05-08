@@ -9,6 +9,7 @@ import {
 
 const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
 const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+const fmtDateTime = (d: string | Date) => new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const roasClass = (n: number) => (n >= 10 ? "roas-good" : n >= 5 ? "roas-avg" : "roas-bad");
 const roasHex = (n: number) => (n >= 10 ? "#16A34A" : n >= 5 ? "#CA8A04" : "#DC2626");
 function initials(name: string) {
@@ -62,6 +63,7 @@ const styles = `
 .rcv2 .unmatched-box{background:var(--ap);border:1px solid var(--ab);border-radius:10px;padding:16px 18px;margin-bottom:16px}
 .rcv2 .unmatched-title{font-size:12px;font-weight:500;color:var(--amb);margin-bottom:8px}
 .rcv2 .unmatched-list{font-size:12px;color:var(--amb);line-height:1.8}
+.rcv2 .filter-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mt);margin-bottom:4px;display:block}
 `;
 
 type SessionRow = {
@@ -76,8 +78,47 @@ type SessionRow = {
   overall_roas: number;
   unmatched_count: number;
   created_at: string;
+  calculation_method?: string | null;
+  calculation_display_method?: string | null;
+  webinar_date_mode?: string | null;
+  webinar_single_date?: string | null;
+  webinar_start_date?: string | null;
+  webinar_end_date?: string | null;
+  webinar_dates?: string[] | null;
+  session_slot?: string | null;
+  webinar_format?: string | null;
+  webinar_operator?: string | null;
+  webinar_platform?: string | null;
+  zoom_account_used?: string | null;
   buyers?: { name: string }[];
 };
+
+function methodLabel(s: SessionRow): string {
+  if (s.calculation_display_method) return s.calculation_display_method;
+  const m = (s.calculation_method || "").toLowerCase();
+  if (m.includes("auto")) return "Automatic Attribution";
+  if (m === "manual") return "Manual Upload";
+  return "—";
+}
+function webinarPeriod(s: SessionRow): string {
+  const fmt = (d: string | null | undefined) => d ? fmtDate(d) : "";
+  const mode = s.webinar_date_mode;
+  if (mode === "range" && s.webinar_start_date && s.webinar_end_date) {
+    return `${fmt(s.webinar_start_date)} - ${fmt(s.webinar_end_date)}`;
+  }
+  if (mode === "multiple" && Array.isArray(s.webinar_dates) && s.webinar_dates.length) {
+    return s.webinar_dates.filter(Boolean).map(fmt).join(", ");
+  }
+  if (s.webinar_single_date) return fmt(s.webinar_single_date);
+  if (s.webinar_date) return fmt(s.webinar_date);
+  return "—";
+}
+function periodMonth(s: SessionRow): string {
+  const d = (s.webinar_date_mode === "range" && s.webinar_start_date)
+    || (s.webinar_date_mode === "multiple" && s.webinar_dates?.[0])
+    || s.webinar_single_date || s.webinar_date;
+  return d ? String(d).slice(0, 7) : "";
+}
 
 export default function Reports() {
   const [tab, setTab] = useState<"history" | "monthly">("history");
@@ -89,7 +130,6 @@ export default function Reports() {
       const { data } = await supabase
         .from("attribution_sessions")
         .select("*, buyers:attribution_media_buyers(media_buyer_name)")
-        .order("webinar_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(500);
       const rows: SessionRow[] = (data || []).map((d: any) => ({
@@ -124,22 +164,27 @@ export default function Reports() {
 }
 
 function HistoryTab({ sessions }: { sessions: SessionRow[] }) {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
+  const [webFrom, setWebFrom] = useState("");
+  const [webTo, setWebTo] = useState("");
   const [month, setMonth] = useState("all");
+  const [monthBasis, setMonthBasis] = useState<"webinar" | "created">("webinar");
+  const [methodF, setMethodF] = useState("all");
   const [buyer, setBuyer] = useState("all");
   const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<keyof SessionRow>("webinar_date");
-  const [sortAsc, setSortAsc] = useState(false);
   const [page, setPage] = useState(1);
   const [openSession, setOpenSession] = useState<SessionRow | null>(null);
   const PAGE = 15;
 
   const months = useMemo(() => {
     const m = new Set<string>();
-    sessions.forEach((s) => { if (s.webinar_date) m.add(s.webinar_date.slice(0, 7)); });
+    sessions.forEach((s) => {
+      const k = monthBasis === "webinar" ? periodMonth(s) : (s.created_at || "").slice(0, 7);
+      if (k) m.add(k);
+    });
     return Array.from(m).sort().reverse();
-  }, [sessions]);
+  }, [sessions, monthBasis]);
 
   const buyers = useMemo(() => {
     const b = new Set<string>();
@@ -148,104 +193,174 @@ function HistoryTab({ sessions }: { sessions: SessionRow[] }) {
   }, [sessions]);
 
   const filtered = useMemo(() => {
+    const q = search.toLowerCase();
     return sessions.filter((s) => {
-      if (search && !s.webinar_name.toLowerCase().includes(search.toLowerCase())) return false;
-      if (from && (!s.webinar_date || s.webinar_date < from)) return false;
-      if (to && (!s.webinar_date || s.webinar_date > to)) return false;
-      if (month !== "all" && (!s.webinar_date || !s.webinar_date.startsWith(month))) return false;
+      if (q) {
+        const hay = [s.webinar_name, s.webinar_operator, s.session_slot, s.webinar_platform, s.zoom_account_used, ...(s.buyers?.map((x) => x.name) || [])]
+          .filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (createdFrom && s.created_at < createdFrom) return false;
+      if (createdTo && s.created_at > createdTo + "T23:59:59") return false;
+      const wd = (s.webinar_date_mode === "range" ? s.webinar_start_date : s.webinar_single_date) || s.webinar_date;
+      if (webFrom && (!wd || wd < webFrom)) return false;
+      if (webTo && (!wd || wd > webTo)) return false;
+      if (month !== "all") {
+        const k = monthBasis === "webinar" ? periodMonth(s) : (s.created_at || "").slice(0, 7);
+        if (k !== month) return false;
+      }
+      if (methodF !== "all") {
+        const lbl = methodLabel(s);
+        if (methodF === "manual" && lbl !== "Manual Upload") return false;
+        if (methodF === "auto" && lbl !== "Automatic Attribution") return false;
+      }
       if (buyer !== "all" && !s.buyers?.some((b) => b.name === buyer)) return false;
       return true;
-    }).sort((a, b) => {
-      const av: any = a[sortKey] ?? "";
-      const bv: any = b[sortKey] ?? "";
-      if (av < bv) return sortAsc ? -1 : 1;
-      if (av > bv) return sortAsc ? 1 : -1;
-      return 0;
     });
-  }, [sessions, search, from, to, month, buyer, sortKey, sortAsc]);
+  }, [sessions, search, createdFrom, createdTo, webFrom, webTo, month, monthBasis, methodF, buyer]);
 
   const avgRoas = filtered.length ? filtered.reduce((a, s) => a + Number(s.overall_roas), 0) / filtered.length : 0;
   const totalRev = filtered.reduce((a, s) => a + Number(s.total_revenue), 0);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const display = filtered.slice((page - 1) * PAGE, page * PAGE);
 
-  const sortBy = (k: keyof SessionRow) => { if (sortKey === k) setSortAsc((v) => !v); else { setSortKey(k); setSortAsc(false); } };
+  const reset = () => {
+    setCreatedFrom(""); setCreatedTo(""); setWebFrom(""); setWebTo("");
+    setMonth("all"); setMethodF("all"); setBuyer("all"); setSearch(""); setPage(1);
+  };
 
   return (
     <>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        <input className="fi" type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} placeholder="From" />
-        <input className="fi" type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} placeholder="To" />
-        <select className="fsel" value={month} onChange={(e) => { setMonth(e.target.value); setPage(1); }}>
-          <option value="all">All months</option>
-          {months.map((m) => <option key={m} value={m}>{new Date(m + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</option>)}
-        </select>
-        <select className="fsel" value={buyer} onChange={(e) => { setBuyer(e.target.value); setPage(1); }}>
-          <option value="all">All media buyers</option>
-          {buyers.map((b) => <option key={b} value={b}>{b}</option>)}
-        </select>
-        <input className="fi" style={{ flex: "1 1 200px", maxWidth: 280 }} placeholder="Search by webinar name…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 14, padding: 14, background: "#FAFAF8", border: "1px solid #E8E5DE", borderRadius: 12 }}>
+        <div>
+          <label className="filter-lbl">Created Date — From</label>
+          <input className="fi" type="date" value={createdFrom} onChange={(e) => { setCreatedFrom(e.target.value); setPage(1); }} />
+        </div>
+        <div>
+          <label className="filter-lbl">Created Date — To</label>
+          <input className="fi" type="date" value={createdTo} onChange={(e) => { setCreatedTo(e.target.value); setPage(1); }} />
+        </div>
+        <div>
+          <label className="filter-lbl">Webinar Date — From</label>
+          <input className="fi" type="date" value={webFrom} onChange={(e) => { setWebFrom(e.target.value); setPage(1); }} />
+        </div>
+        <div>
+          <label className="filter-lbl">Webinar Date — To</label>
+          <input className="fi" type="date" value={webTo} onChange={(e) => { setWebTo(e.target.value); setPage(1); }} />
+        </div>
+        <div>
+          <label className="filter-lbl">Month ({monthBasis === "webinar" ? "Webinar" : "Created"})</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            <select className="fsel" style={{ flex: 1 }} value={month} onChange={(e) => { setMonth(e.target.value); setPage(1); }}>
+              <option value="all">All</option>
+              {months.map((m) => <option key={m} value={m}>{new Date(m + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</option>)}
+            </select>
+            <select className="fsel" value={monthBasis} onChange={(e) => setMonthBasis(e.target.value as any)} title="Month basis">
+              <option value="webinar">Webinar</option>
+              <option value="created">Created</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="filter-lbl">Method</label>
+          <select className="fsel" value={methodF} onChange={(e) => { setMethodF(e.target.value); setPage(1); }}>
+            <option value="all">All Methods</option>
+            <option value="auto">Automatic Attribution</option>
+            <option value="manual">Manual Upload</option>
+          </select>
+        </div>
+        <div>
+          <label className="filter-lbl">Media Buyer</label>
+          <select className="fsel" value={buyer} onChange={(e) => { setBuyer(e.target.value); setPage(1); }}>
+            <option value="all">All media buyers</option>
+            {buyers.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="filter-lbl">Search</label>
+          <input className="fi" placeholder="Search by webinar name…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end" }}>
+          <button className="btn btn-g btn-sm" onClick={reset}>Reset</button>
+        </div>
       </div>
 
       <div style={{ fontSize: 11, color: "#888", marginBottom: 14 }}>
         {filtered.length} sessions found · Avg ROAS: {avgRoas.toFixed(2)}× · Total revenue: {inr(totalRev)}
       </div>
 
-      <table className="attr-table">
-        <thead>
-          <tr>
-            <th onClick={() => sortBy("webinar_name")}>Webinar</th>
-            <th onClick={() => sortBy("webinar_date")}>Date</th>
-            <th>Media Buyers</th>
-            <th onClick={() => sortBy("total_leads")}>Leads</th>
-            <th onClick={() => sortBy("total_sales")}>Sales</th>
-            <th onClick={() => sortBy("total_ad_spend")}>Ad Spend</th>
-            <th onClick={() => sortBy("total_revenue")}>Revenue</th>
-            <th onClick={() => sortBy("overall_roas")}>ROAS</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {display.map((s) => {
-            const roasN = Number(s.overall_roas);
-            return (
-              <tr key={s.id} onClick={() => setOpenSession(s)}>
-                <td>
-                  <div className="mb-name-cell">{s.webinar_name}</div>
-                  {s.webinar_type && <div className="mb-sub2">{s.webinar_type.replace("-", " ")}</div>}
-                </td>
-                <td style={{ fontSize: 12 }}>{s.webinar_date ? fmtDate(s.webinar_date) : "—"}</td>
-                <td>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ display: "flex" }}>
-                      {(s.buyers || []).slice(0, 4).map((b, i) => (
-                        <div key={i} className="spend-av" title={b.name}>{initials(b.name)}</div>
-                      ))}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 60, color: "#888" }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a", marginBottom: 8 }}>No attribution reports yet</div>
+          <div style={{ fontSize: 13 }}>Saved ROAS reports will appear here after you calculate and save them from the ROAS Calculator.</div>
+        </div>
+      ) : (
+        <table className="attr-table">
+          <thead>
+            <tr>
+              <th>Created On</th>
+              <th>Webinar</th>
+              <th>Webinar Date / Period</th>
+              <th>Type</th>
+              <th>Method</th>
+              <th>Media Buyers</th>
+              <th>Leads</th>
+              <th>Sales</th>
+              <th>Ad Spend</th>
+              <th>Revenue</th>
+              <th>ROAS</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map((s) => {
+              const roasN = Number(s.overall_roas);
+              return (
+                <tr key={s.id} onClick={() => setOpenSession(s)}>
+                  <td style={{ fontSize: 11.5, color: "#555" }}>{s.created_at ? fmtDateTime(s.created_at) : "—"}</td>
+                  <td>
+                    <div className="mb-name-cell">{s.webinar_name}</div>
+                    {(s.session_slot || s.webinar_format) && <div className="mb-sub2">{[s.session_slot, s.webinar_format].filter(Boolean).join(" · ")}</div>}
+                  </td>
+                  <td style={{ fontSize: 12 }}>{webinarPeriod(s)}</td>
+                  <td style={{ fontSize: 11, color: "#555" }}>{s.webinar_type ? s.webinar_type.replace("-", " ") : "—"}</td>
+                  <td style={{ fontSize: 11 }}>
+                    {(() => {
+                      const lbl = methodLabel(s);
+                      if (lbl === "—") return <span style={{ color: "#888" }}>—</span>;
+                      const isAuto = lbl === "Automatic Attribution";
+                      return <span style={{ background: isAuto ? "#FBF6E9" : "#F7F6F3", color: isAuto ? "#7A5E10" : "#555", padding: "2px 8px", borderRadius: 12, fontSize: 10, fontWeight: 500 }}>{lbl}</span>;
+                    })()}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ display: "flex" }}>
+                        {(s.buyers || []).slice(0, 4).map((b, i) => (
+                          <div key={i} className="spend-av" title={b.name}>{initials(b.name)}</div>
+                        ))}
+                      </div>
+                      <span style={{ fontSize: 11, color: "#888" }}>{s.buyers?.length || 0}</span>
                     </div>
-                    <span style={{ fontSize: 11, color: "#888" }}>{s.buyers?.length || 0} buyer{(s.buyers?.length || 0) === 1 ? "" : "s"}</span>
-                  </div>
-                </td>
-                <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16 }}>{s.total_leads}</td>
-                <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#16A34A" }}>{s.total_sales}</td>
-                <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16 }}>{inr(Number(s.total_ad_spend))}</td>
-                <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#16A34A" }}>{inr(Number(s.total_revenue))}</td>
-                <td><span className={"roas-val " + roasClass(roasN)}>{roasN.toFixed(2)}×</span></td>
-                <td onClick={(e) => e.stopPropagation()}>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button className="btn btn-g btn-sm" title="View full report" onClick={() => setOpenSession(s)}>👁</button>
-                    <button className="btn btn-g btn-sm" title="Export PDF" onClick={async () => {
-                      const p = await loadPayload(s); if (p) downloadPDF(p);
-                    }}>⬇</button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-          {display.length === 0 && (
-            <tr><td colSpan={9} style={{ textAlign: "center", color: "#888", padding: 24 }}>No saved attributions yet.</td></tr>
-          )}
-        </tbody>
-      </table>
+                  </td>
+                  <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16 }}>{s.total_leads}</td>
+                  <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#16A34A" }}>{s.total_sales}</td>
+                  <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }}>{inr(Number(s.total_ad_spend))}</td>
+                  <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "#16A34A" }}>{inr(Number(s.total_revenue))}</td>
+                  <td><span className={"roas-val " + roasClass(roasN)}>{roasN.toFixed(2)}×</span></td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button className="btn btn-g btn-sm" title="View" onClick={() => setOpenSession(s)}>👁</button>
+                      <button className="btn btn-g btn-sm" title="Export PDF" onClick={async () => {
+                        const p = await loadPayload(s); if (p) downloadPDF(p);
+                      }}>⬇</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
 
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 14 }}>
@@ -261,15 +376,22 @@ function HistoryTab({ sessions }: { sessions: SessionRow[] }) {
 }
 
 function MonthlyTab({ sessions }: { sessions: SessionRow[] }) {
+  const [basis, setBasis] = useState<"webinar" | "created">("webinar");
   const months = useMemo(() => {
     const m = new Set<string>();
-    sessions.forEach((s) => { if (s.webinar_date) m.add(s.webinar_date.slice(0, 7)); });
+    sessions.forEach((s) => {
+      const k = basis === "webinar" ? periodMonth(s) : (s.created_at || "").slice(0, 7);
+      if (k) m.add(k);
+    });
     return Array.from(m).sort().reverse();
-  }, [sessions]);
+  }, [sessions, basis]);
   const [sel, setSel] = useState<string>("");
-  useEffect(() => { if (!sel && months.length) setSel(months[0]); }, [months, sel]);
+  useEffect(() => { if (!sel && months.length) setSel(months[0]); else if (sel && !months.includes(sel)) setSel(months[0] || ""); }, [months, sel]);
 
-  const monthSessions = sessions.filter((s) => s.webinar_date?.startsWith(sel));
+  const monthSessions = sessions.filter((s) => {
+    const k = basis === "webinar" ? periodMonth(s) : (s.created_at || "").slice(0, 7);
+    return k === sel;
+  });
   const totalLeads = monthSessions.reduce((a, s) => a + s.total_leads, 0);
   const totalSales = monthSessions.reduce((a, s) => a + s.total_sales, 0);
   const totalRev = monthSessions.reduce((a, s) => a + Number(s.total_revenue), 0);
@@ -283,6 +405,15 @@ function MonthlyTab({ sessions }: { sessions: SessionRow[] }) {
 
   return (
     <>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+        <div>
+          <label className="filter-lbl">Show overview by</label>
+          <select className="fsel" value={basis} onChange={(e) => setBasis(e.target.value as any)}>
+            <option value="webinar">Webinar Month</option>
+            <option value="created">Created Month</option>
+          </select>
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
         {months.map((m) => (
           <button key={m} className={"pill" + (m === sel ? " on" : "")} onClick={() => setSel(m)}>
@@ -319,13 +450,13 @@ function MonthlyTab({ sessions }: { sessions: SessionRow[] }) {
 
           <table className="attr-table">
             <thead>
-              <tr><th>Webinar</th><th>Date</th><th>Leads</th><th>Sales</th><th>Revenue</th><th>ROAS</th><th>Actions</th></tr>
+              <tr><th>Webinar</th><th>Webinar Date / Period</th><th>Leads</th><th>Sales</th><th>Revenue</th><th>ROAS</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {monthSessions.map((s) => (
                 <tr key={s.id} onClick={() => setOpenSession(s)}>
                   <td><div className="mb-name-cell">{s.webinar_name}</div></td>
-                  <td style={{ fontSize: 12 }}>{s.webinar_date ? fmtDate(s.webinar_date) : "—"}</td>
+                  <td style={{ fontSize: 12 }}>{webinarPeriod(s)}</td>
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16 }}>{s.total_leads}</td>
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#16A34A" }}>{s.total_sales}</td>
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#16A34A" }}>{inr(Number(s.total_revenue))}</td>
@@ -380,15 +511,34 @@ function ReportDrawer({ session, onClose }: { session: SessionRow | null; onClos
     loadPayload(session).then(setPayload);
   }, [session]);
 
+  const opt = (label: string, val?: string | null) => val ? (
+    <div><div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: ".08em" }}>{label}</div><div style={{ fontSize: 12.5 }}>{val}</div></div>
+  ) : null;
+
   return (
     <Sheet open={!!session} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="!max-w-[760px] sm:!max-w-[760px] w-full overflow-y-auto p-0">
         <div className="rcv2" style={{ padding: 28 }}>
           <style>{styles}</style>
-          {!payload ? (
+          {!payload || !session ? (
             <div style={{ color: "#888", fontSize: 13, padding: 40, textAlign: "center" }}>Loading…</div>
           ) : (
-            <AttributionResultsView payload={payload} allowSave={false} />
+            <>
+              <div style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: 14, marginBottom: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+                {opt("Created On", session.created_at ? fmtDateTime(session.created_at) : null)}
+                {opt("Calculation Method", methodLabel(session))}
+                {opt("Webinar Name", session.webinar_name)}
+                {opt("Webinar Type", session.webinar_type ? session.webinar_type.replace("-", " ") : null)}
+                {opt("Webinar Date / Period", webinarPeriod(session))}
+                {opt("Webinar Format", session.webinar_format)}
+                {opt("Webinar Operator", session.webinar_operator)}
+                {opt("Session Slot", session.session_slot)}
+                {opt("Platform", session.webinar_platform)}
+                {opt("Zoom Account", session.zoom_account_used)}
+                {opt("Ad Spend Source", "Manual Entry")}
+              </div>
+              <AttributionResultsView payload={payload} allowSave={false} />
+            </>
           )}
         </div>
       </SheetContent>

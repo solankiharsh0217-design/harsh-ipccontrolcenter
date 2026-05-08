@@ -472,14 +472,27 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   async function saveHistory() {
     if (!user || !results) return;
     if (resultsStatus !== "fresh") {
-      toast.error("Please recalculate before saving this report to history.");
+      toast.error("Inputs changed. Please recalculate before saving this report.");
       return;
     }
-    if (savedSessionId) { toast.info("This report is already saved."); return; }
+    if (savedSessionId) { toast.info("This report has already been saved to history."); return; }
+    const er = results.engineResult;
+    // Duplicate detection by calculation_id or (input_hash + output_hash + user)
+    if (er) {
+      const { data: dup } = await supabase
+        .from("attribution_sessions")
+        .select("id")
+        .or(`calculation_id.eq.${er.calculationId},and(input_snapshot_hash.eq.${er.inputSnapshotHash},output_hash.eq.${er.outputHash},created_by.eq.${user.id})`)
+        .limit(1)
+        .maybeSingle();
+      if (dup?.id) {
+        setSavedSessionId(dup.id); setSavedHist(true);
+        toast.info("This report has already been saved to history.");
+        return;
+      }
+    }
     const totals = results.totals;
     const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
-
-    const er = results.engineResult;
     const { data: sess, error } = await supabase.from("attribution_sessions").insert({
       webinar_name: webinar.name,
       webinar_date: effectiveDate(webinar),
@@ -490,6 +503,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       unmatched_count: results.salesDetail.filter((s) => s.matchMethod === "unmatched").length,
       created_by: user.id,
       calculation_method: "automatic_master_sheet",
+      calculation_display_method: "Automatic Attribution",
       master_sheet_url: masterUrl,
       master_sheet_title: spreadsheetTitle,
       webinar_date_mode: webinar.dateMode,
@@ -1168,25 +1182,38 @@ function Step4Results(p: {
   consistency: { sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean };
 }) {
   const w = p.webinar;
-  const dateLabel = w.dateMode === "single" ? w.singleDate
-    : w.dateMode === "range" ? `${w.startDate} → ${w.endDate}`
-    : (w.dates || []).join(", ");
+  const fmtD = (d: string) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const dateLabel = w.dateMode === "single" ? fmtD(w.singleDate)
+    : w.dateMode === "range" ? `${fmtD(w.startDate)} - ${fmtD(w.endDate)}`
+    : (w.dates || []).filter(Boolean).map(fmtD).join(", ") || "—";
+  const createdOn = new Date().toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const opt = (label: string, val?: string) => val ? (
+    <div><div style={{ fontSize: 11, color: "#888" }}>{label}</div><div style={{ fontSize: 13 }}>{val}</div></div>
+  ) : null;
 
   return (
     <>
       {/* Context */}
       <div style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: "#888" }}>Calculation Method</div>
-            <div style={{ fontWeight: 500 }}>One-Link Automatic Fetching</div>
+            <div style={{ fontWeight: 500, color: "#C8A84B" }}>Automatic Attribution</div>
           </div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Webinar</div><div>{w.name} · {w.type}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Date</div><div>{dateLabel}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Master Sheet</div><div>{p.masterTitle || "—"}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Sales Tab</div><div>{p.salesTabName}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Media Buyer Tabs</div><div>{p.mbCount}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Ad Spend</div><div>Manual Entry</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Webinar Name</div><div style={{ fontSize: 13 }}>{w.name}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Webinar Type</div><div style={{ fontSize: 13 }}>{w.type || "—"}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Webinar Date / Period</div><div style={{ fontSize: 13 }}>{dateLabel}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Created On</div><div style={{ fontSize: 13 }}>{createdOn}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Master Sheet</div><div style={{ fontSize: 13 }}>{p.masterTitle || "—"}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Sales Tab</div><div style={{ fontSize: 13 }}>{p.salesTabName}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Media Buyer Tabs</div><div style={{ fontSize: 13 }}>{p.mbCount}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Ad Spend Source</div><div style={{ fontSize: 13 }}>Manual Entry</div></div>
+          {opt("Webinar Format", w.format)}
+          {opt("Webinar Operator", w.operator)}
+          {opt("Session Slot", w.sessionSlot)}
+          {opt("Platform", w.platform)}
+          {opt("Zoom Account Used", w.zoomAccount)}
+          {w.notes ? (<div style={{ gridColumn: "1 / -1" }}><div style={{ fontSize: 11, color: "#888" }}>Notes</div><div style={{ fontSize: 13 }}>{w.notes}</div></div>) : null}
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="btn btn-g btn-sm" onClick={() => p.goEdit(1)}>Edit Webinar Details</button>
@@ -1237,7 +1264,7 @@ function Step4Results(p: {
         </button>
         {p.showDataUsed && (
           <div style={{ marginTop: 10, fontSize: 12, color: "#555", lineHeight: 1.7 }}>
-            <div>Method: One-Link Automatic Fetching</div>
+            <div>Method: Automatic Attribution</div>
             <div>Result status: {p.resultsStatus === "fresh" ? "Fresh" : "Needs Recalculation"}</div>
             <div>Sales tab: {p.salesTabName} · Media buyer tabs: {p.mbCount}</div>
             <div style={{ marginTop: 8 }}>

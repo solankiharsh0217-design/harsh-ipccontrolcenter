@@ -48,7 +48,7 @@ export default function AttributionResultsView({
           <button className="btn btn-g btn-sm" onClick={() => downloadCSV(payload)}>Export CSV</button>
           <button className="btn btn-g btn-sm" onClick={() => downloadPDF(payload)}>📄 Export PDF</button>
           {allowSave && onSave && (
-            <button className="btn btn-k btn-sm" onClick={onSave}>{savedHist ? "Saved ✓" : "Save to history"}</button>
+            <button className={"btn btn-sm " + (savedHist ? "btn-g" : "btn-k")} onClick={onSave} disabled={savedHist}>{savedHist ? "Saved ✓" : "Save to history"}</button>
           )}
         </div>
       </div>

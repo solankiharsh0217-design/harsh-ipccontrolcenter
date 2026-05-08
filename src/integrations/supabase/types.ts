@@ -263,6 +263,7 @@ export type Database = {
       attribution_sessions: {
         Row: {
           attribution_engine_version: string | null
+          calculation_display_method: string | null
           calculation_id: string | null
           calculation_method: string
           column_mapping: Json | null
@@ -280,6 +281,7 @@ export type Database = {
           output_hash: string | null
           overall_roas: number
           result_status: string | null
+          saved_from_draft_id: string | null
           session_slot: string | null
           tab_role_mapping: Json | null
           total_ad_spend: number
@@ -304,6 +306,7 @@ export type Database = {
         }
         Insert: {
           attribution_engine_version?: string | null
+          calculation_display_method?: string | null
           calculation_id?: string | null
           calculation_method?: string
           column_mapping?: Json | null
@@ -321,6 +324,7 @@ export type Database = {
           output_hash?: string | null
           overall_roas?: number
           result_status?: string | null
+          saved_from_draft_id?: string | null
           session_slot?: string | null
           tab_role_mapping?: Json | null
           total_ad_spend?: number
@@ -345,6 +349,7 @@ export type Database = {
         }
         Update: {
           attribution_engine_version?: string | null
+          calculation_display_method?: string | null
           calculation_id?: string | null
           calculation_method?: string
           column_mapping?: Json | null
@@ -362,6 +367,7 @@ export type Database = {
           output_hash?: string | null
           overall_roas?: number
           result_status?: string | null
+          saved_from_draft_id?: string | null
           session_slot?: string | null
           tab_role_mapping?: Json | null
           total_ad_spend?: number

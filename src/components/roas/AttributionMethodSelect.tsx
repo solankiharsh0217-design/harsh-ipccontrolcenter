@@ -8,21 +8,21 @@ export default function AttributionMethodSelect({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <MethodCard
-          title="Manual Upload" badge="Current Method" badgeBg="#F7F6F3" badgeFg="#888"
-          desc="Upload individual lead sheets for each media buyer, then upload the sales sheet and enter ad spends manually."
-          best={["One-time calculations", "When sheet structure changes often", "When data is not stored in one master sheet"]}
-          btnLabel="Continue with Manual Upload" btnBg="#0a0a0a" btnFg="#fff" btnHover="#222" onClick={onPickManual}
+          title="Automatic Attribution" badge="Recommended" badgeBg="#FBF6E9" badgeFg="#7A5E10"
+          desc="Paste one master Google Sheet link, assign tab roles, enter ad spends manually, and calculate media buyer attribution faster."
+          best={["Repeated webinar calculations", "Faster ROAS reporting", "One master sheet with Sales and Media Buyer tabs", "Lower manual upload work"]}
+          btnLabel="Continue with Automatic Attribution" btnBg="#C8A84B" btnFg="#0a0a0a" btnHover="#B8973F" onClick={onPickAuto}
         />
         <MethodCard
-          title="Automatic Fetching" badge="Recommended" badgeBg="#FBF6E9" badgeFg="#7A5E10"
-          desc="Connect one master Google Sheet workbook with multiple tabs for media buyer leads, sales, and ad spends. The system will fetch, match, and calculate automatically."
-          best={["Repeated webinar calculations", "Fixed media buyer sheet structure", "Faster attribution with fewer uploads"]}
-          btnLabel="Continue with Automatic Fetching" btnBg="#C8A84B" btnFg="#0a0a0a" btnHover="#B8973F" onClick={onPickAuto}
+          title="Manual Upload" badge="Fallback Method" badgeBg="#F7F6F3" badgeFg="#888"
+          desc="Upload individual lead sheets for each media buyer, then upload the sales sheet and enter ad spends manually."
+          best={["One-time calculations", "When sheet structure changes often", "When Google Sheet access is not available", "When you want full manual control"]}
+          btnLabel="Continue with Manual Upload" btnBg="#0a0a0a" btnFg="#fff" btnHover="#222" onClick={onPickManual}
         />
       </div>
 
       <div style={{ marginTop: 16, fontSize: 12, color: "#888", textAlign: "center", fontFamily: "'Jost',sans-serif" }}>
-        You can use either method anytime. Manual upload will always remain available as a fallback.
+        You can use either method anytime. Manual Upload will remain available as a fallback.
       </div>
     </div>
   );
