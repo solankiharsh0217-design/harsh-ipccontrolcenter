@@ -407,6 +407,295 @@ export type Database = {
           },
         ]
       }
+      daily_custom_metrics: {
+        Row: {
+          aggregation_method: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          metric_key: string
+          metric_name: string
+          metric_type: string
+          show_in_exports: boolean
+          show_in_whatsapp: boolean
+          updated_at: string
+        }
+        Insert: {
+          aggregation_method?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          metric_key: string
+          metric_name: string
+          metric_type: string
+          show_in_exports?: boolean
+          show_in_whatsapp?: boolean
+          updated_at?: string
+        }
+        Update: {
+          aggregation_method?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          metric_key?: string
+          metric_name?: string
+          metric_type?: string
+          show_in_exports?: boolean
+          show_in_whatsapp?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      daily_lead_report_ad_accounts: {
+        Row: {
+          ad_account_name: string
+          ad_spend: number
+          created_at: string
+          id: string
+          metrics: Json | null
+          report_media_buyer_id: string
+          updated_at: string
+        }
+        Insert: {
+          ad_account_name: string
+          ad_spend?: number
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          report_media_buyer_id: string
+          updated_at?: string
+        }
+        Update: {
+          ad_account_name?: string
+          ad_spend?: number
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          report_media_buyer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_lead_report_ad_accounts_report_media_buyer_id_fkey"
+            columns: ["report_media_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "daily_lead_report_media_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_lead_report_media_buyers: {
+        Row: {
+          cpl: number
+          created_at: string
+          date_column: string | null
+          fetch_metadata: Json | null
+          id: string
+          lead_count_source: string
+          lead_source_url: string | null
+          media_buyer_key: string | null
+          media_buyer_name: string
+          report_id: string
+          sheet_id: string | null
+          spreadsheet_id: string | null
+          spreadsheet_title: string | null
+          status: string
+          tab_name: string | null
+          total_ad_spend: number
+          total_leads: number
+          updated_at: string
+        }
+        Insert: {
+          cpl?: number
+          created_at?: string
+          date_column?: string | null
+          fetch_metadata?: Json | null
+          id?: string
+          lead_count_source?: string
+          lead_source_url?: string | null
+          media_buyer_key?: string | null
+          media_buyer_name: string
+          report_id: string
+          sheet_id?: string | null
+          spreadsheet_id?: string | null
+          spreadsheet_title?: string | null
+          status?: string
+          tab_name?: string | null
+          total_ad_spend?: number
+          total_leads?: number
+          updated_at?: string
+        }
+        Update: {
+          cpl?: number
+          created_at?: string
+          date_column?: string | null
+          fetch_metadata?: Json | null
+          id?: string
+          lead_count_source?: string
+          lead_source_url?: string | null
+          media_buyer_key?: string | null
+          media_buyer_name?: string
+          report_id?: string
+          sheet_id?: string | null
+          spreadsheet_id?: string | null
+          spreadsheet_title?: string | null
+          status?: string
+          tab_name?: string | null
+          total_ad_spend?: number
+          total_leads?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_lead_report_media_buyers_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "daily_lead_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_lead_reports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          input_hash: string | null
+          is_deleted: boolean
+          metric_template_id: string | null
+          notes: string | null
+          overall_cpl: number
+          report_date: string
+          report_name: string | null
+          total_ad_spend: number
+          total_leads: number
+          updated_at: string
+          whatsapp_message: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          input_hash?: string | null
+          is_deleted?: boolean
+          metric_template_id?: string | null
+          notes?: string | null
+          overall_cpl?: number
+          report_date: string
+          report_name?: string | null
+          total_ad_spend?: number
+          total_leads?: number
+          updated_at?: string
+          whatsapp_message?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          input_hash?: string | null
+          is_deleted?: boolean
+          metric_template_id?: string | null
+          notes?: string | null
+          overall_cpl?: number
+          report_date?: string
+          report_name?: string | null
+          total_ad_spend?: number
+          total_leads?: number
+          updated_at?: string
+          whatsapp_message?: string | null
+        }
+        Relationships: []
+      }
+      daily_lead_source_mappings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date_column: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          lead_source_name: string | null
+          media_buyer_name: string
+          sheet_id: string | null
+          sheet_url: string
+          spreadsheet_id: string | null
+          spreadsheet_title: string | null
+          tab_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date_column?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          lead_source_name?: string | null
+          media_buyer_name: string
+          sheet_id?: string | null
+          sheet_url: string
+          spreadsheet_id?: string | null
+          spreadsheet_title?: string | null
+          tab_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date_column?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          lead_source_name?: string | null
+          media_buyer_name?: string
+          sheet_id?: string | null
+          sheet_url?: string
+          spreadsheet_id?: string | null
+          spreadsheet_title?: string | null
+          tab_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      daily_metric_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          metrics: Json
+          template_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          metrics?: Json
+          template_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          metrics?: Json
+          template_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       data_sources: {
         Row: {
           created_at: string
