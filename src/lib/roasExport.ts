@@ -17,6 +17,21 @@ export type SaleDetail = {
   revenue: number;
   webinarDate: string;
 };
+export type AttributionMeta = {
+  createdOn?: string;
+  calculationMethod?: string;
+  webinarPeriod?: string;
+  webinarFormat?: string;
+  webinarOperator?: string;
+  sessionSlot?: string;
+  webinarPlatform?: string;
+  zoomAccount?: string;
+  adSpendSource?: string;
+  calculationId?: string;
+  inputSnapshotHash?: string;
+  outputHash?: string;
+  engineVersion?: string;
+};
 export type AttributionPayload = {
   webinarName: string;
   webinarDate: string;
@@ -24,6 +39,7 @@ export type AttributionPayload = {
   totals: { spend: number; revenue: number; sales: number; leads: number };
   rows: AttrRow[];
   salesDetail: SaleDetail[];
+  meta?: AttributionMeta;
 };
 
 export const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
