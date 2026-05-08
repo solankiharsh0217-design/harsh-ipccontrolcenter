@@ -314,7 +314,7 @@ function AttrTabWrapper({ userId }: { userId?: string }) {
     );
   }
   if (method === "auto") {
-    return <AutoFetchWizard onBackToMethod={() => setMethod("none")} />;
+    return <AutoWizardV6 onBackToMethod={() => setMethod("none")} />;
   }
   return <AttrTab userId={userId} onBackToMethod={() => setMethod("none")} />;
 }
