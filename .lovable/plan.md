@@ -1,94 +1,154 @@
-# ROAS Automatic Fetching v6
+# ROAS Attribution Engine Stability Fix
 
-Replace the current Automatic Fetching wizard with a leaner 4-step flow. Manual Upload, attribution logic, results UI, history, and design system stay untouched.
+## Goal
 
----
+Make ROAS attribution **deterministic**: same input + same media buyer order + same column mapping = same output, every time, in both Manual Upload and Automatic Fetching.
 
-## Final flow (Automatic only)
+## Root cause
+
+Today, two separate matching code paths exist (`RoasCalculator.tsx` for Manual, `autoAttribute.ts` for Auto). Both build short-circuit indexes (`emailIndex[email] = lead`, last-write-wins) and iterate sales in arrival order, so the "winner" depends on insertion/fetch ordering. Fuzzy name matches can silently beat exact matches because matching is sale-by-sale instead of round-by-round.
+
+## What I'll build
+
+### 1. Single shared deterministic engine — `src/lib/roas/attributionEngine.ts`
 
 ```text
-Step 1  Webinar Details              required: type, name, date(s) · optional bundle collapsed
-Step 2  Connect Master Sheet         one URL → detect tabs → assign roles (Sales / MB / Ignore)
-Step 3  Enter Ad Spends              manual ₹ per selected media buyer
-Step 4  Results                      existing AttributionResultsView + context panel
+calculateAttribution(snapshot) -> result
+  ├─ normalizeLeads / normalizeSales (pure, never mutates input)
+  ├─ build sorted indexes (emailIndex, phoneIndex, nameIndex)
+  │     each value = array of leads, sorted by:
+  │       1. mediaBuyerOrder priority
+  │       2. rowIndex
+  │       3. mediaBuyerName tiebreak
+  ├─ Round 1: email exact match for every sale
+  ├─ Round 2: phone exact match for sales still unmatched
+  ├─ Round 3: name fuzzy (>=0.85) for sales still unmatched
+  ├─ Round 4: mark unmatched
+  ├─ build duplicateLeadConflicts
+  ├─ build auditLog (one row per sale)
+  └─ compute summary, mediaBuyerBreakdown, hashes
 ```
 
-No tab URLs, no gids, no Zoom IDs/links/recording, no Ad_Spends sheet.
+Pure functions, no React state. Exports types matching the spec (snapshot in, result out, with `auditLog`, `duplicateLeadConflicts`, `inputSnapshotHash`, `outputHash`).
 
----
+### 2. Wire both flows into the new engine
 
-## New / edited files
+- `RoasCalculator.tsx` (Manual): when user clicks Calculate, build a snapshot from current parsed CSVs + media buyer order + column mappings + ad spends, call `calculateAttribution`, then map result back into the existing `AttributionPayload` shape so `AttributionResultsView` renders unchanged.
+- `AutoWizardV6.tsx` (Automatic): replace `runAutoAttribution`'s matching block. Fetching tabs stays the same; the matching/normalization step is delegated to `calculateAttribution`. `runAutoAttribution` becomes a thin orchestrator: fetch CSV rows → build snapshot → call engine.
+
+### 3. Immutable calculation snapshot
+
+On every Calculate / Recalculate:
+- Generate fresh `calculationId` (uuid)
+- Deep-copy parsed lead rows, sales rows, media buyer order, column mappings, ad spends
+- Compute `leadRowsHash`, `salesRowsHash`, `mediaBuyerOrderHash`, `columnMappingHash` (FNV-1a)
+- Pass snapshot to engine; never read from React state inside engine
+- Store snapshot + result on the page (not just summary numbers)
+
+### 4. Stable media buyer priority order
+
+- Store `mediaBuyerOrder: string[]` derived from UI insertion order (Manual) or tab-role assignment order (Auto)
+- Render a small "Media Buyer Priority Order" panel above Calculate showing each buyer + lead count + source + priority #
+- Engine uses this order as the only tiebreaker; never sorts alphabetically and never relies on object key order
+
+### 5. Strict matching rounds + name threshold
+
+- Email round → Phone round → Name (>=0.85 word-token similarity) → Unmatched
+- Weak phones (<10 digits) flagged; never override stronger email matches
+- Name match only fires if no prior round matched that sale; competing matches recorded in audit
+
+### 6. Duplicate lead conflict detection
+
+While building indexes, detect when the same normalized email/phone/name appears in 2+ media buyer tabs. Output `duplicateLeadConflicts[]` with conflictType, normalizedValue, mediaBuyersFound, leadRows, winnerIfMatched, tieBreakerReason.
+
+### 7. New collapsible UI sections in `AttributionResultsView`
+
+Below the existing "Matching method" note, add three collapsed-by-default sections:
+- **Data Used For This Calculation** — calc id, hashes, sales/lead counts, mediaBuyerOrder, columnMappingsUsed, calculatedAt
+- **Duplicate Lead Conflicts** — count + per-conflict details
+- **Attribution Audit** — sale-by-sale table with all columns from spec, plus search and filters (buyer / media buyer / method / conflicts only / unmatched only)
+
+Existing summary cards, breakdown table, charts, exports stay untouched.
+
+### 8. Stale draft / Start Fresh hygiene
+
+- "Start Fresh" already clears local + remote draft. Also clear any in-memory snapshot, audit, conflicts, savedSessionId.
+- New upload replaces (not appends) parsed rows for that source.
+- Show source filename next to each media buyer / sales source.
+- Internal `console.debug` log of snapshot summary on every calculate.
+
+### 9. Result consistency check (admin/debug)
+
+After calculate, store last `inputSnapshotHash` + `outputHash`. On Recalculate with identical hashes, show subtle "Result confirmed identical" indicator. If input hash matches but output hash differs, render red error banner: "Attribution engine is unstable."
+
+### 10. Persist full audit on Save to History
+
+Database changes (single migration):
+
+```sql
+-- Extend attribution_sessions
+ALTER TABLE attribution_sessions
+  ADD COLUMN IF NOT EXISTS calculation_id text,
+  ADD COLUMN IF NOT EXISTS input_snapshot_hash text,
+  ADD COLUMN IF NOT EXISTS output_hash text,
+  ADD COLUMN IF NOT EXISTS media_buyer_order jsonb,
+  ADD COLUMN IF NOT EXISTS column_mappings_used jsonb,
+  ADD COLUMN IF NOT EXISTS duplicate_conflicts_count integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS attribution_engine_version text DEFAULT 'deterministic_v1';
+
+-- Extend attribution_sales_detail
+ALTER TABLE attribution_sales_detail
+  ADD COLUMN IF NOT EXISTS sale_id text,
+  ADD COLUMN IF NOT EXISTS matched_lead_id text,
+  ADD COLUMN IF NOT EXISTS matched_lead_name text,
+  ADD COLUMN IF NOT EXISTS matched_lead_email text,
+  ADD COLUMN IF NOT EXISTS matched_lead_phone text,
+  ADD COLUMN IF NOT EXISTS source_media_buyer text,
+  ADD COLUMN IF NOT EXISTS source_row_index integer,
+  ADD COLUMN IF NOT EXISTS confidence_score numeric,
+  ADD COLUMN IF NOT EXISTS competing_matches jsonb,
+  ADD COLUMN IF NOT EXISTS match_reason text,
+  ADD COLUMN IF NOT EXISTS needs_review boolean DEFAULT false;
+
+-- New audit log table
+CREATE TABLE roas_attribution_audit_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  attribution_session_id uuid REFERENCES attribution_sessions(id) ON DELETE CASCADE,
+  calculation_id text NOT NULL,
+  input_snapshot_hash text,
+  output_hash text,
+  media_buyer_order jsonb,
+  column_mappings_used jsonb,
+  audit_rows jsonb NOT NULL DEFAULT '[]',
+  duplicate_conflicts jsonb DEFAULT '[]',
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE roas_attribution_audit_logs ENABLE ROW LEVEL SECURITY;
+-- policies: admin all; member insert if owns session; member read if active
+```
+
+No existing columns removed. Save flow writes one audit_logs row alongside the existing session/media buyers/sales detail inserts.
+
+## Files
 
 **New**
-- `supabase/functions/fetch-roas-master-sheet-tabs/index.ts` — server-side Google Sheets API call. Input: `{ masterSheetUrl }`. Output: spreadsheet metadata + per-tab `{ sheetId, tabName, guessedRole, confidence, detectedHeaders, sampleRows, validRowsCount, detectedColumnMapping, warnings }`. Uses `GOOGLE_SHEETS_API_KEY` secret.
-- `src/components/roas/auto/WebinarDetailsStep.tsx` — Step 1. Webinar Type (QuickSave) drives date input shape (single / range / multiple / custom). Collapsible "More Webinar Details" with timing block (per-day toggle), format, operator, slot, platform (default Zoom), zoom account, notes.
-- `src/components/roas/auto/ConnectSheetStep.tsx` — Step 2. One URL input (QuickSave `google_sheet_url`), Detect Tabs button, summary cards, per-tab role dropdowns, MB name with auto-clean, status badges, hidden "Manual Expert Mode" fallback for gid.
-- `src/components/roas/auto/ColumnMappingDrawer.tsx` — drawer to confirm name/email/phone (+ optional) per tab when needed.
-- `src/components/roas/auto/AdSpendsStep.tsx` — Step 3. Manual ₹ inputs per selected MB, total, Test Fetch, Calculate.
-- `src/components/roas/auto/ResultsStep.tsx` — Step 4. Reuses existing `AttributionResultsView`. Adds context panel + Edit/Recalculate/Start Fresh buttons + "Data used" collapsible + Needs Recalculation banner.
-- `src/components/roas/auto/AutoWizardV6.tsx` — orchestrator (stepper, draft persistence, navigation rules, change detection).
-- `src/lib/roas/autoDraft.ts` — localStorage + debounced Supabase draft sync helpers.
-- `src/lib/roas/tabClassify.ts` — guess role (sales / media_buyer / ignore / unknown) + clean MB name.
+- `src/lib/roas/attributionEngine.ts` — engine + types + hashing
+- `src/lib/roas/normalize.ts` — email/phone/name/revenue normalization helpers
+- `src/components/roas/AttributionAuditPanel.tsx` — three collapsible sections
 
-**Edited**
-- `src/pages/RoasCalculator.tsx` — when Automatic is chosen, render `AutoWizardV6` instead of the existing `AutoFetchWizard`.
-- `src/components/roas/AttributionResultsView.tsx` — accept optional `contextPanel` slot (no logic change).
-- (Existing `AutoFetchWizard.tsx` kept on disk for reference but no longer routed; safe to delete later.)
+**Modified**
+- `src/lib/roas/autoAttribute.ts` — delegate matching to engine
+- `src/components/roas/auto/AutoWizardV6.tsx` — pass mediaBuyerOrder, save audit_log row
+- `src/pages/RoasCalculator.tsx` — build snapshot for Manual flow, save audit_log row, show priority order panel
+- `src/components/roas/AttributionResultsView.tsx` — render new audit panel below existing UI; pass through extra audit data; keep current cards/charts/exports unchanged
 
-**Untouched**
-Manual Upload wizard, matching algorithm, AttributionResultsView internals, history save, design tokens, Total ROAS tab, Data Sources tab.
+## Out of scope (will not touch)
 
----
+Manual Upload & Automatic Fetching presence, ROAS formula, deal value, currency formatting, IPC design system, Reports & History page, attribution UI labels, business rules other than the deterministic-tie-break and round-strictness rules above.
 
-## Database migration (single)
+## Acceptance check
 
-New table:
-- `roas_master_sheet_mappings` — per spec (`spreadsheet_id`, `master_sheet_url`, `sales_sheet_id/tab_name`, `media_buyer_mappings jsonb`, `ignored_tabs jsonb`, `column_mappings jsonb`, audit cols, `is_active`). RLS: read for active members, insert/update for `created_by = auth.uid()`, admin-all.
-- `roas_calculation_drafts` — per spec, RLS owner-only.
-
-Add columns (idempotent `IF NOT EXISTS`):
-- `attribution_sessions`: `master_sheet_url`, `master_sheet_title`, `webinar_type`, `webinar_date_mode`, `webinar_single_date`, `webinar_start_date`, `webinar_end_date`, `webinar_dates jsonb`, `webinar_timing jsonb`, `webinar_format`, `webinar_operator`, `session_slot`, `webinar_platform`, `zoom_account_used`, `webinar_notes`, `tab_role_mapping jsonb`, `column_mapping jsonb`, `result_status text default 'fresh'`. (`calculation_method`, `master_sheet_id`, `fetch_log_id` already exist.)
-- `attribution_media_buyers`: `source_sheet_id` (others exist).
-- `attribution_sales_detail`: `source_sales_sheet_id` (others exist).
-
-QuickSave field keys reused (no schema change): `webinar_type`, `webinar_name`, `webinar_format`, `webinar_operator`, `session_slot`, `webinar_platform`, `zoom_account_used`, `google_sheet_url`.
-
----
-
-## Edge function — tab detection
-
-`fetch-roas-master-sheet-tabs` (verify_jwt validated in code via `getClaims`):
-1. Extract `spreadsheetId` from URL.
-2. `GET https://sheets.googleapis.com/v4/spreadsheets/{id}?key=...&includeGridData=false` → titles + sheetIds.
-3. For each tab: `GET .../values/{tab}!A1:Z20?key=...` → headers + sample rows.
-4. Classify with rules from PART 20; auto-detect column mapping using existing alias map in `src/lib/roas/fields.ts`.
-5. Return structured payload + warnings.
-
-Errors: 403/404 → "share as Anyone with the link can view"; missing key → "configure GOOGLE_SHEETS_API_KEY".
-
-**Secret required:** `GOOGLE_SHEETS_API_KEY` — will request via `add_secret` after migration approval.
-
----
-
-## Persistence & navigation
-
-- localStorage keys per spec, written on every change.
-- Supabase draft synced 800ms debounced.
-- Recovery banner on mount if draft exists.
-- Stepper: completed/current clickable, future locked unless prior valid; Results clickable only if a snapshot exists.
-- Editing inputs after results → `result_status='outdated'` → amber banner + Save to History disabled until Recalculate.
-- Saved-mapping reuse: on Detect Tabs, look up `roas_master_sheet_mappings` by `spreadsheet_id` and prefill roles.
-
----
-
-## Out of scope
-Attribution accuracy changes, results UI rebuild, manual wizard, mobile/dark mode, gradients/shadows, OAuth for private sheets.
-
----
-
-## Execution order after approval
-1. Run migration.
-2. Request `GOOGLE_SHEETS_API_KEY` secret.
-3. Create edge function + helpers.
-4. Build wizard components and wire into `RoasCalculator.tsx`.
-5. Smoke-test: detect a public sheet, assign roles, enter spends, calculate, save.
+After build, I'll verify by:
+1. Reading the engine to confirm pure / no React state / sorted indexes / strict rounds.
+2. Running typecheck via the harness build.
+3. Confirming the existing `AttributionResultsView` summary cards, per-buyer breakdown, and charts still render with the new payload shape.

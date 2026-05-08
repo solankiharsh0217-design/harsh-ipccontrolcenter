@@ -172,13 +172,24 @@ export type Database = {
         Row: {
           attributed_to: string | null
           buyer_name: string | null
+          competing_matches: Json | null
+          confidence_score: number | null
           created_at: string
           email: string | null
           id: string
           match_method: string | null
+          match_reason: string | null
+          matched_lead_email: string | null
+          matched_lead_id: string | null
+          matched_lead_name: string | null
+          matched_lead_phone: string | null
+          needs_review: boolean | null
           phone: string | null
           revenue: number
+          sale_id: string | null
           session_id: string
+          source_media_buyer: string | null
+          source_row_index: number | null
           source_sales_sheet_id: string | null
           source_sales_tab_gid: string | null
           source_sales_tab_name: string | null
@@ -188,13 +199,24 @@ export type Database = {
         Insert: {
           attributed_to?: string | null
           buyer_name?: string | null
+          competing_matches?: Json | null
+          confidence_score?: number | null
           created_at?: string
           email?: string | null
           id?: string
           match_method?: string | null
+          match_reason?: string | null
+          matched_lead_email?: string | null
+          matched_lead_id?: string | null
+          matched_lead_name?: string | null
+          matched_lead_phone?: string | null
+          needs_review?: boolean | null
           phone?: string | null
           revenue?: number
+          sale_id?: string | null
           session_id: string
+          source_media_buyer?: string | null
+          source_row_index?: number | null
           source_sales_sheet_id?: string | null
           source_sales_tab_gid?: string | null
           source_sales_tab_name?: string | null
@@ -204,13 +226,24 @@ export type Database = {
         Update: {
           attributed_to?: string | null
           buyer_name?: string | null
+          competing_matches?: Json | null
+          confidence_score?: number | null
           created_at?: string
           email?: string | null
           id?: string
           match_method?: string | null
+          match_reason?: string | null
+          matched_lead_email?: string | null
+          matched_lead_id?: string | null
+          matched_lead_name?: string | null
+          matched_lead_phone?: string | null
+          needs_review?: boolean | null
           phone?: string | null
           revenue?: number
+          sale_id?: string | null
           session_id?: string
+          source_media_buyer?: string | null
+          source_row_index?: number | null
           source_sales_sheet_id?: string | null
           source_sales_tab_gid?: string | null
           source_sales_tab_name?: string | null
@@ -229,15 +262,22 @@ export type Database = {
       }
       attribution_sessions: {
         Row: {
+          attribution_engine_version: string | null
+          calculation_id: string | null
           calculation_method: string
           column_mapping: Json | null
+          column_mappings_used: Json | null
           created_at: string
           created_by: string | null
+          duplicate_conflicts_count: number | null
           fetch_log_id: string | null
           id: string
+          input_snapshot_hash: string | null
           master_sheet_id: string | null
           master_sheet_title: string | null
           master_sheet_url: string | null
+          media_buyer_order: Json | null
+          output_hash: string | null
           overall_roas: number
           result_status: string | null
           session_slot: string | null
@@ -263,15 +303,22 @@ export type Database = {
           zoom_account_used: string | null
         }
         Insert: {
+          attribution_engine_version?: string | null
+          calculation_id?: string | null
           calculation_method?: string
           column_mapping?: Json | null
+          column_mappings_used?: Json | null
           created_at?: string
           created_by?: string | null
+          duplicate_conflicts_count?: number | null
           fetch_log_id?: string | null
           id?: string
+          input_snapshot_hash?: string | null
           master_sheet_id?: string | null
           master_sheet_title?: string | null
           master_sheet_url?: string | null
+          media_buyer_order?: Json | null
+          output_hash?: string | null
           overall_roas?: number
           result_status?: string | null
           session_slot?: string | null
@@ -297,15 +344,22 @@ export type Database = {
           zoom_account_used?: string | null
         }
         Update: {
+          attribution_engine_version?: string | null
+          calculation_id?: string | null
           calculation_method?: string
           column_mapping?: Json | null
+          column_mappings_used?: Json | null
           created_at?: string
           created_by?: string | null
+          duplicate_conflicts_count?: number | null
           fetch_log_id?: string | null
           id?: string
+          input_snapshot_hash?: string | null
           master_sheet_id?: string | null
           master_sheet_title?: string | null
           master_sheet_url?: string | null
+          media_buyer_order?: Json | null
+          output_hash?: string | null
           overall_roas?: number
           result_status?: string | null
           session_slot?: string | null
@@ -801,6 +855,56 @@ export type Database = {
             columns: ["webinar_id"]
             isOneToOne: false
             referencedRelation: "roas_webinars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roas_attribution_audit_logs: {
+        Row: {
+          attribution_session_id: string | null
+          audit_rows: Json
+          calculation_id: string
+          column_mappings_used: Json | null
+          created_at: string
+          created_by: string | null
+          duplicate_conflicts: Json | null
+          id: string
+          input_snapshot_hash: string | null
+          media_buyer_order: Json | null
+          output_hash: string | null
+        }
+        Insert: {
+          attribution_session_id?: string | null
+          audit_rows?: Json
+          calculation_id: string
+          column_mappings_used?: Json | null
+          created_at?: string
+          created_by?: string | null
+          duplicate_conflicts?: Json | null
+          id?: string
+          input_snapshot_hash?: string | null
+          media_buyer_order?: Json | null
+          output_hash?: string | null
+        }
+        Update: {
+          attribution_session_id?: string | null
+          audit_rows?: Json
+          calculation_id?: string
+          column_mappings_used?: Json | null
+          created_at?: string
+          created_by?: string | null
+          duplicate_conflicts?: Json | null
+          id?: string
+          input_snapshot_hash?: string | null
+          media_buyer_order?: Json | null
+          output_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roas_attribution_audit_logs_attribution_session_id_fkey"
+            columns: ["attribution_session_id"]
+            isOneToOne: false
+            referencedRelation: "attribution_sessions"
             referencedColumns: ["id"]
           },
         ]

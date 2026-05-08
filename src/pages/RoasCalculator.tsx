@@ -4,9 +4,11 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import type { SaleDetail } from "@/lib/roasExport";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
+import AttributionAuditPanel from "@/components/roas/AttributionAuditPanel";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import AttributionMethodSelect from "@/components/roas/AttributionMethodSelect";
 import AutoWizardV6 from "@/components/roas/auto/AutoWizardV6";
+import { calculateAttribution, toLegacyPayload, DEAL_VALUE as ENGINE_DEAL, type AttributionResult, type AttributionSnapshot } from "@/lib/roas/attributionEngine";
 
 /* ====================================================================
    ROAS Calculator v2 — single-page module with three tabs:
@@ -359,6 +361,9 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
   const [progPct, setProgPct] = useState(0);
   const [calcMsg, setCalcMsg] = useState("");
   const [results, setResults] = useState<{ rows: AttrRow[]; unmatched: Person[]; salesDetail: SaleDetail[]; totals: { spend: number; revenue: number; sales: number; leads: number } } | null>(null);
+  const [engineResult, setEngineResult] = useState<AttributionResult | null>(null);
+  const [lastHashes, setLastHashes] = useState<{ input: string; output: string } | null>(null);
+  const [consistency, setConsistency] = useState<{ sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean }>({ sameInputSameOutput: null, sameInputDifferentOutput: false });
   const [savedHist, setSavedHist] = useState(false);
 
   // load templates
@@ -475,63 +480,60 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
     const mbResolved = await Promise.all(named.map(async (m) => {
       let rows = m.data;
       if (m.mode === "url" && m.url && rows.length === 0) rows = await fetchURL(m.url);
-      const people = rows.length ? extractPeople(rows) : [];
-      return { mb: m, people, leads: people.length || (parseInt(m.leads) || 0) };
+      return { mb: m, rows };
     }));
     let sales = salesData;
     if (salesMode === "url" && salesUrl && sales.length === 0) sales = await fetchURL(salesUrl);
-    const salesPeople = extractPeople(sales);
 
-    const tally: AttrRow[] = mbResolved.map((x) => ({ name: x.mb.name, spend: parseFloat(x.mb.spend) || 0, leads: x.leads, matched: 0, revenue: 0 }));
-    const unmatched: Person[] = [];
-    const salesDetail: SaleDetail[] = [];
-    salesPeople.forEach((sale) => {
-      let attrIdx = -1;
-      let method: SaleDetail["matchMethod"] = "unmatched";
-      for (let i = 0; i < mbResolved.length; i++) {
-        const list = mbResolved[i].people;
-        if (sale.email && list.find((p) => p.email && p.email === sale.email)) { attrIdx = i; method = "email"; break; }
-        if (sale.phone && sale.phone.length >= 8 && list.find((p) => p.phone && p.phone === sale.phone)) { attrIdx = i; method = "phone"; break; }
-        if (sale.name && sale.name.length > 2) {
-          const sn = normName(sale.name);
-          const m = list.find((p) => {
-            const pn = normName(p.name); if (!pn) return false;
-            if (pn === sn) return true;
-            const sp = sn.split(" "), pp = pn.split(" ");
-            return sp.some((s) => s.length > 3 && pp.some((q) => q === s));
-          });
-          if (m) { attrIdx = i; method = "name"; break; }
-        }
-      }
-      if (attrIdx >= 0) {
-        tally[attrIdx].matched++;
-        tally[attrIdx].revenue += DEAL_VALUE;
-        salesDetail.push({
-          name: sale.name, email: sale.email, phone: sale.phone,
-          attributedTo: tally[attrIdx].name, matchMethod: method,
-          revenue: DEAL_VALUE, webinarDate: wbDate,
-        });
-      } else {
-        unmatched.push(sale);
-        salesDetail.push({
-          name: sale.name, email: sale.email, phone: sale.phone,
-          attributedTo: null, matchMethod: "unmatched",
-          revenue: 0, webinarDate: wbDate,
-        });
-      }
+    // Build immutable snapshot for the deterministic engine
+    const snapshot: AttributionSnapshot = {
+      calculationId: "calc_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8),
+      calculationMethod: "manual",
+      webinarDetails: { name: wbName, date: wbDate, type: wbType },
+      webinarDate: wbDate,
+      mediaBuyerOrder: mbResolved.map((x) => `mb-${x.mb.id}`),
+      mediaBuyers: mbResolved.map((x) => ({
+        id: `mb-${x.mb.id}`,
+        name: x.mb.name.toLowerCase().trim(),
+        displayName: x.mb.name.trim(),
+        sourceType: "manual_upload",
+        sourceName: x.mb.fileName || x.mb.url || x.mb.name,
+        adSpend: parseFloat(x.mb.spend) || 0,
+        sheet: { rows: [...x.rows], columnMapping: null },
+      })),
+      sales: {
+        sourceName: salesFile?.name || salesUrl || "Sales",
+        sourceType: "manual_upload",
+        sheet: { rows: [...sales], columnMapping: null },
+      },
+      dealValue: ENGINE_DEAL,
+    };
+    const er = calculateAttribution(snapshot);
+    // eslint-disable-next-line no-console
+    console.debug("[ROAS] manual calc", {
+      calcId: er.calculationId, inputHash: er.inputSnapshotHash, outputHash: er.outputHash,
+      salesRows: er.summary.totalSales, leads: er.summary.totalLeads, order: snapshot.mediaBuyerOrder,
     });
+    const legacy = toLegacyPayload(er, { webinarName: wbName, webinarDate: wbDate, webinarType: wbType });
+    const tally: AttrRow[] = legacy.rows;
+    const salesDetail: SaleDetail[] = legacy.salesDetail;
+    const unmatched: Person[] = er.unmatchedSales.map((u) => ({ name: u.buyerName, email: u.buyerEmail, phone: u.buyerPhone }));
+
+    setEngineResult(er);
+    if (lastHashes) {
+      const same = lastHashes.input === er.inputSnapshotHash;
+      setConsistency({
+        sameInputSameOutput: same && lastHashes.output === er.outputHash,
+        sameInputDifferentOutput: same && lastHashes.output !== er.outputHash,
+      });
+    }
+    setLastHashes({ input: er.inputSnapshotHash, output: er.outputHash });
 
     setTimeout(() => {
       clearInterval(iv); setProgPct(100);
-      const totals = {
-        spend: tally.reduce((a, b) => a + b.spend, 0),
-        revenue: tally.reduce((a, b) => a + b.revenue, 0),
-        sales: tally.reduce((a, b) => a + b.matched, 0),
-        leads: tally.reduce((a, b) => a + b.leads, 0),
-      };
-      setResults({ rows: tally, unmatched, salesDetail, totals });
+      setResults({ rows: tally, unmatched, salesDetail, totals: legacy.totals });
       setCalculating(false);
-    }, 2400);
+    }, 600);
   };
 
   const reset = () => {
