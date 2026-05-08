@@ -144,11 +144,11 @@ export async function runAutoAttribution(
   if (salesRes.err || salesRes.rows.length === 0) {
     throw new Error(`Sales tab could not be fetched: ${salesRes.err || "no rows"}`);
   }
-  const salesPeople = extractPeople(salesRes.rows);
+  const salesPeople = extractPeople(salesRes.rows, input.salesTab.columnOverride);
 
   const buyerLists = input.mediaBuyerTabs.map((m) => {
     const f = get(m);
-    return { name: m.mediaBuyerName || m.tabName, tab: m, people: f.err ? [] : extractPeople(f.rows) };
+    return { name: m.mediaBuyerName || m.tabName, tab: m, people: f.err ? [] : extractPeople(f.rows, m.columnOverride) };
   });
 
   // Ad spends — fetched override
