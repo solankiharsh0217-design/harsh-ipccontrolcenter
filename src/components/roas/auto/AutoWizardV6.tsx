@@ -1203,6 +1203,19 @@ function Step4Results(p: {
         allowSave={p.resultsStatus === "fresh"}
       />
 
+      <AttributionAuditPanel
+        result={p.results.engineResult}
+        mediaBuyerOrder={p.results.engineResult.mediaBuyerBreakdown.map((b) => ({
+          id: b.mediaBuyerId, displayName: b.mediaBuyerName,
+          leads: b.leads, source: "google_sheet_auto_fetch",
+        }))}
+        columnMappingsUsed={p.tabRoles.filter((r) => r.role !== "ignore").map((r) => ({
+          source: r.role === "sales" ? "Sales" : (r.mediaBuyerName || r.tabName),
+          tabName: r.tabName, mapping: r.columnMapping || null,
+        }))}
+        consistency={p.consistency}
+      />
+
       {/* Data used */}
       <div style={{ marginTop: 24, border: "1px solid #E8E5DE", borderRadius: 12, padding: 14 }}>
         <button onClick={() => p.setShowDataUsed(!p.showDataUsed)}
