@@ -62,11 +62,19 @@ function getHeader(rows: string[][]) {
   }
   return { idx: 0, headers: rows[0] || [] };
 }
-function extractPeople(rows: string[][]): Person[] {
+function extractPeople(rows: string[][], override?: ColumnOverride | null): Person[] {
   const { idx, headers } = getHeader(rows);
-  const eC = findCol(headers, ["email", "mail"]);
-  const pC = findCol(headers, ["phone", "mobile", "contact", "number", "whatsapp", "mob"]);
-  const nC = findCol(headers, ["name", "attendee", "participant", "buyer", "customer", "student"]);
+  const findOverride = (col?: string | null) => {
+    if (!col) return -1;
+    const lc = col.toLowerCase().trim();
+    return headers.findIndex((h) => (h || "").toLowerCase().trim() === lc);
+  };
+  const eOv = findOverride(override?.email);
+  const pOv = findOverride(override?.phone);
+  const nOv = findOverride(override?.name);
+  const eC = eOv >= 0 ? eOv : findCol(headers, ["email", "mail"]);
+  const pC = pOv >= 0 ? pOv : findCol(headers, ["phone", "mobile", "contact", "number", "whatsapp", "mob"]);
+  const nC = nOv >= 0 ? nOv : findCol(headers, ["name", "attendee", "participant", "buyer", "customer", "student"]);
   return rows.slice(idx + 1).map((r) => ({
     name: nC >= 0 ? r[nC] || "" : "",
     email: eC >= 0 ? (r[eC] || "").toLowerCase().trim() : "",
