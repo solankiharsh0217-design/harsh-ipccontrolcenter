@@ -551,6 +551,7 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
     if (!results || !userId) return;
     const totals = results.totals;
     const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
+    const er = engineResult;
     const { data: session, error: sessErr } = await supabase
       .from("attribution_sessions")
       .insert({
@@ -564,7 +565,15 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
         overall_roas: overall,
         unmatched_count: results.unmatched.length,
         created_by: userId,
-      })
+        calculation_method: "manual",
+        attribution_engine_version: er?.engineVersion || null,
+        calculation_id: er?.calculationId || null,
+        input_snapshot_hash: er?.inputSnapshotHash || null,
+        output_hash: er?.outputHash || null,
+        media_buyer_order: er ? er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) : null,
+        duplicate_conflicts_count: er?.duplicateLeadConflicts.length || 0,
+        result_status: "fresh",
+      } as any)
       .select().single();
     if (sessErr || !session) { toast.error("Save failed: " + (sessErr?.message || "")); return; }
 
@@ -576,15 +585,44 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
       cpl: r.leads > 0 ? r.spend / r.leads : 0,
       conversion_rate: r.leads > 0 ? (r.matched / r.leads) * 100 : 0,
     }));
-    const saleRows = results.salesDetail.map((s) => ({
-      session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
-      attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
-      webinar_date: s.webinarDate || null,
-    }));
+    const auditById = new Map(er ? er.auditLog.map((a) => [a.saleId, a]) : []);
+    const saleRows = results.salesDetail.map((s, i) => {
+      const a = er ? er.auditLog[i] : null;
+      return {
+        session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
+        attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
+        webinar_date: s.webinarDate || null,
+        sale_id: a?.saleId || null,
+        matched_lead_id: a?.matchedLeadId || null,
+        matched_lead_name: a?.matchedLeadName || null,
+        matched_lead_email: a?.matchedLeadEmail || null,
+        matched_lead_phone: a?.matchedLeadPhone || null,
+        source_media_buyer: a?.sourceMediaBuyer || null,
+        source_row_index: a?.sourceRowIndex ?? null,
+        confidence_score: a?.confidenceScore ?? null,
+        competing_matches: a ? a.competingMatches as any : null,
+        match_reason: a?.matchReason || null,
+        needs_review: a?.needsReview || false,
+      };
+    });
     await supabase.from("attribution_media_buyers").insert(buyerRows);
     if (saleRows.length) await supabase.from("attribution_sales_detail").insert(saleRows);
+    if (er) {
+      await supabase.from("roas_attribution_audit_logs").insert({
+        attribution_session_id: sid,
+        calculation_id: er.calculationId,
+        input_snapshot_hash: er.inputSnapshotHash,
+        output_hash: er.outputHash,
+        media_buyer_order: er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) as any,
+        column_mappings_used: null,
+        audit_rows: er.auditLog as any,
+        duplicate_conflicts: er.duplicateLeadConflicts as any,
+        created_by: userId,
+      } as any);
+    }
     setSavedHist(true); setTimeout(() => setSavedHist(false), 1500);
     toast.success("Attribution saved to history ✓");
+    void auditById; // satisfy TS unused
   };
 
   const namedMbs = mbs.filter((m) => m.name.trim());
@@ -776,6 +814,42 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
               {namedMbs.length > 0 && <div className="spend-tot">Total ad spend: <strong style={{ color: "#0a0a0a" }}>{totalSpend > 0 ? inr(totalSpend) : "—"}</strong></div>}
             </div>
 
+            {namedMbs.length > 0 && (
+              <div style={{ marginTop: 24, border: "1px solid #E8E5DE", borderRadius: 12, padding: 16, background: "#FBF6E9" }}>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500, marginBottom: 4 }}>
+                  Media Buyer Priority Order
+                </div>
+                <div style={{ fontSize: 11.5, color: "#7A5E10", marginBottom: 10, lineHeight: 1.5 }}>
+                  When the same lead exists in multiple media buyer sheets, the buyer listed first wins. This order is locked into the snapshot for reproducibility.
+                </div>
+                <ol style={{ margin: 0, paddingLeft: 20, fontSize: 12.5 }}>
+                  {namedMbs.map((m, i) => (
+                    <li key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                      <span style={{ flex: 1 }}><strong>{m.name}</strong></span>
+                      <button className="btn btn-g btn-sm" disabled={i === 0}
+                        onClick={() => setMbs((p) => {
+                          const filtered = p.filter((x) => x.name.trim());
+                          const idx = p.findIndex((x) => x.id === m.id);
+                          const prevId = filtered[i - 1]?.id;
+                          const prevIdx = p.findIndex((x) => x.id === prevId);
+                          if (idx < 0 || prevIdx < 0) return p;
+                          const next = [...p]; [next[idx], next[prevIdx]] = [next[prevIdx], next[idx]]; return next;
+                        })}>↑</button>
+                      <button className="btn btn-g btn-sm" disabled={i === namedMbs.length - 1}
+                        onClick={() => setMbs((p) => {
+                          const filtered = p.filter((x) => x.name.trim());
+                          const idx = p.findIndex((x) => x.id === m.id);
+                          const nextId = filtered[i + 1]?.id;
+                          const nextIdx = p.findIndex((x) => x.id === nextId);
+                          if (idx < 0 || nextIdx < 0) return p;
+                          const next = [...p]; [next[idx], next[nextIdx]] = [next[nextIdx], next[idx]]; return next;
+                        })}>↓</button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
             <div className="wiz-nav">
               <button className="wiz-btn wiz-btn-g" onClick={goBack}>← Back</button>
               <button className="wiz-btn wiz-btn-k" onClick={goNext}>Calculate attribution →</button>
@@ -804,6 +878,20 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
               onSave={saveHistory}
               savedHist={savedHist}
             />
+            {engineResult && (
+              <AttributionAuditPanel
+                result={engineResult}
+                mediaBuyerOrder={engineResult.mediaBuyerBreakdown.map((b) => ({
+                  id: b.mediaBuyerId, displayName: b.mediaBuyerName,
+                  leads: b.leads, source: "manual_upload",
+                }))}
+                columnMappingsUsed={[
+                  { source: "Sales", tabName: salesFile?.name || salesUrl || "Sales", mapping: null },
+                  ...namedMbs.map((m) => ({ source: m.name, tabName: m.fileName || m.url || m.name, mapping: null })),
+                ]}
+                consistency={consistency}
+              />
+            )}
             <div style={{ textAlign: "center", marginTop: 24, display: "flex", gap: 16, justifyContent: "center" }}>
               <button onClick={reset} style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif" }}>← Start a new attribution</button>
               {onBackToMethod && (

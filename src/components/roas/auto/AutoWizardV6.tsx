@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
+import AttributionAuditPanel from "@/components/roas/AttributionAuditPanel";
 import { runAutoAttribution, type AutoAttribResult, type TabMapping, type ColumnOverride } from "@/lib/roas/autoAttribute";
 import { extractSpreadsheetId, fetchTabAsRows } from "@/lib/roas/sheetFetch";
 import { cleanMediaBuyerName, guessRole, type TabRole } from "@/lib/roas/tabClassify";
@@ -167,6 +168,9 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [showDataUsed, setShowDataUsed] = useState(false);
   const [stepErr, setStepErr] = useState<string | null>(null);
   const [mappingDrawer, setMappingDrawer] = useState<{ sheetId: string } | null>(null);
+  const [priorityOrder, setPriorityOrder] = useState<string[]>([]); // sheetIds, top wins
+  const [lastHashes, setLastHashes] = useState<{ input: string; output: string } | null>(null);
+  const [consistency, setConsistency] = useState<{ sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean }>({ sameInputSameOutput: null, sameInputDifferentOutput: false });
 
   // Persist draft (local + remote)
   useEffect(() => {
@@ -225,6 +229,17 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     }
     return true;
   }, [selectedMBs]);
+
+  // Keep priorityOrder in sync with selected media buyer tabs
+  useEffect(() => {
+    setPriorityOrder((prev) => {
+      const ids = selectedMBs.map((m) => m.sheetId);
+      const kept = prev.filter((id) => ids.includes(id));
+      const additions = ids.filter((id) => !kept.includes(id));
+      return [...kept, ...additions];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(selectedMBs.map((m) => m.sheetId))]);
 
   // ---------- Step navigation ----------
   function stepValid(target: number): boolean {
@@ -370,7 +385,10 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         tabInput: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${selectedSales.sheetId}`,
         columnOverride: (selectedSales.columnMapping || null) as ColumnOverride | null,
       };
-      const mbMaps: TabMapping[] = selectedMBs.map((m) => ({
+      const orderedMBs = priorityOrder.length === selectedMBs.length
+        ? priorityOrder.map((id) => selectedMBs.find((m) => m.sheetId === id)!).filter(Boolean)
+        : selectedMBs;
+      const mbMaps: TabMapping[] = orderedMBs.map((m) => ({
         role: "media_buyer_leads",
         mediaBuyerName: m.mediaBuyerName!,
         tabName: m.tabName,
@@ -378,7 +396,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         columnOverride: (m.columnMapping || null) as ColumnOverride | null,
       }));
       const spendNumbers: Record<string, number> = {};
-      selectedMBs.forEach((m) => { spendNumbers[m.mediaBuyerName!] = Number(adSpends[m.mediaBuyerName!] || 0); });
+      orderedMBs.forEach((m) => { spendNumbers[m.mediaBuyerName!] = Number(adSpends[m.mediaBuyerName!] || 0); });
 
       const r = await runAutoAttribution({
         masterSheetUrl: masterUrl,
@@ -387,6 +405,16 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         mediaBuyerTabs: mbMaps,
         adSpends: spendNumbers,
       }, (msg) => setCalcMsg(msg));
+
+      const er = r.engineResult;
+      if (lastHashes) {
+        const same = lastHashes.input === er.inputSnapshotHash;
+        setConsistency({
+          sameInputSameOutput: same && lastHashes.output === er.outputHash,
+          sameInputDifferentOutput: same && lastHashes.output !== er.outputHash,
+        });
+      }
+      setLastHashes({ input: er.inputSnapshotHash, output: er.outputHash });
 
       setResults(r);
       setResultsStatus("fresh");
@@ -438,6 +466,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     const totals = results.totals;
     const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
 
+    const er = results.engineResult;
     const { data: sess, error } = await supabase.from("attribution_sessions").insert({
       webinar_name: webinar.name,
       webinar_date: effectiveDate(webinar),
@@ -464,6 +493,13 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       webinar_notes: webinar.notes || null,
       tab_role_mapping: tabRoles,
       result_status: "fresh",
+      attribution_engine_version: er?.engineVersion || null,
+      calculation_id: er?.calculationId || null,
+      input_snapshot_hash: er?.inputSnapshotHash || null,
+      output_hash: er?.outputHash || null,
+      media_buyer_order: er ? er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) : null,
+      duplicate_conflicts_count: er?.duplicateLeadConflicts.length || 0,
+      column_mappings_used: tabRoles.filter((r) => r.columnMapping).map((r) => ({ tabName: r.tabName, role: r.role, columnMapping: r.columnMapping })) as any,
     } as any).select().single();
     if (error || !sess) { toast.error("Save failed: " + (error?.message || "")); return; }
 
@@ -481,16 +517,43 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         source_type: "google_sheet_auto_fetch",
       };
     });
-    const saleRows = results.salesDetail.map((s) => ({
-      session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
-      attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
-      webinar_date: s.webinarDate || null,
-      source_sales_tab_name: selectedSales?.tabName || null,
-      source_sales_sheet_id: selectedSales?.sheetId || null,
-      source_type: "google_sheet_auto_fetch",
-    }));
+    const saleRows = results.salesDetail.map((s, i) => {
+      const a = er ? er.auditLog[i] : null;
+      return {
+        session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
+        attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
+        webinar_date: s.webinarDate || null,
+        source_sales_tab_name: selectedSales?.tabName || null,
+        source_sales_sheet_id: selectedSales?.sheetId || null,
+        source_type: "google_sheet_auto_fetch",
+        sale_id: a?.saleId || null,
+        matched_lead_id: a?.matchedLeadId || null,
+        matched_lead_name: a?.matchedLeadName || null,
+        matched_lead_email: a?.matchedLeadEmail || null,
+        matched_lead_phone: a?.matchedLeadPhone || null,
+        source_media_buyer: a?.sourceMediaBuyer || null,
+        source_row_index: a?.sourceRowIndex ?? null,
+        confidence_score: a?.confidenceScore ?? null,
+        competing_matches: a ? (a.competingMatches as any) : null,
+        match_reason: a?.matchReason || null,
+        needs_review: a?.needsReview || false,
+      };
+    });
     await supabase.from("attribution_media_buyers").insert(buyerRows as any);
     if (saleRows.length) await supabase.from("attribution_sales_detail").insert(saleRows as any);
+    if (er) {
+      await supabase.from("roas_attribution_audit_logs").insert({
+        attribution_session_id: sid,
+        calculation_id: er.calculationId,
+        input_snapshot_hash: er.inputSnapshotHash,
+        output_hash: er.outputHash,
+        media_buyer_order: er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) as any,
+        column_mappings_used: tabRoles.filter((r) => r.columnMapping).map((r) => ({ tabName: r.tabName, role: r.role, columnMapping: r.columnMapping })) as any,
+        audit_rows: er.auditLog as any,
+        duplicate_conflicts: er.duplicateLeadConflicts as any,
+        created_by: user.id,
+      } as any);
+    }
 
     setSavedSessionId(sid); setSavedHist(true);
     toast.success("Report saved to history ✓");
@@ -584,6 +647,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
           <Step3AdSpends
             mbs={selectedMBs} adSpends={adSpends} setAdSpends={setAdSpends}
             totalSpend={totalManualSpend}
+            priorityOrder={priorityOrder} setPriorityOrder={setPriorityOrder}
           />
         )}
         {step === 4 && results && (
@@ -599,6 +663,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             onRecalc={calculate}
             showDataUsed={showDataUsed} setShowDataUsed={setShowDataUsed}
             tabRoles={tabRoles} adSpends={adSpends}
+            consistency={consistency}
           />
         )}
       </div>
@@ -1008,8 +1073,19 @@ function Step3AdSpends(p: {
   adSpends: Record<string, string>;
   setAdSpends: (r: Record<string, string>) => void;
   totalSpend: number;
+  priorityOrder: string[];
+  setPriorityOrder: (ids: string[]) => void;
 }) {
   const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+  const ordered = p.priorityOrder.length === p.mbs.length
+    ? p.priorityOrder.map((id) => p.mbs.find((m) => m.sheetId === id)!).filter(Boolean)
+    : p.mbs;
+  const move = (idx: number, dir: -1 | 1) => {
+    const next = [...ordered.map((m) => m.sheetId)];
+    const j = idx + dir; if (j < 0 || j >= next.length) return;
+    [next[idx], next[j]] = [next[j], next[idx]];
+    p.setPriorityOrder(next);
+  };
   return (
     <>
       <div className="wiz-h">Enter Ad Spends</div>
@@ -1037,6 +1113,26 @@ function Step3AdSpends(p: {
       <div className="spend-tot">
         Total Ad Spend: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a" }}>{inr(p.totalSpend)}</strong>
       </div>
+
+      {p.mbs.length > 0 && (
+        <div style={{ marginTop: 18, border: "1px solid #E8D49A", background: "#FBF6E9", borderRadius: 12, padding: 16 }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500, marginBottom: 4 }}>
+            Media Buyer Priority Order
+          </div>
+          <div style={{ fontSize: 11.5, color: "#7A5E10", marginBottom: 10, lineHeight: 1.5 }}>
+            When the same lead exists in multiple tabs, the buyer listed first wins. This order is locked into the snapshot for reproducibility.
+          </div>
+          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 12.5 }}>
+            {ordered.map((m, i) => (
+              <li key={m.sheetId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                <span style={{ flex: 1 }}><strong>{m.mediaBuyerName}</strong> <span style={{ color: "#888", fontSize: 11 }}>· {m.tabName}</span></span>
+                <button className="btn btn-g btn-sm" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+                <button className="btn btn-g btn-sm" disabled={i === ordered.length - 1} onClick={() => move(i, 1)}>↓</button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </>
   );
 }
@@ -1056,6 +1152,7 @@ function Step4Results(p: {
   showDataUsed: boolean; setShowDataUsed: (b: boolean) => void;
   tabRoles: TabRoleAssignment[];
   adSpends: Record<string, string>;
+  consistency: { sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean };
 }) {
   const w = p.webinar;
   const dateLabel = w.dateMode === "single" ? w.singleDate
@@ -1104,6 +1201,19 @@ function Step4Results(p: {
         onSave={p.onSave}
         savedHist={p.savedHist}
         allowSave={p.resultsStatus === "fresh"}
+      />
+
+      <AttributionAuditPanel
+        result={p.results.engineResult}
+        mediaBuyerOrder={p.results.engineResult.mediaBuyerBreakdown.map((b) => ({
+          id: b.mediaBuyerId, displayName: b.mediaBuyerName,
+          leads: b.leads, source: "google_sheet_auto_fetch",
+        }))}
+        columnMappingsUsed={p.tabRoles.filter((r) => r.role !== "ignore").map((r) => ({
+          source: r.role === "sales" ? "Sales" : (r.mediaBuyerName || r.tabName),
+          tabName: r.tabName, mapping: r.columnMapping || null,
+        }))}
+        consistency={p.consistency}
       />
 
       {/* Data used */}
