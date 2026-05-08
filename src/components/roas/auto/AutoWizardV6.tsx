@@ -325,6 +325,9 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   function setMBName(sheetId: string, name: string) {
     setTabRoles((p) => p.map((r) => r.sheetId === sheetId ? { ...r, mediaBuyerName: name } : r));
   }
+  function setColumnMapping(sheetId: string, mapping: ColumnMapping) {
+    setTabRoles((p) => p.map((r) => r.sheetId === sheetId ? { ...r, columnMapping: mapping } : r));
+  }
 
   // ---------- Step 3: Calculate ----------
   async function calculate() {
