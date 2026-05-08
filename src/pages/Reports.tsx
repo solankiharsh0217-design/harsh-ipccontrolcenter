@@ -484,6 +484,7 @@ async function loadPayload(s: SessionRow): Promise<AttributionPayload | null> {
     supabase.from("attribution_media_buyers").select("*").eq("session_id", s.id),
     supabase.from("attribution_sales_detail").select("*").eq("session_id", s.id),
   ]);
+  const sx = s as any;
   return {
     webinarName: s.webinar_name,
     webinarDate: s.webinar_date || "",
@@ -501,6 +502,21 @@ async function loadPayload(s: SessionRow): Promise<AttributionPayload | null> {
       attributedTo: x.attributed_to, matchMethod: (x.match_method as SaleDetail["matchMethod"]) || "unmatched",
       revenue: Number(x.revenue), webinarDate: x.webinar_date || s.webinar_date || "",
     })),
+    meta: {
+      createdOn: s.created_at ? fmtDateTime(s.created_at) : "",
+      calculationMethod: methodLabel(s),
+      webinarPeriod: webinarPeriod(s),
+      webinarFormat: s.webinar_format || "",
+      webinarOperator: s.webinar_operator || "",
+      sessionSlot: s.session_slot || "",
+      webinarPlatform: s.webinar_platform || "",
+      zoomAccount: s.zoom_account_used || "",
+      adSpendSource: (s.calculation_method || "").toLowerCase().includes("auto") ? "Master Sheet" : "Manual Entry",
+      calculationId: sx.calculation_id || "",
+      inputSnapshotHash: sx.input_snapshot_hash || "",
+      outputHash: sx.output_hash || "",
+      engineVersion: sx.attribution_engine_version || "",
+    },
   };
 }
 
