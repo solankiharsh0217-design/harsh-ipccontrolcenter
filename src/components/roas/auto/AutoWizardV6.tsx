@@ -377,9 +377,13 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             mediaBuyerName: m.mediaBuyerName,
             sheetId: m.sheetId, tabName: m.tabName,
             role: "media_buyer", isActive: true,
+            columnMapping: m.columnMapping || null,
           })),
           ignored_tabs: tabRoles.filter((r) => r.role === "ignore")
             .map((r) => ({ sheetId: r.sheetId, tabName: r.tabName })),
+          column_mappings: tabRoles
+            .filter((r) => r.columnMapping)
+            .map((r) => ({ sheetId: r.sheetId, tabName: r.tabName, role: r.role, columnMapping: r.columnMapping })),
           last_confirmed_by: user.id,
           last_confirmed_at: new Date().toISOString(),
           created_by: user.id,
