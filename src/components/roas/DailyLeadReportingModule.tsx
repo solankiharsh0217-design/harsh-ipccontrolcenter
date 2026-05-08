@@ -927,7 +927,7 @@ function MediaBuyerCard({
 }
 
 // ============ Step 3 ============
-function Step3Review({ report, totals, saving, savedReportId, onBack, onSave }: any) {
+function Step3Review({ report, totals, saving, savedReportId, editingExistingId, onBack, onSave }: any) {
   return (
     <div>
       <div style={{ marginBottom: 14 }}>
@@ -955,7 +955,7 @@ function Step3Review({ report, totals, saving, savedReportId, onBack, onSave }: 
             return (
               <tr key={mb.id}>
                 <td className="mb-name-cell">{mb.media_buyer_name || "(unnamed)"}</td>
-                <td>{mb.spend_mode === "combined" ? "(combined)" : mb.ad_accounts.map((a) => a.ad_account_name).filter(Boolean).join(", ") || "—"}</td>
+                <td>{mb.spend_mode === "combined" ? "(combined)" : mb.ad_accounts.map((a: any) => a.ad_account_name).filter(Boolean).join(", ") || "—"}</td>
                 <td>{inr(spend)}</td>
                 <td>{fmtNum(mb.total_leads)}</td>
                 <td>{cpl == null ? "—" : inr(cpl)}</td>
@@ -968,11 +968,22 @@ function Step3Review({ report, totals, saving, savedReportId, onBack, onSave }: 
 
       <ExportRow report={report} />
 
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24, paddingTop: 16, borderTop: "1px solid #E8E5DE" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 24, paddingTop: 16, borderTop: "1px solid #E8E5DE", gap: 8, flexWrap: "wrap" }}>
         <button className="btn btn-g" onClick={onBack}>← Back</button>
-        <button className="btn btn-k" onClick={onSave} disabled={saving || !!savedReportId}>
-          {saving ? "Saving…" : savedReportId ? "Saved ✓" : "Save Daily Report"}
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {editingExistingId ? (
+            <>
+              <button className="btn btn-g" onClick={() => onSave("copy")} disabled={saving}>Save as New Copy</button>
+              <button className="btn btn-k" onClick={() => onSave("update")} disabled={saving}>
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-k" onClick={() => onSave("new")} disabled={saving || !!savedReportId}>
+              {saving ? "Saving…" : savedReportId ? "Saved ✓" : "Save Daily Report"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
