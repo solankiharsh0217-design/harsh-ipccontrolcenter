@@ -168,6 +168,9 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [showDataUsed, setShowDataUsed] = useState(false);
   const [stepErr, setStepErr] = useState<string | null>(null);
   const [mappingDrawer, setMappingDrawer] = useState<{ sheetId: string } | null>(null);
+  const [priorityOrder, setPriorityOrder] = useState<string[]>([]); // sheetIds, top wins
+  const [lastHashes, setLastHashes] = useState<{ input: string; output: string } | null>(null);
+  const [consistency, setConsistency] = useState<{ sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean }>({ sameInputSameOutput: null, sameInputDifferentOutput: false });
 
   // Persist draft (local + remote)
   useEffect(() => {
