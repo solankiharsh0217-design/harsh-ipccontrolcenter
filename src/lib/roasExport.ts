@@ -106,7 +106,7 @@ export function downloadCSV(p: AttributionPayload) {
     "Buyer Name,Email,Phone,Reason",
     ...unm.map((s) => [q(s.name), q(s.email), q(s.phone), "No match found in any lead sheet"].join(",")),
   ];
-  const csv = [...sec1, ...sec2, ...sec3, ...sec4].join("\n");
+  const csv = [...sec0, ...sec1, ...sec2, ...sec3, ...sec4].join("\n");
   triggerDownload(csv, `IPC_Attribution_${slug(p.webinarName)}_${p.webinarDate}.csv`, "text/csv");
 }
 
