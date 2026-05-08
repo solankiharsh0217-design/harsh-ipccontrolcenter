@@ -111,6 +111,23 @@ function isWebinarValid(w: WebinarDetails): string | null {
   if (w.dateMode === "multiple" && w.dates.filter(Boolean).length === 0) return "At least one date is required.";
   return null;
 }
+
+function buildDayLabels(w: WebinarDetails): string[] {
+  if (w.dateMode === "single") return w.singleDate ? [w.singleDate] : [];
+  if (w.dateMode === "multiple") return (w.dates || []).filter(Boolean);
+  if (w.dateMode === "range" && w.startDate && w.endDate) {
+    const out: string[] = [];
+    const s = new Date(w.startDate); const e = new Date(w.endDate);
+    if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return [];
+    const d = new Date(s);
+    let guard = 0;
+    while (d <= e && guard < 60) {
+      out.push(d.toISOString().slice(0, 10));
+      d.setDate(d.getDate() + 1); guard++;
+    }
+    return out;
+  }
+  return [];
 function effectiveDate(w: WebinarDetails): string {
   if (w.dateMode === "single") return w.singleDate || today();
   if (w.dateMode === "range") return w.startDate || today();
