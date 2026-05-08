@@ -466,6 +466,7 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
     const named = mbs.filter((m) => m.name.trim());
     const allSpend = named.every((m) => parseFloat(m.spend) > 0);
     if (!sheetOk || !allSpend) { toast.error("Please connect sales sheet and enter ad spend for each media buyer"); return; }
+    setSavedSessionId(null); setSavedHist(false);
 
     setCalculating(true);
     setStep(4);
