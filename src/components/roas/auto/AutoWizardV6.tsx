@@ -1073,8 +1073,19 @@ function Step3AdSpends(p: {
   adSpends: Record<string, string>;
   setAdSpends: (r: Record<string, string>) => void;
   totalSpend: number;
+  priorityOrder: string[];
+  setPriorityOrder: (ids: string[]) => void;
 }) {
   const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+  const ordered = p.priorityOrder.length === p.mbs.length
+    ? p.priorityOrder.map((id) => p.mbs.find((m) => m.sheetId === id)!).filter(Boolean)
+    : p.mbs;
+  const move = (idx: number, dir: -1 | 1) => {
+    const next = [...ordered.map((m) => m.sheetId)];
+    const j = idx + dir; if (j < 0 || j >= next.length) return;
+    [next[idx], next[j]] = [next[j], next[idx]];
+    p.setPriorityOrder(next);
+  };
   return (
     <>
       <div className="wiz-h">Enter Ad Spends</div>
@@ -1102,6 +1113,26 @@ function Step3AdSpends(p: {
       <div className="spend-tot">
         Total Ad Spend: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a" }}>{inr(p.totalSpend)}</strong>
       </div>
+
+      {p.mbs.length > 0 && (
+        <div style={{ marginTop: 18, border: "1px solid #E8D49A", background: "#FBF6E9", borderRadius: 12, padding: 16 }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500, marginBottom: 4 }}>
+            Media Buyer Priority Order
+          </div>
+          <div style={{ fontSize: 11.5, color: "#7A5E10", marginBottom: 10, lineHeight: 1.5 }}>
+            When the same lead exists in multiple tabs, the buyer listed first wins. This order is locked into the snapshot for reproducibility.
+          </div>
+          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 12.5 }}>
+            {ordered.map((m, i) => (
+              <li key={m.sheetId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                <span style={{ flex: 1 }}><strong>{m.mediaBuyerName}</strong> <span style={{ color: "#888", fontSize: 11 }}>· {m.tabName}</span></span>
+                <button className="btn btn-g btn-sm" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+                <button className="btn btn-g btn-sm" disabled={i === ordered.length - 1} onClick={() => move(i, 1)}>↓</button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </>
   );
 }
