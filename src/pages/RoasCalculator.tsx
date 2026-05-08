@@ -4,9 +4,11 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import type { SaleDetail } from "@/lib/roasExport";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
+import AttributionAuditPanel from "@/components/roas/AttributionAuditPanel";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import AttributionMethodSelect from "@/components/roas/AttributionMethodSelect";
 import AutoWizardV6 from "@/components/roas/auto/AutoWizardV6";
+import { calculateAttribution, toLegacyPayload, DEAL_VALUE as ENGINE_DEAL, type AttributionResult, type AttributionSnapshot } from "@/lib/roas/attributionEngine";
 
 /* ====================================================================
    ROAS Calculator v2 — single-page module with three tabs:
