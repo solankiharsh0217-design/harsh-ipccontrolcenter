@@ -494,6 +494,7 @@ export type Database = {
           date_column: string | null
           fetch_metadata: Json | null
           id: string
+          is_manual_lead_override: boolean
           lead_count_source: string
           lead_source_url: string | null
           media_buyer_key: string | null
@@ -514,6 +515,7 @@ export type Database = {
           date_column?: string | null
           fetch_metadata?: Json | null
           id?: string
+          is_manual_lead_override?: boolean
           lead_count_source?: string
           lead_source_url?: string | null
           media_buyer_key?: string | null
@@ -534,6 +536,7 @@ export type Database = {
           date_column?: string | null
           fetch_metadata?: Json | null
           id?: string
+          is_manual_lead_override?: boolean
           lead_count_source?: string
           lead_source_url?: string | null
           media_buyer_key?: string | null
@@ -570,6 +573,7 @@ export type Database = {
           overall_cpl: number
           report_date: string
           report_name: string | null
+          report_status: string
           total_ad_spend: number
           total_leads: number
           updated_at: string
@@ -586,6 +590,7 @@ export type Database = {
           overall_cpl?: number
           report_date: string
           report_name?: string | null
+          report_status?: string
           total_ad_spend?: number
           total_leads?: number
           updated_at?: string
@@ -602,6 +607,7 @@ export type Database = {
           overall_cpl?: number
           report_date?: string
           report_name?: string | null
+          report_status?: string
           total_ad_spend?: number
           total_leads?: number
           updated_at?: string
