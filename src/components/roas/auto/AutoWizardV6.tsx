@@ -150,14 +150,40 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [stepErr, setStepErr] = useState<string | null>(null);
   const [mappingDrawer, setMappingDrawer] = useState<{ sheetId: string } | null>(null);
 
-  // Persist draft
+  // Persist draft (local + remote)
   useEffect(() => {
     const d: DraftV6 = {
       step, webinar, masterUrl, spreadsheetId, spreadsheetTitle,
       detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId,
     };
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* */ }
-  }, [step, webinar, masterUrl, spreadsheetId, spreadsheetTitle, detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId]);
+    if (user?.id) scheduleDraftSync(user.id, d as unknown as DraftPayload);
+  }, [step, webinar, masterUrl, spreadsheetId, spreadsheetTitle, detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId, user?.id]);
+
+  // One-time remote draft restore if local is empty
+  const remoteTried = useRef(false);
+  useEffect(() => {
+    if (remoteTried.current) return;
+    remoteTried.current = true;
+    if (!user?.id) return;
+    const localEmpty = !initial.current.webinar.name && !initial.current.masterUrl && !initial.current.results;
+    if (!localEmpty) return;
+    void loadRemoteDraft(user.id).then((rd) => {
+      if (!rd) return;
+      setStep(rd.step || 1);
+      setWebinar({ ...EMPTY_WEBINAR, ...(rd.webinar || {}) });
+      setMasterUrl(rd.masterUrl || "");
+      setSpreadsheetId(rd.spreadsheetId || "");
+      setSpreadsheetTitle(rd.spreadsheetTitle || "");
+      setDetectedTabs(rd.detectedTabs || []);
+      setTabRoles(rd.tabRoles || []);
+      setAdSpends(rd.adSpends || {});
+      setResults(rd.results || null);
+      setResultsStatus(rd.resultsStatus || null);
+      setSavedSessionId(rd.savedSessionId || null);
+      setShowRestored(true);
+    });
+  }, [user?.id]);
 
   // Mark outdated when inputs change after results
   const firstRender = useRef(true);
