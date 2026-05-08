@@ -8,9 +8,11 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
-import { runAutoAttribution, type AutoAttribResult, type TabMapping } from "@/lib/roas/autoAttribute";
+import { runAutoAttribution, type AutoAttribResult, type TabMapping, type ColumnOverride } from "@/lib/roas/autoAttribute";
 import { extractSpreadsheetId, fetchTabAsRows } from "@/lib/roas/sheetFetch";
 import { cleanMediaBuyerName, guessRole, type TabRole } from "@/lib/roas/tabClassify";
+import ColumnMappingDrawer, { type ColumnMapping } from "@/components/roas/auto/ColumnMappingDrawer";
+import { scheduleDraftSync, loadRemoteDraft, clearRemoteDraft, type DraftPayload } from "@/lib/roas/autoDraft";
 
 // ---------- Types & storage ----------
 type DateMode = "single" | "range" | "multiple";
