@@ -103,7 +103,8 @@ export async function hashReport(r: DailyReport, createdBy: string | null): Prom
 
 // ----------------- WhatsApp -----------------
 export function buildWhatsApp(r: DailyReport): string {
-  const totals = r.media_buyers.reduce((acc, m) => {
+  const buyers = r.media_buyers.filter((m) => (m.media_buyer_name || "").trim() || calcMediaBuyerSpend(m) > 0 || m.total_leads > 0);
+  const totals = buyers.reduce((acc, m) => {
     acc.spend += calcMediaBuyerSpend(m);
     acc.leads += m.total_leads || 0;
     return acc;
@@ -114,13 +115,13 @@ export function buildWhatsApp(r: DailyReport): string {
   lines.push(`Daily Lead Report - ${fmtDateLong(r.report_date)}`);
   lines.push("");
   lines.push("Overall:");
-  lines.push(`Ad Spend: ${inr(totals.spend)}`);
-  lines.push(`Leads: ${fmtNum(totals.leads)}`);
-  lines.push(`Overall CPL: ${overallCpl == null ? "—" : inr(overallCpl)}`);
+  if (totals.spend > 0) lines.push(`Ad Spend: ${inr(totals.spend)}`);
+  if (totals.leads > 0) lines.push(`Leads: ${fmtNum(totals.leads)}`);
+  if (overallCpl != null) lines.push(`Overall CPL: ${inr(overallCpl)}`);
   lines.push("");
   lines.push("Media Buyer Breakdown:");
 
-  for (const mb of r.media_buyers) {
+  for (const mb of buyers) {
     const spend = calcMediaBuyerSpend(mb);
     const cpl = calcCpl(spend, mb.total_leads);
     lines.push("");
@@ -129,28 +130,29 @@ export function buildWhatsApp(r: DailyReport): string {
       const names = mb.ad_accounts.map((a) => a.ad_account_name).filter(Boolean).join(", ");
       if (names) lines.push(`Ad Accounts: ${names}`);
     }
-    lines.push(`Ad Spend: ${inr(spend)}`);
-    lines.push(`Leads: ${fmtNum(mb.total_leads)}`);
-    lines.push(`CPL: ${cpl == null ? "—" : inr(cpl)}`);
+    if (spend > 0) lines.push(`Ad Spend: ${inr(spend)}`);
+    if (mb.total_leads > 0) lines.push(`Leads: ${fmtNum(mb.total_leads)}`);
+    if (cpl != null) lines.push(`CPL: ${inr(cpl)}`);
 
-    // metrics shown in WhatsApp
     const wmetrics = r.metrics.filter((m) => m.whatsapp !== false);
     for (const def of wmetrics) {
       const vals: number[] = [];
-      let sample: string | number | undefined;
       if (mb.spend_mode === "combined") {
-        sample = mb.combined_metrics?.[def.key];
-        if (sample !== undefined && sample !== "") vals.push(typeof sample === "number" ? sample : parseFloat(String(sample)));
+        const sample = mb.combined_metrics?.[def.key];
+        if (sample !== undefined && sample !== null && sample !== "") {
+          const n = typeof sample === "number" ? sample : parseFloat(String(sample));
+          if (!isNaN(n)) vals.push(n);
+        }
       } else {
         for (const a of mb.ad_accounts) {
           const v = a.metrics?.[def.key];
-          if (v !== undefined && v !== "" && !isNaN(parseFloat(String(v)))) vals.push(parseFloat(String(v)));
+          if (v !== undefined && v !== null && v !== "" && !isNaN(parseFloat(String(v)))) vals.push(parseFloat(String(v)));
         }
       }
       if (vals.length === 0) continue;
-      let display: number;
-      if (def.aggregation === "sum") display = vals.reduce((s, v) => s + v, 0);
-      else display = vals.reduce((s, v) => s + v, 0) / vals.length;
+      const display = def.aggregation === "sum"
+        ? vals.reduce((s, v) => s + v, 0)
+        : vals.reduce((s, v) => s + v, 0) / vals.length;
       lines.push(`${def.name}: ${formatMetricValue(def, display)}`);
     }
   }
