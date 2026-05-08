@@ -899,6 +899,16 @@ function Step2Connect(p: {
                       )}
                     </div>
                   )}
+                  {role?.role !== "ignore" && t.detectedHeaders.length > 0 && (
+                    <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 11, color: "#888" }}>
+                        {role?.columnMapping ? "Custom column mapping applied" : "Auto-detected column mapping"}
+                      </span>
+                      <button className="btn btn-g btn-sm" onClick={() => p.onOpenMapping(t.sheetId)}>
+                        Configure columns
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
