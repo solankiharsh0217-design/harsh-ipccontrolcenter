@@ -503,6 +503,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       unmatched_count: results.salesDetail.filter((s) => s.matchMethod === "unmatched").length,
       created_by: user.id,
       calculation_method: "automatic_master_sheet",
+      calculation_display_method: "Automatic Attribution",
       master_sheet_url: masterUrl,
       master_sheet_title: spreadsheetTitle,
       webinar_date_mode: webinar.dateMode,
