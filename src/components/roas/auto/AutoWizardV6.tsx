@@ -555,6 +555,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             spreadsheetTitle={spreadsheetTitle}
             tabs={detectedTabs} tabRoles={tabRoles}
             setRole={setRole} setMBName={setMBName}
+            onOpenMapping={(sheetId) => setMappingDrawer({ sheetId })}
             selectedSales={selectedSales} selectedMBs={selectedMBs}
             ignoredCount={ignoredCount}
             mbNamesUnique={mbNamesUnique}
