@@ -1053,14 +1053,15 @@ function ExportRow({ report }: { report: DailyReport }) {
   const wa = useMemo(() => buildWhatsApp(report), [report]);
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button className="btn btn-g btn-sm" onClick={() => downloadFile(`daily-lead-report-${report.report_date}.csv`, buildCsv(report), "text/csv")}>Export CSV</button>
-        <button className="btn btn-g btn-sm" onClick={() => buildAndDownloadPdf(report)}>Export PDF</button>
-        <button className="btn btn-g btn-sm" onClick={async () => {
-          try { await navigator.clipboard.writeText(wa); toast.success("WhatsApp report copied."); }
-          catch { toast.error("Could not copy WhatsApp report. Please copy from preview."); }
-        }}>Copy WhatsApp Report</button>
-        <button className="btn btn-g btn-sm" onClick={() => setPreview(!preview)}>{preview ? "Hide preview" : "Preview WhatsApp"}</button>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <ExportMenu
+          includeWhatsapp
+          align="left"
+          onSelect={(action) => runExportAction(action, report)}
+        />
+        <button className="btn btn-g btn-sm" onClick={() => setPreview(!preview)}>
+          {preview ? "Hide preview" : "Preview WhatsApp"}
+        </button>
       </div>
       {preview && (
         <pre style={{ marginTop: 12, background: "#F7F6F3", border: "1px solid #E8E5DE", borderRadius: 8, padding: 14, whiteSpace: "pre-wrap", fontFamily: "'Jost',sans-serif", fontSize: 12, lineHeight: 1.6 }}>{wa}</pre>
