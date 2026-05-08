@@ -385,7 +385,10 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         tabInput: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${selectedSales.sheetId}`,
         columnOverride: (selectedSales.columnMapping || null) as ColumnOverride | null,
       };
-      const mbMaps: TabMapping[] = selectedMBs.map((m) => ({
+      const orderedMBs = priorityOrder.length === selectedMBs.length
+        ? priorityOrder.map((id) => selectedMBs.find((m) => m.sheetId === id)!).filter(Boolean)
+        : selectedMBs;
+      const mbMaps: TabMapping[] = orderedMBs.map((m) => ({
         role: "media_buyer_leads",
         mediaBuyerName: m.mediaBuyerName!,
         tabName: m.tabName,
@@ -393,7 +396,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         columnOverride: (m.columnMapping || null) as ColumnOverride | null,
       }));
       const spendNumbers: Record<string, number> = {};
-      selectedMBs.forEach((m) => { spendNumbers[m.mediaBuyerName!] = Number(adSpends[m.mediaBuyerName!] || 0); });
+      orderedMBs.forEach((m) => { spendNumbers[m.mediaBuyerName!] = Number(adSpends[m.mediaBuyerName!] || 0); });
 
       const r = await runAutoAttribution({
         masterSheetUrl: masterUrl,
@@ -402,6 +405,16 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         mediaBuyerTabs: mbMaps,
         adSpends: spendNumbers,
       }, (msg) => setCalcMsg(msg));
+
+      const er = r.engineResult;
+      if (lastHashes) {
+        const same = lastHashes.input === er.inputSnapshotHash;
+        setConsistency({
+          sameInputSameOutput: same && lastHashes.output === er.outputHash,
+          sameInputDifferentOutput: same && lastHashes.output !== er.outputHash,
+        });
+      }
+      setLastHashes({ input: er.inputSnapshotHash, output: er.outputHash });
 
       setResults(r);
       setResultsStatus("fresh");
