@@ -230,6 +230,17 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     return true;
   }, [selectedMBs]);
 
+  // Keep priorityOrder in sync with selected media buyer tabs
+  useEffect(() => {
+    setPriorityOrder((prev) => {
+      const ids = selectedMBs.map((m) => m.sheetId);
+      const kept = prev.filter((id) => ids.includes(id));
+      const additions = ids.filter((id) => !kept.includes(id));
+      return [...kept, ...additions];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(selectedMBs.map((m) => m.sheetId))]);
+
   // ---------- Step navigation ----------
   function stepValid(target: number): boolean {
     if (target <= 1) return true;
