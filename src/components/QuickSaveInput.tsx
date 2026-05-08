@@ -230,6 +230,7 @@ export default function QuickSaveInput({
           </div>
         )}
       </div>
+      <div className="qsi-helper">{helperText}</div>
       {savedMsg && <div className="qsi-saved">{savedMsg}</div>}
       {removedMsg && <div className="qsi-removed">✕ Entry removed</div>}
     </div>
