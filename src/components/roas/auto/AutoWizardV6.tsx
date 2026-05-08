@@ -481,6 +481,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   function startFresh() {
     if (!confirm("Start a fresh ROAS calculation? Your current draft will be cleared.")) return;
     localStorage.removeItem(DRAFT_KEY);
+    if (user?.id) void clearRemoteDraft(user.id);
     setStep(1); setWebinar(EMPTY_WEBINAR);
     setMasterUrl(""); setSpreadsheetId(""); setSpreadsheetTitle("");
     setDetectedTabs([]); setTabRoles([]); setAdSpends({});
