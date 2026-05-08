@@ -55,6 +55,65 @@ function defaultReport(): DailyReport {
   };
 }
 
+async function insertReportChildren(reportId: string, report: DailyReport, userId: string | null) {
+  for (const mb of report.media_buyers) {
+    const spend = calcMediaBuyerSpend(mb);
+    const cpl = calcCpl(spend, mb.total_leads);
+    const { data: mbRow, error: mbErr } = await (supabase as any)
+      .from("daily_lead_report_media_buyers")
+      .insert({
+        report_id: reportId,
+        media_buyer_name: mb.media_buyer_name,
+        media_buyer_key: mb.media_buyer_name.toLowerCase().trim(),
+        lead_source_url: mb.lead_source_url || null,
+        spreadsheet_id: mb.spreadsheet_id || null,
+        spreadsheet_title: mb.spreadsheet_title || null,
+        tab_name: mb.tab_name || null,
+        sheet_id: mb.sheet_id || null,
+        date_column: mb.date_column || null,
+        total_leads: mb.total_leads || 0,
+        lead_count_source: mb.lead_count_source,
+        total_ad_spend: spend,
+        cpl: cpl ?? 0,
+        status: mb.status,
+        fetch_metadata: mb.fetch_metadata || null,
+      })
+      .select()
+      .single();
+    if (mbErr || !mbRow) continue;
+    if (mb.spend_mode === "combined") {
+      await (supabase as any).from("daily_lead_report_ad_accounts").insert({
+        report_media_buyer_id: mbRow.id,
+        ad_account_name: "(combined)",
+        ad_spend: spend,
+        metrics: mb.combined_metrics || {},
+      });
+    } else {
+      for (const a of mb.ad_accounts) {
+        if (!a.ad_account_name && !a.ad_spend) continue;
+        await (supabase as any).from("daily_lead_report_ad_accounts").insert({
+          report_media_buyer_id: mbRow.id,
+          ad_account_name: a.ad_account_name || "(unnamed)",
+          ad_spend: Number(a.ad_spend) || 0,
+          metrics: a.metrics || {},
+        });
+      }
+    }
+    if (mb.save_mapping && mb.media_buyer_name && mb.lead_source_url && mb.tab_name) {
+      await (supabase as any).from("daily_lead_source_mappings").insert({
+        media_buyer_name: mb.media_buyer_name,
+        sheet_url: mb.lead_source_url,
+        spreadsheet_id: mb.spreadsheet_id || null,
+        spreadsheet_title: mb.spreadsheet_title || null,
+        tab_name: mb.tab_name,
+        sheet_id: mb.sheet_id || null,
+        date_column: mb.date_column || null,
+        created_by: userId,
+      });
+    }
+  }
+}
+
 type ViewMode = "create" | "history" | "analytics";
 
 export default function DailyLeadReportingModule({ onBack }: { onBack: () => void }) {
