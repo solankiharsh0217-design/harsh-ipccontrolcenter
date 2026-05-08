@@ -5,11 +5,23 @@ import type { SaleDetail } from "@/lib/roasExport";
 
 const DEAL_VALUE = 118000;
 
+export type ColumnOverride = {
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  amount?: string | null;
+  paymentDate?: string | null;
+  registrationDate?: string | null;
+  webinarName?: string | null;
+  source?: string | null;
+};
+
 export type TabMapping = {
   role: "media_buyer_leads" | "sales" | "ad_spends";
   mediaBuyerName?: string;
   tabName: string;
   tabInput: string; // raw input from user (URL / gid / CSV URL)
+  columnOverride?: ColumnOverride | null;
 };
 
 export type AutoAttribInput = {
@@ -50,11 +62,19 @@ function getHeader(rows: string[][]) {
   }
   return { idx: 0, headers: rows[0] || [] };
 }
-function extractPeople(rows: string[][]): Person[] {
+function extractPeople(rows: string[][], override?: ColumnOverride | null): Person[] {
   const { idx, headers } = getHeader(rows);
-  const eC = findCol(headers, ["email", "mail"]);
-  const pC = findCol(headers, ["phone", "mobile", "contact", "number", "whatsapp", "mob"]);
-  const nC = findCol(headers, ["name", "attendee", "participant", "buyer", "customer", "student"]);
+  const findOverride = (col?: string | null) => {
+    if (!col) return -1;
+    const lc = col.toLowerCase().trim();
+    return headers.findIndex((h) => (h || "").toLowerCase().trim() === lc);
+  };
+  const eOv = findOverride(override?.email);
+  const pOv = findOverride(override?.phone);
+  const nOv = findOverride(override?.name);
+  const eC = eOv >= 0 ? eOv : findCol(headers, ["email", "mail"]);
+  const pC = pOv >= 0 ? pOv : findCol(headers, ["phone", "mobile", "contact", "number", "whatsapp", "mob"]);
+  const nC = nOv >= 0 ? nOv : findCol(headers, ["name", "attendee", "participant", "buyer", "customer", "student"]);
   return rows.slice(idx + 1).map((r) => ({
     name: nC >= 0 ? r[nC] || "" : "",
     email: eC >= 0 ? (r[eC] || "").toLowerCase().trim() : "",
@@ -124,11 +144,11 @@ export async function runAutoAttribution(
   if (salesRes.err || salesRes.rows.length === 0) {
     throw new Error(`Sales tab could not be fetched: ${salesRes.err || "no rows"}`);
   }
-  const salesPeople = extractPeople(salesRes.rows);
+  const salesPeople = extractPeople(salesRes.rows, input.salesTab.columnOverride);
 
   const buyerLists = input.mediaBuyerTabs.map((m) => {
     const f = get(m);
-    return { name: m.mediaBuyerName || m.tabName, tab: m, people: f.err ? [] : extractPeople(f.rows) };
+    return { name: m.mediaBuyerName || m.tabName, tab: m, people: f.err ? [] : extractPeople(f.rows, m.columnOverride) };
   });
 
   // Ad spends — fetched override

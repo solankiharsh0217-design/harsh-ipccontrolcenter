@@ -8,9 +8,11 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
-import { runAutoAttribution, type AutoAttribResult, type TabMapping } from "@/lib/roas/autoAttribute";
+import { runAutoAttribution, type AutoAttribResult, type TabMapping, type ColumnOverride } from "@/lib/roas/autoAttribute";
 import { extractSpreadsheetId, fetchTabAsRows } from "@/lib/roas/sheetFetch";
 import { cleanMediaBuyerName, guessRole, type TabRole } from "@/lib/roas/tabClassify";
+import ColumnMappingDrawer, { type ColumnMapping } from "@/components/roas/auto/ColumnMappingDrawer";
+import { scheduleDraftSync, loadRemoteDraft, clearRemoteDraft, type DraftPayload } from "@/lib/roas/autoDraft";
 
 // ---------- Types & storage ----------
 type DateMode = "single" | "range" | "multiple";
@@ -29,6 +31,7 @@ type TabRoleAssignment = {
   tabName: string;
   role: TabRole; // user's selection ("unknown" treated as ignore)
   mediaBuyerName?: string;
+  columnMapping?: ColumnMapping | null;
 };
 type WebinarTiming = {
   mode: "none" | "same" | "per_day";
@@ -108,6 +111,24 @@ function isWebinarValid(w: WebinarDetails): string | null {
   if (w.dateMode === "multiple" && w.dates.filter(Boolean).length === 0) return "At least one date is required.";
   return null;
 }
+
+function buildDayLabels(w: WebinarDetails): string[] {
+  if (w.dateMode === "single") return w.singleDate ? [w.singleDate] : [];
+  if (w.dateMode === "multiple") return (w.dates || []).filter(Boolean);
+  if (w.dateMode === "range" && w.startDate && w.endDate) {
+    const out: string[] = [];
+    const s = new Date(w.startDate); const e = new Date(w.endDate);
+    if (isNaN(s.getTime()) || isNaN(e.getTime()) || e < s) return [];
+    const d = new Date(s);
+    let guard = 0;
+    while (d <= e && guard < 60) {
+      out.push(d.toISOString().slice(0, 10));
+      d.setDate(d.getDate() + 1); guard++;
+    }
+    return out;
+  }
+  return [];
+}
 function effectiveDate(w: WebinarDetails): string {
   if (w.dateMode === "single") return w.singleDate || today();
   if (w.dateMode === "range") return w.startDate || today();
@@ -145,15 +166,42 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [showFormat, setShowFormat] = useState(false);
   const [showDataUsed, setShowDataUsed] = useState(false);
   const [stepErr, setStepErr] = useState<string | null>(null);
+  const [mappingDrawer, setMappingDrawer] = useState<{ sheetId: string } | null>(null);
 
-  // Persist draft
+  // Persist draft (local + remote)
   useEffect(() => {
     const d: DraftV6 = {
       step, webinar, masterUrl, spreadsheetId, spreadsheetTitle,
       detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId,
     };
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* */ }
-  }, [step, webinar, masterUrl, spreadsheetId, spreadsheetTitle, detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId]);
+    if (user?.id) scheduleDraftSync(user.id, d as unknown as DraftPayload);
+  }, [step, webinar, masterUrl, spreadsheetId, spreadsheetTitle, detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId, user?.id]);
+
+  // One-time remote draft restore if local is empty
+  const remoteTried = useRef(false);
+  useEffect(() => {
+    if (remoteTried.current) return;
+    remoteTried.current = true;
+    if (!user?.id) return;
+    const localEmpty = !initial.current.webinar.name && !initial.current.masterUrl && !initial.current.results;
+    if (!localEmpty) return;
+    void loadRemoteDraft(user.id).then((rd) => {
+      if (!rd) return;
+      setStep(rd.step || 1);
+      setWebinar({ ...EMPTY_WEBINAR, ...(rd.webinar || {}) });
+      setMasterUrl(rd.masterUrl || "");
+      setSpreadsheetId(rd.spreadsheetId || "");
+      setSpreadsheetTitle(rd.spreadsheetTitle || "");
+      setDetectedTabs(rd.detectedTabs || []);
+      setTabRoles(rd.tabRoles || []);
+      setAdSpends(rd.adSpends || {});
+      setResults(rd.results || null);
+      setResultsStatus(rd.resultsStatus || null);
+      setSavedSessionId(rd.savedSessionId || null);
+      setShowRestored(true);
+    });
+  }, [user?.id]);
 
   // Mark outdated when inputs change after results
   const firstRender = useRef(true);
@@ -229,18 +277,26 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       if (saved) {
         const mbList: any[] = saved.media_buyer_mappings || [];
         const ignored: string[] = (saved.ignored_tabs || []).map((x: any) => String(x.sheetId || x));
+        const colMaps: any[] = saved.column_mappings || [];
+        const findCol = (sheetId: string, tabName: string): ColumnMapping | null => {
+          const fromList = colMaps.find((c: any) => String(c.sheetId) === sheetId || c.tabName === tabName);
+          if (fromList?.columnMapping) return fromList.columnMapping;
+          const mbCol = mbList.find((m: any) => (String(m.sheetId) === sheetId || m.tabName === tabName) && m.columnMapping);
+          return mbCol?.columnMapping || null;
+        };
         initialRoles = tabs.map((t) => {
           const mb = mbList.find((m: any) => String(m.sheetId) === t.sheetId || m.tabName === t.tabName);
-          if (mb) return { sheetId: t.sheetId, tabName: t.tabName, role: "media_buyer", mediaBuyerName: mb.mediaBuyerName || cleanMediaBuyerName(t.tabName) };
+          const cm = findCol(t.sheetId, t.tabName);
+          if (mb) return { sheetId: t.sheetId, tabName: t.tabName, role: "media_buyer", mediaBuyerName: mb.mediaBuyerName || cleanMediaBuyerName(t.tabName), columnMapping: cm };
           if (saved.sales_sheet_id === t.sheetId || saved.sales_tab_name === t.tabName) {
-            return { sheetId: t.sheetId, tabName: t.tabName, role: "sales" };
+            return { sheetId: t.sheetId, tabName: t.tabName, role: "sales", columnMapping: cm };
           }
           if (ignored.includes(t.sheetId) || ignored.includes(t.tabName)) {
             return { sheetId: t.sheetId, tabName: t.tabName, role: "ignore" };
           }
           const r = (t.guessedRole === "unknown" ? "ignore" : t.guessedRole) as TabRole;
           return { sheetId: t.sheetId, tabName: t.tabName, role: r,
-            mediaBuyerName: r === "media_buyer" ? cleanMediaBuyerName(t.tabName) : undefined };
+            mediaBuyerName: r === "media_buyer" ? cleanMediaBuyerName(t.tabName) : undefined, columnMapping: cm };
         });
         toast.success("Saved mapping found for this sheet.");
       } else {
@@ -287,6 +343,9 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   function setMBName(sheetId: string, name: string) {
     setTabRoles((p) => p.map((r) => r.sheetId === sheetId ? { ...r, mediaBuyerName: name } : r));
   }
+  function setColumnMapping(sheetId: string, mapping: ColumnMapping) {
+    setTabRoles((p) => p.map((r) => r.sheetId === sheetId ? { ...r, columnMapping: mapping } : r));
+  }
 
   // ---------- Step 3: Calculate ----------
   async function calculate() {
@@ -309,12 +368,14 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         role: "sales",
         tabName: selectedSales.tabName,
         tabInput: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${selectedSales.sheetId}`,
+        columnOverride: (selectedSales.columnMapping || null) as ColumnOverride | null,
       };
       const mbMaps: TabMapping[] = selectedMBs.map((m) => ({
         role: "media_buyer_leads",
         mediaBuyerName: m.mediaBuyerName!,
         tabName: m.tabName,
         tabInput: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${m.sheetId}`,
+        columnOverride: (m.columnMapping || null) as ColumnOverride | null,
       }));
       const spendNumbers: Record<string, number> = {};
       selectedMBs.forEach((m) => { spendNumbers[m.mediaBuyerName!] = Number(adSpends[m.mediaBuyerName!] || 0); });
@@ -345,9 +406,13 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             mediaBuyerName: m.mediaBuyerName,
             sheetId: m.sheetId, tabName: m.tabName,
             role: "media_buyer", isActive: true,
+            columnMapping: m.columnMapping || null,
           })),
           ignored_tabs: tabRoles.filter((r) => r.role === "ignore")
             .map((r) => ({ sheetId: r.sheetId, tabName: r.tabName })),
+          column_mappings: tabRoles
+            .filter((r) => r.columnMapping)
+            .map((r) => ({ sheetId: r.sheetId, tabName: r.tabName, role: r.role, columnMapping: r.columnMapping })),
           last_confirmed_by: user.id,
           last_confirmed_at: new Date().toISOString(),
           created_by: user.id,
@@ -434,6 +499,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   function startFresh() {
     if (!confirm("Start a fresh ROAS calculation? Your current draft will be cleared.")) return;
     localStorage.removeItem(DRAFT_KEY);
+    if (user?.id) void clearRemoteDraft(user.id);
     setStep(1); setWebinar(EMPTY_WEBINAR);
     setMasterUrl(""); setSpreadsheetId(""); setSpreadsheetTitle("");
     setDetectedTabs([]); setTabRoles([]); setAdSpends({});
@@ -507,6 +573,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             spreadsheetTitle={spreadsheetTitle}
             tabs={detectedTabs} tabRoles={tabRoles}
             setRole={setRole} setMBName={setMBName}
+            onOpenMapping={(sheetId) => setMappingDrawer({ sheetId })}
             selectedSales={selectedSales} selectedMBs={selectedMBs}
             ignoredCount={ignoredCount}
             mbNamesUnique={mbNamesUnique}
@@ -565,6 +632,26 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
           )}
         </div>
       )}
+
+      {/* Column mapping drawer */}
+      {mappingDrawer && (() => {
+        const tab = detectedTabs.find((t) => t.sheetId === mappingDrawer.sheetId);
+        const role = tabRoles.find((r) => r.sheetId === mappingDrawer.sheetId);
+        if (!tab || !role) return null;
+        const drawerRole = role.role === "media_buyer" ? "media_buyer" : role.role === "sales" ? "sales" : "ignore";
+        return (
+          <ColumnMappingDrawer
+            open={true}
+            onClose={() => setMappingDrawer(null)}
+            tabName={tab.tabName}
+            role={drawerRole as "sales" | "media_buyer" | "ignore"}
+            detectedHeaders={tab.detectedHeaders}
+            detectedColumnMapping={tab.detectedColumnMapping as ColumnMapping}
+            currentOverride={role.columnMapping}
+            onSave={(m) => setColumnMapping(mappingDrawer.sheetId, m)}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -665,15 +752,65 @@ function Step1Webinar({
             {/* Timing */}
             <div style={{ gridColumn: "1 / span 2" }}>
               <label className="fl">Webinar Timing</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input type="time" className="fi" style={{ width: 140 }}
-                  value={v.timing.same?.from || ""}
-                  onChange={(e) => set({ timing: { mode: "same", same: { from: e.target.value, to: v.timing.same?.to || "" } } })} />
-                <span style={{ color: "#888", fontSize: 12 }}>to</span>
-                <input type="time" className="fi" style={{ width: 140 }}
-                  value={v.timing.same?.to || ""}
-                  onChange={(e) => set({ timing: { mode: "same", same: { from: v.timing.same?.from || "", to: e.target.value } } })} />
-              </div>
+              {(() => {
+                const dayLabels = buildDayLabels(v);
+                const showPerDayToggle = dayLabels.length >= 2;
+                const mode = v.timing?.mode || "none";
+                return (
+                  <>
+                    {showPerDayToggle && (
+                      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                        <button type="button" className={`btn btn-sm ${mode !== "per_day" ? "btn-k" : "btn-g"}`}
+                          onClick={() => set({ timing: { mode: "same", same: v.timing.same || { from: "", to: "" } } })}>
+                          Same time each day
+                        </button>
+                        <button type="button" className={`btn btn-sm ${mode === "per_day" ? "btn-k" : "btn-g"}`}
+                          onClick={() => set({
+                            timing: {
+                              mode: "per_day",
+                              perDay: dayLabels.map((label, i) => v.timing.perDay?.[i] || { label, from: v.timing.same?.from || "", to: v.timing.same?.to || "" }),
+                            },
+                          })}>
+                          Different time per day
+                        </button>
+                      </div>
+                    )}
+                    {mode !== "per_day" && (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input type="time" className="fi" style={{ width: 140 }}
+                          value={v.timing.same?.from || ""}
+                          onChange={(e) => set({ timing: { mode: "same", same: { from: e.target.value, to: v.timing.same?.to || "" } } })} />
+                        <span style={{ color: "#888", fontSize: 12 }}>to</span>
+                        <input type="time" className="fi" style={{ width: 140 }}
+                          value={v.timing.same?.to || ""}
+                          onChange={(e) => set({ timing: { mode: "same", same: { from: v.timing.same?.from || "", to: e.target.value } } })} />
+                      </div>
+                    )}
+                    {mode === "per_day" && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {dayLabels.map((label, i) => {
+                          const row = v.timing.perDay?.[i] || { label, from: "", to: "" };
+                          const update = (patch: Partial<{ from: string; to: string }>) => {
+                            const next = dayLabels.map((lbl, j) => v.timing.perDay?.[j] || { label: lbl, from: "", to: "" });
+                            next[i] = { ...row, ...patch, label };
+                            set({ timing: { mode: "per_day", perDay: next } });
+                          };
+                          return (
+                            <div key={label + i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              <span style={{ width: 110, fontSize: 12, color: "#555" }}>{label}</span>
+                              <input type="time" className="fi" style={{ width: 130 }}
+                                value={row.from} onChange={(e) => update({ from: e.target.value })} />
+                              <span style={{ color: "#888", fontSize: 12 }}>to</span>
+                              <input type="time" className="fi" style={{ width: 130 }}
+                                value={row.to} onChange={(e) => update({ to: e.target.value })} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div>
               <QuickSaveInput fieldKey="webinar_format" label="Webinar Format"
@@ -723,6 +860,7 @@ function Step2Connect(p: {
   tabs: DetectedTab[]; tabRoles: TabRoleAssignment[];
   setRole: (id: string, r: TabRole) => void;
   setMBName: (id: string, n: string) => void;
+  onOpenMapping: (sheetId: string) => void;
   selectedSales: TabRoleAssignment | undefined;
   selectedMBs: TabRoleAssignment[];
   ignoredCount: number;
@@ -827,6 +965,16 @@ function Step2Connect(p: {
                       {t.detectedHeaders.length > 8 && (
                         <span style={{ fontSize: 10, color: "#888" }}>+{t.detectedHeaders.length - 8} more</span>
                       )}
+                    </div>
+                  )}
+                  {role?.role !== "ignore" && t.detectedHeaders.length > 0 && (
+                    <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 11, color: "#888" }}>
+                        {role?.columnMapping ? "Custom column mapping applied" : "Auto-detected column mapping"}
+                      </span>
+                      <button className="btn btn-g btn-sm" onClick={() => p.onOpenMapping(t.sheetId)}>
+                        Configure columns
+                      </button>
                     </div>
                   )}
                 </div>
