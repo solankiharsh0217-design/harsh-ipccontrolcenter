@@ -1250,7 +1250,7 @@ function Step4Results(p: {
         </button>
         {p.showDataUsed && (
           <div style={{ marginTop: 10, fontSize: 12, color: "#555", lineHeight: 1.7 }}>
-            <div>Method: One-Link Automatic Fetching</div>
+            <div>Method: Automatic Attribution</div>
             <div>Result status: {p.resultsStatus === "fresh" ? "Fresh" : "Needs Recalculation"}</div>
             <div>Sales tab: {p.salesTabName} · Media buyer tabs: {p.mbCount}</div>
             <div style={{ marginTop: 8 }}>
