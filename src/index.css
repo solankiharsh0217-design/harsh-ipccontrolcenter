@@ -164,6 +164,9 @@
 }
 .qsi-plus:hover { background: #B8940E; transform: translateY(-50%) scale(1.05); }
 .qsi-plus:active { transform: translateY(-50%) scale(.95); }
+.qsi-plus-chev { background: #FBF6E9; color: #7A5E10; font-size: 13px; font-weight: 600; animation: none; border: 1px solid #E8D49A; }
+.qsi-plus-chev:hover { background: #E8D49A; transform: translateY(-50%); }
+.qsi-helper { font-family: 'Jost', sans-serif; font-size: 11px; color: #888; margin-top: 4px; }
 .qsi-pulse { animation: qsiBounce 220ms ease-out; }
 @keyframes qsiAppear { from { opacity: 0; transform: translateY(-50%) scale(.7); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
 @keyframes qsiBounce { 0% { transform: translateY(-50%) scale(1); } 50% { transform: translateY(-50%) scale(1.2); } 100% { transform: translateY(-50%) scale(1); } }
