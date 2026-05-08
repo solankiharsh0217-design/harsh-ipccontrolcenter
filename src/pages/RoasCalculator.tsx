@@ -840,6 +840,20 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
               onSave={saveHistory}
               savedHist={savedHist}
             />
+            {engineResult && (
+              <AttributionAuditPanel
+                result={engineResult}
+                mediaBuyerOrder={engineResult.mediaBuyerBreakdown.map((b) => ({
+                  id: b.mediaBuyerId, displayName: b.mediaBuyerName,
+                  leads: b.leads, source: "manual_upload",
+                }))}
+                columnMappingsUsed={[
+                  { source: "Sales", tabName: salesFile?.name || salesUrl || "Sales", mapping: null },
+                  ...namedMbs.map((m) => ({ source: m.name, tabName: m.fileName || m.url || m.name, mapping: null })),
+                ]}
+                consistency={consistency}
+              />
+            )}
             <div style={{ textAlign: "center", marginTop: 24, display: "flex", gap: 16, justifyContent: "center" }}>
               <button onClick={reset} style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif" }}>← Start a new attribution</button>
               {onBackToMethod && (
