@@ -545,6 +545,7 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
     idRef.current = 2;
     setSalesData([]); setSalesFile(null); setSalesUrl(""); setSalesMode("url");
     setTouchedCalc(false);
+    setEngineResult(null); setSavedSessionId(null); setSavedHist(false);
   };
 
   // Export handled inside AttributionResultsView
