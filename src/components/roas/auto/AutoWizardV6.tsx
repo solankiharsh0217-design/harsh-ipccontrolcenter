@@ -1237,6 +1237,16 @@ function Step4Results(p: {
           totals: p.results.totals,
           rows: p.results.rows,
           salesDetail: p.results.salesDetail,
+          meta: {
+            createdOn: new Date().toLocaleString("en-IN"),
+            calculationMethod: "Automatic Attribution",
+            webinarPeriod: dateLabel,
+            adSpendSource: "Master Sheet",
+            calculationId: p.results.engineResult?.calculationId,
+            inputSnapshotHash: p.results.engineResult?.inputSnapshotHash,
+            outputHash: p.results.engineResult?.outputHash,
+            engineVersion: p.results.engineResult?.engineVersion,
+          },
         }}
         onSave={p.onSave}
         savedHist={p.savedHist}
