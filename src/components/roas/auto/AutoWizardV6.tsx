@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
+import AttributionAuditPanel from "@/components/roas/AttributionAuditPanel";
 import { runAutoAttribution, type AutoAttribResult, type TabMapping, type ColumnOverride } from "@/lib/roas/autoAttribute";
 import { extractSpreadsheetId, fetchTabAsRows } from "@/lib/roas/sheetFetch";
 import { cleanMediaBuyerName, guessRole, type TabRole } from "@/lib/roas/tabClassify";
