@@ -118,6 +118,7 @@ export type Database = {
           revenue: number
           roas_value: number
           session_id: string
+          source_sheet_id: string | null
           source_tab_gid: string | null
           source_tab_name: string | null
           source_type: string
@@ -134,6 +135,7 @@ export type Database = {
           revenue?: number
           roas_value?: number
           session_id: string
+          source_sheet_id?: string | null
           source_tab_gid?: string | null
           source_tab_name?: string | null
           source_type?: string
@@ -150,6 +152,7 @@ export type Database = {
           revenue?: number
           roas_value?: number
           session_id?: string
+          source_sheet_id?: string | null
           source_tab_gid?: string | null
           source_tab_name?: string | null
           source_type?: string
@@ -176,6 +179,7 @@ export type Database = {
           phone: string | null
           revenue: number
           session_id: string
+          source_sales_sheet_id: string | null
           source_sales_tab_gid: string | null
           source_sales_tab_name: string | null
           source_type: string
@@ -191,6 +195,7 @@ export type Database = {
           phone?: string | null
           revenue?: number
           session_id: string
+          source_sales_sheet_id?: string | null
           source_sales_tab_gid?: string | null
           source_sales_tab_name?: string | null
           source_type?: string
@@ -206,6 +211,7 @@ export type Database = {
           phone?: string | null
           revenue?: number
           session_id?: string
+          source_sales_sheet_id?: string | null
           source_sales_tab_gid?: string | null
           source_sales_tab_name?: string | null
           source_type?: string
@@ -224,54 +230,105 @@ export type Database = {
       attribution_sessions: {
         Row: {
           calculation_method: string
+          column_mapping: Json | null
           created_at: string
           created_by: string | null
           fetch_log_id: string | null
           id: string
           master_sheet_id: string | null
+          master_sheet_title: string | null
+          master_sheet_url: string | null
           overall_roas: number
+          result_status: string | null
+          session_slot: string | null
+          tab_role_mapping: Json | null
           total_ad_spend: number
           total_leads: number
           total_revenue: number
           total_sales: number
           unmatched_count: number
           webinar_date: string | null
+          webinar_date_mode: string | null
+          webinar_dates: Json | null
+          webinar_end_date: string | null
+          webinar_format: string | null
           webinar_name: string
+          webinar_notes: string | null
+          webinar_operator: string | null
+          webinar_platform: string | null
+          webinar_single_date: string | null
+          webinar_start_date: string | null
+          webinar_timing: Json | null
           webinar_type: string | null
+          zoom_account_used: string | null
         }
         Insert: {
           calculation_method?: string
+          column_mapping?: Json | null
           created_at?: string
           created_by?: string | null
           fetch_log_id?: string | null
           id?: string
           master_sheet_id?: string | null
+          master_sheet_title?: string | null
+          master_sheet_url?: string | null
           overall_roas?: number
+          result_status?: string | null
+          session_slot?: string | null
+          tab_role_mapping?: Json | null
           total_ad_spend?: number
           total_leads?: number
           total_revenue?: number
           total_sales?: number
           unmatched_count?: number
           webinar_date?: string | null
+          webinar_date_mode?: string | null
+          webinar_dates?: Json | null
+          webinar_end_date?: string | null
+          webinar_format?: string | null
           webinar_name: string
+          webinar_notes?: string | null
+          webinar_operator?: string | null
+          webinar_platform?: string | null
+          webinar_single_date?: string | null
+          webinar_start_date?: string | null
+          webinar_timing?: Json | null
           webinar_type?: string | null
+          zoom_account_used?: string | null
         }
         Update: {
           calculation_method?: string
+          column_mapping?: Json | null
           created_at?: string
           created_by?: string | null
           fetch_log_id?: string | null
           id?: string
           master_sheet_id?: string | null
+          master_sheet_title?: string | null
+          master_sheet_url?: string | null
           overall_roas?: number
+          result_status?: string | null
+          session_slot?: string | null
+          tab_role_mapping?: Json | null
           total_ad_spend?: number
           total_leads?: number
           total_revenue?: number
           total_sales?: number
           unmatched_count?: number
           webinar_date?: string | null
+          webinar_date_mode?: string | null
+          webinar_dates?: Json | null
+          webinar_end_date?: string | null
+          webinar_format?: string | null
           webinar_name?: string
+          webinar_notes?: string | null
+          webinar_operator?: string | null
+          webinar_platform?: string | null
+          webinar_single_date?: string | null
+          webinar_start_date?: string | null
+          webinar_timing?: Json | null
           webinar_type?: string | null
+          zoom_account_used?: string | null
         }
         Relationships: [
           {
@@ -792,6 +849,72 @@ export type Database = {
           },
         ]
       }
+      roas_calculation_drafts: {
+        Row: {
+          active_step: string | null
+          ad_spend_data: Json | null
+          calculation_method: string
+          column_mappings: Json | null
+          created_at: string
+          detected_tabs: Json | null
+          draft_name: string | null
+          id: string
+          is_completed: boolean
+          master_sheet_title: string | null
+          master_sheet_url: string | null
+          result_snapshot: Json | null
+          result_status: string | null
+          saved_attribution_session_id: string | null
+          spreadsheet_id: string | null
+          tab_roles: Json | null
+          updated_at: string
+          user_id: string | null
+          webinar_details: Json | null
+        }
+        Insert: {
+          active_step?: string | null
+          ad_spend_data?: Json | null
+          calculation_method: string
+          column_mappings?: Json | null
+          created_at?: string
+          detected_tabs?: Json | null
+          draft_name?: string | null
+          id?: string
+          is_completed?: boolean
+          master_sheet_title?: string | null
+          master_sheet_url?: string | null
+          result_snapshot?: Json | null
+          result_status?: string | null
+          saved_attribution_session_id?: string | null
+          spreadsheet_id?: string | null
+          tab_roles?: Json | null
+          updated_at?: string
+          user_id?: string | null
+          webinar_details?: Json | null
+        }
+        Update: {
+          active_step?: string | null
+          ad_spend_data?: Json | null
+          calculation_method?: string
+          column_mappings?: Json | null
+          created_at?: string
+          detected_tabs?: Json | null
+          draft_name?: string | null
+          id?: string
+          is_completed?: boolean
+          master_sheet_title?: string | null
+          master_sheet_url?: string | null
+          result_snapshot?: Json | null
+          result_status?: string | null
+          saved_attribution_session_id?: string | null
+          spreadsheet_id?: string | null
+          tab_roles?: Json | null
+          updated_at?: string
+          user_id?: string | null
+          webinar_details?: Json | null
+        }
+        Relationships: []
+      }
       roas_data_sources: {
         Row: {
           column_mapping_json: Json
@@ -1181,6 +1304,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      roas_master_sheet_mappings: {
+        Row: {
+          column_mappings: Json | null
+          created_at: string
+          created_by: string | null
+          id: string
+          ignored_tabs: Json | null
+          is_active: boolean
+          last_confirmed_at: string | null
+          last_confirmed_by: string | null
+          mapping_name: string | null
+          master_sheet_url: string
+          media_buyer_mappings: Json
+          sales_sheet_id: string | null
+          sales_tab_name: string | null
+          spreadsheet_id: string
+          spreadsheet_title: string | null
+          updated_at: string
+        }
+        Insert: {
+          column_mappings?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ignored_tabs?: Json | null
+          is_active?: boolean
+          last_confirmed_at?: string | null
+          last_confirmed_by?: string | null
+          mapping_name?: string | null
+          master_sheet_url: string
+          media_buyer_mappings?: Json
+          sales_sheet_id?: string | null
+          sales_tab_name?: string | null
+          spreadsheet_id: string
+          spreadsheet_title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          column_mappings?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ignored_tabs?: Json | null
+          is_active?: boolean
+          last_confirmed_at?: string | null
+          last_confirmed_by?: string | null
+          mapping_name?: string | null
+          master_sheet_url?: string
+          media_buyer_mappings?: Json
+          sales_sheet_id?: string | null
+          sales_tab_name?: string | null
+          spreadsheet_id?: string
+          spreadsheet_title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       roas_master_sheet_tabs: {
         Row: {

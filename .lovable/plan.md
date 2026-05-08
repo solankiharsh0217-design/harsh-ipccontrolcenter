@@ -1,87 +1,94 @@
-# ROAS Calculator — Add Automatic Master Sheet Fetching
+# ROAS Automatic Fetching v6
 
-## Goal
-Add a method-selection screen to the **Media Buyer Attribution** tab. Keep the existing manual 4-step wizard untouched. Add a new 5-step **Automatic Master Sheet** wizard that fetches multiple tabs from one Google Sheet workbook, then reuses the existing matching algorithm and existing results UI.
-
----
-
-## Scope boundaries
-- No changes to the matching algorithm, the results screen layout, charts, exports, history saving, or design system.
-- No changes to Total ROAS tab. Data Sources tab gets one additional section.
-- Manual flow only changes by adding a "Calculation Method: Manual Upload" label at the top of results.
+Replace the current Automatic Fetching wizard with a leaner 4-step flow. Manual Upload, attribution logic, results UI, history, and design system stay untouched.
 
 ---
 
-## File changes
-
-### New files
-- `src/components/roas/AttributionMethodSelect.tsx` — two-card chooser shown when Media Buyer Attribution tab opens with no method chosen.
-- `src/components/roas/AutoFetchWizard.tsx` — the 5-step automatic wizard (steps 1–4 inline; step 5 reuses `AttributionResultsView`).
-- `src/components/roas/MasterSheetMapping.tsx` — the mapping editor (sales tab + repeatable media buyer tabs + ad spend tab option). Reused by the wizard and by Data Sources "Add Master ROAS Sheet".
-- `src/lib/roas/sheetFetch.ts` — `resolveSheetCsvUrl(masterUrl, tabInput)` + `fetchTabAsRows(csvUrl)`; extracts `spreadsheetId` and `gid`, builds `…/export?format=csv&gid=…`, parses CSV via Papa Parse, returns rows + detected headers.
-- `src/lib/roas/autoAttribute.ts` — orchestrator: takes mapping + ad spends, fetches all tabs in parallel, normalizes (reusing existing email/phone/name normalizers), calls the existing matching algorithm, returns the same result shape `AttributionResultsView` already consumes.
-- `src/components/roas/MasterSheetsSection.tsx` — Data Sources tab section listing saved master sheets with Use / Edit / Test Fetch / Archive.
-
-### Edited files
-- `src/pages/RoasCalculator.tsx` — inside the Media Buyer Attribution tab, render `AttributionMethodSelect` first; route to existing wizard or `AutoFetchWizard` based on choice. Add a "Back to Method Selection" affordance. Add `Calculation Method:` label at the top of the results section in both flows.
-- `src/components/roas/AttributionResultsView.tsx` — accept a `calculationMethod: 'manual' | 'automatic_master_sheet'` prop and render the label; persist it on save (new column on `attribution_sessions`).
-- `src/integrations/supabase/types.ts` — auto-regenerated after migration.
-
-### Reused as-is
-- Matching algorithm (existing helpers used by current wizard).
-- `AttributionResultsView` (charts, tables, CSV/PDF export, save-to-history).
-- `QuickSaveInput` for `webinar_name`, `media_buyer_name`, `google_sheet_url`, `data_source_name`.
-- Existing IPC design tokens, fonts, colors.
-
----
-
-## Wizard structure (Automatic)
+## Final flow (Automatic only)
 
 ```text
-Step 1  Webinar Details        name (QuickSave) · date · type
-Step 2  Master Sheet           source name · sheet URL · fetch method radio
-Step 3  Map Tabs               sales tab · repeatable MB tabs · ad spend source
-Step 4  Review Ad Spends       per-MB inputs OR fetched table w/ override
-Step 5  Calculate + Results    progress states → AttributionResultsView
+Step 1  Webinar Details              required: type, name, date(s) · optional bundle collapsed
+Step 2  Connect Master Sheet         one URL → detect tabs → assign roles (Sales / MB / Ignore)
+Step 3  Enter Ad Spends              manual ₹ per selected media buyer
+Step 4  Results                      existing AttributionResultsView + context panel
 ```
 
-Validation, error states, and empty states match the spec verbatim.
+No tab URLs, no gids, no Zoom IDs/links/recording, no Ad_Spends sheet.
 
 ---
 
-## Database migration
-Single migration adding:
-- `roas_master_sheets` (workbook-level)
-- `roas_master_sheet_tabs` (per-tab mapping with `tab_role` in {`media_buyer_leads`,`sales`,`ad_spends`})
-- `roas_fetch_logs` (per fetch attempt)
-- `attribution_sessions`: add `calculation_method` (default `'manual'`), `master_sheet_id`, `fetch_log_id`
-- `attribution_media_buyers`: add `source_tab_name`, `source_tab_gid`, `source_type` (default `'manual_upload'`)
-- `attribution_sales_detail`: add `source_sales_tab_name`, `source_sales_tab_gid`, `source_type` (default `'manual_upload'`)
+## New / edited files
 
-RLS pattern matches existing ROAS tables (`is_active(auth.uid())` for read/insert by creator; admin manages all). Defaults ensure existing rows + manual flow keep working with zero code change.
+**New**
+- `supabase/functions/fetch-roas-master-sheet-tabs/index.ts` — server-side Google Sheets API call. Input: `{ masterSheetUrl }`. Output: spreadsheet metadata + per-tab `{ sheetId, tabName, guessedRole, confidence, detectedHeaders, sampleRows, validRowsCount, detectedColumnMapping, warnings }`. Uses `GOOGLE_SHEETS_API_KEY` secret.
+- `src/components/roas/auto/WebinarDetailsStep.tsx` — Step 1. Webinar Type (QuickSave) drives date input shape (single / range / multiple / custom). Collapsible "More Webinar Details" with timing block (per-day toggle), format, operator, slot, platform (default Zoom), zoom account, notes.
+- `src/components/roas/auto/ConnectSheetStep.tsx` — Step 2. One URL input (QuickSave `google_sheet_url`), Detect Tabs button, summary cards, per-tab role dropdowns, MB name with auto-clean, status badges, hidden "Manual Expert Mode" fallback for gid.
+- `src/components/roas/auto/ColumnMappingDrawer.tsx` — drawer to confirm name/email/phone (+ optional) per tab when needed.
+- `src/components/roas/auto/AdSpendsStep.tsx` — Step 3. Manual ₹ inputs per selected MB, total, Test Fetch, Calculate.
+- `src/components/roas/auto/ResultsStep.tsx` — Step 4. Reuses existing `AttributionResultsView`. Adds context panel + Edit/Recalculate/Start Fresh buttons + "Data used" collapsible + Needs Recalculation banner.
+- `src/components/roas/auto/AutoWizardV6.tsx` — orchestrator (stepper, draft persistence, navigation rules, change detection).
+- `src/lib/roas/autoDraft.ts` — localStorage + debounced Supabase draft sync helpers.
+- `src/lib/roas/tabClassify.ts` — guess role (sales / media_buyer / ignore / unknown) + clean MB name.
 
----
+**Edited**
+- `src/pages/RoasCalculator.tsx` — when Automatic is chosen, render `AutoWizardV6` instead of the existing `AutoFetchWizard`.
+- `src/components/roas/AttributionResultsView.tsx` — accept optional `contextPanel` slot (no logic change).
+- (Existing `AutoFetchWizard.tsx` kept on disk for reference but no longer routed; safe to delete later.)
 
-## Fetching implementation notes
-- Pure client-side fetch of `…/export?format=csv&gid=…`. Works for sheets shared "Anyone with the link" or published. No new edge function needed.
-- `Test Fetch` button in Step 4 runs `fetchTabAsRows` against every mapped tab in parallel and shows per-tab status badges (ok / failed / missing-columns).
-- Partial-success path: if sales + ≥1 MB tab succeed, allow "Continue with Available Data".
-- Column auto-detection uses the alias map already in `src/lib/roas/fields.ts` (extend with the new aliases listed in the spec — e.g. `whatsapp`, `contact number`, `paid date`, `amount spent`).
-
----
-
-## Out of scope (explicit)
-- No mobile layout, no dark mode, no gradients/shadows.
-- No changes to manual wizard internals.
-- No new charts or KPIs.
-- No private-sheet OAuth (warning shown to user).
+**Untouched**
+Manual Upload wizard, matching algorithm, AttributionResultsView internals, history save, design tokens, Total ROAS tab, Data Sources tab.
 
 ---
 
-## Order of execution after approval
-1. Run the migration (single SQL, awaits approval).
-2. Create `sheetFetch.ts` + `autoAttribute.ts`.
-3. Create `AttributionMethodSelect`, `AutoFetchWizard`, `MasterSheetMapping`.
-4. Wire into `RoasCalculator.tsx`; add the method label in results.
-5. Add `MasterSheetsSection` to Data Sources tab.
-6. Smoke-test: build passes, method selector renders, manual flow unchanged, auto flow fetches a public sheet and produces the same results UI.
+## Database migration (single)
+
+New table:
+- `roas_master_sheet_mappings` — per spec (`spreadsheet_id`, `master_sheet_url`, `sales_sheet_id/tab_name`, `media_buyer_mappings jsonb`, `ignored_tabs jsonb`, `column_mappings jsonb`, audit cols, `is_active`). RLS: read for active members, insert/update for `created_by = auth.uid()`, admin-all.
+- `roas_calculation_drafts` — per spec, RLS owner-only.
+
+Add columns (idempotent `IF NOT EXISTS`):
+- `attribution_sessions`: `master_sheet_url`, `master_sheet_title`, `webinar_type`, `webinar_date_mode`, `webinar_single_date`, `webinar_start_date`, `webinar_end_date`, `webinar_dates jsonb`, `webinar_timing jsonb`, `webinar_format`, `webinar_operator`, `session_slot`, `webinar_platform`, `zoom_account_used`, `webinar_notes`, `tab_role_mapping jsonb`, `column_mapping jsonb`, `result_status text default 'fresh'`. (`calculation_method`, `master_sheet_id`, `fetch_log_id` already exist.)
+- `attribution_media_buyers`: `source_sheet_id` (others exist).
+- `attribution_sales_detail`: `source_sales_sheet_id` (others exist).
+
+QuickSave field keys reused (no schema change): `webinar_type`, `webinar_name`, `webinar_format`, `webinar_operator`, `session_slot`, `webinar_platform`, `zoom_account_used`, `google_sheet_url`.
+
+---
+
+## Edge function — tab detection
+
+`fetch-roas-master-sheet-tabs` (verify_jwt validated in code via `getClaims`):
+1. Extract `spreadsheetId` from URL.
+2. `GET https://sheets.googleapis.com/v4/spreadsheets/{id}?key=...&includeGridData=false` → titles + sheetIds.
+3. For each tab: `GET .../values/{tab}!A1:Z20?key=...` → headers + sample rows.
+4. Classify with rules from PART 20; auto-detect column mapping using existing alias map in `src/lib/roas/fields.ts`.
+5. Return structured payload + warnings.
+
+Errors: 403/404 → "share as Anyone with the link can view"; missing key → "configure GOOGLE_SHEETS_API_KEY".
+
+**Secret required:** `GOOGLE_SHEETS_API_KEY` — will request via `add_secret` after migration approval.
+
+---
+
+## Persistence & navigation
+
+- localStorage keys per spec, written on every change.
+- Supabase draft synced 800ms debounced.
+- Recovery banner on mount if draft exists.
+- Stepper: completed/current clickable, future locked unless prior valid; Results clickable only if a snapshot exists.
+- Editing inputs after results → `result_status='outdated'` → amber banner + Save to History disabled until Recalculate.
+- Saved-mapping reuse: on Detect Tabs, look up `roas_master_sheet_mappings` by `spreadsheet_id` and prefill roles.
+
+---
+
+## Out of scope
+Attribution accuracy changes, results UI rebuild, manual wizard, mobile/dark mode, gradients/shadows, OAuth for private sheets.
+
+---
+
+## Execution order after approval
+1. Run migration.
+2. Request `GOOGLE_SHEETS_API_KEY` secret.
+3. Create edge function + helpers.
+4. Build wizard components and wire into `RoasCalculator.tsx`.
+5. Smoke-test: detect a public sheet, assign roles, enter spends, calculate, save.
