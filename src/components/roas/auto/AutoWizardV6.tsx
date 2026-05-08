@@ -128,6 +128,7 @@ function buildDayLabels(w: WebinarDetails): string[] {
     return out;
   }
   return [];
+}
 function effectiveDate(w: WebinarDetails): string {
   if (w.dateMode === "single") return w.singleDate || today();
   if (w.dateMode === "range") return w.startDate || today();
