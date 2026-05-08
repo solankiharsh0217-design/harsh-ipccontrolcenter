@@ -466,6 +466,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     const totals = results.totals;
     const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
 
+    const er = results.engineResult;
     const { data: sess, error } = await supabase.from("attribution_sessions").insert({
       webinar_name: webinar.name,
       webinar_date: effectiveDate(webinar),
@@ -492,6 +493,13 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       webinar_notes: webinar.notes || null,
       tab_role_mapping: tabRoles,
       result_status: "fresh",
+      attribution_engine_version: er?.engineVersion || null,
+      calculation_id: er?.calculationId || null,
+      input_snapshot_hash: er?.inputSnapshotHash || null,
+      output_hash: er?.outputHash || null,
+      media_buyer_order: er ? er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) : null,
+      duplicate_conflicts_count: er?.duplicateLeadConflicts.length || 0,
+      column_mappings_used: tabRoles.filter((r) => r.columnMapping).map((r) => ({ tabName: r.tabName, role: r.role, columnMapping: r.columnMapping })) as any,
     } as any).select().single();
     if (error || !sess) { toast.error("Save failed: " + (error?.message || "")); return; }
 
@@ -509,16 +517,43 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         source_type: "google_sheet_auto_fetch",
       };
     });
-    const saleRows = results.salesDetail.map((s) => ({
-      session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
-      attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
-      webinar_date: s.webinarDate || null,
-      source_sales_tab_name: selectedSales?.tabName || null,
-      source_sales_sheet_id: selectedSales?.sheetId || null,
-      source_type: "google_sheet_auto_fetch",
-    }));
+    const saleRows = results.salesDetail.map((s, i) => {
+      const a = er ? er.auditLog[i] : null;
+      return {
+        session_id: sid, buyer_name: s.name, email: s.email, phone: s.phone,
+        attributed_to: s.attributedTo, match_method: s.matchMethod, revenue: s.revenue,
+        webinar_date: s.webinarDate || null,
+        source_sales_tab_name: selectedSales?.tabName || null,
+        source_sales_sheet_id: selectedSales?.sheetId || null,
+        source_type: "google_sheet_auto_fetch",
+        sale_id: a?.saleId || null,
+        matched_lead_id: a?.matchedLeadId || null,
+        matched_lead_name: a?.matchedLeadName || null,
+        matched_lead_email: a?.matchedLeadEmail || null,
+        matched_lead_phone: a?.matchedLeadPhone || null,
+        source_media_buyer: a?.sourceMediaBuyer || null,
+        source_row_index: a?.sourceRowIndex ?? null,
+        confidence_score: a?.confidenceScore ?? null,
+        competing_matches: a ? (a.competingMatches as any) : null,
+        match_reason: a?.matchReason || null,
+        needs_review: a?.needsReview || false,
+      };
+    });
     await supabase.from("attribution_media_buyers").insert(buyerRows as any);
     if (saleRows.length) await supabase.from("attribution_sales_detail").insert(saleRows as any);
+    if (er) {
+      await supabase.from("roas_attribution_audit_logs").insert({
+        attribution_session_id: sid,
+        calculation_id: er.calculationId,
+        input_snapshot_hash: er.inputSnapshotHash,
+        output_hash: er.outputHash,
+        media_buyer_order: er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) as any,
+        column_mappings_used: tabRoles.filter((r) => r.columnMapping).map((r) => ({ tabName: r.tabName, role: r.role, columnMapping: r.columnMapping })) as any,
+        audit_rows: er.auditLog as any,
+        duplicate_conflicts: er.duplicateLeadConflicts as any,
+        created_by: user.id,
+      } as any);
+    }
 
     setSavedSessionId(sid); setSavedHist(true);
     toast.success("Report saved to history ✓");
