@@ -74,12 +74,14 @@ export default function QuickSaveInput({
   const v = value || "";
   const trimmed = v.trim();
   const exists = entries.some((e) => e.value.toLowerCase() === trimmed.toLowerCase());
-  // Plus button: always show when value is non-empty AND not in saved list
   const showPlus = trimmed.length > 0 && !exists;
-  // Helper text shown under input
   const helperText = entries.length > 0
     ? "Click to choose from saved list or type a new value"
     : "No saved options yet — type a value and press + to save";
+
+  const filtered = trimmed
+    ? entries.filter((e) => e.value.toLowerCase().includes(trimmed.toLowerCase()))
+    : entries;
 
   // close on outside click
   useEffect(() => {
