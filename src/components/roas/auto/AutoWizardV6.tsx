@@ -259,18 +259,26 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       if (saved) {
         const mbList: any[] = saved.media_buyer_mappings || [];
         const ignored: string[] = (saved.ignored_tabs || []).map((x: any) => String(x.sheetId || x));
+        const colMaps: any[] = saved.column_mappings || [];
+        const findCol = (sheetId: string, tabName: string): ColumnMapping | null => {
+          const fromList = colMaps.find((c: any) => String(c.sheetId) === sheetId || c.tabName === tabName);
+          if (fromList?.columnMapping) return fromList.columnMapping;
+          const mbCol = mbList.find((m: any) => (String(m.sheetId) === sheetId || m.tabName === tabName) && m.columnMapping);
+          return mbCol?.columnMapping || null;
+        };
         initialRoles = tabs.map((t) => {
           const mb = mbList.find((m: any) => String(m.sheetId) === t.sheetId || m.tabName === t.tabName);
-          if (mb) return { sheetId: t.sheetId, tabName: t.tabName, role: "media_buyer", mediaBuyerName: mb.mediaBuyerName || cleanMediaBuyerName(t.tabName) };
+          const cm = findCol(t.sheetId, t.tabName);
+          if (mb) return { sheetId: t.sheetId, tabName: t.tabName, role: "media_buyer", mediaBuyerName: mb.mediaBuyerName || cleanMediaBuyerName(t.tabName), columnMapping: cm };
           if (saved.sales_sheet_id === t.sheetId || saved.sales_tab_name === t.tabName) {
-            return { sheetId: t.sheetId, tabName: t.tabName, role: "sales" };
+            return { sheetId: t.sheetId, tabName: t.tabName, role: "sales", columnMapping: cm };
           }
           if (ignored.includes(t.sheetId) || ignored.includes(t.tabName)) {
             return { sheetId: t.sheetId, tabName: t.tabName, role: "ignore" };
           }
           const r = (t.guessedRole === "unknown" ? "ignore" : t.guessedRole) as TabRole;
           return { sheetId: t.sheetId, tabName: t.tabName, role: r,
-            mediaBuyerName: r === "media_buyer" ? cleanMediaBuyerName(t.tabName) : undefined };
+            mediaBuyerName: r === "media_buyer" ? cleanMediaBuyerName(t.tabName) : undefined, columnMapping: cm };
         });
         toast.success("Saved mapping found for this sheet.");
       } else {
