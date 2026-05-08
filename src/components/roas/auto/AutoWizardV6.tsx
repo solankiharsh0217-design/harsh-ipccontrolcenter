@@ -614,6 +614,26 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
           )}
         </div>
       )}
+
+      {/* Column mapping drawer */}
+      {mappingDrawer && (() => {
+        const tab = detectedTabs.find((t) => t.sheetId === mappingDrawer.sheetId);
+        const role = tabRoles.find((r) => r.sheetId === mappingDrawer.sheetId);
+        if (!tab || !role) return null;
+        const drawerRole = role.role === "media_buyer" ? "media_buyer" : role.role === "sales" ? "sales" : "ignore";
+        return (
+          <ColumnMappingDrawer
+            open={true}
+            onClose={() => setMappingDrawer(null)}
+            tabName={tab.tabName}
+            role={drawerRole as "sales" | "media_buyer" | "ignore"}
+            detectedHeaders={tab.detectedHeaders}
+            detectedColumnMapping={tab.detectedColumnMapping as ColumnMapping}
+            currentOverride={role.columnMapping}
+            onSave={(m) => setColumnMapping(mappingDrawer.sheetId, m)}
+          />
+        );
+      })()}
     </div>
   );
 }
