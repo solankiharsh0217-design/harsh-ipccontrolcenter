@@ -5,11 +5,23 @@ import type { SaleDetail } from "@/lib/roasExport";
 
 const DEAL_VALUE = 118000;
 
+export type ColumnOverride = {
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  amount?: string | null;
+  paymentDate?: string | null;
+  registrationDate?: string | null;
+  webinarName?: string | null;
+  source?: string | null;
+};
+
 export type TabMapping = {
   role: "media_buyer_leads" | "sales" | "ad_spends";
   mediaBuyerName?: string;
   tabName: string;
   tabInput: string; // raw input from user (URL / gid / CSV URL)
+  columnOverride?: ColumnOverride | null;
 };
 
 export type AutoAttribInput = {
