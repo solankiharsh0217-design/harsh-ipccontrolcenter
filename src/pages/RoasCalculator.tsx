@@ -892,8 +892,13 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
 
         {step === 4 && !calculating && results && (
           <>
-            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em", color: "#C8A84B", marginBottom: 6, fontWeight: 500 }}>
-              Calculation Method: Manual Upload
+            <div style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: 16, marginBottom: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+              <div><div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: ".08em" }}>Calculation Method</div><div style={{ fontSize: 13, fontWeight: 500, color: "#C8A84B" }}>Manual Upload</div></div>
+              <div><div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: ".08em" }}>Webinar</div><div style={{ fontSize: 13 }}>{wbName}</div></div>
+              <div><div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: ".08em" }}>Webinar Type</div><div style={{ fontSize: 13 }}>{(wbType || "—").replace("-", " ")}</div></div>
+              <div><div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: ".08em" }}>Webinar Date / Period</div><div style={{ fontSize: 13 }}>{wbDate ? fmtDate(wbDate) : "—"}</div></div>
+              <div><div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: ".08em" }}>Created On</div><div style={{ fontSize: 13 }}>{new Date().toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div></div>
+              <div><div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: ".08em" }}>Ad Spend Source</div><div style={{ fontSize: 13 }}>Manual Entry</div></div>
             </div>
             <AttributionResultsView
               payload={{
@@ -901,7 +906,7 @@ function AttrTab({ userId, onBackToMethod }: { userId?: string; onBackToMethod?:
                 totals: results.totals, rows: results.rows, salesDetail: results.salesDetail,
               }}
               onSave={saveHistory}
-              savedHist={savedHist}
+              savedHist={savedHist || !!savedSessionId}
             />
             {engineResult && (
               <AttributionAuditPanel
