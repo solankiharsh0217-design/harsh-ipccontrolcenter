@@ -472,14 +472,27 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   async function saveHistory() {
     if (!user || !results) return;
     if (resultsStatus !== "fresh") {
-      toast.error("Please recalculate before saving this report to history.");
+      toast.error("Inputs changed. Please recalculate before saving this report.");
       return;
     }
-    if (savedSessionId) { toast.info("This report is already saved."); return; }
+    if (savedSessionId) { toast.info("This report has already been saved to history."); return; }
+    const er = results.engineResult;
+    // Duplicate detection by calculation_id or (input_hash + output_hash + user)
+    if (er) {
+      const { data: dup } = await supabase
+        .from("attribution_sessions")
+        .select("id")
+        .or(`calculation_id.eq.${er.calculationId},and(input_snapshot_hash.eq.${er.inputSnapshotHash},output_hash.eq.${er.outputHash},created_by.eq.${user.id})`)
+        .limit(1)
+        .maybeSingle();
+      if (dup?.id) {
+        setSavedSessionId(dup.id); setSavedHist(true);
+        toast.info("This report has already been saved to history.");
+        return;
+      }
+    }
     const totals = results.totals;
     const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
-
-    const er = results.engineResult;
     const { data: sess, error } = await supabase.from("attribution_sessions").insert({
       webinar_name: webinar.name,
       webinar_date: effectiveDate(webinar),
