@@ -232,6 +232,98 @@ export function buildCsv(r: DailyReport): string {
   return out.join("\n");
 }
 
+// ----------------- Google Sheets Ready (TSV) -----------------
+export function buildSheetsTSV(r: DailyReport): string {
+  const exportMetrics = r.metrics.filter((m) => m.exports !== false);
+  const headers = [
+    "Report Date", "Report Name", "Media Buyer", "Ad Account",
+    "Ad Spend", "Leads", "CPL",
+    ...exportMetrics.map((m) => m.name),
+    "Notes",
+  ];
+  const lines: string[] = [headers.join("\t")];
+  for (const mb of r.media_buyers) {
+    const spend = calcMediaBuyerSpend(mb);
+    const cpl = calcCpl(spend, mb.total_leads);
+    if (mb.spend_mode === "combined") {
+      lines.push([
+        r.report_date, r.report_name, mb.media_buyer_name, "(combined)",
+        spend, mb.total_leads, cpl ?? "",
+        ...exportMetrics.map((m) => mb.combined_metrics?.[m.key] ?? ""),
+        (r.notes || "").replace(/\t|\n/g, " "),
+      ].join("\t"));
+    } else {
+      const accs = mb.ad_accounts.length ? mb.ad_accounts : [{ id: "", ad_account_name: "", ad_spend: spend, metrics: {} }];
+      for (const a of accs) {
+        const aCpl = mb.total_leads ? (Number(a.ad_spend) || 0) / mb.total_leads : "";
+        lines.push([
+          r.report_date, r.report_name, mb.media_buyer_name, a.ad_account_name,
+          a.ad_spend, mb.total_leads, aCpl,
+          ...exportMetrics.map((m) => a.metrics?.[m.key] ?? ""),
+          (r.notes || "").replace(/\t|\n/g, " "),
+        ].join("\t"));
+      }
+    }
+  }
+  return lines.join("\n");
+}
+
+// History list export (CSV across many reports)
+export type HistoryRow = {
+  created_at: string;
+  report_date: string;
+  report_name: string;
+  media_buyer_count: number;
+  total_ad_spend: number;
+  total_leads: number;
+  overall_cpl: number | null;
+  metric_template_name?: string | null;
+};
+export function buildHistoryCsv(rows: HistoryRow[]): string {
+  const headers = ["Created On", "Report Date", "Report Name", "Media Buyers", "Total Spend", "Total Leads", "Overall CPL", "Template"];
+  const out = [headers.map(csvEscape).join(",")];
+  for (const r of rows) {
+    out.push([
+      new Date(r.created_at).toISOString(),
+      r.report_date, r.report_name, r.media_buyer_count,
+      r.total_ad_spend, r.total_leads, r.overall_cpl ?? "",
+      r.metric_template_name || "",
+    ].map(csvEscape).join(","));
+  }
+  return out.join("\n");
+}
+export function buildHistoryTSV(rows: HistoryRow[]): string {
+  const headers = ["Created On", "Report Date", "Report Name", "Media Buyers", "Total Spend", "Total Leads", "Overall CPL", "Template"];
+  const lines = [headers.join("\t")];
+  for (const r of rows) {
+    lines.push([
+      new Date(r.created_at).toISOString().slice(0, 10),
+      r.report_date, r.report_name, r.media_buyer_count,
+      r.total_ad_spend, r.total_leads, r.overall_cpl ?? "",
+      r.metric_template_name || "",
+    ].join("\t"));
+  }
+  return lines.join("\n");
+}
+
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
 export function downloadFile(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);

@@ -75,6 +75,9 @@ export default function QuickSaveInput({
   const trimmed = v.trim();
   const exists = entries.some((e) => e.value.toLowerCase() === trimmed.toLowerCase());
   const showPlus = trimmed.length > 0 && !exists;
+  const helperText = entries.length > 0
+    ? "Click to choose from saved list or type a new value"
+    : "No saved options yet — type a value and press + to save";
 
   const filtered = trimmed
     ? entries.filter((e) => e.value.toLowerCase().includes(trimmed.toLowerCase()))
@@ -180,14 +183,23 @@ export default function QuickSaveInput({
             }
           }}
         />
-        {showPlus && (
+        {showPlus ? (
           <button
             type="button"
             className={"qsi-plus" + (pulse ? " qsi-pulse" : "")}
-            title="Save this value"
+            title="Save this value to the list"
             onMouseDown={(e) => e.preventDefault()}
             onClick={save}
           >+</button>
+        ) : (
+          <button
+            type="button"
+            className="qsi-plus qsi-plus-chev"
+            title={entries.length > 0 ? "Show saved options" : "Type a value, then press + to save"}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { setOpen((o) => !o); inputRef.current?.focus(); }}
+            aria-label="Show saved options"
+          >▾</button>
         )}
 
         {open && (
@@ -218,6 +230,7 @@ export default function QuickSaveInput({
           </div>
         )}
       </div>
+      <div className="qsi-helper">{helperText}</div>
       {savedMsg && <div className="qsi-saved">{savedMsg}</div>}
       {removedMsg && <div className="qsi-removed">✕ Entry removed</div>}
     </div>

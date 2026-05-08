@@ -1,154 +1,84 @@
-# ROAS Attribution Engine Stability Fix
+# Daily Lead Reporting — UX, Analytics, History, Export & Action Cleanup
 
-## Goal
+Scope: improve the existing `DailyLeadReportingModule` only. No changes to Attribution Engine, Manual Upload, Automatic Attribution, Total ROAS, or the IPC design system.
 
-Make ROAS attribution **deterministic**: same input + same media buyer order + same column mapping = same output, every time, in both Manual Upload and Automatic Fetching.
+## Phase 1 — Navigation shell + visible primary actions
+- Replace the current "Hide History" toggle with a 3-view shell inside the module: **Create Report**, **History**, **Analytics**.
+- Header shows title + subtitle + 3 primary actions (`+ New Daily Report`, `📊 Analytics`, `History`) — always visible, locked-design styled.
+- Add 4 summary cards (Total Spend, Total Leads, Overall CPL, Reports Saved) driven by current filter range; visible above each view.
+- Default view: if a draft exists → Create; else → History.
 
-## Root cause
+## Phase 2 — Always-visible add buttons + clearer dropdowns
+- Update `QuickSaveInput` so the gold `+` button is always visible (not only when typing) when the field is empty or value isn't in saved list.
+- Add a "saved-list" affordance: small chevron + helper text (`Click to choose from saved list or add new` / `No saved options yet — click + to add one`).
+- Apply consistent placeholders to: Media Buyer Name, Ad Account Name, Lead Source Name, Saved Sheet Source, Metric Template, Custom Metric, Google Sheet URL.
+- `+` opens a small popover dialog (Add New [Field]) → saves to `quick_save_entries` (or relevant table) → auto-selects new value.
 
-Today, two separate matching code paths exist (`RoasCalculator.tsx` for Manual, `autoAttribute.ts` for Auto). Both build short-circuit indexes (`emailIndex[email] = lead`, last-write-wins) and iterate sales in arrival order, so the "winner" depends on insertion/fetch ordering. Fuzzy name matches can silently beat exact matches because matching is sale-by-sale instead of round-by-round.
+## Phase 3 — Reports History view (prominent)
+- Replace existing inline `DailyReportsHistory` with full view:
+  - Filters row: Date range (From/To), Media Buyer, Ad Account, Search, Metric Template, Reset.
+  - Top actions: `+ New Daily Report`, `Export History ▾`, `Analytics`.
+  - Table columns: Created On · Report Date · Report Name · Media Buyers · Total Spend · Total Leads · Overall CPL · Actions.
+  - Actions cell: `View` button + `⋯ More` dropdown (Edit, Copy WhatsApp, Export ▸ CSV/XLSX/PDF/Sheets-ready, Delete).
+- View opens a right-side drawer (see Phase 4).
 
-## What I'll build
+## Phase 4 — View / Edit / Delete report flows
+- **View Drawer**: header with date, top summary cards, sections (Overall, Media Buyer Breakdown, Ad Accounts, WhatsApp Preview, Notes). Top-right buttons: Edit, Export ▾, Copy WhatsApp, Close. Visible `📋 Copy Full WhatsApp Report` button next to the WhatsApp preview box; toast on success/failure.
+- **Edit**: load saved report into the Create flow, preserve `report_id`, show "Editing Saved Report" badge + `Save Changes` / `Save as New Copy` / `Cancel Editing`. Bumps `updated_at`, sets `report_status='edited'`.
+- **Delete**: confirmation modal → soft delete (`is_deleted=true`); refresh history; toast.
 
-### 1. Single shared deterministic engine — `src/lib/roas/attributionEngine.ts`
+## Phase 5 — Analytics view
+- Filters: Date range, Media Buyer, Ad Account, Metric Template, Metric selector, Reset.
+- 5 summary cards: Total Spend, Total Leads, Average CPL, Best CPL Buyer, Highest Lead Buyer.
+- Charts (Chart.js, in bordered cards):
+  1. Daily Spend trend (line)
+  2. Daily Leads trend (line)
+  3. Daily CPL trend (line)
+  4. Media Buyer CPL comparison (bar)
+  5. Media Buyer Spend vs Leads (grouped bar — separate if scales clash)
+  6. Custom Metric trend (line, user-selected metric)
+- Below: filtered history table; empty state if no data.
 
-```text
-calculateAttribution(snapshot) -> result
-  ├─ normalizeLeads / normalizeSales (pure, never mutates input)
-  ├─ build sorted indexes (emailIndex, phoneIndex, nameIndex)
-  │     each value = array of leads, sorted by:
-  │       1. mediaBuyerOrder priority
-  │       2. rowIndex
-  │       3. mediaBuyerName tiebreak
-  ├─ Round 1: email exact match for every sale
-  ├─ Round 2: phone exact match for sales still unmatched
-  ├─ Round 3: name fuzzy (>=0.85) for sales still unmatched
-  ├─ Round 4: mark unmatched
-  ├─ build duplicateLeadConflicts
-  ├─ build auditLog (one row per sale)
-  └─ compute summary, mediaBuyerBreakdown, hashes
-```
+## Phase 6 — Unified Export menu
+- Single `Export ▾` dropdown everywhere (single report and filtered history):
+  - 📁 CSV · 📊 Excel/XLSX · 📄 PDF · 📋 Copy WhatsApp · 📗 Google Sheets Ready
+- WhatsApp option only for individual reports; in bulk view show helper text instead.
+- XLSX: try `xlsx` lib if already in deps; if not, fall back to CSV labelled "CSV (Excel-compatible)".
+- Google Sheets Ready: download CSV + "Copy Table" (TSV to clipboard) with toast.
 
-Pure functions, no React state. Exports types matching the spec (snapshot in, result out, with `auditLog`, `duplicateLeadConflicts`, `inputSnapshotHash`, `outputHash`).
+## Phase 7 — WhatsApp formatter cleanup
+- Update `buildWhatsApp()` in `helpers.ts` to skip null/undefined metrics and empty buyers; format ₹ correctly; plain-text only.
+- `📋 Copy WhatsApp Report` button visible in Step 3 Review, View drawer, and actions menu.
 
-### 2. Wire both flows into the new engine
+## Phase 8 — DB additions (only missing columns)
+Single migration adds (idempotent `IF NOT EXISTS`):
+- `daily_lead_reports`: `report_status text default 'saved'` (others `updated_at`, `is_deleted`, `whatsapp_message` already exist).
+- `daily_lead_report_media_buyers`: `is_manual_lead_override boolean default false` (`status` already exists).
+- `daily_lead_report_ad_accounts`: nothing — `metrics jsonb` already exists.
 
-- `RoasCalculator.tsx` (Manual): when user clicks Calculate, build a snapshot from current parsed CSVs + media buyer order + column mappings + ad spends, call `calculateAttribution`, then map result back into the existing `AttributionPayload` shape so `AttributionResultsView` renders unchanged.
-- `AutoWizardV6.tsx` (Automatic): replace `runAutoAttribution`'s matching block. Fetching tabs stays the same; the matching/normalization step is delegated to `calculateAttribution`. `runAutoAttribution` becomes a thin orchestrator: fetch CSV rows → build snapshot → call engine.
+No data migrations. No hard deletes. Existing rows unaffected.
 
-### 3. Immutable calculation snapshot
+## Phase 9 — Aesthetic polish
+- Card sections, status badges (Saved/Draft/Edited/Manual Override/Fetch Failed/Needs Review), compact action dropdowns, helper text, chart cards, no gradients/shadows.
 
-On every Calculate / Recalculate:
-- Generate fresh `calculationId` (uuid)
-- Deep-copy parsed lead rows, sales rows, media buyer order, column mappings, ad spends
-- Compute `leadRowsHash`, `salesRowsHash`, `mediaBuyerOrderHash`, `columnMappingHash` (FNV-1a)
-- Pass snapshot to engine; never read from React state inside engine
-- Store snapshot + result on the page (not just summary numbers)
+## Out of scope (explicit)
+- Attribution engine, Total ROAS, Manual Upload, Automatic Attribution, Media Buyer Attribution.
+- Meta API, Google Sheets OAuth/write.
+- Any change to existing tables beyond additive columns above.
 
-### 4. Stable media buyer priority order
+## Technical notes
+- New files:
+  - `src/components/roas/daily/DailyLauncher.tsx` (3-view shell + summary cards)
+  - `src/components/roas/daily/DailyHistoryView.tsx`
+  - `src/components/roas/daily/DailyAnalyticsView.tsx`
+  - `src/components/roas/daily/DailyReportDrawer.tsx`
+  - `src/components/roas/daily/ExportMenu.tsx`
+  - `src/components/roas/daily/AddItemPopover.tsx`
+- Modified:
+  - `src/components/roas/DailyLeadReportingModule.tsx` (mount shell, support edit-existing-report mode, expose Step 3 WhatsApp copy button)
+  - `src/components/QuickSaveInput.tsx` (always-visible `+`, helper text, chevron)
+  - `src/lib/dailyReports/helpers.ts` (WhatsApp formatter cleanup, XLSX/Sheets-ready exporters, soft-delete helper, history-range exporters)
+- Migration: `supabase/migrations/<ts>_daily_reports_status_override.sql`
 
-- Store `mediaBuyerOrder: string[]` derived from UI insertion order (Manual) or tab-role assignment order (Auto)
-- Render a small "Media Buyer Priority Order" panel above Calculate showing each buyer + lead count + source + priority #
-- Engine uses this order as the only tiebreaker; never sorts alphabetically and never relies on object key order
-
-### 5. Strict matching rounds + name threshold
-
-- Email round → Phone round → Name (>=0.85 word-token similarity) → Unmatched
-- Weak phones (<10 digits) flagged; never override stronger email matches
-- Name match only fires if no prior round matched that sale; competing matches recorded in audit
-
-### 6. Duplicate lead conflict detection
-
-While building indexes, detect when the same normalized email/phone/name appears in 2+ media buyer tabs. Output `duplicateLeadConflicts[]` with conflictType, normalizedValue, mediaBuyersFound, leadRows, winnerIfMatched, tieBreakerReason.
-
-### 7. New collapsible UI sections in `AttributionResultsView`
-
-Below the existing "Matching method" note, add three collapsed-by-default sections:
-- **Data Used For This Calculation** — calc id, hashes, sales/lead counts, mediaBuyerOrder, columnMappingsUsed, calculatedAt
-- **Duplicate Lead Conflicts** — count + per-conflict details
-- **Attribution Audit** — sale-by-sale table with all columns from spec, plus search and filters (buyer / media buyer / method / conflicts only / unmatched only)
-
-Existing summary cards, breakdown table, charts, exports stay untouched.
-
-### 8. Stale draft / Start Fresh hygiene
-
-- "Start Fresh" already clears local + remote draft. Also clear any in-memory snapshot, audit, conflicts, savedSessionId.
-- New upload replaces (not appends) parsed rows for that source.
-- Show source filename next to each media buyer / sales source.
-- Internal `console.debug` log of snapshot summary on every calculate.
-
-### 9. Result consistency check (admin/debug)
-
-After calculate, store last `inputSnapshotHash` + `outputHash`. On Recalculate with identical hashes, show subtle "Result confirmed identical" indicator. If input hash matches but output hash differs, render red error banner: "Attribution engine is unstable."
-
-### 10. Persist full audit on Save to History
-
-Database changes (single migration):
-
-```sql
--- Extend attribution_sessions
-ALTER TABLE attribution_sessions
-  ADD COLUMN IF NOT EXISTS calculation_id text,
-  ADD COLUMN IF NOT EXISTS input_snapshot_hash text,
-  ADD COLUMN IF NOT EXISTS output_hash text,
-  ADD COLUMN IF NOT EXISTS media_buyer_order jsonb,
-  ADD COLUMN IF NOT EXISTS column_mappings_used jsonb,
-  ADD COLUMN IF NOT EXISTS duplicate_conflicts_count integer DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS attribution_engine_version text DEFAULT 'deterministic_v1';
-
--- Extend attribution_sales_detail
-ALTER TABLE attribution_sales_detail
-  ADD COLUMN IF NOT EXISTS sale_id text,
-  ADD COLUMN IF NOT EXISTS matched_lead_id text,
-  ADD COLUMN IF NOT EXISTS matched_lead_name text,
-  ADD COLUMN IF NOT EXISTS matched_lead_email text,
-  ADD COLUMN IF NOT EXISTS matched_lead_phone text,
-  ADD COLUMN IF NOT EXISTS source_media_buyer text,
-  ADD COLUMN IF NOT EXISTS source_row_index integer,
-  ADD COLUMN IF NOT EXISTS confidence_score numeric,
-  ADD COLUMN IF NOT EXISTS competing_matches jsonb,
-  ADD COLUMN IF NOT EXISTS match_reason text,
-  ADD COLUMN IF NOT EXISTS needs_review boolean DEFAULT false;
-
--- New audit log table
-CREATE TABLE roas_attribution_audit_logs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  attribution_session_id uuid REFERENCES attribution_sessions(id) ON DELETE CASCADE,
-  calculation_id text NOT NULL,
-  input_snapshot_hash text,
-  output_hash text,
-  media_buyer_order jsonb,
-  column_mappings_used jsonb,
-  audit_rows jsonb NOT NULL DEFAULT '[]',
-  duplicate_conflicts jsonb DEFAULT '[]',
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE roas_attribution_audit_logs ENABLE ROW LEVEL SECURITY;
--- policies: admin all; member insert if owns session; member read if active
-```
-
-No existing columns removed. Save flow writes one audit_logs row alongside the existing session/media buyers/sales detail inserts.
-
-## Files
-
-**New**
-- `src/lib/roas/attributionEngine.ts` — engine + types + hashing
-- `src/lib/roas/normalize.ts` — email/phone/name/revenue normalization helpers
-- `src/components/roas/AttributionAuditPanel.tsx` — three collapsible sections
-
-**Modified**
-- `src/lib/roas/autoAttribute.ts` — delegate matching to engine
-- `src/components/roas/auto/AutoWizardV6.tsx` — pass mediaBuyerOrder, save audit_log row
-- `src/pages/RoasCalculator.tsx` — build snapshot for Manual flow, save audit_log row, show priority order panel
-- `src/components/roas/AttributionResultsView.tsx` — render new audit panel below existing UI; pass through extra audit data; keep current cards/charts/exports unchanged
-
-## Out of scope (will not touch)
-
-Manual Upload & Automatic Fetching presence, ROAS formula, deal value, currency formatting, IPC design system, Reports & History page, attribution UI labels, business rules other than the deterministic-tie-break and round-strictness rules above.
-
-## Acceptance check
-
-After build, I'll verify by:
-1. Reading the engine to confirm pure / no React state / sorted indexes / strict rounds.
-2. Running typecheck via the harness build.
-3. Confirming the existing `AttributionResultsView` summary cards, per-buyer breakdown, and charts still render with the new payload shape.
+## Delivery order
+Run as 3 commits within this turn, in order: Phase 8 migration → Phases 1–4 (shell, history, drawer, edit/delete, visible `+`) → Phases 5–7 + 9 (analytics, export menu, WhatsApp cleanup, polish). Verify build after each.
