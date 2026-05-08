@@ -51,28 +51,32 @@ function defaultReport(): DailyReport {
   };
 }
 
+type ViewMode = "create" | "history" | "analytics";
+
 export default function DailyLeadReportingModule({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
+  const [view, setView] = useState<ViewMode>("history");
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [report, setReport] = useState<DailyReport>(defaultReport);
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
+  const [editingExistingId, setEditingExistingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
 
   // Templates
   const [templates, setTemplates] = useState<any[]>([]);
   const [showTplBuilder, setShowTplBuilder] = useState(false);
 
-  // Restore draft on mount
+  // Restore draft on mount; if a draft exists default to create view
   useEffect(() => {
     try {
       const d = localStorage.getItem(DRAFT_KEY);
       const s = localStorage.getItem(STEP_KEY);
       if (d) {
         const parsed = JSON.parse(d);
-        if (parsed && parsed.report_date) {
+        if (parsed && parsed.report_date && parsed.media_buyers && parsed.media_buyers.length > 0) {
           setReport(parsed);
           if (s) setStep(Number(s) as any);
+          setView("create");
         }
       }
     } catch {}
@@ -96,7 +100,6 @@ export default function DailyLeadReportingModule({ onBack }: { onBack: () => voi
         .order("is_default", { ascending: false })
         .order("created_at", { ascending: false });
       setTemplates(data || []);
-      // If no template chosen yet, pick default
       if (!report.metric_template_id && data && data.length) {
         const def = data.find((t: any) => t.is_default) || data[0];
         setReport((r) => r.metric_template_id ? r : ({
@@ -122,17 +125,37 @@ export default function DailyLeadReportingModule({ onBack }: { onBack: () => voi
   }, [report]);
 
   const startFresh = () => {
-    if (!confirm("Discard current draft and start a new daily report?")) return;
+    if (report.media_buyers.length > 0 && !confirm("Discard current draft and start a new daily report?")) return;
     localStorage.removeItem(DRAFT_KEY);
     localStorage.removeItem(STEP_KEY);
     setReport(defaultReport());
     setSavedReportId(null);
+    setEditingExistingId(null);
     setStep(1);
   };
 
-  // ============ STEPS ============
+  const newReport = () => {
+    startFresh();
+    setView("create");
+  };
+
+  const editExisting = (full: DailyReport) => {
+    setReport(full);
+    setEditingExistingId(full.id || null);
+    setSavedReportId(null);
+    setStep(2);
+    setView("create");
+  };
+
+  const cancelEditing = () => {
+    setEditingExistingId(null);
+    setReport(defaultReport());
+    setStep(1);
+    setView("history");
+  };
+
   return (
-    <div style={{ maxWidth: 980, padding: "8px 4px" }}>
+    <div style={{ maxWidth: 1100, padding: "8px 4px" }}>
       <button
         onClick={onBack}
         style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif", marginBottom: 16 }}
@@ -140,23 +163,42 @@ export default function DailyLeadReportingModule({ onBack }: { onBack: () => voi
         ← Back to ROAS Tools
       </button>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
         <div>
           <div className="page-title">Daily Lead Reporting</div>
           <p className="page-sub" style={{ marginBottom: 0 }}>
-            Enter daily Meta ad spends, fetch lead counts from Google Sheets by date, and calculate CPL per media buyer.
+            Track daily Meta spends, fetch lead counts from Google Sheets, and calculate CPL per media buyer.
           </p>
         </div>
-        <button className="btn btn-g btn-sm" onClick={() => setShowHistory((s) => !s)}>
-          {showHistory ? "Hide History" : "Daily Reports History"}
-        </button>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button className={"btn btn-sm " + (view === "create" ? "btn-k" : "btn-g")} onClick={newReport}>+ New Daily Report</button>
+          <button className={"btn btn-sm " + (view === "history" ? "btn-k" : "btn-g")} onClick={() => setView("history")}>History</button>
+          <button className={"btn btn-sm " + (view === "analytics" ? "btn-k" : "btn-g")} onClick={() => setView("analytics")}>📊 Analytics</button>
+        </div>
       </div>
 
-      {showHistory ? (
-        <DailyReportsHistory />
-      ) : (
+      {view === "history" && (
+        <DailyHistoryView
+          onNew={newReport}
+          onEditReport={editExisting}
+          onShowAnalytics={() => setView("analytics")}
+        />
+      )}
+      {view === "analytics" && (
+        <DailyAnalyticsView onBack={() => setView("history")} />
+      )}
+      {view === "create" && (
         <>
+          {editingExistingId && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#FBF6E9", border: "1px solid #E8D49A", borderRadius: 10, marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: "#7A5E10" }}>
+                <strong>Editing Saved Report</strong> — changes will update the existing report unless you choose "Save as New Copy".
+              </div>
+              <button className="btn btn-g btn-sm" onClick={cancelEditing}>Cancel Editing</button>
+            </div>
+          )}
           <Stepper step={step} setStep={(s) => setStep(s)} canGo={() => true} />
+
 
           {step === 1 && (
             <Step1Setup
