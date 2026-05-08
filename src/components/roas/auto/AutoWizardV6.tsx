@@ -86,12 +86,24 @@ const EMPTY: DraftV6 = {
   adSpends: {}, results: null, resultsStatus: null, savedSessionId: null,
 };
 
+function sanitizeResults(r: any): AutoAttribResult | null {
+  if (!r || typeof r !== "object") return null;
+  // Older drafts predate the engine integration and have no engineResult.
+  // Without it, Step 4 crashes (mediaBuyerBreakdown access). Drop them.
+  if (!r.engineResult || !Array.isArray(r.engineResult?.mediaBuyerBreakdown)) return null;
+  return r as AutoAttribResult;
+}
+
 function loadDraft(): DraftV6 {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return EMPTY;
     const j = JSON.parse(raw);
-    return { ...EMPTY, ...j, webinar: { ...EMPTY_WEBINAR, ...(j?.webinar || {}) } };
+    const merged: DraftV6 = { ...EMPTY, ...j, webinar: { ...EMPTY_WEBINAR, ...(j?.webinar || {}) } };
+    merged.results = sanitizeResults(merged.results);
+    if (!merged.results && merged.step === 4) merged.step = 3;
+    if (!merged.results) merged.resultsStatus = null;
+    return merged;
   } catch { return EMPTY; }
 }
 
