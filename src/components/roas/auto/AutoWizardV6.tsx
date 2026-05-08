@@ -339,12 +339,14 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         role: "sales",
         tabName: selectedSales.tabName,
         tabInput: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${selectedSales.sheetId}`,
+        columnOverride: (selectedSales.columnMapping || null) as ColumnOverride | null,
       };
       const mbMaps: TabMapping[] = selectedMBs.map((m) => ({
         role: "media_buyer_leads",
         mediaBuyerName: m.mediaBuyerName!,
         tabName: m.tabName,
         tabInput: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${m.sheetId}`,
+        columnOverride: (m.columnMapping || null) as ColumnOverride | null,
       }));
       const spendNumbers: Record<string, number> = {};
       selectedMBs.forEach((m) => { spendNumbers[m.mediaBuyerName!] = Number(adSpends[m.mediaBuyerName!] || 0); });
