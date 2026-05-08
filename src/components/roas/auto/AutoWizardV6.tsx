@@ -1168,25 +1168,38 @@ function Step4Results(p: {
   consistency: { sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean };
 }) {
   const w = p.webinar;
-  const dateLabel = w.dateMode === "single" ? w.singleDate
-    : w.dateMode === "range" ? `${w.startDate} → ${w.endDate}`
-    : (w.dates || []).join(", ");
+  const fmtD = (d: string) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const dateLabel = w.dateMode === "single" ? fmtD(w.singleDate)
+    : w.dateMode === "range" ? `${fmtD(w.startDate)} - ${fmtD(w.endDate)}`
+    : (w.dates || []).filter(Boolean).map(fmtD).join(", ") || "—";
+  const createdOn = new Date().toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const opt = (label: string, val?: string) => val ? (
+    <div><div style={{ fontSize: 11, color: "#888" }}>{label}</div><div style={{ fontSize: 13 }}>{val}</div></div>
+  ) : null;
 
   return (
     <>
       {/* Context */}
       <div style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: "#888" }}>Calculation Method</div>
-            <div style={{ fontWeight: 500 }}>One-Link Automatic Fetching</div>
+            <div style={{ fontWeight: 500, color: "#C8A84B" }}>Automatic Attribution</div>
           </div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Webinar</div><div>{w.name} · {w.type}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Date</div><div>{dateLabel}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Master Sheet</div><div>{p.masterTitle || "—"}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Sales Tab</div><div>{p.salesTabName}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Media Buyer Tabs</div><div>{p.mbCount}</div></div>
-          <div><div style={{ fontSize: 11, color: "#888" }}>Ad Spend</div><div>Manual Entry</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Webinar Name</div><div style={{ fontSize: 13 }}>{w.name}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Webinar Type</div><div style={{ fontSize: 13 }}>{w.type || "—"}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Webinar Date / Period</div><div style={{ fontSize: 13 }}>{dateLabel}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Created On</div><div style={{ fontSize: 13 }}>{createdOn}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Master Sheet</div><div style={{ fontSize: 13 }}>{p.masterTitle || "—"}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Sales Tab</div><div style={{ fontSize: 13 }}>{p.salesTabName}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Media Buyer Tabs</div><div style={{ fontSize: 13 }}>{p.mbCount}</div></div>
+          <div><div style={{ fontSize: 11, color: "#888" }}>Ad Spend Source</div><div style={{ fontSize: 13 }}>Manual Entry</div></div>
+          {opt("Webinar Format", w.format)}
+          {opt("Webinar Operator", w.operator)}
+          {opt("Session Slot", w.sessionSlot)}
+          {opt("Platform", w.platform)}
+          {opt("Zoom Account Used", w.zoomAccount)}
+          {w.notes ? (<div style={{ gridColumn: "1 / -1" }}><div style={{ fontSize: 11, color: "#888" }}>Notes</div><div style={{ fontSize: 13 }}>{w.notes}</div></div>) : null}
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="btn btn-g btn-sm" onClick={() => p.goEdit(1)}>Edit Webinar Details</button>
