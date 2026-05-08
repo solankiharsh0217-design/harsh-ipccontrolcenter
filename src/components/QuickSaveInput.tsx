@@ -183,14 +183,23 @@ export default function QuickSaveInput({
             }
           }}
         />
-        {showPlus && (
+        {showPlus ? (
           <button
             type="button"
             className={"qsi-plus" + (pulse ? " qsi-pulse" : "")}
-            title="Save this value"
+            title="Save this value to the list"
             onMouseDown={(e) => e.preventDefault()}
             onClick={save}
           >+</button>
+        ) : (
+          <button
+            type="button"
+            className="qsi-plus qsi-plus-chev"
+            title={entries.length > 0 ? "Show saved options" : "Type a value, then press + to save"}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { setOpen((o) => !o); inputRef.current?.focus(); }}
+            aria-label="Show saved options"
+          >▾</button>
         )}
 
         {open && (
