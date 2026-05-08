@@ -734,15 +734,65 @@ function Step1Webinar({
             {/* Timing */}
             <div style={{ gridColumn: "1 / span 2" }}>
               <label className="fl">Webinar Timing</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input type="time" className="fi" style={{ width: 140 }}
-                  value={v.timing.same?.from || ""}
-                  onChange={(e) => set({ timing: { mode: "same", same: { from: e.target.value, to: v.timing.same?.to || "" } } })} />
-                <span style={{ color: "#888", fontSize: 12 }}>to</span>
-                <input type="time" className="fi" style={{ width: 140 }}
-                  value={v.timing.same?.to || ""}
-                  onChange={(e) => set({ timing: { mode: "same", same: { from: v.timing.same?.from || "", to: e.target.value } } })} />
-              </div>
+              {(() => {
+                const dayLabels = buildDayLabels(v);
+                const showPerDayToggle = dayLabels.length >= 2;
+                const mode = v.timing?.mode || "none";
+                return (
+                  <>
+                    {showPerDayToggle && (
+                      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                        <button type="button" className={`btn btn-sm ${mode !== "per_day" ? "btn-k" : "btn-g"}`}
+                          onClick={() => set({ timing: { mode: "same", same: v.timing.same || { from: "", to: "" } } })}>
+                          Same time each day
+                        </button>
+                        <button type="button" className={`btn btn-sm ${mode === "per_day" ? "btn-k" : "btn-g"}`}
+                          onClick={() => set({
+                            timing: {
+                              mode: "per_day",
+                              perDay: dayLabels.map((label, i) => v.timing.perDay?.[i] || { label, from: v.timing.same?.from || "", to: v.timing.same?.to || "" }),
+                            },
+                          })}>
+                          Different time per day
+                        </button>
+                      </div>
+                    )}
+                    {mode !== "per_day" && (
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input type="time" className="fi" style={{ width: 140 }}
+                          value={v.timing.same?.from || ""}
+                          onChange={(e) => set({ timing: { mode: "same", same: { from: e.target.value, to: v.timing.same?.to || "" } } })} />
+                        <span style={{ color: "#888", fontSize: 12 }}>to</span>
+                        <input type="time" className="fi" style={{ width: 140 }}
+                          value={v.timing.same?.to || ""}
+                          onChange={(e) => set({ timing: { mode: "same", same: { from: v.timing.same?.from || "", to: e.target.value } } })} />
+                      </div>
+                    )}
+                    {mode === "per_day" && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {dayLabels.map((label, i) => {
+                          const row = v.timing.perDay?.[i] || { label, from: "", to: "" };
+                          const update = (patch: Partial<{ from: string; to: string }>) => {
+                            const next = dayLabels.map((lbl, j) => v.timing.perDay?.[j] || { label: lbl, from: "", to: "" });
+                            next[i] = { ...row, ...patch, label };
+                            set({ timing: { mode: "per_day", perDay: next } });
+                          };
+                          return (
+                            <div key={label + i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              <span style={{ width: 110, fontSize: 12, color: "#555" }}>{label}</span>
+                              <input type="time" className="fi" style={{ width: 130 }}
+                                value={row.from} onChange={(e) => update({ from: e.target.value })} />
+                              <span style={{ color: "#888", fontSize: 12 }}>to</span>
+                              <input type="time" className="fi" style={{ width: 130 }}
+                                value={row.to} onChange={(e) => update({ to: e.target.value })} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div>
               <QuickSaveInput fieldKey="webinar_format" label="Webinar Format"
