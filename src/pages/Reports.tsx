@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { downloadCSV, downloadPDF, type AttributionPayload, type SaleDetail } from "@/lib/roasExport";
 import AttributionResultsView from "@/components/roas/AttributionResultsView";
+import AttributionAuditPanel from "@/components/roas/AttributionAuditPanel";
+import type { AttributionResult } from "@/lib/roas/attributionEngine";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, Tooltip as RTooltip,
 } from "recharts";
