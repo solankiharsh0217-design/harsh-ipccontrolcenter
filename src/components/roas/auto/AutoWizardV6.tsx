@@ -148,6 +148,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [showFormat, setShowFormat] = useState(false);
   const [showDataUsed, setShowDataUsed] = useState(false);
   const [stepErr, setStepErr] = useState<string | null>(null);
+  const [mappingDrawer, setMappingDrawer] = useState<{ sheetId: string } | null>(null);
 
   // Persist draft
   useEffect(() => {
