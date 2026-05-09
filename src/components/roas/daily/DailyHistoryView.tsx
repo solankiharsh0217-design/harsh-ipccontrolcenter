@@ -203,11 +203,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
   };
 
   const confirmDelete = async (id: string) => {
-    if (!confirm("Delete this daily report? This will hide it from history. You can no longer edit it from here.")) return;
+    if (!confirm("Move this daily report to Trash? It will be hidden from history and permanently deleted after 14 days unless restored.")) return;
     setDeletingId(id);
     try {
       await softDeleteReport(id);
-      toast.success("Report deleted.");
+      toast.success("Moved to Trash. Will auto-delete in 14 days.");
       setViewing(null);
       reload();
     } catch (e: any) {
