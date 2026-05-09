@@ -1,84 +1,67 @@
-# Daily Lead Reporting — UX, Analytics, History, Export & Action Cleanup
+## Goal
 
-Scope: improve the existing `DailyLeadReportingModule` only. No changes to Attribution Engine, Manual Upload, Automatic Attribution, Total ROAS, or the IPC design system.
+Add a **Direct Import** flow inside Calling CRM so leads can be imported from a CSV/sheet without first running Lead Qualifier — with full segmentation (webinar, batch name, segment label) and pipeline routing (existing or newly created).
 
-## Phase 1 — Navigation shell + visible primary actions
-- Replace the current "Hide History" toggle with a 3-view shell inside the module: **Create Report**, **History**, **Analytics**.
-- Header shows title + subtitle + 3 primary actions (`+ New Daily Report`, `📊 Analytics`, `History`) — always visible, locked-design styled.
-- Add 4 summary cards (Total Spend, Total Leads, Overall CPL, Reports Saved) driven by current filter range; visible above each view.
-- Default view: if a draft exists → Create; else → History.
+Today the only way leads enter CRM is via Lead Qualifier → Send to CRM. Manually downloaded lists have no entry point. The Crm page also has no "Import" button.
 
-## Phase 2 — Always-visible add buttons + clearer dropdowns
-- Update `QuickSaveInput` so the gold `+` button is always visible (not only when typing) when the field is empty or value isn't in saved list.
-- Add a "saved-list" affordance: small chevron + helper text (`Click to choose from saved list or add new` / `No saved options yet — click + to add one`).
-- Apply consistent placeholders to: Media Buyer Name, Ad Account Name, Lead Source Name, Saved Sheet Source, Metric Template, Custom Metric, Google Sheet URL.
-- `+` opens a small popover dialog (Add New [Field]) → saves to `quick_save_entries` (or relevant table) → auto-selects new value.
+---
 
-## Phase 3 — Reports History view (prominent)
-- Replace existing inline `DailyReportsHistory` with full view:
-  - Filters row: Date range (From/To), Media Buyer, Ad Account, Search, Metric Template, Reset.
-  - Top actions: `+ New Daily Report`, `Export History ▾`, `Analytics`.
-  - Table columns: Created On · Report Date · Report Name · Media Buyers · Total Spend · Total Leads · Overall CPL · Actions.
-  - Actions cell: `View` button + `⋯ More` dropdown (Edit, Copy WhatsApp, Export ▸ CSV/XLSX/PDF/Sheets-ready, Delete).
-- View opens a right-side drawer (see Phase 4).
+## What gets built
 
-## Phase 4 — View / Edit / Delete report flows
-- **View Drawer**: header with date, top summary cards, sections (Overall, Media Buyer Breakdown, Ad Accounts, WhatsApp Preview, Notes). Top-right buttons: Edit, Export ▾, Copy WhatsApp, Close. Visible `📋 Copy Full WhatsApp Report` button next to the WhatsApp preview box; toast on success/failure.
-- **Edit**: load saved report into the Create flow, preserve `report_id`, show "Editing Saved Report" badge + `Save Changes` / `Save as New Copy` / `Cancel Editing`. Bumps `updated_at`, sets `report_status='edited'`.
-- **Delete**: confirmation modal → soft delete (`is_deleted=true`); refresh history; toast.
+### 1. New "Import Leads" button in CRM toolbar (`src/pages/Crm.tsx`)
+Placed next to **Assign / Export**. Opens a new multi-step modal `ImportLeadsModal`.
 
-## Phase 5 — Analytics view
-- Filters: Date range, Media Buyer, Ad Account, Metric Template, Metric selector, Reset.
-- 5 summary cards: Total Spend, Total Leads, Average CPL, Best CPL Buyer, Highest Lead Buyer.
-- Charts (Chart.js, in bordered cards):
-  1. Daily Spend trend (line)
-  2. Daily Leads trend (line)
-  3. Daily CPL trend (line)
-  4. Media Buyer CPL comparison (bar)
-  5. Media Buyer Spend vs Leads (grouped bar — separate if scales clash)
-  6. Custom Metric trend (line, user-selected metric)
-- Below: filtered history table; empty state if no data.
+### 2. New component: `src/components/ImportLeadsModal.tsx`
+A 4-step wizard mirroring the polish of `SendToCrmModal`.
 
-## Phase 6 — Unified Export menu
-- Single `Export ▾` dropdown everywhere (single report and filtered history):
-  - 📁 CSV · 📊 Excel/XLSX · 📄 PDF · 📋 Copy WhatsApp · 📗 Google Sheets Ready
-- WhatsApp option only for individual reports; in bulk view show helper text instead.
-- XLSX: try `xlsx` lib if already in deps; if not, fall back to CSV labelled "CSV (Excel-compatible)".
-- Google Sheets Ready: download CSV + "Copy Table" (TSV to clipboard) with toast.
+**Step 1 — Upload file**
+- Drag/drop or click to upload `.csv` / `.xlsx`
+- Parse with PapaParse (CSV) and SheetJS (xlsx) — SheetJS already not installed; use CSV-only first plus a "paste rows" fallback
+- Show preview of first 5 rows + detected headers
+- Column mapper: Name, Email, Phone, Country (auto-guess by header name; user can override)
 
-## Phase 7 — WhatsApp formatter cleanup
-- Update `buildWhatsApp()` in `helpers.ts` to skip null/undefined metrics and empty buyers; format ₹ correctly; plain-text only.
-- `📋 Copy WhatsApp Report` button visible in Step 3 Review, View drawer, and actions menu.
+**Step 2 — Segment & Webinar details**
+- **Segment name** (free text, required) — stored on each lead as `webinar_source`. This is the batch label users will filter by.
+- **Webinar** dropdown (existing webinars from `webinars` table) + "+ New" inline creator (same UX as SendToCrmModal)
+- **Webinar date** (date picker)
+- **Source notes** (optional textarea — saved to a new `import_notes` column or activity log)
 
-## Phase 8 — DB additions (only missing columns)
-Single migration adds (idempotent `IF NOT EXISTS`):
-- `daily_lead_reports`: `report_status text default 'saved'` (others `updated_at`, `is_deleted`, `whatsapp_message` already exist).
-- `daily_lead_report_media_buyers`: `is_manual_lead_override boolean default false` (`status` already exists).
-- `daily_lead_report_ad_accounts`: nothing — `metrics jsonb` already exists.
+**Step 3 — Pipeline & Lead type**
+- Lead type: Unpaid / Paid (cards, same as existing modal)
+- Target pipeline: dropdown of existing pipelines filtered by lead type, **plus** a "+ Create new pipeline" option
+  - When chosen, inline form appears: pipeline **name**, **type** (unpaid/paid/custom), and a **Seed default stages** checkbox (reuses `DEFAULT_PIPELINE_TEMPLATES` + `ensurePipelineExists` logic already in `crmTypes.ts`)
+- Default grade for imported rows: Hot / Warm / Cold / Super Hot (since no qualifier data exists, user picks one default; can be edited per lead later)
+- Product name + Deal value (₹) — same fields as SendToCrmModal
 
-No data migrations. No hard deletes. Existing rows unaffected.
+**Step 4 — Assignment & Confirm**
+- Assignment: Unassigned / Round-robin / Hot to top agents (reuse existing logic)
+- Summary card: "X leads → [Pipeline] · Segment '[name]' · Webinar [name] [date]"
+- Dedup detection: query existing `leads` by email, mark matches as Super Hot (same pattern as SendToCrmModal)
+- Import button → bulk insert in chunks of 200, toast result
 
-## Phase 9 — Aesthetic polish
-- Card sections, status badges (Saved/Draft/Edited/Manual Override/Fetch Failed/Needs Review), compact action dropdowns, helper text, chart cards, no gradients/shadows.
+### 3. Reuse existing infrastructure
+- `ensurePipelineExists` from `src/lib/crmTypes.ts` for new-pipeline creation
+- `webinars` table + inline create flow from `SendToCrmModal`
+- Lead insert payload shape from `SendToCrmModal.importNow`
+- Existing dedup-by-email logic
 
-## Out of scope (explicit)
-- Attribution engine, Total ROAS, Manual Upload, Automatic Attribution, Media Buyer Attribution.
-- Meta API, Google Sheets OAuth/write.
-- Any change to existing tables beyond additive columns above.
+### 4. No database changes required
+All needed columns already exist on `leads`: `webinar_source`, `webinar_date`, `webinar_name`, `pipeline_id`, `stage_id`, `lead_type`, `program_name`, `deal_value`, `assigned_agent_id`, `grade`, `is_super_hot`. The "segment name" maps to `webinar_source` (which the Crm Kanban already groups/filters by as "webinar batches").
 
-## Technical notes
-- New files:
-  - `src/components/roas/daily/DailyLauncher.tsx` (3-view shell + summary cards)
-  - `src/components/roas/daily/DailyHistoryView.tsx`
-  - `src/components/roas/daily/DailyAnalyticsView.tsx`
-  - `src/components/roas/daily/DailyReportDrawer.tsx`
-  - `src/components/roas/daily/ExportMenu.tsx`
-  - `src/components/roas/daily/AddItemPopover.tsx`
-- Modified:
-  - `src/components/roas/DailyLeadReportingModule.tsx` (mount shell, support edit-existing-report mode, expose Step 3 WhatsApp copy button)
-  - `src/components/QuickSaveInput.tsx` (always-visible `+`, helper text, chevron)
-  - `src/lib/dailyReports/helpers.ts` (WhatsApp formatter cleanup, XLSX/Sheets-ready exporters, soft-delete helper, history-range exporters)
-- Migration: `supabase/migrations/<ts>_daily_reports_status_override.sql`
+---
 
-## Delivery order
-Run as 3 commits within this turn, in order: Phase 8 migration → Phases 1–4 (shell, history, drawer, edit/delete, visible `+`) → Phases 5–7 + 9 (analytics, export menu, WhatsApp cleanup, polish). Verify build after each.
+## Out of scope
+- Editing the Lead Qualifier flow
+- Changing existing pipelines or stages
+- xlsx parsing (CSV only in v1; can add later if requested)
+
+---
+
+## Files touched
+
+```text
+NEW   src/components/ImportLeadsModal.tsx
+EDIT  src/pages/Crm.tsx                 (add Import button + modal mount + reload on done)
+```
+
+No migrations. No new dependencies (PapaParse already used in `src/lib/roas/preview.ts`).

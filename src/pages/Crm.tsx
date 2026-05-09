@@ -3,7 +3,8 @@ import { PageHead } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
 import LeadDrawer from "@/components/LeadDrawer";
-import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users } from "lucide-react";
+import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload } from "lucide-react";
+import ImportLeadsModal from "@/components/ImportLeadsModal";
 import { toast } from "sonner";
 
 type View = "kanban" | "list" | "stages" | "batches";
@@ -27,6 +28,7 @@ export default function Crm() {
   const [newPipelineSeed, setNewPipelineSeed] = useState(true);
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("gray");
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = async () => {
     let { data: p } = await supabase.from("pipelines").select("*").order("position");
@@ -258,10 +260,13 @@ export default function Crm() {
             <option value="warm">Warm</option>
             <option value="cold">Cold</option>
           </select>
+          <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>
           <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
           <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-10"><Download className="w-3.5 h-3.5" /> Export</button>
         </div>
       </div>
+
+      {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={() => { setImportOpen(false); load(); }} />}
 
       {/* Kanban */}
       {view === "kanban" && (
