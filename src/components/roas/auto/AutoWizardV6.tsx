@@ -13,6 +13,8 @@ import { runAutoAttribution, type AutoAttribResult, type TabMapping, type Column
 import { extractSpreadsheetId, fetchTabAsRows } from "@/lib/roas/sheetFetch";
 import { cleanMediaBuyerName, guessRole, type TabRole } from "@/lib/roas/tabClassify";
 import ColumnMappingDrawer, { type ColumnMapping } from "@/components/roas/auto/ColumnMappingDrawer";
+import Step4Attendees from "@/components/roas/auto/Step4Attendees";
+import { type AttendeeSlot, defaultSlotsForDates, persistAttendeeSlots, slotsAllReady } from "@/lib/roas/attendees";
 import { scheduleDraftSync, loadRemoteDraft, clearRemoteDraft, type DraftPayload } from "@/lib/roas/autoDraft";
 
 // ---------- Types & storage ----------
