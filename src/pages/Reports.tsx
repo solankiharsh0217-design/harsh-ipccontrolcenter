@@ -588,18 +588,25 @@ function AttributionSection({
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "#16A34A" }}>{inr(Number(s.total_revenue))}</td>
                   <td><span className={"roas-val " + roasClass(roasN)}>{roasN.toFixed(2)}×</span></td>
                   <td onClick={(e) => e.stopPropagation()}>
-                    <AttrRowActions
-                      onView={() => setOpenSession(s)}
-                      onEdit={() => setEditing(s)}
-                      onExport={async (kind) => {
-                        const p = await loadPayload(s);
-                        if (!p) return;
-                        if (kind === "pdf") downloadPDF(p);
-                        else downloadCSV(p);
-                      }}
-                      onDelete={() => confirmDelete(s.id)}
-                      disabled={!!s.is_deleted}
-                    />
+                    {s.is_deleted ? (
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-g btn-sm" onClick={() => restoreSession(s.id)}>↺ Restore</button>
+                        <button className="btn btn-g btn-sm" style={{ color: "#DC2626" }} onClick={() => purgeOne(s.id)}>🗑 Forever</button>
+                      </div>
+                    ) : (
+                      <AttrRowActions
+                        onView={() => setOpenSession(s)}
+                        onEdit={() => setEditing(s)}
+                        onExport={async (kind) => {
+                          const p = await loadPayload(s);
+                          if (!p) return;
+                          if (kind === "pdf") downloadPDF(p);
+                          else downloadCSV(p);
+                        }}
+                        onDelete={() => confirmDelete(s.id)}
+                        disabled={!!s.is_deleted}
+                      />
+                    )}
                   </td>
                 </tr>
               );
