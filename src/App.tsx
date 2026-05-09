@@ -41,7 +41,9 @@ const App = () => (
             <Route path="/roas-calculator" element={<Shell><RoasCalculator /></Shell>} />
             <Route path="/roas" element={<Shell><RoasCalculator /></Shell>} />
             <Route path="/search" element={<Shell><StudentSearch /></Shell>} />
-            <Route path="/leadflow" element={<Shell><LeadFlow /></Shell>} />
+            <Route path="/leadflow" element={<Navigate to="/daily-lead-reporting" replace />} />
+            <Route path="/daily-lead-flow" element={<Navigate to="/daily-lead-reporting" replace />} />
+            <Route path="/daily-lead-reporting" element={<Shell><DailyLeadReporting /></Shell>} />
             <Route path="/reports" element={<Shell><Reports /></Shell>} />
             <Route path="/lead-qualifier" element={<Shell><LeadQualifier /></Shell>} />
             <Route path="/crm" element={<Shell><Crm /></Shell>} />
