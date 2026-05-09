@@ -219,12 +219,14 @@ export default function DailyLeadReportingModule({ onBack }: { onBack?: () => vo
 
   return (
     <div style={{ maxWidth: 1100, padding: "8px 4px" }}>
-      <button
-        onClick={onBack}
-        style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif", marginBottom: 16 }}
-      >
-        ← Back to ROAS Tools
-      </button>
+      {onBack && (
+        <button
+          onClick={onBack}
+          style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif", marginBottom: 16 }}
+        >
+          ← Back to ROAS Tools
+        </button>
+      )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
         <div>
