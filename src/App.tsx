@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import RoasCalculator from "./pages/RoasCalculator";
 import StudentSearch from "./pages/StudentSearch";
 import LeadFlow from "./pages/LeadFlow";
+import DailyLeadReporting from "./pages/DailyLeadReporting";
 import Reports from "./pages/Reports";
 import Team from "./pages/Team";
 import Announcements from "./pages/Announcements";
