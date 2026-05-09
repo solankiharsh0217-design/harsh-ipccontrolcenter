@@ -16,7 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/roas": "ROAS Calculator",
   "/roas-calculator": "ROAS Calculator",
   "/search": "Student Search",
-  "/leadflow": "Daily Lead Flow",
+  "/daily-lead-reporting": "Daily Lead Reporting",
   "/reports": "Reports & History",
   "/lead-qualifier": "Lead Qualifier",
   "/crm": "Calling CRM",
