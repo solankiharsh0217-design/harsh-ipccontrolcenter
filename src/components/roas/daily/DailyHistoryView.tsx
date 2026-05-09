@@ -6,7 +6,7 @@ import {
   fmtDateLong, fmtNum, inr, type DailyReport,
 } from "@/lib/dailyReports/helpers";
 import DailyReportDrawer from "./DailyReportDrawer";
-import { loadFullReport, runExportAction, softDeleteReport } from "./sharedActions";
+import { loadFullReport, runExportAction, softDeleteReport, restoreReport, permanentlyDeleteReport, daysRemaining } from "./sharedActions";
 import ExportMenu from "./ExportMenu";
 
 type RowExt = {
@@ -14,6 +14,8 @@ type RowExt = {
   total_ad_spend: number; total_leads: number; overall_cpl: number | null;
   metric_template_id: string | null; report_status: string | null;
   notes?: string | null;
+  is_deleted?: boolean | null;
+  deleted_at?: string | null;
   _media_buyers?: { name: string; spend: number; leads: number }[];
   _ad_accounts?: string[];
   _template_name?: string | null;
