@@ -282,7 +282,7 @@ type DataSource = { id?: string; name: string; type: string; url: string; descri
 const DEAL_VALUE = 118000;
 
 // ───────────── component ─────────────
-type ToolKey = "home" | "attr" | "total" | "daily" | "sources";
+type ToolKey = "home" | "attr" | "total" | "sources";
 
 export default function RoasCalculator() {
   const { user } = useAuth();
@@ -303,7 +303,6 @@ export default function RoasCalculator() {
         )}
         {tool === "attr" && <AttrTabWrapper userId={user?.id} />}
         {tool === "total" && <TotalTab userId={user?.id} />}
-        {tool === "daily" && <DailyLeadReportingModule onBack={() => setTool("home")} />}
         {tool === "sources" && <SourcesTab userId={user?.id} />}
       </div>
     </div>
