@@ -39,15 +39,17 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
   const [viewing, setViewing] = useState<DailyReport | null>(null);
   const [viewingStatus, setViewingStatus] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const reload = async () => {
     setLoading(true);
-    const { data: reports } = await (supabase as any)
+    let q = (supabase as any)
       .from("daily_lead_reports")
       .select("*")
-      .eq("is_deleted", false)
       .order("report_date", { ascending: false })
       .limit(500);
+    q = showDeleted ? q.eq("is_deleted", true) : q.eq("is_deleted", false);
+    const { data: reports } = await q;
     const reportIds = (reports || []).map((r: any) => r.id);
     let mbsByReport: Record<string, any[]> = {};
     if (reportIds.length) {
