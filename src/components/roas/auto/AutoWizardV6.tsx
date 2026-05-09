@@ -169,6 +169,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [resultsStatus, setResultsStatus] = useState<"fresh" | "outdated" | null>(initial.current.resultsStatus);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(initial.current.savedSessionId);
   const [savedHist, setSavedHist] = useState(false);
+  const [attendeeSlots, setAttendeeSlots] = useState<AttendeeSlot[]>([]);
 
   const [detecting, setDetecting] = useState(false);
   const [detectErr, setDetectErr] = useState<string | null>(null);
