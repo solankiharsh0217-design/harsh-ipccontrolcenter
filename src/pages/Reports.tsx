@@ -179,7 +179,14 @@ export default function Reports() {
     setDailyStats({ count: arr.length, spend, leadsTotal, avgCpl });
   };
 
-  useEffect(() => { reloadSessions(); loadDailyStats(); }, []);
+  useEffect(() => {
+    // Best-effort: purge reports that have been in trash > 14 days, then load.
+    (async () => {
+      try { await (supabase as any).rpc("purge_old_deleted_reports"); } catch {}
+      reloadSessions();
+      loadDailyStats();
+    })();
+  }, []);
 
   const visibleSessions = useMemo(() =>
     sessions.filter((s) => showDeleted ? true : !s.is_deleted),
