@@ -447,7 +447,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       setResultsStatus("fresh");
       setSavedHist(false);
       setSavedSessionId(null);
-      setStep(4);
+      setStep(5);
 
       // Persist mapping for next time (best-effort)
       if (user && spreadsheetId) {
