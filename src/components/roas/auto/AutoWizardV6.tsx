@@ -219,7 +219,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       setResultsStatus(sanitizeResults(rd.results) ? (rd.resultsStatus || null) : null);
       setSavedSessionId(rd.savedSessionId || null);
       setShowRestored(true);
-      if (!sanitizeResults(rd.results) && (rd.step || 1) === 4) setStep(3);
+      if (!sanitizeResults(rd.results) && (rd.step || 1) === 5) setStep(4);
     });
   }, [user?.id]);
 
