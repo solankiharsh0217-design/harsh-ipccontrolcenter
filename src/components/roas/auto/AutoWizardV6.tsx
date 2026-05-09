@@ -597,7 +597,22 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     }
 
     setSavedSessionId(sid); setSavedHist(true);
-    toast.success("Report saved to history ✓");
+
+    // Persist attendee lists (parallel; non-blocking for save success)
+    if (attendeeSlots.length > 0) {
+      try {
+        const res = await persistAttendeeSlots(sid, attendeeSlots);
+        if (res.failed > 0) {
+          toast.error(`Saved report, but ${res.failed} attendee list(s) failed to upload.`);
+        } else {
+          toast.success(`Report saved with ${res.ok} attendee list(s) ✓`);
+        }
+      } catch (e: any) {
+        toast.error("Report saved, but attendee upload failed: " + (e?.message || ""));
+      }
+    } else {
+      toast.success("Report saved to history ✓");
+    }
   }
 
   function startFresh() {
@@ -608,7 +623,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     setMasterUrl(""); setSpreadsheetId(""); setSpreadsheetTitle("");
     setDetectedTabs([]); setTabRoles([]); setAdSpends({});
     setResults(null); setResultsStatus(null); setSavedSessionId(null);
-    setSavedHist(false); setShowRestored(false);
+    setSavedHist(false); setShowRestored(false); setAttendeeSlots([]);
   }
 
   // ============================================================
