@@ -26,6 +26,11 @@ function initials(name: string) {
   if (w.length === 1) return w[0][0].toUpperCase();
   return (w[0][0] + w[w.length - 1][0]).toUpperCase();
 }
+function daysRemaining(deletedAt?: string | null): number {
+  if (!deletedAt) return 14;
+  const ms = new Date(deletedAt).getTime() + 14 * 24 * 60 * 60 * 1000 - Date.now();
+  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+}
 
 const styles = `
 .rcv2 *,.rcv2 *::before,.rcv2 *::after{box-sizing:border-box}
