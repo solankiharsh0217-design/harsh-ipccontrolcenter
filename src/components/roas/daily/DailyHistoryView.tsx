@@ -92,7 +92,13 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
     setLoading(false);
   };
 
-  useEffect(() => { reload(); }, [showDeleted]);
+  useEffect(() => {
+    (async () => {
+      try { await (supabase as any).rpc("purge_old_deleted_reports"); } catch {}
+      reload();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDeleted]);
 
   const allBuyers = useMemo(() => {
     const s = new Set<string>();
