@@ -216,7 +216,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
           <div className="step-title">Daily Reports History</div>
           <div className="step-sub">Review saved daily lead reports, compare media buyers, export reports, or copy WhatsApp summaries.</div>
         </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#555" }}>
+            <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />
+            Show deleted (Trash)
+          </label>
           <button className="btn btn-k btn-sm" onClick={onNew}>+ New Daily Report</button>
           <button className="btn btn-g btn-sm" onClick={onShowAnalytics}>📊 Analytics</button>
           <ExportMenu label="Export History" onSelect={(a) => exportHistory(a)} includeWhatsapp={false} />
