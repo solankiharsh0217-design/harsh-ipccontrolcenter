@@ -257,6 +257,16 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(selectedMBs.map((m) => m.sheetId))]);
 
+  // Auto-prefill attendee slots from webinar dates when entering step 4
+  useEffect(() => {
+    if (step !== 4) return;
+    if (attendeeSlots.length > 0) return;
+    setAttendeeSlots(defaultSlotsForDates(buildDayLabels(webinar)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  const attendeesReady = slotsAllReady(attendeeSlots);
+
   // ---------- Step navigation ----------
   function stepValid(target: number): boolean {
     if (target <= 1) return true;
@@ -265,7 +275,8 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     if (detectedTabs.length === 0) return false;
     if (!selectedSales || selectedMBs.length === 0 || !mbNamesUnique) return false;
     if (target === 3) return true;
-    if (target === 4) return !!results;
+    if (target === 4) return true; // attendees step always reachable after step 3
+    if (target === 5) return !!results;
     return false;
   }
   function goto(n: number) {
