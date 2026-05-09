@@ -99,7 +99,7 @@ export async function parseCsvFile(file: File): Promise<ParsedSource> {
 
 export async function parseSheetUrl(sheetUrl: string): Promise<ParsedSource & { sheetId: string | null; tabGid: string | null }> {
   const r = resolveSheetCsvUrl(sheetUrl, sheetUrl);
-  if (!r.ok) throw new Error(r.error);
+  if (!r.ok) throw new Error((r as { ok: false; error: string }).error);
   const rows = await fetchTabAsRows(r.csvUrl);
   const parsed = rowsFromArrays(rows);
   const sidMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
