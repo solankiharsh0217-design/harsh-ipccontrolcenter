@@ -116,7 +116,7 @@ async function insertReportChildren(reportId: string, report: DailyReport, userI
 
 type ViewMode = "create" | "history" | "analytics";
 
-export default function DailyLeadReportingModule({ onBack }: { onBack?: () => void }) {
+export default function DailyLeadReportingModule({ onBack, initialEditReportId }: { onBack?: () => void; initialEditReportId?: string | null }) {
   const { user } = useAuth();
   const [view, setView] = useState<ViewMode>("history");
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
