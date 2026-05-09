@@ -103,7 +103,7 @@ function loadDraft(): DraftV6 {
     const j = JSON.parse(raw);
     const merged: DraftV6 = { ...EMPTY, ...j, webinar: { ...EMPTY_WEBINAR, ...(j?.webinar || {}) } };
     merged.results = sanitizeResults(merged.results);
-    if (!merged.results && merged.step === 4) merged.step = 3;
+    if (!merged.results && merged.step === 5) merged.step = 4;
     if (!merged.results) merged.resultsStatus = null;
     return merged;
   } catch { return EMPTY; }
