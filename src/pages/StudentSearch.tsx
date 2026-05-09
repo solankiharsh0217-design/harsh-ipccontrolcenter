@@ -84,13 +84,27 @@ export default function StudentSearch() {
 
       <div>
         {loading && <div className="text-center py-6 font-sans text-[12px] text-muted-foreground">Searching…</div>}
-        {results.map((s, i) => (
-          <div key={i} className="border border-line rounded-[10px] py-5 px-[22px] mb-2.5">
-            <div className="font-serif text-[22px] font-medium text-black mb-3">{s.full_name || "—"}</div>
-            <Row label="Phone" value={s.phone || "—"} />
-            <Row label="Email" value={s.email || "—"} />
-          </div>
-        ))}
+        {results.map((s, i) => {
+          const isDiamond = s.tier === "diamond";
+          const badgeStyle = isDiamond
+            ? { background: "#FFF8E1", color: "#8A6A00", border: "1px solid #E9D27A" }
+            : { background: "#F1F1F1", color: "#555", border: "1px solid #DDD" };
+          return (
+            <div key={i} className="border border-line rounded-[10px] py-5 px-[22px] mb-2.5">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="font-serif text-[22px] font-medium text-black">{s.full_name || "—"}</div>
+                <span
+                  className="font-sans text-[10px] uppercase tracking-[0.12em] px-2.5 py-1 rounded-full whitespace-nowrap"
+                  style={badgeStyle}
+                >
+                  {isDiamond ? "★ Diamond Member" : "Silver Member"}
+                </span>
+              </div>
+              <Row label="Phone" value={s.phone || "—"} />
+              <Row label="Email" value={s.email || "—"} />
+            </div>
+          );
+        })}
         {q.trim() && !loading && results.length === 0 && (
           <div className="text-center py-10 font-sans text-[13px] text-muted-foreground">No student found matching that search.</div>
         )}
