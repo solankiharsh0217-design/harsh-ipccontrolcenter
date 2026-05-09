@@ -145,6 +145,23 @@ export default function DailyLeadReportingModule({ onBack, initialEditReportId }
     } catch {}
   }, []);
 
+  // Load report into edit mode when initialEditReportId is provided
+  useEffect(() => {
+    if (!initialEditReportId) return;
+    (async () => {
+      const full = await loadFullReport(initialEditReportId);
+      if (full) {
+        setReport(full);
+        setEditingExistingId(initialEditReportId);
+        setView("create");
+        setStep(3);
+        toast.success("Report loaded for editing.");
+      } else {
+        toast.error("Could not load report for editing.");
+      }
+    })();
+  }, [initialEditReportId]);
+
   // Persist draft
   useEffect(() => {
     try {
