@@ -84,9 +84,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></></Icon>
             Student Search
           </NavItem>
-          <NavItem to="/leadflow">
+          <NavItem to="/daily-lead-reporting">
             <Icon d="M2 12l4-4 3 3 5-6" />
-            Daily Lead Flow
+            Daily Lead Reporting
           </NavItem>
           <NavItem to="/reports">
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></></Icon>
