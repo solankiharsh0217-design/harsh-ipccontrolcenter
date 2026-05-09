@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
-interface Student { full_name: string | null; phone: string | null; email: string | null; }
+interface Student { full_name: string | null; phone: string | null; email: string | null; tier?: string | null; }
 
 export default function StudentSearch() {
   const { profile, loading: authLoading } = useAuth();
