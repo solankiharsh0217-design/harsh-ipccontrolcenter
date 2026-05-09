@@ -2147,6 +2147,7 @@ export type Database = {
           full_name: string
           phone: string
           source: string
+          tier: string
         }[]
       }
       show_limit: { Args: never; Returns: number }
