@@ -2140,6 +2140,7 @@ export type Database = {
         Returns: boolean
       }
       is_active: { Args: { _user_id: string }; Returns: boolean }
+      purge_old_deleted_reports: { Args: never; Returns: Json }
       search_students: {
         Args: { _limit?: number; _q: string }
         Returns: {
