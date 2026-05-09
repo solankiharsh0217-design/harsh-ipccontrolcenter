@@ -106,6 +106,78 @@ export type Database = {
         }
         Relationships: []
       }
+      attribution_attendee_lists: {
+        Row: {
+          column_mapping: Json | null
+          file_name: string | null
+          file_path: string | null
+          file_size_bytes: number | null
+          headers: Json | null
+          id: string
+          notes: string | null
+          parsed_rows: Json | null
+          row_count: number
+          session_id: string
+          sheet_id: string | null
+          sheet_url: string | null
+          slot_date: string | null
+          slot_label: string
+          slot_order: number
+          slot_type: string
+          source_kind: string
+          tab_gid: string | null
+          tab_name: string | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          column_mapping?: Json | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
+          headers?: Json | null
+          id?: string
+          notes?: string | null
+          parsed_rows?: Json | null
+          row_count?: number
+          session_id: string
+          sheet_id?: string | null
+          sheet_url?: string | null
+          slot_date?: string | null
+          slot_label: string
+          slot_order?: number
+          slot_type: string
+          source_kind: string
+          tab_gid?: string | null
+          tab_name?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          column_mapping?: Json | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
+          headers?: Json | null
+          id?: string
+          notes?: string | null
+          parsed_rows?: Json | null
+          row_count?: number
+          session_id?: string
+          sheet_id?: string | null
+          sheet_url?: string | null
+          slot_date?: string | null
+          slot_label?: string
+          slot_order?: number
+          slot_type?: string
+          source_kind?: string
+          tab_gid?: string | null
+          tab_name?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       attribution_media_buyers: {
         Row: {
           ad_spend: number

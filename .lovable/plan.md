@@ -1,67 +1,87 @@
 ## Goal
 
-Add a **Direct Import** flow inside Calling CRM so leads can be imported from a CSV/sheet without first running Lead Qualifier — with full segmentation (webinar, batch name, segment label) and pipeline routing (existing or newly created).
+Add an **Attendees** step to the ROAS Auto Attribution wizard (and Manual flow if used) that captures attendee lists for **every webinar day + the sales pitch**, supports both **CSV upload** and **Google Sheet tab** as sources, stores them durably against the attribution session, and lets users **download / re-trace** the original CSV later from the saved report.
 
-Today the only way leads enter CRM is via Lead Qualifier → Send to CRM. Manually downloaded lists have no entry point. The Crm page also has no "Import" button.
+This is **storage-only** — no change to attribution math.
 
 ---
 
 ## What gets built
 
-### 1. New "Import Leads" button in CRM toolbar (`src/pages/Crm.tsx`)
-Placed next to **Assign / Export**. Opens a new multi-step modal `ImportLeadsModal`.
+### 1. Database (1 migration)
 
-### 2. New component: `src/components/ImportLeadsModal.tsx`
-A 4-step wizard mirroring the polish of `SendToCrmModal`.
+**New bucket** `roas-attendees` (private) for raw CSV files.
 
-**Step 1 — Upload file**
-- Drag/drop or click to upload `.csv` / `.xlsx`
-- Parse with PapaParse (CSV) and SheetJS (xlsx) — SheetJS already not installed; use CSV-only first plus a "paste rows" fallback
-- Show preview of first 5 rows + detected headers
-- Column mapper: Name, Email, Phone, Country (auto-guess by header name; user can override)
+**New table `attribution_attendee_lists`**
+- `session_id` → `attribution_sessions.id`
+- `slot_type` text (`day` | `sales_pitch`)
+- `slot_label` text (e.g. "Day 1", "Day 2", "Sales Pitch")
+- `slot_date` date (nullable, auto-suggested from webinar dates)
+- `source_kind` text (`csv_upload` | `google_sheet`)
+- `file_path` text (storage path, when `csv_upload`)
+- `file_name`, `file_size_bytes`
+- `sheet_url`, `sheet_id`, `tab_name`, `tab_gid` (when `google_sheet`)
+- `headers` jsonb, `row_count` int, `parsed_rows` jsonb (cap ~5,000 rows; larger files keep CSV in storage and store a pointer + sample)
+- `column_mapping` jsonb (name/email/phone/duration auto-guess + override)
+- `notes` text
+- `uploaded_by`, `uploaded_at`
 
-**Step 2 — Segment & Webinar details**
-- **Segment name** (free text, required) — stored on each lead as `webinar_source`. This is the batch label users will filter by.
-- **Webinar** dropdown (existing webinars from `webinars` table) + "+ New" inline creator (same UX as SendToCrmModal)
-- **Webinar date** (date picker)
-- **Source notes** (optional textarea — saved to a new `import_notes` column or activity log)
+**RLS:** read for active members, insert/update/delete restricted to session owner or admin (mirrors `attribution_sessions` policies). Storage policies: same — files keyed by `{session_id}/{list_id}-{filename}`.
 
-**Step 3 — Pipeline & Lead type**
-- Lead type: Unpaid / Paid (cards, same as existing modal)
-- Target pipeline: dropdown of existing pipelines filtered by lead type, **plus** a "+ Create new pipeline" option
-  - When chosen, inline form appears: pipeline **name**, **type** (unpaid/paid/custom), and a **Seed default stages** checkbox (reuses `DEFAULT_PIPELINE_TEMPLATES` + `ensurePipelineExists` logic already in `crmTypes.ts`)
-- Default grade for imported rows: Hot / Warm / Cold / Super Hot (since no qualifier data exists, user picks one default; can be edited per lead later)
-- Product name + Deal value (₹) — same fields as SendToCrmModal
+### 2. New wizard step: "Attendees" (between Ad Spends and Results)
 
-**Step 4 — Assignment & Confirm**
-- Assignment: Unassigned / Round-robin / Hot to top agents (reuse existing logic)
-- Summary card: "X leads → [Pipeline] · Segment '[name]' · Webinar [name] [date]"
-- Dedup detection: query existing `leads` by email, mark matches as Super Hot (same pattern as SendToCrmModal)
-- Import button → bulk insert in chunks of 200, toast result
+`AutoWizardV6` step labels become: `Webinar Details → Connect Sheet → Ad Spends → Attendees → Results` (5 steps).
 
-### 3. Reuse existing infrastructure
-- `ensurePipelineExists` from `src/lib/crmTypes.ts` for new-pipeline creation
-- `webinars` table + inline create flow from `SendToCrmModal`
-- Lead insert payload shape from `SendToCrmModal.importNow`
-- Existing dedup-by-email logic
+**Step 4 UI — `Step4Attendees`:**
+- Auto-pre-fills one slot per webinar day from `webinar.dateMode`/`dates` + one **Sales Pitch** slot (date optional)
+- "**+ Add another day**" / "**+ Add another sales pitch**" buttons for flexibility
+- Per slot:
+  - Source toggle: **CSV upload** | **Google Sheet tab**
+  - CSV: drag/drop (PapaParse, already a dep), shows row count + first-row preview, column mapper (Name / Email / Phone / Duration — auto-guessed)
+  - Sheet: paste sheet URL or pick a tab from the already-detected master-sheet tabs (reuse `detectedTabs` list); same mapper drawer pattern as `ColumnMappingDrawer.tsx`
+  - "Remove" button
+- Validation: **required** — every prefilled slot must have a source attached before "Calculate" is enabled
+- Slots persist into the existing wizard draft `roas_calculation_drafts.detected_tabs`/new field so refresh-safe
 
-### 4. No database changes required
-All needed columns already exist on `leads`: `webinar_source`, `webinar_date`, `webinar_name`, `pipeline_id`, `stage_id`, `lead_type`, `program_name`, `deal_value`, `assigned_agent_id`, `grade`, `is_super_hot`. The "segment name" maps to `webinar_source` (which the Crm Kanban already groups/filters by as "webinar batches").
+### 3. Persistence on save
+
+When the user saves results (existing flow in `AutoWizardV6` `runCalculation` → insert into `attribution_sessions`), also:
+1. For each CSV slot: upload file to `roas-attendees/{sessionId}/...`, parse with PapaParse, insert one row into `attribution_attendee_lists` with `parsed_rows` (truncated if huge) + storage path
+2. For each Sheet slot: fetch via existing `fetchTabAsRows` / `resolveSheetCsvUrl` helpers, store rows + sheet pointer
+
+All inserts happen in parallel after the session insert succeeds. Failure of an attendee upload does not roll back the session — shows a toast and lets user retry from the saved report detail.
+
+### 4. Saved report detail — view & download
+
+In `Reports.tsx` (Attribution tab) and `AttributionResultsView.tsx`:
+- New **"Attendees"** card listing each slot with: label, date, row count, source badge, **Download CSV** button (signed URL from storage for uploads; regenerated CSV from `parsed_rows` for sheet sources), **View rows** drawer (paginated table)
+- Edit affordance: replace/remove a slot from the saved report (admin or owner)
+
+### 5. No change to attribution engine
+
+`attributionEngine.ts`, sales matching, ROAS math — untouched.
+
+---
+
+## Files
+
+```text
+NEW   supabase/migrations/<ts>_attribution_attendees.sql
+NEW   src/components/roas/auto/Step4Attendees.tsx
+NEW   src/components/roas/AttendeesPanel.tsx        (used in saved report detail)
+NEW   src/lib/roas/attendees.ts                     (parse/upload/fetch helpers)
+EDIT  src/components/roas/auto/AutoWizardV6.tsx     (insert Attendees step, wire save)
+EDIT  src/components/roas/AttributionResultsView.tsx (mount AttendeesPanel)
+EDIT  src/pages/Reports.tsx                         (show attendee count badge per session)
+EDIT  src/integrations/supabase/types.ts            (auto-regenerated post-migration)
+```
+
+No new dependencies (PapaParse already in `src/lib/roas/preview.ts`; storage SDK available).
 
 ---
 
 ## Out of scope
-- Editing the Lead Qualifier flow
-- Changing existing pipelines or stages
-- xlsx parsing (CSV only in v1; can add later if requested)
 
----
-
-## Files touched
-
-```text
-NEW   src/components/ImportLeadsModal.tsx
-EDIT  src/pages/Crm.tsx                 (add Import button + modal mount + reload on done)
-```
-
-No migrations. No new dependencies (PapaParse already used in `src/lib/roas/preview.ts`).
+- Cross-matching attendees against leads / changing attribution
+- Editing existing past sessions to add attendees retroactively (those sessions just show "no attendee data captured")
+- xlsx upload — CSV only in v1 (matches existing CSV-only pattern in the app)

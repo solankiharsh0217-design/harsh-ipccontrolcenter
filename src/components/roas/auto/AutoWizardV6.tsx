@@ -13,6 +13,8 @@ import { runAutoAttribution, type AutoAttribResult, type TabMapping, type Column
 import { extractSpreadsheetId, fetchTabAsRows } from "@/lib/roas/sheetFetch";
 import { cleanMediaBuyerName, guessRole, type TabRole } from "@/lib/roas/tabClassify";
 import ColumnMappingDrawer, { type ColumnMapping } from "@/components/roas/auto/ColumnMappingDrawer";
+import Step4Attendees from "@/components/roas/auto/Step4Attendees";
+import { type AttendeeSlot, defaultSlotsForDates, persistAttendeeSlots, slotsAllReady } from "@/lib/roas/attendees";
 import { scheduleDraftSync, loadRemoteDraft, clearRemoteDraft, type DraftPayload } from "@/lib/roas/autoDraft";
 
 // ---------- Types & storage ----------
@@ -101,7 +103,7 @@ function loadDraft(): DraftV6 {
     const j = JSON.parse(raw);
     const merged: DraftV6 = { ...EMPTY, ...j, webinar: { ...EMPTY_WEBINAR, ...(j?.webinar || {}) } };
     merged.results = sanitizeResults(merged.results);
-    if (!merged.results && merged.step === 4) merged.step = 3;
+    if (!merged.results && merged.step === 5) merged.step = 4;
     if (!merged.results) merged.resultsStatus = null;
     return merged;
   } catch { return EMPTY; }
@@ -167,6 +169,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [resultsStatus, setResultsStatus] = useState<"fresh" | "outdated" | null>(initial.current.resultsStatus);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(initial.current.savedSessionId);
   const [savedHist, setSavedHist] = useState(false);
+  const [attendeeSlots, setAttendeeSlots] = useState<AttendeeSlot[]>([]);
 
   const [detecting, setDetecting] = useState(false);
   const [detectErr, setDetectErr] = useState<string | null>(null);
@@ -216,7 +219,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       setResultsStatus(sanitizeResults(rd.results) ? (rd.resultsStatus || null) : null);
       setSavedSessionId(rd.savedSessionId || null);
       setShowRestored(true);
-      if (!sanitizeResults(rd.results) && (rd.step || 1) === 4) setStep(3);
+      if (!sanitizeResults(rd.results) && (rd.step || 1) === 5) setStep(4);
     });
   }, [user?.id]);
 
@@ -254,6 +257,16 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(selectedMBs.map((m) => m.sheetId))]);
 
+  // Auto-prefill attendee slots from webinar dates when entering step 4
+  useEffect(() => {
+    if (step !== 4) return;
+    if (attendeeSlots.length > 0) return;
+    setAttendeeSlots(defaultSlotsForDates(buildDayLabels(webinar)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  const attendeesReady = slotsAllReady(attendeeSlots);
+
   // ---------- Step navigation ----------
   function stepValid(target: number): boolean {
     if (target <= 1) return true;
@@ -262,7 +275,8 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     if (detectedTabs.length === 0) return false;
     if (!selectedSales || selectedMBs.length === 0 || !mbNamesUnique) return false;
     if (target === 3) return true;
-    if (target === 4) return !!results;
+    if (target === 4) return true; // attendees step always reachable after step 3
+    if (target === 5) return !!results;
     return false;
   }
   function goto(n: number) {
@@ -433,7 +447,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       setResultsStatus("fresh");
       setSavedHist(false);
       setSavedSessionId(null);
-      setStep(4);
+      setStep(5);
 
       // Persist mapping for next time (best-effort)
       if (user && spreadsheetId) {
@@ -583,7 +597,22 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     }
 
     setSavedSessionId(sid); setSavedHist(true);
-    toast.success("Report saved to history ✓");
+
+    // Persist attendee lists (parallel; non-blocking for save success)
+    if (attendeeSlots.length > 0) {
+      try {
+        const res = await persistAttendeeSlots(sid, attendeeSlots);
+        if (res.failed > 0) {
+          toast.error(`Saved report, but ${res.failed} attendee list(s) failed to upload.`);
+        } else {
+          toast.success(`Report saved with ${res.ok} attendee list(s) ✓`);
+        }
+      } catch (e: any) {
+        toast.error("Report saved, but attendee upload failed: " + (e?.message || ""));
+      }
+    } else {
+      toast.success("Report saved to history ✓");
+    }
   }
 
   function startFresh() {
@@ -594,7 +623,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     setMasterUrl(""); setSpreadsheetId(""); setSpreadsheetTitle("");
     setDetectedTabs([]); setTabRoles([]); setAdSpends({});
     setResults(null); setResultsStatus(null); setSavedSessionId(null);
-    setSavedHist(false); setShowRestored(false);
+    setSavedHist(false); setShowRestored(false); setAttendeeSlots([]);
   }
 
   // ============================================================
