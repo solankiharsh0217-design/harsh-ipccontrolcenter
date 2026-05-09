@@ -92,7 +92,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
     setLoading(false);
   };
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); }, [showDeleted]);
 
   const allBuyers = useMemo(() => {
     const s = new Set<string>();
