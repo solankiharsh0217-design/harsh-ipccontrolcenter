@@ -260,10 +260,13 @@ export default function Crm() {
             <option value="warm">Warm</option>
             <option value="cold">Cold</option>
           </select>
+          <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>
           <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
           <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-10"><Download className="w-3.5 h-3.5" /> Export</button>
         </div>
       </div>
+
+      {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={() => { setImportOpen(false); load(); }} />}
 
       {/* Kanban */}
       {view === "kanban" && (
