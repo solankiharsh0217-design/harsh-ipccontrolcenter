@@ -270,10 +270,13 @@ export type Database = {
           column_mappings_used: Json | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           duplicate_conflicts_count: number | null
           fetch_log_id: string | null
           id: string
           input_snapshot_hash: string | null
+          is_deleted: boolean
           master_sheet_id: string | null
           master_sheet_title: string | null
           master_sheet_url: string | null
@@ -289,6 +292,7 @@ export type Database = {
           total_revenue: number
           total_sales: number
           unmatched_count: number
+          updated_at: string | null
           webinar_date: string | null
           webinar_date_mode: string | null
           webinar_dates: Json | null
@@ -313,10 +317,13 @@ export type Database = {
           column_mappings_used?: Json | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           duplicate_conflicts_count?: number | null
           fetch_log_id?: string | null
           id?: string
           input_snapshot_hash?: string | null
+          is_deleted?: boolean
           master_sheet_id?: string | null
           master_sheet_title?: string | null
           master_sheet_url?: string | null
@@ -332,6 +339,7 @@ export type Database = {
           total_revenue?: number
           total_sales?: number
           unmatched_count?: number
+          updated_at?: string | null
           webinar_date?: string | null
           webinar_date_mode?: string | null
           webinar_dates?: Json | null
@@ -356,10 +364,13 @@ export type Database = {
           column_mappings_used?: Json | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           duplicate_conflicts_count?: number | null
           fetch_log_id?: string | null
           id?: string
           input_snapshot_hash?: string | null
+          is_deleted?: boolean
           master_sheet_id?: string | null
           master_sheet_title?: string | null
           master_sheet_url?: string | null
@@ -375,6 +386,7 @@ export type Database = {
           total_revenue?: number
           total_sales?: number
           unmatched_count?: number
+          updated_at?: string | null
           webinar_date?: string | null
           webinar_date_mode?: string | null
           webinar_dates?: Json | null
@@ -565,6 +577,8 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           input_hash: string | null
           is_deleted: boolean
@@ -582,6 +596,8 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           input_hash?: string | null
           is_deleted?: boolean
@@ -599,6 +615,8 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           input_hash?: string | null
           is_deleted?: boolean
