@@ -6,7 +6,7 @@ import {
   fmtDateLong, fmtNum, inr, type DailyReport,
 } from "@/lib/dailyReports/helpers";
 import DailyReportDrawer from "./DailyReportDrawer";
-import { loadFullReport, runExportAction, softDeleteReport } from "./sharedActions";
+import { loadFullReport, runExportAction, softDeleteReport, restoreReport, permanentlyDeleteReport, daysRemaining } from "./sharedActions";
 import ExportMenu from "./ExportMenu";
 
 type RowExt = {
@@ -14,6 +14,8 @@ type RowExt = {
   total_ad_spend: number; total_leads: number; overall_cpl: number | null;
   metric_template_id: string | null; report_status: string | null;
   notes?: string | null;
+  is_deleted?: boolean | null;
+  deleted_at?: string | null;
   _media_buyers?: { name: string; spend: number; leads: number }[];
   _ad_accounts?: string[];
   _template_name?: string | null;
@@ -37,15 +39,17 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
   const [viewing, setViewing] = useState<DailyReport | null>(null);
   const [viewingStatus, setViewingStatus] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const reload = async () => {
     setLoading(true);
-    const { data: reports } = await (supabase as any)
+    let q = (supabase as any)
       .from("daily_lead_reports")
       .select("*")
-      .eq("is_deleted", false)
       .order("report_date", { ascending: false })
       .limit(500);
+    q = showDeleted ? q.eq("is_deleted", true) : q.eq("is_deleted", false);
+    const { data: reports } = await q;
     const reportIds = (reports || []).map((r: any) => r.id);
     let mbsByReport: Record<string, any[]> = {};
     if (reportIds.length) {
@@ -88,7 +92,13 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
     setLoading(false);
   };
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => {
+    (async () => {
+      try { await (supabase as any).rpc("purge_old_deleted_reports"); } catch {}
+      reload();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDeleted]);
 
   const allBuyers = useMemo(() => {
     const s = new Set<string>();
@@ -193,11 +203,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
   };
 
   const confirmDelete = async (id: string) => {
-    if (!confirm("Delete this daily report? This will hide it from history. You can no longer edit it from here.")) return;
+    if (!confirm("Move this daily report to Trash? It will be hidden from history and permanently deleted after 14 days unless restored.")) return;
     setDeletingId(id);
     try {
       await softDeleteReport(id);
-      toast.success("Report deleted.");
+      toast.success("Moved to Trash. Will auto-delete in 14 days.");
       setViewing(null);
       reload();
     } catch (e: any) {
@@ -212,7 +222,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
           <div className="step-title">Daily Reports History</div>
           <div className="step-sub">Review saved daily lead reports, compare media buyers, export reports, or copy WhatsApp summaries.</div>
         </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#555" }}>
+            <input type="checkbox" checked={showDeleted} onChange={(e) => setShowDeleted(e.target.checked)} />
+            Show deleted (Trash)
+          </label>
           <button className="btn btn-k btn-sm" onClick={onNew}>+ New Daily Report</button>
           <button className="btn btn-g btn-sm" onClick={onShowAnalytics}>📊 Analytics</button>
           <ExportMenu label="Export History" onSelect={(a) => exportHistory(a)} includeWhatsapp={false} />
@@ -279,13 +293,18 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
           </thead>
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.id}>
+              <tr key={r.id} style={r.is_deleted ? { opacity: 0.6 } : undefined}>
                 <td style={{ fontSize: 11, color: "#888" }}>{new Date(r.created_at).toLocaleDateString("en-IN")}</td>
                 <td>{fmtDateLong(r.report_date)}</td>
                 <td>
                   {r.report_name}
-                  {r.report_status === "edited" && (
+                  {r.report_status === "edited" && !r.is_deleted && (
                     <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#2563EB", textTransform: "uppercase", letterSpacing: ".08em" }}>edited</span>
+                  )}
+                  {r.is_deleted && (
+                    <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                      deleted · {daysRemaining(r.deleted_at)}d left
+                    </span>
                   )}
                 </td>
                 <td style={{ fontSize: 11, color: "#888" }}>
@@ -296,14 +315,28 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
                 <td>{fmtNum(r.total_leads)}</td>
                 <td>{r.overall_cpl ? inr(Number(r.overall_cpl)) : "—"}</td>
                 <td>
-                  <RowActions
-                    onView={() => onRowExport(r.id, "view")}
-                    onEdit={() => onRowExport(r.id, "edit")}
-                    onWhatsapp={() => onRowExport(r.id, "whatsapp")}
-                    onExport={(a) => onRowExport(r.id, a)}
-                    onDelete={() => confirmDelete(r.id)}
-                    deleting={deletingId === r.id}
-                  />
+                  {r.is_deleted ? (
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button className="btn btn-g btn-sm" onClick={async () => {
+                        try { await restoreReport(r.id); toast.success("Report restored."); reload(); }
+                        catch (e: any) { toast.error(e?.message || "Restore failed."); }
+                      }}>↺ Restore</button>
+                      <button className="btn btn-g btn-sm" style={{ color: "#DC2626" }} onClick={async () => {
+                        if (!confirm("Permanently delete this report now? This cannot be undone.")) return;
+                        try { await permanentlyDeleteReport(r.id); toast.success("Report permanently deleted."); reload(); }
+                        catch (e: any) { toast.error(e?.message || "Delete failed."); }
+                      }}>🗑 Forever</button>
+                    </div>
+                  ) : (
+                    <RowActions
+                      onView={() => onRowExport(r.id, "view")}
+                      onEdit={() => onRowExport(r.id, "edit")}
+                      onWhatsapp={() => onRowExport(r.id, "whatsapp")}
+                      onExport={(a) => onRowExport(r.id, a)}
+                      onDelete={() => confirmDelete(r.id)}
+                      deleting={deletingId === r.id}
+                    />
+                  )}
                 </td>
               </tr>
             ))}

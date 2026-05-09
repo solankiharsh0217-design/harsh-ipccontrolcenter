@@ -61,9 +61,35 @@ export async function loadFullReport(reportId: string): Promise<DailyReport | nu
 export async function softDeleteReport(reportId: string) {
   const { error } = await (supabase as any)
     .from("daily_lead_reports")
-    .update({ is_deleted: true, updated_at: new Date().toISOString() })
+    .update({ is_deleted: true, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq("id", reportId);
   if (error) throw error;
+}
+
+export async function restoreReport(reportId: string) {
+  const { error } = await (supabase as any)
+    .from("daily_lead_reports")
+    .update({ is_deleted: false, deleted_at: null, updated_at: new Date().toISOString() })
+    .eq("id", reportId);
+  if (error) throw error;
+}
+
+export async function permanentlyDeleteReport(reportId: string) {
+  const { data: mbs } = await (supabase as any)
+    .from("daily_lead_report_media_buyers").select("id").eq("report_id", reportId);
+  const mbIds = (mbs || []).map((m: any) => m.id);
+  if (mbIds.length) {
+    await (supabase as any).from("daily_lead_report_ad_accounts").delete().in("report_media_buyer_id", mbIds);
+  }
+  await (supabase as any).from("daily_lead_report_media_buyers").delete().eq("report_id", reportId);
+  const { error } = await (supabase as any).from("daily_lead_reports").delete().eq("id", reportId);
+  if (error) throw error;
+}
+
+export function daysRemaining(deletedAt?: string | null): number {
+  if (!deletedAt) return 14;
+  const ms = new Date(deletedAt).getTime() + 14 * 24 * 60 * 60 * 1000 - Date.now();
+  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 }
 
 export async function runExportAction(action: ExportAction, full: DailyReport) {

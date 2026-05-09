@@ -26,6 +26,11 @@ function initials(name: string) {
   if (w.length === 1) return w[0][0].toUpperCase();
   return (w[0][0] + w[w.length - 1][0]).toUpperCase();
 }
+function daysRemaining(deletedAt?: string | null): number {
+  if (!deletedAt) return 14;
+  const ms = new Date(deletedAt).getTime() + 14 * 24 * 60 * 60 * 1000 - Date.now();
+  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+}
 
 const styles = `
 .rcv2 *,.rcv2 *::before,.rcv2 *::after{box-sizing:border-box}
@@ -179,7 +184,14 @@ export default function Reports() {
     setDailyStats({ count: arr.length, spend, leadsTotal, avgCpl });
   };
 
-  useEffect(() => { reloadSessions(); loadDailyStats(); }, []);
+  useEffect(() => {
+    // Best-effort: purge reports that have been in trash > 14 days, then load.
+    (async () => {
+      try { await (supabase as any).rpc("purge_old_deleted_reports"); } catch {}
+      reloadSessions();
+      loadDailyStats();
+    })();
+  }, []);
 
   const visibleSessions = useMemo(() =>
     sessions.filter((s) => showDeleted ? true : !s.is_deleted),
@@ -368,7 +380,7 @@ function AttributionSection({
   };
 
   const confirmDelete = async (id: string) => {
-    if (!confirm("Delete this attribution report? It will be hidden from history but not permanently removed.")) return;
+    if (!confirm("Move this attribution report to Trash? It will be hidden from history and permanently deleted after 14 days unless restored.")) return;
     setDeletingId(id);
     try {
       const { error } = await (supabase as any)
@@ -376,12 +388,42 @@ function AttributionSection({
         .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
         .eq("id", id);
       if (error) throw error;
-      toast.success("Attribution report deleted.");
+      toast.success("Moved to Trash. Will auto-delete in 14 days.");
       setOpenSession(null);
       reload();
     } catch (e: any) {
       toast.error(e?.message || "Could not delete report.");
     } finally { setDeletingId(null); }
+  };
+
+  const restoreSession = async (id: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from("attribution_sessions")
+        .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Report restored.");
+      reload();
+    } catch (e: any) {
+      toast.error(e?.message || "Could not restore report.");
+    }
+  };
+
+  const purgeOne = async (id: string) => {
+    if (!confirm("Permanently delete this report now? This cannot be undone.")) return;
+    try {
+      await (supabase as any).from("attribution_media_buyers").delete().eq("session_id", id);
+      await (supabase as any).from("attribution_sales_detail").delete().eq("session_id", id);
+      await (supabase as any).from("media_buyer_attribution").delete().eq("session_id", id);
+      await (supabase as any).from("roas_attribution_audit_logs").delete().eq("attribution_session_id", id);
+      const { error } = await (supabase as any).from("attribution_sessions").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Report permanently deleted.");
+      reload();
+    } catch (e: any) {
+      toast.error(e?.message || "Could not permanently delete.");
+    }
   };
 
   const exportFiltered = async (kind: "csv" | "pdf" | "sheets") => {
@@ -518,7 +560,10 @@ function AttributionSection({
                   <td>
                     <div className="mb-name-cell">
                       {s.webinar_name}
-                      {s.is_deleted && <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }}>deleted</span>}
+                      {s.is_deleted && (() => {
+                        const days = daysRemaining((s as any).deleted_at);
+                        return <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }} title={`Auto-deletes in ${days} day(s)`}>deleted · {days}d left</span>;
+                      })()}
                     </div>
                     {(s.session_slot || s.webinar_format) && <div className="mb-sub2">{[s.session_slot, s.webinar_format].filter(Boolean).join(" · ")}</div>}
                   </td>
@@ -548,18 +593,25 @@ function AttributionSection({
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "#16A34A" }}>{inr(Number(s.total_revenue))}</td>
                   <td><span className={"roas-val " + roasClass(roasN)}>{roasN.toFixed(2)}×</span></td>
                   <td onClick={(e) => e.stopPropagation()}>
-                    <AttrRowActions
-                      onView={() => setOpenSession(s)}
-                      onEdit={() => setEditing(s)}
-                      onExport={async (kind) => {
-                        const p = await loadPayload(s);
-                        if (!p) return;
-                        if (kind === "pdf") downloadPDF(p);
-                        else downloadCSV(p);
-                      }}
-                      onDelete={() => confirmDelete(s.id)}
-                      disabled={!!s.is_deleted}
-                    />
+                    {s.is_deleted ? (
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-g btn-sm" onClick={() => restoreSession(s.id)}>↺ Restore</button>
+                        <button className="btn btn-g btn-sm" style={{ color: "#DC2626" }} onClick={() => purgeOne(s.id)}>🗑 Forever</button>
+                      </div>
+                    ) : (
+                      <AttrRowActions
+                        onView={() => setOpenSession(s)}
+                        onEdit={() => setEditing(s)}
+                        onExport={async (kind) => {
+                          const p = await loadPayload(s);
+                          if (!p) return;
+                          if (kind === "pdf") downloadPDF(p);
+                          else downloadCSV(p);
+                        }}
+                        onDelete={() => confirmDelete(s.id)}
+                        disabled={!!s.is_deleted}
+                      />
+                    )}
                   </td>
                 </tr>
               );
