@@ -8,7 +8,7 @@ import AttributionAuditPanel from "@/components/roas/AttributionAuditPanel";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import AttributionMethodSelect from "@/components/roas/AttributionMethodSelect";
 import AutoWizardV6 from "@/components/roas/auto/AutoWizardV6";
-import DailyLeadReportingModule from "@/components/roas/DailyLeadReportingModule";
+
 import { calculateAttribution, toLegacyPayload, DEAL_VALUE as ENGINE_DEAL, type AttributionResult, type AttributionSnapshot } from "@/lib/roas/attributionEngine";
 
 /* ====================================================================
@@ -19,7 +19,7 @@ import { calculateAttribution, toLegacyPayload, DEAL_VALUE as ENGINE_DEAL, type 
    Visual + interaction spec ported directly from ROAS_Calculator_v2.html
    ==================================================================== */
 
-const styles = `
+export const styles = `
 .rcv2 *,.rcv2 *::before,.rcv2 *::after{box-sizing:border-box}
 .rcv2{
   --gold:#C8A84B;--gp:#FBF6E9;--gm:#E8D49A;
@@ -282,7 +282,7 @@ type DataSource = { id?: string; name: string; type: string; url: string; descri
 const DEAL_VALUE = 118000;
 
 // ───────────── component ─────────────
-type ToolKey = "home" | "attr" | "total" | "daily" | "sources";
+type ToolKey = "home" | "attr" | "total" | "sources";
 
 export default function RoasCalculator() {
   const { user } = useAuth();
@@ -303,7 +303,6 @@ export default function RoasCalculator() {
         )}
         {tool === "attr" && <AttrTabWrapper userId={user?.id} />}
         {tool === "total" && <TotalTab userId={user?.id} />}
-        {tool === "daily" && <DailyLeadReportingModule onBack={() => setTool("home")} />}
         {tool === "sources" && <SourcesTab userId={user?.id} />}
       </div>
     </div>
@@ -318,9 +317,6 @@ function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
     { key: "total", tag: "Overall ROAS", title: "Total ROAS / Row-Level Calculation",
       desc: "Calculate overall ROAS for a webinar or campaign using total ad spend and sales data.",
       btn: "Open Total ROAS" },
-    { key: "daily", tag: "New", title: "Daily Lead Reporting",
-      desc: "Enter daily Meta ad spends and metrics manually, fetch lead counts from Google Sheets by date, and calculate daily CPL per media buyer.",
-      btn: "Open Daily Reporting", primary: true },
     { key: "sources", tag: "Settings", title: "Data Sources",
       desc: "Manage saved Google Sheet links, reusable names, data sources, and reporting templates.",
       btn: "Open Data Sources" },
@@ -328,7 +324,7 @@ function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
   return (
     <div style={{ maxWidth: 980, padding: "32px 4px" }}>
       <div className="page-title">ROAS Calculator</div>
-      <p className="page-sub">Choose the ROAS or reporting tool you want to use.</p>
+      <p className="page-sub">Choose the ROAS tool you want to use.</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {cards.map((c) => (
           <div key={c.key} style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: 24, background: "#fff", display: "flex", flexDirection: "column" }}>

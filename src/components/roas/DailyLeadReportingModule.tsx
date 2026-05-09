@@ -116,7 +116,7 @@ async function insertReportChildren(reportId: string, report: DailyReport, userI
 
 type ViewMode = "create" | "history" | "analytics";
 
-export default function DailyLeadReportingModule({ onBack }: { onBack: () => void }) {
+export default function DailyLeadReportingModule({ onBack }: { onBack?: () => void }) {
   const { user } = useAuth();
   const [view, setView] = useState<ViewMode>("history");
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -219,12 +219,14 @@ export default function DailyLeadReportingModule({ onBack }: { onBack: () => voi
 
   return (
     <div style={{ maxWidth: 1100, padding: "8px 4px" }}>
-      <button
-        onClick={onBack}
-        style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif", marginBottom: 16 }}
-      >
-        ← Back to ROAS Tools
-      </button>
+      {onBack && (
+        <button
+          onClick={onBack}
+          style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif", marginBottom: 16 }}
+        >
+          ← Back to ROAS Tools
+        </button>
+      )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
         <div>

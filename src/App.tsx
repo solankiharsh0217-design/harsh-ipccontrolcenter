@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
@@ -9,7 +9,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import RoasCalculator from "./pages/RoasCalculator";
 import StudentSearch from "./pages/StudentSearch";
-import LeadFlow from "./pages/LeadFlow";
+import DailyLeadReporting from "./pages/DailyLeadReporting";
 import Reports from "./pages/Reports";
 import Team from "./pages/Team";
 import Announcements from "./pages/Announcements";
@@ -40,7 +40,9 @@ const App = () => (
             <Route path="/roas-calculator" element={<Shell><RoasCalculator /></Shell>} />
             <Route path="/roas" element={<Shell><RoasCalculator /></Shell>} />
             <Route path="/search" element={<Shell><StudentSearch /></Shell>} />
-            <Route path="/leadflow" element={<Shell><LeadFlow /></Shell>} />
+            <Route path="/leadflow" element={<Navigate to="/daily-lead-reporting" replace />} />
+            <Route path="/daily-lead-flow" element={<Navigate to="/daily-lead-reporting" replace />} />
+            <Route path="/daily-lead-reporting" element={<Shell><DailyLeadReporting /></Shell>} />
             <Route path="/reports" element={<Shell><Reports /></Shell>} />
             <Route path="/lead-qualifier" element={<Shell><LeadQualifier /></Shell>} />
             <Route path="/crm" element={<Shell><Crm /></Shell>} />
