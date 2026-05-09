@@ -555,7 +555,10 @@ function AttributionSection({
                   <td>
                     <div className="mb-name-cell">
                       {s.webinar_name}
-                      {s.is_deleted && <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }}>deleted</span>}
+                      {s.is_deleted && (() => {
+                        const days = daysRemaining((s as any).deleted_at);
+                        return <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }} title={`Auto-deletes in ${days} day(s)`}>deleted · {days}d left</span>;
+                      })()}
                     </div>
                     {(s.session_slot || s.webinar_format) && <div className="mb-sub2">{[s.session_slot, s.webinar_format].filter(Boolean).join(" · ")}</div>}
                   </td>
