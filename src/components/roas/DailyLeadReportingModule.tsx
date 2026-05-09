@@ -11,7 +11,7 @@ import {
 import DailyHistoryView from "./daily/DailyHistoryView";
 import DailyAnalyticsView from "./daily/DailyAnalyticsView";
 import ExportMenu from "./daily/ExportMenu";
-import { runExportAction } from "./daily/sharedActions";
+import { runExportAction, loadFullReport } from "./daily/sharedActions";
 
 const DRAFT_KEY = "ipc_daily_lead_report_draft";
 const STEP_KEY = "ipc_daily_lead_report_active_step";
@@ -116,7 +116,7 @@ async function insertReportChildren(reportId: string, report: DailyReport, userI
 
 type ViewMode = "create" | "history" | "analytics";
 
-export default function DailyLeadReportingModule({ onBack }: { onBack?: () => void }) {
+export default function DailyLeadReportingModule({ onBack, initialEditReportId }: { onBack?: () => void; initialEditReportId?: string | null }) {
   const { user } = useAuth();
   const [view, setView] = useState<ViewMode>("history");
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -144,6 +144,23 @@ export default function DailyLeadReportingModule({ onBack }: { onBack?: () => vo
       }
     } catch {}
   }, []);
+
+  // Load report into edit mode when initialEditReportId is provided
+  useEffect(() => {
+    if (!initialEditReportId) return;
+    (async () => {
+      const full = await loadFullReport(initialEditReportId);
+      if (full) {
+        setReport(full);
+        setEditingExistingId(initialEditReportId);
+        setView("create");
+        setStep(3);
+        toast.success("Report loaded for editing.");
+      } else {
+        toast.error("Could not load report for editing.");
+      }
+    })();
+  }, [initialEditReportId]);
 
   // Persist draft
   useEffect(() => {
