@@ -11,7 +11,7 @@ import {
 import DailyHistoryView from "./daily/DailyHistoryView";
 import DailyAnalyticsView from "./daily/DailyAnalyticsView";
 import ExportMenu from "./daily/ExportMenu";
-import { runExportAction } from "./daily/sharedActions";
+import { runExportAction, loadFullReport } from "./daily/sharedActions";
 
 const DRAFT_KEY = "ipc_daily_lead_report_draft";
 const STEP_KEY = "ipc_daily_lead_report_active_step";
