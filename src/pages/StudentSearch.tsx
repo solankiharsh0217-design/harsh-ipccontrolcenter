@@ -57,7 +57,7 @@ export default function StudentSearch() {
     const t = setTimeout(async () => {
       const { data, error } = await supabase.rpc("search_students", { _q: term, _limit: 50 });
       if (error) toast.error(error.message);
-      setResults(((data as any[]) ?? []).map(r => ({ full_name: r.full_name, email: r.email, phone: r.phone })));
+      setResults(((data as any[]) ?? []).map(r => ({ full_name: r.full_name, email: r.email, phone: r.phone, tier: r.tier })));
       setLoading(false);
     }, 220);
     return () => clearTimeout(t);
