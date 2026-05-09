@@ -19,7 +19,7 @@ import { calculateAttribution, toLegacyPayload, DEAL_VALUE as ENGINE_DEAL, type 
    Visual + interaction spec ported directly from ROAS_Calculator_v2.html
    ==================================================================== */
 
-const styles = `
+export const styles = `
 .rcv2 *,.rcv2 *::before,.rcv2 *::after{box-sizing:border-box}
 .rcv2{
   --gold:#C8A84B;--gp:#FBF6E9;--gm:#E8D49A;
