@@ -375,7 +375,7 @@ function AttributionSection({
   };
 
   const confirmDelete = async (id: string) => {
-    if (!confirm("Delete this attribution report? It will be hidden from history but not permanently removed.")) return;
+    if (!confirm("Move this attribution report to Trash? It will be hidden from history and permanently deleted after 14 days unless restored.")) return;
     setDeletingId(id);
     try {
       const { error } = await (supabase as any)
@@ -383,12 +383,42 @@ function AttributionSection({
         .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
         .eq("id", id);
       if (error) throw error;
-      toast.success("Attribution report deleted.");
+      toast.success("Moved to Trash. Will auto-delete in 14 days.");
       setOpenSession(null);
       reload();
     } catch (e: any) {
       toast.error(e?.message || "Could not delete report.");
     } finally { setDeletingId(null); }
+  };
+
+  const restoreSession = async (id: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from("attribution_sessions")
+        .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Report restored.");
+      reload();
+    } catch (e: any) {
+      toast.error(e?.message || "Could not restore report.");
+    }
+  };
+
+  const purgeOne = async (id: string) => {
+    if (!confirm("Permanently delete this report now? This cannot be undone.")) return;
+    try {
+      await (supabase as any).from("attribution_media_buyers").delete().eq("session_id", id);
+      await (supabase as any).from("attribution_sales_detail").delete().eq("session_id", id);
+      await (supabase as any).from("media_buyer_attribution").delete().eq("session_id", id);
+      await (supabase as any).from("roas_attribution_audit_logs").delete().eq("attribution_session_id", id);
+      const { error } = await (supabase as any).from("attribution_sessions").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Report permanently deleted.");
+      reload();
+    } catch (e: any) {
+      toast.error(e?.message || "Could not permanently delete.");
+    }
   };
 
   const exportFiltered = async (kind: "csv" | "pdf" | "sheets") => {
