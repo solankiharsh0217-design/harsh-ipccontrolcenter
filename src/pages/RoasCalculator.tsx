@@ -324,7 +324,7 @@ function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
   return (
     <div style={{ maxWidth: 980, padding: "32px 4px" }}>
       <div className="page-title">ROAS Calculator</div>
-      <p className="page-sub">Choose the ROAS or reporting tool you want to use.</p>
+      <p className="page-sub">Choose the ROAS tool you want to use.</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {cards.map((c) => (
           <div key={c.key} style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: 24, background: "#fff", display: "flex", flexDirection: "column" }}>
