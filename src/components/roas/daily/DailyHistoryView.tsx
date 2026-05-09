@@ -287,13 +287,18 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
           </thead>
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.id}>
+              <tr key={r.id} style={r.is_deleted ? { opacity: 0.6 } : undefined}>
                 <td style={{ fontSize: 11, color: "#888" }}>{new Date(r.created_at).toLocaleDateString("en-IN")}</td>
                 <td>{fmtDateLong(r.report_date)}</td>
                 <td>
                   {r.report_name}
-                  {r.report_status === "edited" && (
+                  {r.report_status === "edited" && !r.is_deleted && (
                     <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#2563EB", textTransform: "uppercase", letterSpacing: ".08em" }}>edited</span>
+                  )}
+                  {r.is_deleted && (
+                    <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                      deleted · {daysRemaining(r.deleted_at)}d left
+                    </span>
                   )}
                 </td>
                 <td style={{ fontSize: 11, color: "#888" }}>
@@ -304,14 +309,28 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
                 <td>{fmtNum(r.total_leads)}</td>
                 <td>{r.overall_cpl ? inr(Number(r.overall_cpl)) : "—"}</td>
                 <td>
-                  <RowActions
-                    onView={() => onRowExport(r.id, "view")}
-                    onEdit={() => onRowExport(r.id, "edit")}
-                    onWhatsapp={() => onRowExport(r.id, "whatsapp")}
-                    onExport={(a) => onRowExport(r.id, a)}
-                    onDelete={() => confirmDelete(r.id)}
-                    deleting={deletingId === r.id}
-                  />
+                  {r.is_deleted ? (
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button className="btn btn-g btn-sm" onClick={async () => {
+                        try { await restoreReport(r.id); toast.success("Report restored."); reload(); }
+                        catch (e: any) { toast.error(e?.message || "Restore failed."); }
+                      }}>↺ Restore</button>
+                      <button className="btn btn-g btn-sm" style={{ color: "#DC2626" }} onClick={async () => {
+                        if (!confirm("Permanently delete this report now? This cannot be undone.")) return;
+                        try { await permanentlyDeleteReport(r.id); toast.success("Report permanently deleted."); reload(); }
+                        catch (e: any) { toast.error(e?.message || "Delete failed."); }
+                      }}>🗑 Forever</button>
+                    </div>
+                  ) : (
+                    <RowActions
+                      onView={() => onRowExport(r.id, "view")}
+                      onEdit={() => onRowExport(r.id, "edit")}
+                      onWhatsapp={() => onRowExport(r.id, "whatsapp")}
+                      onExport={(a) => onRowExport(r.id, a)}
+                      onDelete={() => confirmDelete(r.id)}
+                      deleting={deletingId === r.id}
+                    />
+                  )}
                 </td>
               </tr>
             ))}
