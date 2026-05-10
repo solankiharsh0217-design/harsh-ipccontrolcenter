@@ -537,7 +537,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
           const units = Number(p.units || 0);
           const price = Number(p.price || 0);
           const tok = p.token === "" ? null : Number(p.token);
-          const rev = (tok != null && tok > 0) ? units * tok : units * price;
+          const rev = (revenueBasis === "token_collected_amount" && tok != null && tok > 0) ? units * tok : units * price;
           return {
             report_id: reportId,
             payment_type: p.type,
