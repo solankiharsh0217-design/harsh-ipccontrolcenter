@@ -700,19 +700,16 @@ function Step1(props: any) {
           </select>
         </div>
         <div>
-          <div className="srLbl">Webinar Start Time</div>
-          <input className="srInput" list="srStartTimes" value={startTime} onChange={(e) => setStartTime(e.target.value)} placeholder="10:30 AM" />
-          <datalist id="srStartTimes">
-            {["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","6:00 PM","7:00 PM","8:00 PM"].map((t) => <option key={t} value={t} />)}
-          </datalist>
+          <div className="srLbl">Webinar Start Time <Info title="Start Time" body="Pick from 15-min suggestions or type any time (e.g. 10:30 AM, 18:00)." /></div>
+          <input className="srInput" list="srTimes" value={startTime} onChange={(e) => setStartTime(e.target.value)} placeholder="10:30 AM" />
         </div>
         <div>
-          <div className="srLbl">Webinar End Time</div>
-          <input className="srInput" list="srEndTimes" value={endTime} onChange={(e) => setEndTime(e.target.value)} placeholder="3:30 PM" />
-          <datalist id="srEndTimes">
-            {["12:00 PM","1:00 PM","2:00 PM","3:00 PM","3:30 PM","4:00 PM","9:00 PM","10:00 PM","11:00 PM"].map((t) => <option key={t} value={t} />)}
-          </datalist>
+          <div className="srLbl">Webinar End Time <Info title="End Time" body="Pick from 15-min suggestions or type any time (e.g. 3:30 PM, 21:00)." /></div>
+          <input className="srInput" list="srTimes" value={endTime} onChange={(e) => setEndTime(e.target.value)} placeholder="3:30 PM" />
         </div>
+        <datalist id="srTimes">
+          {TIME_OPTIONS.map((t) => <option key={t} value={t} />)}
+        </datalist>
       </div>
 
       <div className="srGrid c3" style={{ marginBottom: 14 }}>
