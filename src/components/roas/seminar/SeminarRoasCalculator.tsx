@@ -226,6 +226,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       setTotalDays(d.totalDays || 2);
       setWatchPct(d.watchPct ?? 70);
       setSalesDay(d.salesDay || (d.totalDays || 2));
+      salesDayTouchedRef.current = true;
       setStartTime(d.startTime || "10:30 AM");
       setEndTime(d.endTime || "3:30 PM");
       setTimingNote(d.timingNote || "");
