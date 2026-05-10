@@ -146,7 +146,28 @@ function periodMonth(s: SessionRow): string {
   return d ? String(d).slice(0, 7) : "";
 }
 
-type SectionKey = "attribution" | "daily" | "overview";
+type SectionKey = "attribution" | "daily" | "seminar" | "overview";
+
+type SeminarRow = {
+  id: string;
+  created_at: string;
+  created_by: string | null;
+  is_deleted: boolean;
+  deleted_at: string | null;
+  webinar_name: string;
+  webinar_mode: string | null;
+  total_webinar_days: number;
+  watch_point_percent: number;
+  total_revenue_including_gst: number;
+  total_ad_spend_including_gst: number;
+  total_conversions: number;
+  profit_after_gst: number;
+  cpa: number | null;
+  roas: number | null;
+  whatsapp_summary_text: string | null;
+  input_snapshot_json: any;
+  output_snapshot_json: any;
+};
 
 export default function Reports() {
   const navigate = useNavigate();
