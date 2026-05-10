@@ -930,13 +930,31 @@ function Step3({ adCostExGst, setAdCostExGst, calc }: any) {
 }
 
 /* ---------------- Step 4 ---------------- */
-function Step4({ products, updateProd, addProd, removeProd, calc }: any) {
+function Step4({ revenueBasis, setRevenueBasis, products, updateProd, addProd, removeProd, calc }: any) {
+  const isToken = revenueBasis === "token_collected_amount";
   return (
     <div className="srSection">
       <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>Sales & Payment Types</div>
 
+      <div style={{ marginBottom: 16 }}>
+        <div className="srLbl">
+          Revenue Basis for ROAS <span style={{ color: "var(--rd)" }}>*</span>
+          <Info title="Revenue Basis for ROAS"
+            body="If you select Full Deal Value, ROAS will use the complete product/program price. If you select Token / Collected Amount, ROAS will use only the amount collected during the webinar. Example: 3 sales × ₹1,18,000 = ₹3,54,000 full deal value vs 3 sales × ₹9,832 = ₹29,496 collected/token value." />
+        </div>
+        <div className="srPills">
+          <button className={"srPill" + (!isToken ? " on" : "")} onClick={() => setRevenueBasis("full_deal_value")}>Full Deal Value</button>
+          <button className={"srPill" + (isToken ? " on" : "")} onClick={() => setRevenueBasis("token_collected_amount")}>Token / Collected Amount</button>
+        </div>
+        <div className="srHelper">
+          Choose whether ROAS should be calculated on the full product/deal value or only the token/amount collected during the webinar.
+        </div>
+      </div>
+
       <div className="srHint">
-        Add a row for each product / payment type. If you enter a Token / Down Payment, that row's revenue uses the token amount; otherwise it uses the full deal price.
+        Revenue basis: <strong>{isToken ? "Token / Collected Amount" : "Full Deal Value"}</strong>{isToken
+          ? " — token amount (when entered) is used as row revenue. Token does not modify the deal price."
+          : " — full deal price is always used. Token / Down Payment is stored only as informational data and does not change ROAS."}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 90px 1fr 1fr 1fr 36px", gap: 10, fontSize: 9, textTransform: "uppercase", letterSpacing: ".08em", color: "#888", padding: "0 4px 6px" }} className="srProdHead">
@@ -952,7 +970,7 @@ function Step4({ products, updateProd, addProd, removeProd, calc }: any) {
         const units = Number(p.units || 0);
         const price = Number(p.price || 0);
         const tok = p.token === "" ? null : Number(p.token);
-        const rev = (tok != null && tok > 0) ? units * tok : units * price;
+        const rev = (isToken && tok != null && tok > 0) ? units * tok : units * price;
         return (
           <div key={i} className="srProdRow">
             <div>
