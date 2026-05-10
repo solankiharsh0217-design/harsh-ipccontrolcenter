@@ -315,7 +315,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       outputGst, inputGstCredit, netGst, excessCredit, profit,
       cpl, costShowUp, costOfferSU, cpa, roas,
     };
-  }, [days, salesDay, totalDays, startTime, endTime, watchPct, adCostExGst, products]);
+  }, [days, salesDay, totalDays, startTime, endTime, watchPct, adCostExGst, products, revenueBasis]);
 
   const dayMetrics = (i: number) => {
     const d = days[i];
