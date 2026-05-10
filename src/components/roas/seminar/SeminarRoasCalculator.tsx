@@ -1011,14 +1011,15 @@ function Step4({ revenueBasis, setRevenueBasis, products, updateProd, addProd, r
 }
 
 /* ---------------- Step 5 ---------------- */
-function Step5({ calc, totalDays, watchPct, regs, showUp, offer }: any) {
+function Step5({ calc, totalDays, watchPct, salesDay, revenueBasis, regs, showUp, offer }: any) {
   const rows: [string, string][] = [
     ["Webinar Days", String(totalDays)],
     ["Watch Point", `${watchPct}%`],
-    ["Watch Point Time", calc.wpTime],
+    ["Sales / Offer Day", salesDay >= 1 ? `Day ${salesDay}` : "—"],
+    ["Revenue Basis", revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"],
     ["Registrations (sales day)", num(regs)],
     ["Show-Up (sales day)", num(showUp)],
-    ["Offer Show-Up", num(offer)],
+    ["Offer Show-Up / Watch Present", num(offer)],
     ["Total Revenue Inc. GST", inr(calc.totalRev)],
     ["Ad Cost Excl. GST", inr(calc.adCost)],
     ["Ad Spend Inc. GST", inr(calc.adInc)],
