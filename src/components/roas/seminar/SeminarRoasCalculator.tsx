@@ -1,0 +1,964 @@
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import QuickSaveInput from "@/components/QuickSaveInput";
+
+/* ============================================================
+   Seminar ROAS Calculator (5-step wizard)
+   - Reuses .rcv2 design tokens already injected by RoasCalculator
+   - Logic-only port from custom_seminar_roas_calculator_v4_clean.html
+   ============================================================ */
+
+const inr = (n: number | null | undefined) =>
+  n == null || !isFinite(Number(n)) ? "—" : "₹" + Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+const pct = (n: number | null | undefined) =>
+  n == null || !isFinite(Number(n)) ? "—" : Number(n).toFixed(2) + "%";
+const num = (n: number | null | undefined) =>
+  n == null || !isFinite(Number(n)) ? "—" : Number(n).toLocaleString("en-IN");
+
+// ---------- time helpers ----------
+function parseTime(t: string): number | null {
+  if (!t) return null;
+  const s = t.trim().toUpperCase().replace(/\s+/g, " ");
+  const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const mi = m[2] ? parseInt(m[2], 10) : 0;
+  const ap = m[3];
+  if (ap === "PM" && h < 12) h += 12;
+  if (ap === "AM" && h === 12) h = 0;
+  if (h > 23 || mi > 59) return null;
+  return h * 60 + mi;
+}
+function formatTime(mins: number | null): string {
+  if (mins == null || !isFinite(mins)) return "—";
+  let m = ((mins % 1440) + 1440) % 1440;
+  let h = Math.floor(m / 60);
+  const mi = m % 60;
+  const ap = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${String(mi).padStart(2, "0")} ${ap}`;
+}
+function durationMin(start: string, end: string): number | null {
+  const a = parseTime(start), b = parseTime(end);
+  if (a == null || b == null) return null;
+  return b >= a ? b - a : 1440 - a + b;
+}
+
+// ---------- info tooltip ----------
+function Info({ title, body }: { title: string; body: string }) {
+  return (
+    <span className="srInfo" tabIndex={0} aria-label={title}>
+      i
+      <span className="srInfoPop">
+        <strong>{title}</strong>
+        <span>{body}</span>
+      </span>
+    </span>
+  );
+}
+
+const STYLES = `
+.srWiz{font-family:'Jost',sans-serif;color:var(--kk)}
+.srStepper{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}
+.srStepDot{display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--bd);border-radius:999px;background:var(--ww);font-size:12px;color:var(--mt);cursor:pointer}
+.srStepDot.on{background:var(--gp);border-color:var(--gold);color:var(--kk);font-weight:500}
+.srStepDot.done{color:var(--kk)}
+.srStepDot .n{width:20px;height:20px;border-radius:50%;background:var(--off);font-family:'Cormorant Garamond',serif;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+.srStepDot.on .n{background:var(--gold);color:var(--kk)}
+.srSection{border:1px solid var(--bd);border-radius:12px;padding:22px 24px;margin-bottom:14px;background:var(--ww)}
+.srGrid{display:grid;gap:14px}
+.srGrid.c2{grid-template-columns:1fr 1fr}
+.srGrid.c3{grid-template-columns:1fr 1fr 1fr}
+.srGrid.c4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:780px){.srGrid.c2,.srGrid.c3,.srGrid.c4{grid-template-columns:1fr}}
+.srLbl{display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--kk);margin-bottom:7px;font-weight:500}
+.srInput{width:100%;height:40px;border:1px solid var(--bd);border-radius:8px;padding:0 12px;font-family:'Jost',sans-serif;font-size:13px;background:var(--ww);outline:none}
+.srInput:focus{border-color:var(--gold)}
+.srSelect{width:100%;height:40px;border:1px solid var(--bd);border-radius:8px;padding:0 12px;font-family:'Jost',sans-serif;font-size:13px;background:var(--ww)}
+.srPills{display:flex;gap:8px;flex-wrap:wrap}
+.srPill{height:34px;padding:0 16px;border-radius:20px;border:1px solid var(--bd);background:var(--ww);font-size:12px;color:var(--mt);cursor:pointer;font-family:'Jost',sans-serif}
+.srPill.on{background:var(--kk);color:var(--ww);border-color:var(--kk)}
+.srHelper{font-size:11px;color:var(--mt);margin-top:6px;line-height:1.5}
+.srInfo{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:var(--off);border:1px solid var(--bd);color:var(--mt);font-size:9px;font-style:italic;font-family:Georgia,serif;cursor:help;position:relative}
+.srInfo:hover .srInfoPop,.srInfo:focus .srInfoPop{opacity:1;visibility:visible;transform:translateY(0)}
+.srInfoPop{position:absolute;left:50%;top:calc(100% + 8px);transform:translateY(-4px);min-width:240px;max-width:300px;background:#0a0a0a;color:#fff;font-style:normal;font-family:'Jost',sans-serif;padding:10px 12px;border-radius:8px;font-size:11.5px;line-height:1.5;z-index:50;opacity:0;visibility:hidden;transition:all .15s;pointer-events:none;text-align:left;white-space:normal;font-weight:400;letter-spacing:0;text-transform:none;box-shadow:0 6px 18px rgba(0,0,0,.2);margin-left:-120px}
+.srInfoPop strong{display:block;color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;font-weight:500}
+.srDayCard{border:1px solid var(--bd);border-radius:10px;padding:16px 18px;background:var(--off);margin-bottom:10px}
+.srDayCard.sales{background:var(--gp);border-color:var(--gm)}
+.srDayHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.srDayTitle{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:500}
+.srBadge{font-size:10px;padding:3px 10px;border-radius:10px;background:var(--gold);color:#0a0a0a;text-transform:uppercase;letter-spacing:.06em;font-family:'Jost',sans-serif;font-weight:500}
+.srMetric{font-size:11.5px;color:var(--mt);margin-top:8px}
+.srMetric strong{color:var(--kk);font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:500}
+.srBtnRow{display:flex;gap:10px;justify-content:space-between;margin-top:18px}
+.srBtn{height:38px;padding:0 18px;border-radius:8px;font-family:'Jost',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:6px}
+.srBtn-k{background:var(--kk);color:var(--ww)}
+.srBtn-g{background:var(--ww);color:var(--kk);border:1px solid var(--bd)}
+.srBtn-d{background:var(--ww);color:var(--rd);border:1px solid var(--rb)}
+.srBtn:disabled{opacity:.4;cursor:not-allowed}
+.srSumGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+@media (max-width:780px){.srSumGrid{grid-template-columns:1fr 1fr}}
+.srSumCard{border-radius:10px;padding:16px 18px;border:1px solid var(--bd);background:var(--off)}
+.srSumCard.gold{background:var(--gp);border-color:var(--gm)}
+.srSumCard.grn{background:var(--gnp);border-color:var(--gnb)}
+.srSumLbl{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--mt);margin-bottom:6px}
+.srSumVal{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:500;line-height:1.1}
+.srSumCard.gold .srSumVal{color:var(--gold)}
+.srSumCard.grn .srSumVal{color:var(--gn)}
+.srSumNote{font-size:10.5px;color:var(--mt);margin-top:4px}
+.srTbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+.srTbl th,.srTbl td{padding:10px 12px;border-bottom:1px solid var(--bd);text-align:left}
+.srTbl th{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--mt);background:var(--off)}
+.srProdRow{display:grid;grid-template-columns:1.5fr 80px 1fr 1fr 1fr 36px;gap:10px;align-items:end;margin-bottom:10px}
+@media (max-width:780px){.srProdRow{grid-template-columns:1fr 1fr;gap:10px}}
+.srRm{height:36px;width:36px;border:1px solid var(--bd);background:var(--ww);border-radius:8px;color:var(--mt);cursor:pointer}
+.srRm:hover{background:var(--rp);color:var(--rd);border-color:var(--rb)}
+.srAddBtn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:1.5px dashed var(--bd);border-radius:10px;cursor:pointer;color:var(--mt);font-size:12.5px;background:transparent;width:100%;font-family:'Jost',sans-serif}
+.srAddBtn:hover{border-color:var(--gold);color:var(--kk);background:var(--gp)}
+.srHint{background:var(--gp);border:1px solid var(--gm);border-radius:9px;padding:10px 14px;font-size:12px;color:#7A5E10;margin-bottom:14px}
+.srErr{font-size:11px;color:var(--rd);margin-top:4px}
+`;
+
+const WATCH_PRESETS = [50, 60, 70, 75, 80];
+const DAY_PRESETS = [1, 2, 3];
+const MODE_OPTS = ["Live", "Automated", "Replay", "Hybrid", "Custom"];
+const DEFAULT_PAYMENT_TYPES = [
+  "Full Payment Sale", "Part Payment Sale", "Token Payment", "Down Payment",
+  "Diamond Sale", "₹15,000 Product", "₹10,000 Product",
+];
+
+type DayRow = {
+  date: string;
+  registrations: string;
+  showUp: string;
+  watchOrOffer: string;
+};
+type ProductRow = {
+  type: string;
+  units: string;
+  price: string;
+  token: string;
+};
+
+const emptyDay = (): DayRow => ({ date: "", registrations: "", showUp: "", watchOrOffer: "" });
+const emptyProd = (): ProductRow => ({ type: "", units: "", price: "", token: "" });
+
+const DRAFT_KEY = "seminar_roas_draft_v1";
+
+type Props = {
+  onBack?: () => void;
+  loadReportId?: string | null;
+};
+
+export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
+  const { user } = useAuth();
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+
+  // Step 1
+  const [webinarName, setWebinarName] = useState("");
+  const [webinarMode, setWebinarMode] = useState("Live");
+  const [totalDays, setTotalDays] = useState<number>(2);
+  const [watchPct, setWatchPct] = useState<number>(70);
+  const [salesDay, setSalesDay] = useState<number>(2);
+  const [startTime, setStartTime] = useState("10:30 AM");
+  const [endTime, setEndTime] = useState("3:30 PM");
+  const [timingNote, setTimingNote] = useState("");
+
+  // Step 2
+  const [days, setDays] = useState<DayRow[]>([emptyDay(), emptyDay()]);
+
+  // Step 3
+  const [adCostExGst, setAdCostExGst] = useState("");
+
+  // Step 4
+  const [products, setProducts] = useState<ProductRow[]>([emptyProd()]);
+
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(loadReportId || null);
+  const [saving, setSaving] = useState(false);
+  const [draftBanner, setDraftBanner] = useState(false);
+  const draftLoadedRef = useRef(false);
+
+  // ----- derived: keep days array sized to totalDays -----
+  useEffect(() => {
+    setDays((prev) => {
+      const next = prev.slice(0, totalDays);
+      while (next.length < totalDays) next.push(emptyDay());
+      return next;
+    });
+    if (salesDay > totalDays) setSalesDay(totalDays);
+  }, [totalDays]);
+
+  // ----- draft load on mount -----
+  useEffect(() => {
+    if (loadReportId) {
+      void loadReport(loadReportId);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d && d.webinarName) setDraftBanner(true);
+      }
+    } catch {}
+    draftLoadedRef.current = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const restoreDraft = () => {
+    try {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}");
+      setWebinarName(d.webinarName || "");
+      setWebinarMode(d.webinarMode || "Live");
+      setTotalDays(d.totalDays || 2);
+      setWatchPct(d.watchPct ?? 70);
+      setSalesDay(d.salesDay || (d.totalDays || 2));
+      setStartTime(d.startTime || "10:30 AM");
+      setEndTime(d.endTime || "3:30 PM");
+      setTimingNote(d.timingNote || "");
+      setDays(d.days || [emptyDay(), emptyDay()]);
+      setAdCostExGst(d.adCostExGst || "");
+      setProducts(d.products?.length ? d.products : [emptyProd()]);
+      setStep(d.step || 1);
+      setDraftBanner(false);
+      toast.success("Previous draft restored");
+    } catch {
+      setDraftBanner(false);
+    }
+  };
+
+  const startFresh = () => {
+    if (!confirm("Discard the saved draft and start fresh?")) return;
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftBanner(false);
+  };
+
+  // ----- autosave -----
+  useEffect(() => {
+    if (!draftLoadedRef.current || draftBanner || editingId) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+          step, webinarName, webinarMode, totalDays, watchPct, salesDay,
+          startTime, endTime, timingNote, days, adCostExGst, products,
+        }));
+      } catch {}
+    }, 600);
+    return () => clearTimeout(t);
+  }, [step, webinarName, webinarMode, totalDays, watchPct, salesDay,
+      startTime, endTime, timingNote, days, adCostExGst, products, draftBanner, editingId]);
+
+  // ----- calculations -----
+  const calc = useMemo(() => {
+    const dur = durationMin(startTime, endTime);
+    const wpStart = parseTime(startTime);
+    const wpMin = (dur != null && wpStart != null) ? Math.round(dur * (watchPct / 100)) : null;
+    const wpTime = (wpMin != null && wpStart != null) ? formatTime(wpStart + wpMin) : "—";
+
+    const sIdx = Math.min(Math.max(salesDay, 1), totalDays) - 1;
+    const sDay = days[sIdx];
+    const d1 = days[0];
+
+    const regs = Number(sDay?.registrations || d1?.registrations || 0);
+    const showUp = Number(sDay?.showUp || d1?.showUp || 0);
+    const offerShowUp = Number(sDay?.watchOrOffer || 0);
+
+    const adCost = Number(adCostExGst || 0);
+    const adGst = adCost * 0.18;
+    const adInc = adCost * 1.18;
+
+    const totalUnits = products.reduce((a, p) => a + Number(p.units || 0), 0);
+    const totalRev = products.reduce((a, p) => {
+      const units = Number(p.units || 0);
+      const price = Number(p.price || 0);
+      const tok = p.token === "" ? null : Number(p.token);
+      const rev = (tok != null && tok > 0) ? units * tok : units * price;
+      return a + rev;
+    }, 0);
+
+    const outputGst = totalRev * 18 / 118;
+    const inputGstCredit = adGst;
+    const netGstRaw = outputGst - inputGstCredit;
+    const netGst = Math.max(0, netGstRaw);
+    const excessCredit = netGstRaw < 0 ? Math.abs(netGstRaw) : 0;
+
+    const profit = totalRev - netGst - adInc;
+    const cpl = regs > 0 ? adCost / regs : null;
+    const costShowUp = showUp > 0 ? adCost / showUp : null;
+    const costOfferSU = offerShowUp > 0 ? adCost / offerShowUp : null;
+    const cpa = totalUnits > 0 ? adCost / totalUnits : null;
+    const roas = adInc > 0 ? totalRev / adInc : null;
+
+    return {
+      dur, wpTime, wpMin,
+      regs, showUp, offerShowUp,
+      adCost, adGst, adInc,
+      totalUnits, totalRev,
+      outputGst, inputGstCredit, netGst, excessCredit, profit,
+      cpl, costShowUp, costOfferSU, cpa, roas,
+    };
+  }, [days, salesDay, totalDays, startTime, endTime, watchPct, adCostExGst, products]);
+
+  const dayMetrics = (i: number) => {
+    const d = days[i];
+    if (!d) return { sur: null as number | null, dr: null as number | null };
+    const reg = Number(d.registrations || 0);
+    const su = Number(d.showUp || 0);
+    const wp = Number(d.watchOrOffer || 0);
+    const sur = reg > 0 ? (su / reg) * 100 : null;
+    const dr = su > 0 ? ((su - wp) / su) * 100 : null;
+    return { sur, dr };
+  };
+
+  // ----- step actions -----
+  const updateDay = (i: number, patch: Partial<DayRow>) =>
+    setDays((p) => p.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
+  const addDay = () => {
+    if (totalDays >= 60) return;
+    setTotalDays(totalDays + 1);
+  };
+  const removeDay = () => {
+    if (totalDays <= 1) return;
+    setTotalDays(totalDays - 1);
+  };
+
+  const addProd = () => setProducts((p) => [...p, emptyProd()]);
+  const removeProd = (i: number) => setProducts((p) => p.length > 1 ? p.filter((_, idx) => idx !== i) : p);
+  const updateProd = (i: number, patch: Partial<ProductRow>) =>
+    setProducts((p) => p.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+
+  // ----- validation -----
+  const canCalc =
+    webinarName.trim().length > 0 &&
+    totalDays >= 1 && totalDays <= 60 &&
+    watchPct >= 1 && watchPct <= 100 &&
+    salesDay >= 1 && salesDay <= totalDays &&
+    Number(adCostExGst) >= 0 &&
+    products.some((p) => p.type.trim() && Number(p.units) > 0);
+
+  // ----- save -----
+  const buildWhatsApp = () => {
+    const lines: string[] = [];
+    lines.push("Seminar ROAS Summary");
+    lines.push(`Webinar: ${webinarName}`);
+    if (webinarMode) lines.push(`Mode: ${webinarMode}`);
+    lines.push(`Days: ${totalDays}`);
+    lines.push(`Watch Point: ${watchPct}%`);
+    lines.push(`Sales Day: Day ${salesDay}`);
+    lines.push(`Revenue Inc. GST: ${inr(calc.totalRev)}`);
+    lines.push(`Ad Spend Inc. GST: ${inr(calc.adInc)}`);
+    lines.push(`Net GST Payable to Govt: ${inr(calc.netGst)}`);
+    lines.push(`Profit After GST: ${inr(calc.profit)}`);
+    lines.push(`Total Conversions: ${calc.totalUnits}`);
+    lines.push(`CPA: ${inr(calc.cpa)}`);
+    lines.push(`CPL: ${inr(calc.cpl)}`);
+    lines.push(`ROAS: ${calc.roas == null ? "—" : calc.roas.toFixed(2) + "×"}`);
+    return lines.join("\n");
+  };
+
+  const copyWhatsApp = async () => {
+    try {
+      await navigator.clipboard.writeText(buildWhatsApp());
+      toast.success("WhatsApp summary copied");
+    } catch {
+      toast.error("Could not copy");
+    }
+  };
+
+  const saveReport = async () => {
+    if (!user) { toast.error("Not signed in"); return; }
+    if (!canCalc) { toast.error("Fill required fields before saving"); return; }
+    setSaving(true);
+    try {
+      const wa = buildWhatsApp();
+      const inputSnap = {
+        webinarName, webinarMode, totalDays, watchPct, salesDay,
+        startTime, endTime, timingNote, days, adCostExGst, products,
+      };
+      const outputSnap = { ...calc, watchPointTime: calc.wpTime };
+
+      const reportPayload: any = {
+        report_name: webinarName,
+        webinar_name: webinarName,
+        webinar_mode: webinarMode || null,
+        total_webinar_days: totalDays,
+        watch_point_percent: watchPct,
+        webinar_start_time: startTime || null,
+        webinar_end_time: endTime || null,
+        webinar_duration_minutes: calc.dur ?? null,
+        watch_point_time: calc.wpTime !== "—" ? calc.wpTime : null,
+        sales_day: salesDay,
+        timing_note: timingNote || null,
+        ad_cost_excluding_gst: calc.adCost,
+        ad_gst: calc.adGst,
+        total_ad_spend_including_gst: calc.adInc,
+        total_revenue_including_gst: calc.totalRev,
+        net_gst_payable_to_govt: calc.netGst,
+        profit_after_gst: calc.profit,
+        cpl: calc.cpl,
+        cpa: calc.cpa,
+        roas: calc.roas,
+        total_conversions: calc.totalUnits,
+        input_snapshot_json: inputSnap,
+        output_snapshot_json: outputSnap,
+        whatsapp_summary_text: wa,
+      };
+
+      let reportId = editingId;
+      if (editingId) {
+        const { error } = await (supabase as any)
+          .from("seminar_roas_reports")
+          .update(reportPayload)
+          .eq("id", editingId);
+        if (error) throw error;
+        await (supabase as any).from("seminar_roas_report_days").delete().eq("report_id", editingId);
+        await (supabase as any).from("seminar_roas_report_products").delete().eq("report_id", editingId);
+      } else {
+        const { data, error } = await (supabase as any)
+          .from("seminar_roas_reports")
+          .insert({ ...reportPayload, created_by: user.id })
+          .select("id")
+          .single();
+        if (error) throw error;
+        reportId = data.id;
+        setEditingId(reportId);
+      }
+
+      const dayRows = days.map((d, i) => {
+        const dn = i + 1;
+        const reg = Number(d.registrations || 0);
+        const su = Number(d.showUp || 0);
+        const wp = Number(d.watchOrOffer || 0);
+        return {
+          report_id: reportId,
+          day_number: dn,
+          date: d.date || null,
+          registrations: reg,
+          show_up: su,
+          watch_or_offer_present: wp,
+          show_up_rate: reg > 0 ? (su / reg) * 100 : null,
+          drop_rate: su > 0 ? ((su - wp) / su) * 100 : null,
+          is_sales_day: dn === salesDay,
+        };
+      });
+      if (dayRows.length) {
+        const { error: dErr } = await (supabase as any).from("seminar_roas_report_days").insert(dayRows);
+        if (dErr) throw dErr;
+      }
+
+      const prodRows = products
+        .filter((p) => p.type.trim())
+        .map((p, idx) => {
+          const units = Number(p.units || 0);
+          const price = Number(p.price || 0);
+          const tok = p.token === "" ? null : Number(p.token);
+          const rev = (tok != null && tok > 0) ? units * tok : units * price;
+          return {
+            report_id: reportId,
+            payment_type: p.type,
+            units_sold: units,
+            deal_price_including_gst: price,
+            token_down_payment: tok,
+            revenue_counted: rev,
+            sort_order: idx,
+          };
+        });
+      if (prodRows.length) {
+        const { error: pErr } = await (supabase as any).from("seminar_roas_report_products").insert(prodRows);
+        if (pErr) throw pErr;
+      }
+
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
+      toast.success("Seminar ROAS report saved.");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "Failed to save report");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const loadReport = async (id: string) => {
+    const { data, error } = await (supabase as any)
+      .from("seminar_roas_reports")
+      .select("*, days:seminar_roas_report_days(*), products:seminar_roas_report_products(*)")
+      .eq("id", id)
+      .single();
+    if (error || !data) { toast.error("Could not load report"); return; }
+    const r: any = data;
+    const snap = r.input_snapshot_json || {};
+    setEditingId(id);
+    setWebinarName(r.webinar_name || "");
+    setWebinarMode(r.webinar_mode || "Live");
+    setTotalDays(r.total_webinar_days || 1);
+    setWatchPct(Number(r.watch_point_percent ?? 70));
+    setSalesDay(r.sales_day || 1);
+    setStartTime(r.webinar_start_time || "");
+    setEndTime(r.webinar_end_time || "");
+    setTimingNote(r.timing_note || "");
+    if (snap.days) setDays(snap.days);
+    else setDays((r.days || []).sort((a: any, b: any) => a.day_number - b.day_number).map((d: any) => ({
+      date: d.date || "",
+      registrations: String(d.registrations || ""),
+      showUp: String(d.show_up || ""),
+      watchOrOffer: String(d.watch_or_offer_present || ""),
+    })));
+    setAdCostExGst(String(r.ad_cost_excluding_gst || ""));
+    if (snap.products) setProducts(snap.products);
+    else setProducts((r.products || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((p: any) => ({
+      type: p.payment_type || "",
+      units: String(p.units_sold || ""),
+      price: String(p.deal_price_including_gst || ""),
+      token: p.token_down_payment == null ? "" : String(p.token_down_payment),
+    })) || [emptyProd()]);
+    draftLoadedRef.current = true;
+    setStep(5);
+  };
+
+  // ----- render helpers -----
+  const stepTitles: Record<number, string> = {
+    1: "Webinar Setup", 2: "Attendance Details", 3: "Ad Cost & Spend",
+    4: "Sales & Payment Types", 5: "ROAS, GST & Profit Summary",
+  };
+
+  return (
+    <div className="srWiz">
+      <style>{STYLES}</style>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div className="page-title">Seminar ROAS Calculator</div>
+          <div className="page-sub" style={{ marginBottom: 0 }}>
+            Calculate registrations, show-up, watch drop, ad spend, GST, profit and ROAS for any seminar, webinar or multi-day challenge.
+          </div>
+        </div>
+        {onBack && <button className="srBtn srBtn-g" onClick={onBack}>← Back</button>}
+      </div>
+
+      {draftBanner && (
+        <div className="srHint" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <span>Your previous Seminar ROAS draft has been restored.</span>
+          <span style={{ display: "flex", gap: 8 }}>
+            <button className="srBtn srBtn-k" style={{ height: 30 }} onClick={restoreDraft}>Continue Draft</button>
+            <button className="srBtn srBtn-g" style={{ height: 30 }} onClick={startFresh}>Start Fresh</button>
+          </span>
+        </div>
+      )}
+
+      <div className="srStepper">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            className={"srStepDot" + (step === n ? " on" : (step > n ? " done" : ""))}
+            onClick={() => setStep(n as any)}
+            type="button"
+          >
+            <span className="n">{n}</span>{stepTitles[n]}
+          </button>
+        ))}
+      </div>
+
+      {step === 1 && (
+        <Step1 {...{ webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
+          watchPct, setWatchPct, salesDay, setSalesDay, startTime, setStartTime, endTime, setEndTime,
+          timingNote, setTimingNote, calc }} />
+      )}
+      {step === 2 && (
+        <Step2 days={days} totalDays={totalDays} salesDay={salesDay} watchPct={watchPct}
+          watchTime={calc.wpTime} watchMin={calc.wpMin}
+          updateDay={updateDay} addDay={addDay} removeDay={removeDay} dayMetrics={dayMetrics} />
+      )}
+      {step === 3 && (
+        <Step3 adCostExGst={adCostExGst} setAdCostExGst={setAdCostExGst} calc={calc} />
+      )}
+      {step === 4 && (
+        <Step4 products={products} updateProd={updateProd} addProd={addProd} removeProd={removeProd} calc={calc} />
+      )}
+      {step === 5 && (
+        <Step5 calc={calc} totalDays={totalDays} watchPct={watchPct}
+          regs={calc.regs} showUp={calc.showUp} offer={calc.offerShowUp} />
+      )}
+
+      <div className="srBtnRow">
+        <div>
+          {step > 1 && <button className="srBtn srBtn-g" onClick={() => setStep((s) => (s - 1) as any)}>← Previous</button>}
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {step < 5 && <button className="srBtn srBtn-k" onClick={() => setStep((s) => (s + 1) as any)}>Next →</button>}
+          {step === 5 && (
+            <>
+              <button className="srBtn srBtn-g" onClick={copyWhatsApp}>Copy WhatsApp Summary</button>
+              <button className="srBtn srBtn-k" onClick={saveReport} disabled={!canCalc || saving}>
+                {saving ? "Saving..." : (editingId ? "Update Report" : "Save Report")}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Step 1 ---------------- */
+function Step1(props: any) {
+  const { webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
+    watchPct, setWatchPct, salesDay, setSalesDay, startTime, setStartTime, endTime, setEndTime,
+    timingNote, setTimingNote, calc } = props;
+
+  const [customDays, setCustomDays] = useState(!DAY_PRESETS.includes(totalDays));
+  const [customWatch, setCustomWatch] = useState(!WATCH_PRESETS.includes(watchPct));
+
+  return (
+    <div className="srSection">
+      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>Webinar Setup</div>
+
+      <div className="srGrid c2" style={{ marginBottom: 14 }}>
+        <div>
+          <div className="srLbl">
+            Webinar / Campaign Name <Info title="Webinar Name" body="Type a new name or click to choose a previously saved one. Click + to save it for next time." />
+          </div>
+          <QuickSaveInput
+            fieldKey="seminar_webinar_name"
+            value={webinarName}
+            onChange={setWebinarName}
+            placeholder="Click to choose saved webinar or type new"
+          />
+        </div>
+        <div>
+          <div className="srLbl">
+            Webinar Mode <Info title="Webinar Mode" body="Choose how the webinar was delivered: Live, Automated, Replay, Hybrid or Custom." />
+          </div>
+          <QuickSaveInput
+            fieldKey="webinar_mode"
+            value={webinarMode}
+            onChange={setWebinarMode}
+            placeholder="Live / Automated / Replay / ..."
+          />
+          <div className="srHelper">Suggestions: {MODE_OPTS.join(" · ")}</div>
+        </div>
+      </div>
+
+      <div className="srGrid c2" style={{ marginBottom: 14 }}>
+        <div>
+          <div className="srLbl">
+            Total Webinar Days <Info title="Total Webinar Days" body="How many days the webinar/seminar/challenge ran. Up to 60 days supported." />
+          </div>
+          <div className="srPills">
+            {DAY_PRESETS.map((d) => (
+              <button key={d} className={"srPill" + (!customDays && totalDays === d ? " on" : "")}
+                onClick={() => { setCustomDays(false); setTotalDays(d); }}>{d} {d === 1 ? "Day" : "Days"}</button>
+            ))}
+            <button className={"srPill" + (customDays ? " on" : "")} onClick={() => setCustomDays(true)}>Custom</button>
+          </div>
+          {customDays && (
+            <input type="number" min={1} max={60} className="srInput" style={{ marginTop: 8 }}
+              value={totalDays} onChange={(e) => setTotalDays(Math.max(1, Math.min(60, Number(e.target.value) || 1)))} />
+          )}
+        </div>
+        <div>
+          <div className="srLbl">
+            Watch Point % <Info title="Watch Point %" body="Percentage of webinar duration where you check how many people are still watching. Example: 10:30 AM to 3:30 PM at 70% = 2:00 PM." />
+          </div>
+          <div className="srPills">
+            {WATCH_PRESETS.map((w) => (
+              <button key={w} className={"srPill" + (!customWatch && watchPct === w ? " on" : "")}
+                onClick={() => { setCustomWatch(false); setWatchPct(w); }}>{w}%</button>
+            ))}
+            <button className={"srPill" + (customWatch ? " on" : "")} onClick={() => setCustomWatch(true)}>Custom</button>
+          </div>
+          {customWatch && (
+            <input type="number" min={1} max={100} className="srInput" style={{ marginTop: 8 }}
+              value={watchPct} onChange={(e) => setWatchPct(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} />
+          )}
+        </div>
+      </div>
+
+      <div className="srGrid c3" style={{ marginBottom: 14 }}>
+        <div>
+          <div className="srLbl">
+            Sales / Offer Day <Info title="Sales / Offer Day" body="The day the offer is pitched. On this day you'll fill Offer Show-Up; other days use People Present at Watch Point." />
+          </div>
+          <select className="srSelect" value={salesDay} onChange={(e) => setSalesDay(Number(e.target.value))}>
+            {Array.from({ length: totalDays }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>Day {n}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <div className="srLbl">Webinar Start Time</div>
+          <input className="srInput" list="srStartTimes" value={startTime} onChange={(e) => setStartTime(e.target.value)} placeholder="10:30 AM" />
+          <datalist id="srStartTimes">
+            {["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","6:00 PM","7:00 PM","8:00 PM"].map((t) => <option key={t} value={t} />)}
+          </datalist>
+        </div>
+        <div>
+          <div className="srLbl">Webinar End Time</div>
+          <input className="srInput" list="srEndTimes" value={endTime} onChange={(e) => setEndTime(e.target.value)} placeholder="3:30 PM" />
+          <datalist id="srEndTimes">
+            {["12:00 PM","1:00 PM","2:00 PM","3:00 PM","3:30 PM","4:00 PM","9:00 PM","10:00 PM","11:00 PM"].map((t) => <option key={t} value={t} />)}
+          </datalist>
+        </div>
+      </div>
+
+      <div className="srGrid c3" style={{ marginBottom: 14 }}>
+        <div>
+          <div className="srLbl">Total Duration <Info title="Total Duration" body="End Time minus Start Time. Crosses midnight if End is earlier than Start." /></div>
+          <div className="srInput" style={{ display: "flex", alignItems: "center", background: "var(--off)" }}>
+            {calc.dur != null ? `${Math.floor(calc.dur / 60)}h ${calc.dur % 60}m (${calc.dur} min)` : "—"}
+          </div>
+        </div>
+        <div>
+          <div className="srLbl">Watch Point Time <Info title="Watch Point Time" body="Start Time + (Total Duration × Watch Point %). This is the moment used to measure mid-webinar drop." /></div>
+          <div className="srInput" style={{ display: "flex", alignItems: "center", background: "var(--off)" }}>
+            {calc.wpTime}{calc.wpMin != null ? `  ·  after ${calc.wpMin} min` : ""}
+          </div>
+        </div>
+        <div>
+          <div className="srLbl">Timing Note (optional)</div>
+          <input className="srInput" value={timingNote} onChange={(e) => setTimingNote(e.target.value)} placeholder="Same timing every day" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Step 2 ---------------- */
+function Step2({ days, totalDays, salesDay, watchPct, watchTime, watchMin, updateDay, addDay, removeDay, dayMetrics }: any) {
+  return (
+    <div className="srSection">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18 }}>Attendance Details</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="srBtn srBtn-g" onClick={removeDay} disabled={totalDays <= 1}>− Remove Last Day</button>
+          <button className="srBtn srBtn-g" onClick={addDay} disabled={totalDays >= 60}>+ Add One More Day</button>
+        </div>
+      </div>
+
+      {Array.from({ length: totalDays }, (_, i) => {
+        const isSales = i + 1 === salesDay;
+        const m = dayMetrics(i);
+        const presenceLabel = isSales
+          ? "Offer Show-Up"
+          : `People Present at ${watchPct}% Timing (${watchTime}${watchMin != null ? ` · after ${watchMin} min` : ""})`;
+        const dropLabel = isSales ? "Offer Drop Rate" : `${watchPct}% Drop Rate`;
+        return (
+          <div key={i} className={"srDayCard" + (isSales ? " sales" : "")}>
+            <div className="srDayHead">
+              <div className="srDayTitle">Day {i + 1}</div>
+              {isSales && <span className="srBadge">Sales / Offer Day</span>}
+            </div>
+            <div className="srGrid c4">
+              <div>
+                <div className="srLbl">Date</div>
+                <input type="date" className="srInput" value={days[i]?.date || ""} onChange={(e) => updateDay(i, { date: e.target.value })} />
+              </div>
+              <div>
+                <div className="srLbl">Registrations / Leads <Info title="Registrations" body="Total people who registered for this day. Used for CPL." /></div>
+                <input type="number" className="srInput" value={days[i]?.registrations || ""} onChange={(e) => updateDay(i, { registrations: e.target.value })} />
+              </div>
+              <div>
+                <div className="srLbl">Show-Up <Info title="Show-Up" body="People who actually attended on this day." /></div>
+                <input type="number" className="srInput" value={days[i]?.showUp || ""} onChange={(e) => updateDay(i, { showUp: e.target.value })} />
+              </div>
+              <div>
+                <div className="srLbl" title={presenceLabel}>{presenceLabel}
+                  <Info title={isSales ? "Offer Show-Up" : "People Present at Watch Point"}
+                    body={isSales
+                      ? "People still present when the offer was being pitched. Used for offer drop rate."
+                      : "People still present at your watch-point time. Used to measure mid-webinar drop."} />
+                </div>
+                <input type="number" className="srInput" value={days[i]?.watchOrOffer || ""} onChange={(e) => updateDay(i, { watchOrOffer: e.target.value })} />
+              </div>
+            </div>
+            <div className="srMetric">
+              Show-Up Rate: <strong>{m.sur == null ? "—" : m.sur.toFixed(2) + "%"}</strong>
+              &nbsp;·&nbsp; {dropLabel}: <strong>{m.dr == null ? "—" : m.dr.toFixed(2) + "%"}</strong>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------------- Step 3 ---------------- */
+function Step3({ adCostExGst, setAdCostExGst, calc }: any) {
+  return (
+    <div className="srSection">
+      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>Ad Cost & Spend</div>
+
+      <div className="srGrid c3" style={{ marginBottom: 18 }}>
+        <div>
+          <div className="srLbl">Ad Cost Excluding GST <Info title="Ad Cost Excluding GST" body="Actual ad spend before GST. Used for CPL and CPA." /></div>
+          <input type="number" className="srInput" value={adCostExGst} onChange={(e) => setAdCostExGst(e.target.value)} placeholder="0" />
+        </div>
+        <div>
+          <div className="srLbl">GST @ 18%</div>
+          <div className="srInput" style={{ background: "var(--off)", display: "flex", alignItems: "center" }}>{inr(calc.adGst)}</div>
+        </div>
+        <div>
+          <div className="srLbl">Total Ad Spend Including GST <Info title="Ad Spend Including GST" body="Ad Cost × 1.18. Used for ROAS and Profit." /></div>
+          <div className="srInput" style={{ background: "var(--off)", display: "flex", alignItems: "center" }}>{inr(calc.adInc)}</div>
+        </div>
+      </div>
+
+      <div className="srSumGrid">
+        <div className="srSumCard">
+          <div className="srSumLbl">CPL <Info title="CPL" body="Cost per Lead = Ad Cost Excl. GST ÷ Registrations (sales day)." /></div>
+          <div className="srSumVal">{inr(calc.cpl)}</div>
+        </div>
+        <div className="srSumCard">
+          <div className="srSumLbl">Cost / Show-Up</div>
+          <div className="srSumVal">{inr(calc.costShowUp)}</div>
+        </div>
+        <div className="srSumCard">
+          <div className="srSumLbl">Cost / Offer Show-Up</div>
+          <div className="srSumVal">{inr(calc.costOfferSU)}</div>
+        </div>
+        <div className="srSumCard">
+          <div className="srSumLbl">Input GST Credit</div>
+          <div className="srSumVal">{inr(calc.inputGstCredit)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Step 4 ---------------- */
+function Step4({ products, updateProd, addProd, removeProd, calc }: any) {
+  return (
+    <div className="srSection">
+      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>Sales & Payment Types</div>
+
+      <div className="srHint">
+        Add a row for each product / payment type. If you enter a Token / Down Payment, that row's revenue uses the token amount; otherwise it uses the full deal price.
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 90px 1fr 1fr 1fr 36px", gap: 10, fontSize: 9, textTransform: "uppercase", letterSpacing: ".08em", color: "#888", padding: "0 4px 6px" }} className="srProdHead">
+        <div>Payment / Product Type</div>
+        <div>Units</div>
+        <div>Deal Price (Inc. GST)</div>
+        <div>Token / Down Pmt</div>
+        <div>Row Revenue</div>
+        <div></div>
+      </div>
+
+      {products.map((p: ProductRow, i: number) => {
+        const units = Number(p.units || 0);
+        const price = Number(p.price || 0);
+        const tok = p.token === "" ? null : Number(p.token);
+        const rev = (tok != null && tok > 0) ? units * tok : units * price;
+        return (
+          <div key={i} className="srProdRow">
+            <div>
+              <QuickSaveInput
+                fieldKey="seminar_payment_type"
+                value={p.type}
+                onChange={(v) => updateProd(i, { type: v })}
+                placeholder="e.g. Full Payment Sale"
+              />
+            </div>
+            <input type="number" className="srInput" value={p.units} onChange={(e) => updateProd(i, { units: e.target.value })} placeholder="0" />
+            <input type="number" className="srInput" value={p.price} onChange={(e) => updateProd(i, { price: e.target.value })} placeholder="0" />
+            <input type="number" className="srInput" value={p.token} onChange={(e) => updateProd(i, { token: e.target.value })} placeholder="optional" />
+            <div className="srInput" style={{ background: "var(--off)", display: "flex", alignItems: "center" }}>{inr(rev)}</div>
+            <button className="srRm" onClick={() => removeProd(i)} title="Remove row">✕</button>
+          </div>
+        );
+      })}
+
+      <button className="srAddBtn" onClick={addProd} style={{ marginTop: 6 }}>+ Add Product</button>
+
+      <div className="srSumGrid" style={{ marginTop: 18 }}>
+        <div className="srSumCard">
+          <div className="srSumLbl">Total Conversions</div>
+          <div className="srSumVal">{calc.totalUnits}</div>
+        </div>
+        <div className="srSumCard grn">
+          <div className="srSumLbl">Total Revenue Inc. GST</div>
+          <div className="srSumVal">{inr(calc.totalRev)}</div>
+        </div>
+      </div>
+
+      <div className="srHelper">
+        Suggested types: {DEFAULT_PAYMENT_TYPES.join(" · ")}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Step 5 ---------------- */
+function Step5({ calc, totalDays, watchPct, regs, showUp, offer }: any) {
+  const rows: [string, string][] = [
+    ["Webinar Days", String(totalDays)],
+    ["Watch Point", `${watchPct}%`],
+    ["Watch Point Time", calc.wpTime],
+    ["Registrations (sales day)", num(regs)],
+    ["Show-Up (sales day)", num(showUp)],
+    ["Offer Show-Up", num(offer)],
+    ["Total Revenue Inc. GST", inr(calc.totalRev)],
+    ["Ad Cost Excl. GST", inr(calc.adCost)],
+    ["Ad Spend Inc. GST", inr(calc.adInc)],
+    ["Net GST Payable to Govt", inr(calc.netGst)],
+    ["Total Conversions", num(calc.totalUnits)],
+    ["Profit After GST", inr(calc.profit)],
+    ["CPA", inr(calc.cpa)],
+    ["CPL", inr(calc.cpl)],
+    ["ROAS", calc.roas == null ? "—" : calc.roas.toFixed(2) + "×"],
+  ];
+  return (
+    <div className="srSection">
+      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>ROAS, GST & Profit Summary</div>
+
+      <div className="srSumGrid">
+        <div className="srSumCard gold">
+          <div className="srSumLbl">ROAS</div>
+          <div className="srSumVal">{calc.roas == null ? "—" : calc.roas.toFixed(2) + "×"}</div>
+          <div className="srSumNote">Revenue Inc. GST ÷ Ad Spend Inc. GST</div>
+        </div>
+        <div className="srSumCard grn">
+          <div className="srSumLbl">Profit After GST</div>
+          <div className="srSumVal">{inr(calc.profit)}</div>
+          <div className="srSumNote">Revenue − Net GST − Ad Spend Inc. GST</div>
+        </div>
+        <div className="srSumCard">
+          <div className="srSumLbl">CPA</div>
+          <div className="srSumVal">{inr(calc.cpa)}</div>
+          <div className="srSumNote">Ad Cost Excl. GST ÷ Conversions</div>
+        </div>
+        <div className="srSumCard">
+          <div className="srSumLbl">Total Conversions</div>
+          <div className="srSumVal">{calc.totalUnits}</div>
+        </div>
+      </div>
+
+      <div className="srSumGrid">
+        <div className="srSumCard">
+          <div className="srSumLbl">Total Revenue Inc. GST</div>
+          <div className="srSumVal" style={{ fontSize: 22 }}>{inr(calc.totalRev)}</div>
+        </div>
+        <div className="srSumCard">
+          <div className="srSumLbl">Ad Spend Inc. GST</div>
+          <div className="srSumVal" style={{ fontSize: 22 }}>{inr(calc.adInc)}</div>
+        </div>
+        <div className="srSumCard">
+          <div className="srSumLbl">Net GST Payable to Govt</div>
+          <div className="srSumVal" style={{ fontSize: 22 }}>{inr(calc.netGst)}</div>
+          {calc.excessCredit > 0 && <div className="srSumNote">Excess input GST credit: {inr(calc.excessCredit)}</div>}
+        </div>
+      </div>
+
+      <table className="srTbl">
+        <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+        <tbody>
+          {rows.map(([k, v]) => (
+            <tr key={k}><td>{k}</td><td>{v}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

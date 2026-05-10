@@ -146,7 +146,28 @@ function periodMonth(s: SessionRow): string {
   return d ? String(d).slice(0, 7) : "";
 }
 
-type SectionKey = "attribution" | "daily" | "overview";
+type SectionKey = "attribution" | "daily" | "seminar" | "overview";
+
+type SeminarRow = {
+  id: string;
+  created_at: string;
+  created_by: string | null;
+  is_deleted: boolean;
+  deleted_at: string | null;
+  webinar_name: string;
+  webinar_mode: string | null;
+  total_webinar_days: number;
+  watch_point_percent: number;
+  total_revenue_including_gst: number;
+  total_ad_spend_including_gst: number;
+  total_conversions: number;
+  profit_after_gst: number;
+  cpa: number | null;
+  roas: number | null;
+  whatsapp_summary_text: string | null;
+  input_snapshot_json: any;
+  output_snapshot_json: any;
+};
 
 export default function Reports() {
   const navigate = useNavigate();
@@ -155,6 +176,16 @@ export default function Reports() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dailyStats, setDailyStats] = useState({ count: 0, spend: 0, leadsTotal: 0, avgCpl: null as number | null });
+  const [seminarRows, setSeminarRows] = useState<SeminarRow[]>([]);
+
+  const reloadSeminar = async () => {
+    const { data } = await (supabase as any)
+      .from("seminar_roas_reports")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setSeminarRows((data || []) as SeminarRow[]);
+  };
 
   const reloadSessions = async () => {
     setLoading(true);
@@ -190,12 +221,24 @@ export default function Reports() {
       try { await (supabase as any).rpc("purge_old_deleted_reports"); } catch {}
       reloadSessions();
       loadDailyStats();
+      reloadSeminar();
     })();
   }, []);
 
   const visibleSessions = useMemo(() =>
     sessions.filter((s) => showDeleted ? true : !s.is_deleted),
   [sessions, showDeleted]);
+
+  const visibleSeminar = useMemo(() =>
+    seminarRows.filter((s) => showDeleted ? true : !s.is_deleted),
+  [seminarRows, showDeleted]);
+
+  const seminarStats = useMemo(() => {
+    const live = visibleSeminar;
+    const totalRev = live.reduce((a, s) => a + Number(s.total_revenue_including_gst || 0), 0);
+    const avgRoas = live.length ? live.reduce((a, s) => a + Number(s.roas || 0), 0) / live.length : 0;
+    return { count: live.length, totalRev, avgRoas };
+  }, [visibleSeminar]);
 
   const attrStats = useMemo(() => {
     const live = visibleSessions;
@@ -245,14 +288,26 @@ export default function Reports() {
           onClick={() => setSection("daily")}
         />
         <CategoryCard
+          on={section === "seminar"}
+          title="Seminar ROAS Reports"
+          badge={`${seminarStats.count} reports`}
+          desc="Saved Seminar ROAS calculations from the Seminar ROAS Calculator."
+          stats={[
+            { lbl: "Reports", val: String(seminarStats.count) },
+            { lbl: "Avg ROAS", val: seminarStats.avgRoas.toFixed(2) + "×" },
+            { lbl: "Total Revenue", val: inr(seminarStats.totalRev) },
+          ]}
+          onClick={() => setSection("seminar")}
+        />
+        <CategoryCard
           on={section === "overview"}
           title="Reports Overview"
           badge="Analytics"
           desc="High-level analytics across attribution and daily lead reports."
           stats={[
-            { lbl: "Reports Saved", val: String(attrStats.count + dailyStats.count) },
+            { lbl: "Reports Saved", val: String(attrStats.count + dailyStats.count + seminarStats.count) },
             { lbl: "Latest Report", val: latestReportDate ? fmtDate(latestReportDate) : "—" },
-            { lbl: "Active Types", val: String((attrStats.count > 0 ? 1 : 0) + (dailyStats.count > 0 ? 1 : 0)) },
+            { lbl: "Active Types", val: String((attrStats.count > 0 ? 1 : 0) + (dailyStats.count > 0 ? 1 : 0) + (seminarStats.count > 0 ? 1 : 0)) },
           ]}
           onClick={() => setSection("overview")}
         />
@@ -278,8 +333,120 @@ export default function Reports() {
         />
       )}
 
+      {section === "seminar" && (
+        <SeminarSection rows={visibleSeminar} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadSeminar} navigate={navigate} />
+      )}
+
       {section === "overview" && (
         <OverviewSection sessions={visibleSessions} dailyStats={dailyStats} />
+      )}
+    </div>
+  );
+}
+
+function SeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }: { rows: SeminarRow[]; showDeleted: boolean; setShowDeleted: (b: boolean) => void; reload: () => void; navigate: (p: string) => void; }) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const { user } = useAuth();
+
+  const softDelete = async (id: string) => {
+    if (!confirm("Move this report to trash? It will auto-delete after 14 days.")) return;
+    setBusyId(id);
+    const { error } = await (supabase as any)
+      .from("seminar_roas_reports")
+      .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id })
+      .eq("id", id);
+    setBusyId(null);
+    if (error) toast.error(error.message); else { toast.success("Report moved to trash"); reload(); }
+  };
+  const restore = async (id: string) => {
+    setBusyId(id);
+    const { error } = await (supabase as any)
+      .from("seminar_roas_reports")
+      .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+      .eq("id", id);
+    setBusyId(null);
+    if (error) toast.error(error.message); else { toast.success("Report restored"); reload(); }
+  };
+  const copyWa = async (r: SeminarRow) => {
+    if (!r.whatsapp_summary_text) { toast.error("No WhatsApp summary saved"); return; }
+    try { await navigator.clipboard.writeText(r.whatsapp_summary_text); toast.success("WhatsApp summary copied"); } catch { toast.error("Copy failed"); }
+  };
+  const exportCsv = (r: SeminarRow) => {
+    const rowsCsv = [
+      ["Webinar", r.webinar_name],
+      ["Mode", r.webinar_mode || ""],
+      ["Days", String(r.total_webinar_days)],
+      ["Watch Point %", String(r.watch_point_percent)],
+      ["Revenue Inc. GST", String(r.total_revenue_including_gst)],
+      ["Ad Spend Inc. GST", String(r.total_ad_spend_including_gst)],
+      ["Total Conversions", String(r.total_conversions)],
+      ["Profit After GST", String(r.profit_after_gst)],
+      ["CPA", r.cpa == null ? "" : String(r.cpa)],
+      ["ROAS", r.roas == null ? "" : String(r.roas)],
+    ];
+    const csv = rowsCsv.map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `seminar-roas-${r.webinar_name.replace(/\W+/g, "-")}.csv`;
+    a.click();
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div className="step-title">Seminar ROAS Reports</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button className={"pill" + (showDeleted ? " on" : "")} onClick={() => setShowDeleted(!showDeleted)}>
+            {showDeleted ? "Showing trash" : "Show trash"}
+          </button>
+          <button className="btn btn-k" onClick={() => navigate("/roas-calculator")}>+ New Seminar Report</button>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div style={{ padding: 40, textAlign: "center", color: "#888", border: "1px solid var(--bd)", borderRadius: 12, background: "var(--ww)" }}>
+          No seminar ROAS reports yet. Create one from the ROAS Calculator → Seminar ROAS Calculator.
+        </div>
+      ) : (
+        <div style={{ border: "1px solid var(--bd)", borderRadius: 12, background: "var(--ww)", overflow: "hidden" }}>
+          <table className="attr-table">
+            <thead>
+              <tr>
+                <th>Created</th><th>Webinar</th><th>Days</th><th>WP%</th>
+                <th>Revenue Inc. GST</th><th>Ad Spend Inc. GST</th><th>Conv.</th>
+                <th>Profit</th><th>CPA</th><th>ROAS</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td style={{ fontSize: 11, color: "#888" }}>{fmtDateTime(r.created_at)}</td>
+                  <td className="mb-name-cell">{r.webinar_name}{r.is_deleted && <span style={{ marginLeft: 8, fontSize: 10, color: "var(--rd)", fontFamily: "'Jost',sans-serif", fontWeight: 400 }}>· trash ({daysRemaining(r.deleted_at)}d left)</span>}</td>
+                  <td>{r.total_webinar_days}</td>
+                  <td>{r.watch_point_percent}%</td>
+                  <td>{inr(Number(r.total_revenue_including_gst))}</td>
+                  <td>{inr(Number(r.total_ad_spend_including_gst))}</td>
+                  <td>{r.total_conversions}</td>
+                  <td>{inr(Number(r.profit_after_gst))}</td>
+                  <td>{r.cpa == null ? "—" : inr(Number(r.cpa))}</td>
+                  <td><span className={"roas-val " + roasClass(Number(r.roas || 0))}>{r.roas == null ? "—" : Number(r.roas).toFixed(2) + "×"}</span></td>
+                  <td>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <button className="btn btn-g btn-sm" onClick={() => copyWa(r)}>WA</button>
+                      <button className="btn btn-g btn-sm" onClick={() => exportCsv(r)}>CSV</button>
+                      {r.is_deleted ? (
+                        <button className="btn btn-g btn-sm" disabled={busyId === r.id} onClick={() => restore(r.id)}>Restore</button>
+                      ) : (
+                        <button className="btn btn-g btn-sm" disabled={busyId === r.id} onClick={() => softDelete(r.id)} style={{ color: "var(--rd)" }}>Delete</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
