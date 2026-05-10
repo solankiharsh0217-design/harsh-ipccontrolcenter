@@ -206,10 +206,6 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDays]);
 
-  const applyDefaultsToAll = () => {
-    setDays((prev) => prev.map((d) => ({ ...d, startTime: defaultStart, endTime: defaultEnd })));
-    toast.success("Default timing applied to all days");
-  };
 
   // Draft load
   useEffect(() => {
