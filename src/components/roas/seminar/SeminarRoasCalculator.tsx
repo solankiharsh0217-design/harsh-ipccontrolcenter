@@ -776,13 +776,21 @@ function Step1(props: any) {
       <div className="srGrid c3" style={{ marginBottom: 14 }}>
         <div>
           <div className="srLbl">
-            Sales / Offer Day <Info title="Sales / Offer Day" body="The day the offer is pitched. On this day you'll fill Offer Show-Up; other days use People Present at Watch Point." />
+            Sales / Offer Day <span style={{ color: "var(--rd)" }}>*</span>
+            <Info title="Sales / Offer Day" body="The day the offer is pitched. On this day you'll fill Offer Show-Up; other days use People Present at Watch Point. You must explicitly choose this — it is not auto-selected." />
           </div>
-          <select className="srSelect" value={salesDay} onChange={(e) => setSalesDay(Number(e.target.value))}>
+          <select
+            className="srSelect"
+            style={salesDayError ? { borderColor: "var(--rd)" } : undefined}
+            value={salesDay || ""}
+            onChange={(e) => setSalesDay(Number(e.target.value))}
+          >
+            <option value="">Select sales/offer day</option>
             {Array.from({ length: totalDays }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>Day {n}</option>
             ))}
           </select>
+          {salesDayError && <div className="srErr">Please select the day when sales/offer happened.</div>}
         </div>
         <div>
           <div className="srLbl">Webinar Start Time <Info title="Start Time" body="Pick from 15-min suggestions or type any time (e.g. 10:30 AM, 18:00)." /></div>
