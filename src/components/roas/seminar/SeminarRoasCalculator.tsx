@@ -69,8 +69,9 @@ const STYLES = `
 .srGrid.c2{grid-template-columns:1fr 1fr}
 .srGrid.c3{grid-template-columns:1fr 1fr 1fr}
 .srGrid.c4{grid-template-columns:repeat(4,1fr)}
+.srGrid > div{display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
 @media (max-width:780px){.srGrid.c2,.srGrid.c3,.srGrid.c4{grid-template-columns:1fr}}
-.srLbl{display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--kk);margin-bottom:7px;font-weight:500}
+.srLbl{display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--kk);margin-bottom:7px;font-weight:500;min-height:14px}
 .srInput{width:100%;height:40px;border:1px solid var(--bd);border-radius:8px;padding:0 12px;font-family:'Jost',sans-serif;font-size:13px;background:var(--ww);outline:none}
 .srInput:focus{border-color:var(--gold)}
 .srSelect{width:100%;height:40px;border:1px solid var(--bd);border-radius:8px;padding:0 12px;font-family:'Jost',sans-serif;font-size:13px;background:var(--ww)}
