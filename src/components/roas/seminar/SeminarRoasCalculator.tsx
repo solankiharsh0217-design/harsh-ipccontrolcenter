@@ -1040,3 +1040,28 @@ function Step5({ calc, totalDays, watchPct, regs, showUp, offer }: any) {
     </div>
   );
 }
+
+/* ---------------- Export Menu ---------------- */
+function ExportMenu({ onCsv, onSheets, onPdf, onWa }: { onCsv: () => void; onSheets: () => void; onPdf: () => void; onWa: () => void; }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const item: React.CSSProperties = { padding: "10px 14px", fontSize: 12.5, cursor: "pointer", fontFamily: "'Jost',sans-serif", whiteSpace: "nowrap", color: "var(--kk)", background: "transparent", border: "none", textAlign: "left", width: "100%", display: "block" };
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button className="srBtn srBtn-g" onClick={() => setOpen((o) => !o)}>Export ▾</button>
+      {open && (
+        <div style={{ position: "absolute", right: 0, bottom: "calc(100% + 6px)", background: "var(--ww)", border: "1px solid var(--bd)", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.08)", zIndex: 60, minWidth: 220, overflow: "hidden" }}>
+          <button style={item} onClick={() => { setOpen(false); onCsv(); }}>Export CSV</button>
+          <button style={item} onClick={() => { setOpen(false); onSheets(); }}>Google Sheets Ready CSV</button>
+          <button style={item} onClick={() => { setOpen(false); onPdf(); }}>Export PDF</button>
+          <button style={item} onClick={() => { setOpen(false); onWa(); }}>Copy WhatsApp Summary</button>
+        </div>
+      )}
+    </div>
+  );
+}
