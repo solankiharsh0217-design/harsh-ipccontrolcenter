@@ -199,7 +199,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   useEffect(() => {
     setDays((prev) => {
       const next = prev.slice(0, totalDays);
-      while (next.length < totalDays) next.push(emptyDay(defaultStart, defaultEnd));
+      while (next.length < totalDays) next.push(emptyDay());
       return next;
     });
     if (salesDay > totalDays) setSalesDay(0);
