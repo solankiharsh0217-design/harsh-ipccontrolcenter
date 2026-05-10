@@ -418,7 +418,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         const u = Number(p.units || 0);
         const pr = Number(p.price || 0);
         const tk = p.token === "" ? null : Number(p.token);
-        const rev = (tk != null && tk > 0) ? u * tk : u * pr;
+        const rev = (revenueBasis === "token_collected_amount" && tk != null && tk > 0) ? u * tk : u * pr;
         return [p.type, u, pr, tk ?? "", rev];
       }),
     ];
