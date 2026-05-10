@@ -789,25 +789,8 @@ function Step1(props: any) {
       </div>
 
       <div className="srHint">
-        Default Timing for All Days — used as the starting point. You can override start/end time on each day card in Step 2.
+        Each day's start &amp; end time is set on its own card in Step 2 — Attendance Details.
       </div>
-
-      <div className="srGrid c3" style={{ marginBottom: 6 }}>
-        <div>
-          <div className="srLbl">Default Start Time <Info title="Default Start" body="Pick from 15-min suggestions or type any time (e.g. 10:30 AM, 18:00)." /></div>
-          <input className="srInput" list="srTimes" value={defaultStart} onChange={(e) => setDefaultStart(e.target.value)} placeholder="10:30 AM" />
-        </div>
-        <div>
-          <div className="srLbl">Default End Time <Info title="Default End" body="Pick from 15-min suggestions or type any time (e.g. 3:30 PM, 21:00)." /></div>
-          <input className="srInput" list="srTimes" value={defaultEnd} onChange={(e) => setDefaultEnd(e.target.value)} placeholder="3:30 PM" />
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-end" }}>
-          <button className="srBtn srBtn-g" type="button" onClick={applyDefaultsToAll} style={{ width: "100%" }}>Apply to All Days</button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ---------------- Step 2 ---------------- */
 function Step2({ days, totalDays, salesDay, watchPct, dayTimings, updateDay, addDay, removeDay, dayMetrics }: any) {
