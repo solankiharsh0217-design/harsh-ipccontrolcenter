@@ -707,8 +707,8 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
 function Step1(props: any) {
   const { webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
     watchPct, setWatchPct, salesDay, setSalesDay, salesDayError,
-    defaultStart, setDefaultStart, defaultEnd, setDefaultEnd, timingNote, setTimingNote,
-    convBasis, setConvBasis, applyDefaultsToAll } = props;
+    timingNote, setTimingNote,
+    convBasis, setConvBasis } = props;
 
   const [customDays, setCustomDays] = useState(!DAY_PRESETS.includes(totalDays));
   const [customWatch, setCustomWatch] = useState(!WATCH_PRESETS.includes(watchPct));
