@@ -186,15 +186,19 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [saving, setSaving] = useState(false);
   const [draftBanner, setDraftBanner] = useState(false);
   const draftLoadedRef = useRef(false);
+  const salesDayTouchedRef = useRef(false);
+  const setSalesDayManual = useCallback((d: number) => { salesDayTouchedRef.current = true; setSalesDay(d); }, []);
 
-  // ----- derived: keep days array sized to totalDays -----
+  // ----- derived: keep days array sized to totalDays + auto-default salesDay to last day -----
   useEffect(() => {
     setDays((prev) => {
       const next = prev.slice(0, totalDays);
       while (next.length < totalDays) next.push(emptyDay());
       return next;
     });
-    if (salesDay > totalDays) setSalesDay(totalDays);
+    if (!salesDayTouchedRef.current) setSalesDay(totalDays);
+    else if (salesDay > totalDays) setSalesDay(totalDays);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDays]);
 
   // ----- draft load on mount -----
