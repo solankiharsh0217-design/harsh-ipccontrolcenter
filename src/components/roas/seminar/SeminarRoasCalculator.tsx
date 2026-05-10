@@ -363,6 +363,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     lines.push(`Days: ${totalDays}`);
     lines.push(`Watch Point: ${watchPct}%`);
     lines.push(`Sales Day: Day ${salesDay}`);
+    lines.push(`Revenue Basis: ${revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"}`);
     lines.push(`Revenue Inc. GST: ${inr(calc.totalRev)}`);
     lines.push(`Ad Spend Inc. GST: ${inr(calc.adInc)}`);
     lines.push(`Net GST Payable to Govt: ${inr(calc.netGst)}`);
