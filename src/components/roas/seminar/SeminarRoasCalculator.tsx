@@ -188,18 +188,17 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [saving, setSaving] = useState(false);
   const [draftBanner, setDraftBanner] = useState(false);
   const draftLoadedRef = useRef(false);
-  const salesDayTouchedRef = useRef(false);
-  const setSalesDayManual = useCallback((d: number) => { salesDayTouchedRef.current = true; setSalesDay(d); }, []);
+  const setSalesDayManual = useCallback((d: number) => { setSalesDayError(false); setSalesDay(d); }, []);
 
-  // ----- derived: keep days array sized to totalDays + auto-default salesDay to last day -----
+  // ----- derived: keep days array sized to totalDays. Do NOT auto-pick salesDay. -----
   useEffect(() => {
     setDays((prev) => {
       const next = prev.slice(0, totalDays);
       while (next.length < totalDays) next.push(emptyDay());
       return next;
     });
-    if (!salesDayTouchedRef.current) setSalesDay(totalDays);
-    else if (salesDay > totalDays) setSalesDay(totalDays);
+    // Only clamp if user already picked a day that no longer exists
+    if (salesDay > totalDays) setSalesDay(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDays]);
 
