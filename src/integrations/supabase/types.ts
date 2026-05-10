@@ -2071,39 +2071,51 @@ export type Database = {
           date: string | null
           day_number: number
           drop_rate: number | null
+          duration_minutes: number | null
+          end_time: string | null
           id: string
           is_sales_day: boolean
           registrations: number
           report_id: string
           show_up: number
           show_up_rate: number | null
+          start_time: string | null
           watch_or_offer_present: number
+          watch_point_time: string | null
         }
         Insert: {
           created_at?: string
           date?: string | null
           day_number: number
           drop_rate?: number | null
+          duration_minutes?: number | null
+          end_time?: string | null
           id?: string
           is_sales_day?: boolean
           registrations?: number
           report_id: string
           show_up?: number
           show_up_rate?: number | null
+          start_time?: string | null
           watch_or_offer_present?: number
+          watch_point_time?: string | null
         }
         Update: {
           created_at?: string
           date?: string | null
           day_number?: number
           drop_rate?: number | null
+          duration_minutes?: number | null
+          end_time?: string | null
           id?: string
           is_sales_day?: boolean
           registrations?: number
           report_id?: string
           show_up?: number
           show_up_rate?: number | null
+          start_time?: string | null
           watch_or_offer_present?: number
+          watch_point_time?: string | null
         }
         Relationships: [
           {
@@ -2163,6 +2175,8 @@ export type Database = {
         Row: {
           ad_cost_excluding_gst: number
           ad_gst: number
+          conversion_rate: number | null
+          conversion_rate_basis: string | null
           cpa: number | null
           cpl: number | null
           created_at: string
@@ -2197,6 +2211,8 @@ export type Database = {
         Insert: {
           ad_cost_excluding_gst?: number
           ad_gst?: number
+          conversion_rate?: number | null
+          conversion_rate_basis?: string | null
           cpa?: number | null
           cpl?: number | null
           created_at?: string
@@ -2231,6 +2247,8 @@ export type Database = {
         Update: {
           ad_cost_excluding_gst?: number
           ad_gst?: number
+          conversion_rate?: number | null
+          conversion_rate_basis?: string | null
           cpa?: number | null
           cpl?: number | null
           created_at?: string
