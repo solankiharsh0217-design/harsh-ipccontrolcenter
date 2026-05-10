@@ -167,7 +167,8 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [webinarMode, setWebinarMode] = useState("Live");
   const [totalDays, setTotalDays] = useState<number>(2);
   const [watchPct, setWatchPct] = useState<number>(70);
-  const [salesDay, setSalesDay] = useState<number>(2);
+  const [salesDay, setSalesDay] = useState<number>(0); // 0 = not selected; user must explicitly choose
+  const [salesDayError, setSalesDayError] = useState(false);
   const [startTime, setStartTime] = useState("10:30 AM");
   const [endTime, setEndTime] = useState("3:30 PM");
   const [timingNote, setTimingNote] = useState("");
@@ -179,6 +180,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [adCostExGst, setAdCostExGst] = useState("");
 
   // Step 4
+  const [revenueBasis, setRevenueBasis] = useState<"full_deal_value" | "token_collected_amount">("full_deal_value");
   const [products, setProducts] = useState<ProductRow[]>([emptyProd()]);
 
   // Edit state
