@@ -226,13 +226,13 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       setWebinarMode(d.webinarMode || "Live");
       setTotalDays(d.totalDays || 2);
       setWatchPct(d.watchPct ?? 70);
-      setSalesDay(d.salesDay || (d.totalDays || 2));
-      salesDayTouchedRef.current = true;
+      setSalesDay(d.salesDay || 0);
       setStartTime(d.startTime || "10:30 AM");
       setEndTime(d.endTime || "3:30 PM");
       setTimingNote(d.timingNote || "");
       setDays(d.days || [emptyDay(), emptyDay()]);
       setAdCostExGst(d.adCostExGst || "");
+      setRevenueBasis(d.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
       setProducts(d.products?.length ? d.products : [emptyProd()]);
       setStep(d.step || 1);
       setDraftBanner(false);
