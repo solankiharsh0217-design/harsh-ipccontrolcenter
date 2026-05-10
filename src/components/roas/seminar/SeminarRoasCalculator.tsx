@@ -379,6 +379,70 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     }
   };
 
+  const buildCsvRows = (): (string | number)[][] => {
+    const head: (string | number)[][] = [
+      ["Webinar Name", webinarName],
+      ["Webinar Mode", webinarMode],
+      ["Total Webinar Days", totalDays],
+      ["Watch Point %", watchPct],
+      ["Watch Point Time", calc.wpTime],
+      ["Sales Day", `Day ${salesDay}`],
+      ["Start Time", startTime],
+      ["End Time", endTime],
+      ["Registrations (sales day)", calc.regs],
+      ["Show-Up (sales day)", calc.showUp],
+      ["Offer / Watch Present", calc.offerShowUp],
+      ["Total Revenue Inc. GST", calc.totalRev],
+      ["Ad Cost Excl. GST", calc.adCost],
+      ["Ad Spend Inc. GST", calc.adInc],
+      ["Net GST Payable to Govt", calc.netGst],
+      ["Total Conversions", calc.totalUnits],
+      ["CPA", calc.cpa ?? ""],
+      ["CPL", calc.cpl ?? ""],
+      ["ROAS", calc.roas == null ? "" : Number(calc.roas).toFixed(4)],
+      ["Profit After GST", calc.profit],
+      [],
+      ["Day-wise Attendance"],
+      ["Day", "Date", "Registrations", "Show-Up", "Watch/Offer Present", "Is Sales Day"],
+      ...days.map((d, i) => [i + 1, d.date || "", d.registrations || 0, d.showUp || 0, d.watchOrOffer || 0, (i + 1 === salesDay) ? "Yes" : "No"]),
+      [],
+      ["Products / Payment Rows"],
+      ["Payment Type", "Units", "Deal Price Inc. GST", "Token / Down Payment", "Row Revenue"],
+      ...products.map((p) => {
+        const u = Number(p.units || 0);
+        const pr = Number(p.price || 0);
+        const tk = p.token === "" ? null : Number(p.token);
+        const rev = (tk != null && tk > 0) ? u * tk : u * pr;
+        return [p.type, u, pr, tk ?? "", rev];
+      }),
+    ];
+    return head;
+  };
+
+  const downloadCsv = (filename: string) => {
+    const rows = buildCsvRows();
+    const csv = rows.map((row) => row.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 500);
+  };
+
+  const exportCsv = () => {
+    downloadCsv(`seminar-roas-${(webinarName || "report").replace(/\W+/g, "-")}.csv`);
+    toast.success("CSV downloaded");
+  };
+  const exportSheetsCsv = () => {
+    downloadCsv(`seminar-roas-${(webinarName || "report").replace(/\W+/g, "-")}-sheets.csv`);
+    toast.success("Google Sheets CSV downloaded — open Google Sheets → File → Import");
+  };
+  const exportPdf = () => {
+    toast.message("PDF export coming soon", { description: "Use CSV export for now or print this page (Ctrl+P)." });
+  };
+
+
   const saveReport = async () => {
     if (!user) { toast.error("Not signed in"); return; }
     if (!canCalc) { toast.error("Fill required fields before saving"); return; }
