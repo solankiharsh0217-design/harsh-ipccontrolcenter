@@ -457,9 +457,9 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       const wa = buildWhatsApp();
       const inputSnap = {
         webinarName, webinarMode, totalDays, watchPct, salesDay,
-        startTime, endTime, timingNote, days, adCostExGst, products,
+        startTime, endTime, timingNote, days, adCostExGst, revenueBasis, products,
       };
-      const outputSnap = { ...calc, watchPointTime: calc.wpTime };
+      const outputSnap = { ...calc, watchPointTime: calc.wpTime, revenueBasis };
 
       const reportPayload: any = {
         report_name: webinarName,
@@ -473,6 +473,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         watch_point_time: calc.wpTime !== "—" ? calc.wpTime : null,
         sales_day: salesDay,
         timing_note: timingNote || null,
+        revenue_basis: revenueBasis,
         ad_cost_excluding_gst: calc.adCost,
         ad_gst: calc.adGst,
         total_ad_spend_including_gst: calc.adInc,
