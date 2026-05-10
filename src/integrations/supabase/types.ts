@@ -2065,6 +2065,202 @@ export type Database = {
         }
         Relationships: []
       }
+      seminar_roas_report_days: {
+        Row: {
+          created_at: string
+          date: string | null
+          day_number: number
+          drop_rate: number | null
+          id: string
+          is_sales_day: boolean
+          registrations: number
+          report_id: string
+          show_up: number
+          show_up_rate: number | null
+          watch_or_offer_present: number
+        }
+        Insert: {
+          created_at?: string
+          date?: string | null
+          day_number: number
+          drop_rate?: number | null
+          id?: string
+          is_sales_day?: boolean
+          registrations?: number
+          report_id: string
+          show_up?: number
+          show_up_rate?: number | null
+          watch_or_offer_present?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string | null
+          day_number?: number
+          drop_rate?: number | null
+          id?: string
+          is_sales_day?: boolean
+          registrations?: number
+          report_id?: string
+          show_up?: number
+          show_up_rate?: number | null
+          watch_or_offer_present?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seminar_roas_report_days_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "seminar_roas_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seminar_roas_report_products: {
+        Row: {
+          created_at: string
+          deal_price_including_gst: number
+          id: string
+          payment_type: string
+          report_id: string
+          revenue_counted: number
+          sort_order: number
+          token_down_payment: number | null
+          units_sold: number
+        }
+        Insert: {
+          created_at?: string
+          deal_price_including_gst?: number
+          id?: string
+          payment_type: string
+          report_id: string
+          revenue_counted?: number
+          sort_order?: number
+          token_down_payment?: number | null
+          units_sold?: number
+        }
+        Update: {
+          created_at?: string
+          deal_price_including_gst?: number
+          id?: string
+          payment_type?: string
+          report_id?: string
+          revenue_counted?: number
+          sort_order?: number
+          token_down_payment?: number | null
+          units_sold?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seminar_roas_report_products_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "seminar_roas_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seminar_roas_reports: {
+        Row: {
+          ad_cost_excluding_gst: number
+          ad_gst: number
+          cpa: number | null
+          cpl: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          input_snapshot_json: Json | null
+          is_deleted: boolean
+          net_gst_payable_to_govt: number
+          output_snapshot_json: Json | null
+          profit_after_gst: number
+          report_name: string | null
+          roas: number | null
+          sales_day: number | null
+          timing_note: string | null
+          total_ad_spend_including_gst: number
+          total_conversions: number
+          total_revenue_including_gst: number
+          total_webinar_days: number
+          updated_at: string
+          watch_point_percent: number
+          watch_point_time: string | null
+          webinar_duration_minutes: number | null
+          webinar_end_time: string | null
+          webinar_mode: string | null
+          webinar_name: string
+          webinar_start_time: string | null
+          whatsapp_summary_text: string | null
+        }
+        Insert: {
+          ad_cost_excluding_gst?: number
+          ad_gst?: number
+          cpa?: number | null
+          cpl?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          input_snapshot_json?: Json | null
+          is_deleted?: boolean
+          net_gst_payable_to_govt?: number
+          output_snapshot_json?: Json | null
+          profit_after_gst?: number
+          report_name?: string | null
+          roas?: number | null
+          sales_day?: number | null
+          timing_note?: string | null
+          total_ad_spend_including_gst?: number
+          total_conversions?: number
+          total_revenue_including_gst?: number
+          total_webinar_days?: number
+          updated_at?: string
+          watch_point_percent?: number
+          watch_point_time?: string | null
+          webinar_duration_minutes?: number | null
+          webinar_end_time?: string | null
+          webinar_mode?: string | null
+          webinar_name: string
+          webinar_start_time?: string | null
+          whatsapp_summary_text?: string | null
+        }
+        Update: {
+          ad_cost_excluding_gst?: number
+          ad_gst?: number
+          cpa?: number | null
+          cpl?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          input_snapshot_json?: Json | null
+          is_deleted?: boolean
+          net_gst_payable_to_govt?: number
+          output_snapshot_json?: Json | null
+          profit_after_gst?: number
+          report_name?: string | null
+          roas?: number | null
+          sales_day?: number | null
+          timing_note?: string | null
+          total_ad_spend_including_gst?: number
+          total_conversions?: number
+          total_revenue_including_gst?: number
+          total_webinar_days?: number
+          updated_at?: string
+          watch_point_percent?: number
+          watch_point_time?: string | null
+          webinar_duration_minutes?: number | null
+          webinar_end_time?: string | null
+          webinar_mode?: string | null
+          webinar_name?: string
+          webinar_start_time?: string | null
+          whatsapp_summary_text?: string | null
+        }
+        Relationships: []
+      }
       stages: {
         Row: {
           color: string
