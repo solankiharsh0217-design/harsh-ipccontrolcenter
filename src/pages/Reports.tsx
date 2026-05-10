@@ -221,12 +221,24 @@ export default function Reports() {
       try { await (supabase as any).rpc("purge_old_deleted_reports"); } catch {}
       reloadSessions();
       loadDailyStats();
+      reloadSeminar();
     })();
   }, []);
 
   const visibleSessions = useMemo(() =>
     sessions.filter((s) => showDeleted ? true : !s.is_deleted),
   [sessions, showDeleted]);
+
+  const visibleSeminar = useMemo(() =>
+    seminarRows.filter((s) => showDeleted ? true : !s.is_deleted),
+  [seminarRows, showDeleted]);
+
+  const seminarStats = useMemo(() => {
+    const live = visibleSeminar;
+    const totalRev = live.reduce((a, s) => a + Number(s.total_revenue_including_gst || 0), 0);
+    const avgRoas = live.length ? live.reduce((a, s) => a + Number(s.roas || 0), 0) / live.length : 0;
+    return { count: live.length, totalRev, avgRoas };
+  }, [visibleSeminar]);
 
   const attrStats = useMemo(() => {
     const live = visibleSessions;
