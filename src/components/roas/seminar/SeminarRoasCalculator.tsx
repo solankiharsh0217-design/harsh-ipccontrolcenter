@@ -577,11 +577,11 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     setWebinarMode(r.webinar_mode || "Live");
     setTotalDays(r.total_webinar_days || 1);
     setWatchPct(Number(r.watch_point_percent ?? 70));
-    setSalesDay(r.sales_day || 1);
-    salesDayTouchedRef.current = true;
+    setSalesDay(r.sales_day || 0);
     setStartTime(r.webinar_start_time || "");
     setEndTime(r.webinar_end_time || "");
     setTimingNote(r.timing_note || "");
+    setRevenueBasis((r.revenue_basis === "token_collected_amount") ? "token_collected_amount" : "full_deal_value");
     if (snap.days) setDays(snap.days);
     else setDays((r.days || []).sort((a: any, b: any) => a.day_number - b.day_number).map((d: any) => ({
       date: d.date || "",
@@ -590,6 +590,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       watchOrOffer: String(d.watch_or_offer_present || ""),
     })));
     setAdCostExGst(String(r.ad_cost_excluding_gst || ""));
+    if (snap.revenueBasis) setRevenueBasis(snap.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
     if (snap.products) setProducts(snap.products);
     else setProducts((r.products || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((p: any) => ({
       type: p.payment_type || "",
