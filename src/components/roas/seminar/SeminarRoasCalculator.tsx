@@ -69,8 +69,9 @@ const STYLES = `
 .srGrid.c2{grid-template-columns:1fr 1fr}
 .srGrid.c3{grid-template-columns:1fr 1fr 1fr}
 .srGrid.c4{grid-template-columns:repeat(4,1fr)}
+.srGrid > div{display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
 @media (max-width:780px){.srGrid.c2,.srGrid.c3,.srGrid.c4{grid-template-columns:1fr}}
-.srLbl{display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--kk);margin-bottom:7px;font-weight:500}
+.srLbl{display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--kk);margin-bottom:7px;font-weight:500;min-height:14px}
 .srInput{width:100%;height:40px;border:1px solid var(--bd);border-radius:8px;padding:0 12px;font-family:'Jost',sans-serif;font-size:13px;background:var(--ww);outline:none}
 .srInput:focus{border-color:var(--gold)}
 .srSelect{width:100%;height:40px;border:1px solid var(--bd);border-radius:8px;padding:0 12px;font-family:'Jost',sans-serif;font-size:13px;background:var(--ww)}
@@ -199,17 +200,13 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   useEffect(() => {
     setDays((prev) => {
       const next = prev.slice(0, totalDays);
-      while (next.length < totalDays) next.push(emptyDay(defaultStart, defaultEnd));
+      while (next.length < totalDays) next.push(emptyDay());
       return next;
     });
     if (salesDay > totalDays) setSalesDay(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDays]);
 
-  const applyDefaultsToAll = () => {
-    setDays((prev) => prev.map((d) => ({ ...d, startTime: defaultStart, endTime: defaultEnd })));
-    toast.success("Default timing applied to all days");
-  };
 
   // Draft load
   useEffect(() => {
@@ -653,8 +650,8 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       {step === 1 && (
         <Step1 {...{ webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
           watchPct, setWatchPct, salesDay, setSalesDay: setSalesDayManual, salesDayError,
-          defaultStart, setDefaultStart, defaultEnd, setDefaultEnd, timingNote, setTimingNote,
-          convBasis, setConvBasis, applyDefaultsToAll }} />
+          timingNote, setTimingNote,
+          convBasis, setConvBasis }} />
       )}
       {step === 2 && (
         <Step2 days={days} totalDays={totalDays} salesDay={salesDay} watchPct={watchPct}
@@ -711,8 +708,8 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
 function Step1(props: any) {
   const { webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
     watchPct, setWatchPct, salesDay, setSalesDay, salesDayError,
-    defaultStart, setDefaultStart, defaultEnd, setDefaultEnd, timingNote, setTimingNote,
-    convBasis, setConvBasis, applyDefaultsToAll } = props;
+    timingNote, setTimingNote,
+    convBasis, setConvBasis } = props;
 
   const [customDays, setCustomDays] = useState(!DAY_PRESETS.includes(totalDays));
   const [customWatch, setCustomWatch] = useState(!WATCH_PRESETS.includes(watchPct));
@@ -793,25 +790,12 @@ function Step1(props: any) {
       </div>
 
       <div className="srHint">
-        Default Timing for All Days — used as the starting point. You can override start/end time on each day card in Step 2.
-      </div>
-
-      <div className="srGrid c3" style={{ marginBottom: 6 }}>
-        <div>
-          <div className="srLbl">Default Start Time <Info title="Default Start" body="Pick from 15-min suggestions or type any time (e.g. 10:30 AM, 18:00)." /></div>
-          <input className="srInput" list="srTimes" value={defaultStart} onChange={(e) => setDefaultStart(e.target.value)} placeholder="10:30 AM" />
-        </div>
-        <div>
-          <div className="srLbl">Default End Time <Info title="Default End" body="Pick from 15-min suggestions or type any time (e.g. 3:30 PM, 21:00)." /></div>
-          <input className="srInput" list="srTimes" value={defaultEnd} onChange={(e) => setDefaultEnd(e.target.value)} placeholder="3:30 PM" />
-        </div>
-        <div style={{ display: "flex", alignItems: "flex-end" }}>
-          <button className="srBtn srBtn-g" type="button" onClick={applyDefaultsToAll} style={{ width: "100%" }}>Apply to All Days</button>
-        </div>
+        Each day's start &amp; end time is set on its own card in Step 2 — Attendance Details.
       </div>
     </div>
   );
 }
+
 
 /* ---------------- Step 2 ---------------- */
 function Step2({ days, totalDays, salesDay, watchPct, dayTimings, updateDay, addDay, removeDay, dayMetrics }: any) {
