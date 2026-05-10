@@ -791,6 +791,10 @@ function Step1(props: any) {
       <div className="srHint">
         Each day's start &amp; end time is set on its own card in Step 2 — Attendance Details.
       </div>
+    </div>
+  );
+}
+
 
 /* ---------------- Step 2 ---------------- */
 function Step2({ days, totalDays, salesDay, watchPct, dayTimings, updateDay, addDay, removeDay, dayMetrics }: any) {
