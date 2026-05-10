@@ -283,7 +283,7 @@ type DataSource = { id?: string; name: string; type: string; url: string; descri
 const DEAL_VALUE = 118000;
 
 // ───────────── component ─────────────
-type ToolKey = "home" | "attr" | "total" | "sources";
+type ToolKey = "home" | "attr" | "total" | "seminar" | "sources";
 
 export default function RoasCalculator() {
   const { user } = useAuth();
@@ -304,6 +304,7 @@ export default function RoasCalculator() {
         )}
         {tool === "attr" && <AttrTabWrapper userId={user?.id} />}
         {tool === "total" && <TotalTab userId={user?.id} />}
+        {tool === "seminar" && <SeminarRoasCalculator onBack={() => setTool("home")} />}
         {tool === "sources" && <SourcesTab userId={user?.id} />}
       </div>
     </div>
@@ -315,7 +316,10 @@ function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
     { key: "attr", tag: "Sales Attribution", title: "Media Buyer Attribution",
       desc: "Attribute sales to media buyers using manual uploads or automatic attribution from a master Google Sheet.",
       btn: "Open Attribution" },
-    { key: "total", tag: "Overall ROAS", title: "Total ROAS / Row-Level Calculation",
+    { key: "seminar", tag: "Seminar / Webinar", title: "Seminar ROAS Calculator",
+      desc: "Step-by-step calculator for any seminar, webinar or multi-day challenge — registrations, drop rate, ad spend, GST, profit and ROAS.",
+      btn: "Open Seminar ROAS", primary: true },
+    { key: "total", tag: "Overall ROAS", title: "Total ROAS Calculation",
       desc: "Calculate overall ROAS for a webinar or campaign using total ad spend and sales data.",
       btn: "Open Total ROAS" },
     { key: "sources", tag: "Settings", title: "Data Sources",
