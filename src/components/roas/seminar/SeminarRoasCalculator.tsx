@@ -270,8 +270,9 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     const wpMin = (dur != null && wpStart != null) ? Math.round(dur * (watchPct / 100)) : null;
     const wpTime = (wpMin != null && wpStart != null) ? formatTime(wpStart + wpMin) : "—";
 
-    const sIdx = Math.min(Math.max(salesDay, 1), totalDays) - 1;
-    const sDay = days[sIdx];
+    const hasSalesDay = salesDay >= 1 && salesDay <= totalDays;
+    const sIdx = hasSalesDay ? salesDay - 1 : -1;
+    const sDay = sIdx >= 0 ? days[sIdx] : undefined;
     const d1 = days[0];
 
     const regs = Number(sDay?.registrations || d1?.registrations || 0);
@@ -287,7 +288,9 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       const units = Number(p.units || 0);
       const price = Number(p.price || 0);
       const tok = p.token === "" ? null : Number(p.token);
-      const rev = (tok != null && tok > 0) ? units * tok : units * price;
+      const rev = (revenueBasis === "token_collected_amount" && tok != null && tok > 0)
+        ? units * tok
+        : units * price;
       return a + rev;
     }, 0);
 
