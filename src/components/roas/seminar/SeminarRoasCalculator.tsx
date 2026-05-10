@@ -392,6 +392,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       ["Watch Point %", watchPct],
       ["Watch Point Time", calc.wpTime],
       ["Sales Day", `Day ${salesDay}`],
+      ["Revenue Basis", revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"],
       ["Start Time", startTime],
       ["End Time", endTime],
       ["Registrations (sales day)", calc.regs],
