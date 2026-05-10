@@ -647,7 +647,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
 
       {step === 1 && (
         <Step1 {...{ webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
-          watchPct, setWatchPct, salesDay, setSalesDay: setSalesDayManual, startTime, setStartTime, endTime, setEndTime,
+          watchPct, setWatchPct, salesDay, setSalesDay: setSalesDayManual, salesDayError, startTime, setStartTime, endTime, setEndTime,
           timingNote, setTimingNote, calc }} />
       )}
       {step === 2 && (
@@ -659,10 +659,11 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         <Step3 adCostExGst={adCostExGst} setAdCostExGst={setAdCostExGst} calc={calc} />
       )}
       {step === 4 && (
-        <Step4 products={products} updateProd={updateProd} addProd={addProd} removeProd={removeProd} calc={calc} />
+        <Step4 revenueBasis={revenueBasis} setRevenueBasis={setRevenueBasis}
+          products={products} updateProd={updateProd} addProd={addProd} removeProd={removeProd} calc={calc} />
       )}
       {step === 5 && (
-        <Step5 calc={calc} totalDays={totalDays} watchPct={watchPct}
+        <Step5 calc={calc} totalDays={totalDays} watchPct={watchPct} salesDay={salesDay} revenueBasis={revenueBasis}
           regs={calc.regs} showUp={calc.showUp} offer={calc.offerShowUp} />
       )}
 
@@ -671,7 +672,14 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
           {step > 1 && <button className="srBtn srBtn-g" onClick={() => setStep((s) => (s - 1) as any)}>← Previous</button>}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          {step < 5 && <button className="srBtn srBtn-k" onClick={() => setStep((s) => (s + 1) as any)}>Next →</button>}
+          {step < 5 && <button className="srBtn srBtn-k" onClick={() => {
+            if (step === 1 && !(salesDay >= 1 && salesDay <= totalDays)) {
+              setSalesDayError(true);
+              toast.error("Please select the day when sales/offer happened.");
+              return;
+            }
+            setStep((s) => (s + 1) as any);
+          }}>Next →</button>}
           {step === 5 && (
             <>
               <ExportMenu
