@@ -167,7 +167,8 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [webinarMode, setWebinarMode] = useState("Live");
   const [totalDays, setTotalDays] = useState<number>(2);
   const [watchPct, setWatchPct] = useState<number>(70);
-  const [salesDay, setSalesDay] = useState<number>(2);
+  const [salesDay, setSalesDay] = useState<number>(0); // 0 = not selected; user must explicitly choose
+  const [salesDayError, setSalesDayError] = useState(false);
   const [startTime, setStartTime] = useState("10:30 AM");
   const [endTime, setEndTime] = useState("3:30 PM");
   const [timingNote, setTimingNote] = useState("");
@@ -179,6 +180,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [adCostExGst, setAdCostExGst] = useState("");
 
   // Step 4
+  const [revenueBasis, setRevenueBasis] = useState<"full_deal_value" | "token_collected_amount">("full_deal_value");
   const [products, setProducts] = useState<ProductRow[]>([emptyProd()]);
 
   // Edit state
@@ -186,18 +188,17 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [saving, setSaving] = useState(false);
   const [draftBanner, setDraftBanner] = useState(false);
   const draftLoadedRef = useRef(false);
-  const salesDayTouchedRef = useRef(false);
-  const setSalesDayManual = useCallback((d: number) => { salesDayTouchedRef.current = true; setSalesDay(d); }, []);
+  const setSalesDayManual = useCallback((d: number) => { setSalesDayError(false); setSalesDay(d); }, []);
 
-  // ----- derived: keep days array sized to totalDays + auto-default salesDay to last day -----
+  // ----- derived: keep days array sized to totalDays. Do NOT auto-pick salesDay. -----
   useEffect(() => {
     setDays((prev) => {
       const next = prev.slice(0, totalDays);
       while (next.length < totalDays) next.push(emptyDay());
       return next;
     });
-    if (!salesDayTouchedRef.current) setSalesDay(totalDays);
-    else if (salesDay > totalDays) setSalesDay(totalDays);
+    // Only clamp if user already picked a day that no longer exists
+    if (salesDay > totalDays) setSalesDay(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDays]);
 
@@ -225,13 +226,13 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       setWebinarMode(d.webinarMode || "Live");
       setTotalDays(d.totalDays || 2);
       setWatchPct(d.watchPct ?? 70);
-      setSalesDay(d.salesDay || (d.totalDays || 2));
-      salesDayTouchedRef.current = true;
+      setSalesDay(d.salesDay || 0);
       setStartTime(d.startTime || "10:30 AM");
       setEndTime(d.endTime || "3:30 PM");
       setTimingNote(d.timingNote || "");
       setDays(d.days || [emptyDay(), emptyDay()]);
       setAdCostExGst(d.adCostExGst || "");
+      setRevenueBasis(d.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
       setProducts(d.products?.length ? d.products : [emptyProd()]);
       setStep(d.step || 1);
       setDraftBanner(false);
@@ -254,13 +255,13 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({
           step, webinarName, webinarMode, totalDays, watchPct, salesDay,
-          startTime, endTime, timingNote, days, adCostExGst, products,
+          startTime, endTime, timingNote, days, adCostExGst, revenueBasis, products,
         }));
       } catch {}
     }, 600);
     return () => clearTimeout(t);
   }, [step, webinarName, webinarMode, totalDays, watchPct, salesDay,
-      startTime, endTime, timingNote, days, adCostExGst, products, draftBanner, editingId]);
+      startTime, endTime, timingNote, days, adCostExGst, revenueBasis, products, draftBanner, editingId]);
 
   // ----- calculations -----
   const calc = useMemo(() => {
@@ -269,8 +270,9 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     const wpMin = (dur != null && wpStart != null) ? Math.round(dur * (watchPct / 100)) : null;
     const wpTime = (wpMin != null && wpStart != null) ? formatTime(wpStart + wpMin) : "—";
 
-    const sIdx = Math.min(Math.max(salesDay, 1), totalDays) - 1;
-    const sDay = days[sIdx];
+    const hasSalesDay = salesDay >= 1 && salesDay <= totalDays;
+    const sIdx = hasSalesDay ? salesDay - 1 : -1;
+    const sDay = sIdx >= 0 ? days[sIdx] : undefined;
     const d1 = days[0];
 
     const regs = Number(sDay?.registrations || d1?.registrations || 0);
@@ -286,7 +288,9 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       const units = Number(p.units || 0);
       const price = Number(p.price || 0);
       const tok = p.token === "" ? null : Number(p.token);
-      const rev = (tok != null && tok > 0) ? units * tok : units * price;
+      const rev = (revenueBasis === "token_collected_amount" && tok != null && tok > 0)
+        ? units * tok
+        : units * price;
       return a + rev;
     }, 0);
 
@@ -311,7 +315,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       outputGst, inputGstCredit, netGst, excessCredit, profit,
       cpl, costShowUp, costOfferSU, cpa, roas,
     };
-  }, [days, salesDay, totalDays, startTime, endTime, watchPct, adCostExGst, products]);
+  }, [days, salesDay, totalDays, startTime, endTime, watchPct, adCostExGst, products, revenueBasis]);
 
   const dayMetrics = (i: number) => {
     const d = days[i];
@@ -359,6 +363,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     lines.push(`Days: ${totalDays}`);
     lines.push(`Watch Point: ${watchPct}%`);
     lines.push(`Sales Day: Day ${salesDay}`);
+    lines.push(`Revenue Basis: ${revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"}`);
     lines.push(`Revenue Inc. GST: ${inr(calc.totalRev)}`);
     lines.push(`Ad Spend Inc. GST: ${inr(calc.adInc)}`);
     lines.push(`Net GST Payable to Govt: ${inr(calc.netGst)}`);
@@ -387,6 +392,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       ["Watch Point %", watchPct],
       ["Watch Point Time", calc.wpTime],
       ["Sales Day", `Day ${salesDay}`],
+      ["Revenue Basis", revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"],
       ["Start Time", startTime],
       ["End Time", endTime],
       ["Registrations (sales day)", calc.regs],
@@ -412,7 +418,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         const u = Number(p.units || 0);
         const pr = Number(p.price || 0);
         const tk = p.token === "" ? null : Number(p.token);
-        const rev = (tk != null && tk > 0) ? u * tk : u * pr;
+        const rev = (revenueBasis === "token_collected_amount" && tk != null && tk > 0) ? u * tk : u * pr;
         return [p.type, u, pr, tk ?? "", rev];
       }),
     ];
@@ -451,9 +457,9 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       const wa = buildWhatsApp();
       const inputSnap = {
         webinarName, webinarMode, totalDays, watchPct, salesDay,
-        startTime, endTime, timingNote, days, adCostExGst, products,
+        startTime, endTime, timingNote, days, adCostExGst, revenueBasis, products,
       };
-      const outputSnap = { ...calc, watchPointTime: calc.wpTime };
+      const outputSnap = { ...calc, watchPointTime: calc.wpTime, revenueBasis };
 
       const reportPayload: any = {
         report_name: webinarName,
@@ -467,6 +473,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         watch_point_time: calc.wpTime !== "—" ? calc.wpTime : null,
         sales_day: salesDay,
         timing_note: timingNote || null,
+        revenue_basis: revenueBasis,
         ad_cost_excluding_gst: calc.adCost,
         ad_gst: calc.adGst,
         total_ad_spend_including_gst: calc.adInc,
@@ -530,7 +537,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
           const units = Number(p.units || 0);
           const price = Number(p.price || 0);
           const tok = p.token === "" ? null : Number(p.token);
-          const rev = (tok != null && tok > 0) ? units * tok : units * price;
+          const rev = (revenueBasis === "token_collected_amount" && tok != null && tok > 0) ? units * tok : units * price;
           return {
             report_id: reportId,
             payment_type: p.type,
@@ -570,11 +577,11 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     setWebinarMode(r.webinar_mode || "Live");
     setTotalDays(r.total_webinar_days || 1);
     setWatchPct(Number(r.watch_point_percent ?? 70));
-    setSalesDay(r.sales_day || 1);
-    salesDayTouchedRef.current = true;
+    setSalesDay(r.sales_day || 0);
     setStartTime(r.webinar_start_time || "");
     setEndTime(r.webinar_end_time || "");
     setTimingNote(r.timing_note || "");
+    setRevenueBasis((r.revenue_basis === "token_collected_amount") ? "token_collected_amount" : "full_deal_value");
     if (snap.days) setDays(snap.days);
     else setDays((r.days || []).sort((a: any, b: any) => a.day_number - b.day_number).map((d: any) => ({
       date: d.date || "",
@@ -583,6 +590,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       watchOrOffer: String(d.watch_or_offer_present || ""),
     })));
     setAdCostExGst(String(r.ad_cost_excluding_gst || ""));
+    if (snap.revenueBasis) setRevenueBasis(snap.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
     if (snap.products) setProducts(snap.products);
     else setProducts((r.products || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((p: any) => ({
       type: p.payment_type || "",
@@ -639,7 +647,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
 
       {step === 1 && (
         <Step1 {...{ webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
-          watchPct, setWatchPct, salesDay, setSalesDay: setSalesDayManual, startTime, setStartTime, endTime, setEndTime,
+          watchPct, setWatchPct, salesDay, setSalesDay: setSalesDayManual, salesDayError, startTime, setStartTime, endTime, setEndTime,
           timingNote, setTimingNote, calc }} />
       )}
       {step === 2 && (
@@ -651,10 +659,11 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         <Step3 adCostExGst={adCostExGst} setAdCostExGst={setAdCostExGst} calc={calc} />
       )}
       {step === 4 && (
-        <Step4 products={products} updateProd={updateProd} addProd={addProd} removeProd={removeProd} calc={calc} />
+        <Step4 revenueBasis={revenueBasis} setRevenueBasis={setRevenueBasis}
+          products={products} updateProd={updateProd} addProd={addProd} removeProd={removeProd} calc={calc} />
       )}
       {step === 5 && (
-        <Step5 calc={calc} totalDays={totalDays} watchPct={watchPct}
+        <Step5 calc={calc} totalDays={totalDays} watchPct={watchPct} salesDay={salesDay} revenueBasis={revenueBasis}
           regs={calc.regs} showUp={calc.showUp} offer={calc.offerShowUp} />
       )}
 
@@ -663,7 +672,14 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
           {step > 1 && <button className="srBtn srBtn-g" onClick={() => setStep((s) => (s - 1) as any)}>← Previous</button>}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          {step < 5 && <button className="srBtn srBtn-k" onClick={() => setStep((s) => (s + 1) as any)}>Next →</button>}
+          {step < 5 && <button className="srBtn srBtn-k" onClick={() => {
+            if (step === 1 && !(salesDay >= 1 && salesDay <= totalDays)) {
+              setSalesDayError(true);
+              toast.error("Please select the day when sales/offer happened.");
+              return;
+            }
+            setStep((s) => (s + 1) as any);
+          }}>Next →</button>}
           {step === 5 && (
             <>
               <ExportMenu
@@ -686,7 +702,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
 /* ---------------- Step 1 ---------------- */
 function Step1(props: any) {
   const { webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
-    watchPct, setWatchPct, salesDay, setSalesDay, startTime, setStartTime, endTime, setEndTime,
+    watchPct, setWatchPct, salesDay, setSalesDay, salesDayError, startTime, setStartTime, endTime, setEndTime,
     timingNote, setTimingNote, calc } = props;
 
   const [customDays, setCustomDays] = useState(!DAY_PRESETS.includes(totalDays));
@@ -760,13 +776,21 @@ function Step1(props: any) {
       <div className="srGrid c3" style={{ marginBottom: 14 }}>
         <div>
           <div className="srLbl">
-            Sales / Offer Day <Info title="Sales / Offer Day" body="The day the offer is pitched. On this day you'll fill Offer Show-Up; other days use People Present at Watch Point." />
+            Sales / Offer Day <span style={{ color: "var(--rd)" }}>*</span>
+            <Info title="Sales / Offer Day" body="The day the offer is pitched. On this day you'll fill Offer Show-Up; other days use People Present at Watch Point. You must explicitly choose this — it is not auto-selected." />
           </div>
-          <select className="srSelect" value={salesDay} onChange={(e) => setSalesDay(Number(e.target.value))}>
+          <select
+            className="srSelect"
+            style={salesDayError ? { borderColor: "var(--rd)" } : undefined}
+            value={salesDay || ""}
+            onChange={(e) => setSalesDay(Number(e.target.value))}
+          >
+            <option value="">Select sales/offer day</option>
             {Array.from({ length: totalDays }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>Day {n}</option>
             ))}
           </select>
+          {salesDayError && <div className="srErr">Please select the day when sales/offer happened.</div>}
         </div>
         <div>
           <div className="srLbl">Webinar Start Time <Info title="Start Time" body="Pick from 15-min suggestions or type any time (e.g. 10:30 AM, 18:00)." /></div>
@@ -906,13 +930,31 @@ function Step3({ adCostExGst, setAdCostExGst, calc }: any) {
 }
 
 /* ---------------- Step 4 ---------------- */
-function Step4({ products, updateProd, addProd, removeProd, calc }: any) {
+function Step4({ revenueBasis, setRevenueBasis, products, updateProd, addProd, removeProd, calc }: any) {
+  const isToken = revenueBasis === "token_collected_amount";
   return (
     <div className="srSection">
       <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>Sales & Payment Types</div>
 
+      <div style={{ marginBottom: 16 }}>
+        <div className="srLbl">
+          Revenue Basis for ROAS <span style={{ color: "var(--rd)" }}>*</span>
+          <Info title="Revenue Basis for ROAS"
+            body="If you select Full Deal Value, ROAS will use the complete product/program price. If you select Token / Collected Amount, ROAS will use only the amount collected during the webinar. Example: 3 sales × ₹1,18,000 = ₹3,54,000 full deal value vs 3 sales × ₹9,832 = ₹29,496 collected/token value." />
+        </div>
+        <div className="srPills">
+          <button className={"srPill" + (!isToken ? " on" : "")} onClick={() => setRevenueBasis("full_deal_value")}>Full Deal Value</button>
+          <button className={"srPill" + (isToken ? " on" : "")} onClick={() => setRevenueBasis("token_collected_amount")}>Token / Collected Amount</button>
+        </div>
+        <div className="srHelper">
+          Choose whether ROAS should be calculated on the full product/deal value or only the token/amount collected during the webinar.
+        </div>
+      </div>
+
       <div className="srHint">
-        Add a row for each product / payment type. If you enter a Token / Down Payment, that row's revenue uses the token amount; otherwise it uses the full deal price.
+        Revenue basis: <strong>{isToken ? "Token / Collected Amount" : "Full Deal Value"}</strong>{isToken
+          ? " — token amount (when entered) is used as row revenue. Token does not modify the deal price."
+          : " — full deal price is always used. Token / Down Payment is stored only as informational data and does not change ROAS."}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 90px 1fr 1fr 1fr 36px", gap: 10, fontSize: 9, textTransform: "uppercase", letterSpacing: ".08em", color: "#888", padding: "0 4px 6px" }} className="srProdHead">
@@ -928,7 +970,7 @@ function Step4({ products, updateProd, addProd, removeProd, calc }: any) {
         const units = Number(p.units || 0);
         const price = Number(p.price || 0);
         const tok = p.token === "" ? null : Number(p.token);
-        const rev = (tok != null && tok > 0) ? units * tok : units * price;
+        const rev = (isToken && tok != null && tok > 0) ? units * tok : units * price;
         return (
           <div key={i} className="srProdRow">
             <div>
@@ -969,14 +1011,15 @@ function Step4({ products, updateProd, addProd, removeProd, calc }: any) {
 }
 
 /* ---------------- Step 5 ---------------- */
-function Step5({ calc, totalDays, watchPct, regs, showUp, offer }: any) {
+function Step5({ calc, totalDays, watchPct, salesDay, revenueBasis, regs, showUp, offer }: any) {
   const rows: [string, string][] = [
     ["Webinar Days", String(totalDays)],
     ["Watch Point", `${watchPct}%`],
-    ["Watch Point Time", calc.wpTime],
+    ["Sales / Offer Day", salesDay >= 1 ? `Day ${salesDay}` : "—"],
+    ["Revenue Basis", revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"],
     ["Registrations (sales day)", num(regs)],
     ["Show-Up (sales day)", num(showUp)],
-    ["Offer Show-Up", num(offer)],
+    ["Offer Show-Up / Watch Present", num(offer)],
     ["Total Revenue Inc. GST", inr(calc.totalRev)],
     ["Ad Cost Excl. GST", inr(calc.adCost)],
     ["Ad Spend Inc. GST", inr(calc.adInc)],
