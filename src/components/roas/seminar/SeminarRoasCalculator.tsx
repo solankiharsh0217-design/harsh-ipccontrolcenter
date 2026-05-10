@@ -128,6 +128,12 @@ const DEFAULT_PAYMENT_TYPES = [
   "Full Payment Sale", "Part Payment Sale", "Token Payment", "Down Payment",
   "Diamond Sale", "₹15,000 Product", "₹10,000 Product",
 ];
+// Full-day 15-min interval time suggestions (6:00 AM → 11:45 PM)
+const TIME_OPTIONS: string[] = (() => {
+  const out: string[] = [];
+  for (let m = 6 * 60; m < 24 * 60; m += 15) out.push(formatTime(m));
+  return out;
+})();
 
 type DayRow = {
   date: string;
