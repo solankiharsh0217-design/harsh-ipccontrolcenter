@@ -255,13 +255,13 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({
           step, webinarName, webinarMode, totalDays, watchPct, salesDay,
-          startTime, endTime, timingNote, days, adCostExGst, products,
+          startTime, endTime, timingNote, days, adCostExGst, revenueBasis, products,
         }));
       } catch {}
     }, 600);
     return () => clearTimeout(t);
   }, [step, webinarName, webinarMode, totalDays, watchPct, salesDay,
-      startTime, endTime, timingNote, days, adCostExGst, products, draftBanner, editingId]);
+      startTime, endTime, timingNote, days, adCostExGst, revenueBasis, products, draftBanner, editingId]);
 
   // ----- calculations -----
   const calc = useMemo(() => {
