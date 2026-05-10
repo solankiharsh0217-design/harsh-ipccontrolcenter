@@ -507,6 +507,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     setTotalDays(r.total_webinar_days || 1);
     setWatchPct(Number(r.watch_point_percent ?? 70));
     setSalesDay(r.sales_day || 1);
+    salesDayTouchedRef.current = true;
     setStartTime(r.webinar_start_time || "");
     setEndTime(r.webinar_end_time || "");
     setTimingNote(r.timing_note || "");
