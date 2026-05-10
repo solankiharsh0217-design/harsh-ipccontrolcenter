@@ -288,6 +288,16 @@ type ToolKey = "home" | "attr" | "total" | "seminar" | "sources";
 export default function RoasCalculator() {
   const { user } = useAuth();
   const [tool, setTool] = useState<ToolKey>("home");
+  const [seminarLoadId, setSeminarLoadId] = useState<string | null>(null);
+
+  // Read ?seminarId=… or ?tool=seminar from URL on mount and when it changes
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const sid = sp.get("seminarId");
+    const t = sp.get("tool");
+    if (sid) { setSeminarLoadId(sid); setTool("seminar"); }
+    else if (t === "seminar") { setSeminarLoadId(null); setTool("seminar"); }
+  }, []);
 
   return (
     <div className="rcv2">
@@ -296,7 +306,7 @@ export default function RoasCalculator() {
         {tool === "home" && <RoasLauncher onPick={(t) => setTool(t)} />}
         {tool !== "home" && (
           <button
-            onClick={() => setTool("home")}
+            onClick={() => { setTool("home"); setSeminarLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }}
             style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif", marginBottom: 8 }}
           >
             ← Back to ROAS Tools
@@ -304,7 +314,7 @@ export default function RoasCalculator() {
         )}
         {tool === "attr" && <AttrTabWrapper userId={user?.id} />}
         {tool === "total" && <TotalTab userId={user?.id} />}
-        {tool === "seminar" && <SeminarRoasCalculator onBack={() => setTool("home")} />}
+        {tool === "seminar" && <SeminarRoasCalculator key={seminarLoadId || "new"} loadReportId={seminarLoadId} onBack={() => { setTool("home"); setSeminarLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }} />}
         {tool === "sources" && <SourcesTab userId={user?.id} />}
       </div>
     </div>

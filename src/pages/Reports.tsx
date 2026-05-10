@@ -433,6 +433,8 @@ function SeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }:
                   <td><span className={"roas-val " + roasClass(Number(r.roas || 0))}>{r.roas == null ? "—" : Number(r.roas).toFixed(2) + "×"}</span></td>
                   <td>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <button className="btn btn-g btn-sm" onClick={() => navigate(`/roas-calculator?seminarId=${r.id}`)}>View</button>
+                      <button className="btn btn-g btn-sm" onClick={() => navigate(`/roas-calculator?seminarId=${r.id}`)}>Edit</button>
                       <button className="btn btn-g btn-sm" onClick={() => copyWa(r)}>WA</button>
                       <button className="btn btn-g btn-sm" onClick={() => exportCsv(r)}>CSV</button>
                       {r.is_deleted ? (

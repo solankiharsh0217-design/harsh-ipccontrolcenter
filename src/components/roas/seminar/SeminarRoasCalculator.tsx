@@ -128,6 +128,12 @@ const DEFAULT_PAYMENT_TYPES = [
   "Full Payment Sale", "Part Payment Sale", "Token Payment", "Down Payment",
   "Diamond Sale", "₹15,000 Product", "₹10,000 Product",
 ];
+// Full-day 15-min interval time suggestions (6:00 AM → 11:45 PM)
+const TIME_OPTIONS: string[] = (() => {
+  const out: string[] = [];
+  for (let m = 6 * 60; m < 24 * 60; m += 15) out.push(formatTime(m));
+  return out;
+})();
 
 type DayRow = {
   date: string;
@@ -180,15 +186,19 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [saving, setSaving] = useState(false);
   const [draftBanner, setDraftBanner] = useState(false);
   const draftLoadedRef = useRef(false);
+  const salesDayTouchedRef = useRef(false);
+  const setSalesDayManual = useCallback((d: number) => { salesDayTouchedRef.current = true; setSalesDay(d); }, []);
 
-  // ----- derived: keep days array sized to totalDays -----
+  // ----- derived: keep days array sized to totalDays + auto-default salesDay to last day -----
   useEffect(() => {
     setDays((prev) => {
       const next = prev.slice(0, totalDays);
       while (next.length < totalDays) next.push(emptyDay());
       return next;
     });
-    if (salesDay > totalDays) setSalesDay(totalDays);
+    if (!salesDayTouchedRef.current) setSalesDay(totalDays);
+    else if (salesDay > totalDays) setSalesDay(totalDays);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDays]);
 
   // ----- draft load on mount -----
@@ -216,6 +226,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       setTotalDays(d.totalDays || 2);
       setWatchPct(d.watchPct ?? 70);
       setSalesDay(d.salesDay || (d.totalDays || 2));
+      salesDayTouchedRef.current = true;
       setStartTime(d.startTime || "10:30 AM");
       setEndTime(d.endTime || "3:30 PM");
       setTimingNote(d.timingNote || "");
@@ -368,6 +379,70 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     }
   };
 
+  const buildCsvRows = (): (string | number)[][] => {
+    const head: (string | number)[][] = [
+      ["Webinar Name", webinarName],
+      ["Webinar Mode", webinarMode],
+      ["Total Webinar Days", totalDays],
+      ["Watch Point %", watchPct],
+      ["Watch Point Time", calc.wpTime],
+      ["Sales Day", `Day ${salesDay}`],
+      ["Start Time", startTime],
+      ["End Time", endTime],
+      ["Registrations (sales day)", calc.regs],
+      ["Show-Up (sales day)", calc.showUp],
+      ["Offer / Watch Present", calc.offerShowUp],
+      ["Total Revenue Inc. GST", calc.totalRev],
+      ["Ad Cost Excl. GST", calc.adCost],
+      ["Ad Spend Inc. GST", calc.adInc],
+      ["Net GST Payable to Govt", calc.netGst],
+      ["Total Conversions", calc.totalUnits],
+      ["CPA", calc.cpa ?? ""],
+      ["CPL", calc.cpl ?? ""],
+      ["ROAS", calc.roas == null ? "" : Number(calc.roas).toFixed(4)],
+      ["Profit After GST", calc.profit],
+      [],
+      ["Day-wise Attendance"],
+      ["Day", "Date", "Registrations", "Show-Up", "Watch/Offer Present", "Is Sales Day"],
+      ...days.map((d, i) => [i + 1, d.date || "", d.registrations || 0, d.showUp || 0, d.watchOrOffer || 0, (i + 1 === salesDay) ? "Yes" : "No"]),
+      [],
+      ["Products / Payment Rows"],
+      ["Payment Type", "Units", "Deal Price Inc. GST", "Token / Down Payment", "Row Revenue"],
+      ...products.map((p) => {
+        const u = Number(p.units || 0);
+        const pr = Number(p.price || 0);
+        const tk = p.token === "" ? null : Number(p.token);
+        const rev = (tk != null && tk > 0) ? u * tk : u * pr;
+        return [p.type, u, pr, tk ?? "", rev];
+      }),
+    ];
+    return head;
+  };
+
+  const downloadCsv = (filename: string) => {
+    const rows = buildCsvRows();
+    const csv = rows.map((row) => row.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 500);
+  };
+
+  const exportCsv = () => {
+    downloadCsv(`seminar-roas-${(webinarName || "report").replace(/\W+/g, "-")}.csv`);
+    toast.success("CSV downloaded");
+  };
+  const exportSheetsCsv = () => {
+    downloadCsv(`seminar-roas-${(webinarName || "report").replace(/\W+/g, "-")}-sheets.csv`);
+    toast.success("Google Sheets CSV downloaded — open Google Sheets → File → Import");
+  };
+  const exportPdf = () => {
+    toast.message("PDF export coming soon", { description: "Use CSV export for now or print this page (Ctrl+P)." });
+  };
+
+
   const saveReport = async () => {
     if (!user) { toast.error("Not signed in"); return; }
     if (!canCalc) { toast.error("Fill required fields before saving"); return; }
@@ -496,6 +571,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     setTotalDays(r.total_webinar_days || 1);
     setWatchPct(Number(r.watch_point_percent ?? 70));
     setSalesDay(r.sales_day || 1);
+    salesDayTouchedRef.current = true;
     setStartTime(r.webinar_start_time || "");
     setEndTime(r.webinar_end_time || "");
     setTimingNote(r.timing_note || "");
@@ -563,7 +639,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
 
       {step === 1 && (
         <Step1 {...{ webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
-          watchPct, setWatchPct, salesDay, setSalesDay, startTime, setStartTime, endTime, setEndTime,
+          watchPct, setWatchPct, salesDay, setSalesDay: setSalesDayManual, startTime, setStartTime, endTime, setEndTime,
           timingNote, setTimingNote, calc }} />
       )}
       {step === 2 && (
@@ -590,7 +666,12 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
           {step < 5 && <button className="srBtn srBtn-k" onClick={() => setStep((s) => (s + 1) as any)}>Next →</button>}
           {step === 5 && (
             <>
-              <button className="srBtn srBtn-g" onClick={copyWhatsApp}>Copy WhatsApp Summary</button>
+              <ExportMenu
+                onCsv={exportCsv}
+                onSheets={exportSheetsCsv}
+                onPdf={exportPdf}
+                onWa={copyWhatsApp}
+              />
               <button className="srBtn srBtn-k" onClick={saveReport} disabled={!canCalc || saving}>
                 {saving ? "Saving..." : (editingId ? "Update Report" : "Save Report")}
               </button>
@@ -688,19 +769,16 @@ function Step1(props: any) {
           </select>
         </div>
         <div>
-          <div className="srLbl">Webinar Start Time</div>
-          <input className="srInput" list="srStartTimes" value={startTime} onChange={(e) => setStartTime(e.target.value)} placeholder="10:30 AM" />
-          <datalist id="srStartTimes">
-            {["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","6:00 PM","7:00 PM","8:00 PM"].map((t) => <option key={t} value={t} />)}
-          </datalist>
+          <div className="srLbl">Webinar Start Time <Info title="Start Time" body="Pick from 15-min suggestions or type any time (e.g. 10:30 AM, 18:00)." /></div>
+          <input className="srInput" list="srTimes" value={startTime} onChange={(e) => setStartTime(e.target.value)} placeholder="10:30 AM" />
         </div>
         <div>
-          <div className="srLbl">Webinar End Time</div>
-          <input className="srInput" list="srEndTimes" value={endTime} onChange={(e) => setEndTime(e.target.value)} placeholder="3:30 PM" />
-          <datalist id="srEndTimes">
-            {["12:00 PM","1:00 PM","2:00 PM","3:00 PM","3:30 PM","4:00 PM","9:00 PM","10:00 PM","11:00 PM"].map((t) => <option key={t} value={t} />)}
-          </datalist>
+          <div className="srLbl">Webinar End Time <Info title="End Time" body="Pick from 15-min suggestions or type any time (e.g. 3:30 PM, 21:00)." /></div>
+          <input className="srInput" list="srTimes" value={endTime} onChange={(e) => setEndTime(e.target.value)} placeholder="3:30 PM" />
         </div>
+        <datalist id="srTimes">
+          {TIME_OPTIONS.map((t) => <option key={t} value={t} />)}
+        </datalist>
       </div>
 
       <div className="srGrid c3" style={{ marginBottom: 14 }}>
@@ -959,6 +1037,31 @@ function Step5({ calc, totalDays, watchPct, regs, showUp, offer }: any) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* ---------------- Export Menu ---------------- */
+function ExportMenu({ onCsv, onSheets, onPdf, onWa }: { onCsv: () => void; onSheets: () => void; onPdf: () => void; onWa: () => void; }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const item: React.CSSProperties = { padding: "10px 14px", fontSize: 12.5, cursor: "pointer", fontFamily: "'Jost',sans-serif", whiteSpace: "nowrap", color: "var(--kk)", background: "transparent", border: "none", textAlign: "left", width: "100%", display: "block" };
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button className="srBtn srBtn-g" onClick={() => setOpen((o) => !o)}>Export ▾</button>
+      {open && (
+        <div style={{ position: "absolute", right: 0, bottom: "calc(100% + 6px)", background: "var(--ww)", border: "1px solid var(--bd)", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,.08)", zIndex: 60, minWidth: 220, overflow: "hidden" }}>
+          <button style={item} onClick={() => { setOpen(false); onCsv(); }}>Export CSV</button>
+          <button style={item} onClick={() => { setOpen(false); onSheets(); }}>Google Sheets Ready CSV</button>
+          <button style={item} onClick={() => { setOpen(false); onPdf(); }}>Export PDF</button>
+          <button style={item} onClick={() => { setOpen(false); onWa(); }}>Copy WhatsApp Summary</button>
+        </div>
+      )}
     </div>
   );
 }
