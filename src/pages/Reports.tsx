@@ -176,6 +176,16 @@ export default function Reports() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dailyStats, setDailyStats] = useState({ count: 0, spend: 0, leadsTotal: 0, avgCpl: null as number | null });
+  const [seminarRows, setSeminarRows] = useState<SeminarRow[]>([]);
+
+  const reloadSeminar = async () => {
+    const { data } = await (supabase as any)
+      .from("seminar_roas_reports")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setSeminarRows((data || []) as SeminarRow[]);
+  };
 
   const reloadSessions = async () => {
     setLoading(true);
