@@ -2176,6 +2176,7 @@ export type Database = {
           output_snapshot_json: Json | null
           profit_after_gst: number
           report_name: string | null
+          revenue_basis: string
           roas: number | null
           sales_day: number | null
           timing_note: string | null
@@ -2209,6 +2210,7 @@ export type Database = {
           output_snapshot_json?: Json | null
           profit_after_gst?: number
           report_name?: string | null
+          revenue_basis?: string
           roas?: number | null
           sales_day?: number | null
           timing_note?: string | null
@@ -2242,6 +2244,7 @@ export type Database = {
           output_snapshot_json?: Json | null
           profit_after_gst?: number
           report_name?: string | null
+          revenue_basis?: string
           roas?: number | null
           sales_day?: number | null
           timing_note?: string | null

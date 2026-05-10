@@ -1,0 +1,1 @@
+ALTER TABLE public.seminar_roas_reports ADD COLUMN IF NOT EXISTS revenue_basis text NOT NULL DEFAULT 'full_deal_value';
