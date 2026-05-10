@@ -666,7 +666,12 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
           {step < 5 && <button className="srBtn srBtn-k" onClick={() => setStep((s) => (s + 1) as any)}>Next →</button>}
           {step === 5 && (
             <>
-              <button className="srBtn srBtn-g" onClick={copyWhatsApp}>Copy WhatsApp Summary</button>
+              <ExportMenu
+                onCsv={exportCsv}
+                onSheets={exportSheetsCsv}
+                onPdf={exportPdf}
+                onWa={copyWhatsApp}
+              />
               <button className="srBtn srBtn-k" onClick={saveReport} disabled={!canCalc || saving}>
                 {saving ? "Saving..." : (editingId ? "Update Report" : "Save Report")}
               </button>
