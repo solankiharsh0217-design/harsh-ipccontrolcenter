@@ -432,17 +432,17 @@ function SeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }:
                   <td>{r.cpa == null ? "—" : inr(Number(r.cpa))}</td>
                   <td><span className={"roas-val " + roasClass(Number(r.roas || 0))}>{r.roas == null ? "—" : Number(r.roas).toFixed(2) + "×"}</span></td>
                   <td>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <button className="btn btn-g btn-sm" onClick={() => navigate(`/roas-calculator?seminarId=${r.id}`)}>View</button>
-                      <button className="btn btn-g btn-sm" onClick={() => navigate(`/roas-calculator?seminarId=${r.id}`)}>Edit</button>
-                      <button className="btn btn-g btn-sm" onClick={() => copyWa(r)}>WA</button>
-                      <button className="btn btn-g btn-sm" onClick={() => exportCsv(r)}>CSV</button>
-                      {r.is_deleted ? (
-                        <button className="btn btn-g btn-sm" disabled={busyId === r.id} onClick={() => restore(r.id)}>Restore</button>
-                      ) : (
-                        <button className="btn btn-g btn-sm" disabled={busyId === r.id} onClick={() => softDelete(r.id)} style={{ color: "var(--rd)" }}>Delete</button>
-                      )}
-                    </div>
+                    <SeminarRowActions
+                      busy={busyId === r.id}
+                      isDeleted={!!r.is_deleted}
+                      onView={() => navigate(`/roas-calculator?seminarId=${r.id}`)}
+                      onEdit={() => navigate(`/roas-calculator?seminarId=${r.id}`)}
+                      onCopyWa={() => copyWa(r)}
+                      onExportCsv={() => exportCsv(r)}
+                      onExportPdf={() => exportPdfRow(r)}
+                      onDelete={() => softDelete(r.id)}
+                      onRestore={() => restore(r.id)}
+                    />
                   </td>
                 </tr>
               ))}
