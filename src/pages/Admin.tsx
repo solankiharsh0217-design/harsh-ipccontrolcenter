@@ -42,6 +42,7 @@ export default function Admin() {
 
   const addMember = async () => {
     if (!mName || !mEmail || !mPass) return toast.error("Name, email and password required.");
+    if (!mRole.trim()) return toast.error("Please select or add a role.");
     setMBusy(true);
     const { data, error } = await supabase.functions.invoke("admin-create-member", {
       body: { full_name: mName, email: mEmail, password: mPass, role: mRole, department: mDept || null },
