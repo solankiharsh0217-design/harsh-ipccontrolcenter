@@ -392,6 +392,68 @@ function SeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }:
     a.click();
   };
 
+  const exportPdfRow = async (r: SeminarRow) => {
+    try {
+      const { downloadSeminarRoasPdf } = await import("@/lib/seminarRoasPdf");
+      const inSnap = (r.input_snapshot_json || {}) as any;
+      const outSnap = (r.output_snapshot_json || {}) as any;
+      const revBasis = inSnap.revenueBasis || (r as any).revenue_basis;
+      const convBasis = inSnap.convBasis || (r as any).conversion_rate_basis;
+      const convBasisLabels: Record<string, string> = {
+        offer_show_up: "Offer / Watch Present",
+        show_up: "Show-Up",
+        registrations: "Registrations",
+      };
+      const dayTimings = (outSnap.dayTimings || []) as Array<{ dur: number | null; wpTime: string }>;
+      const days = (inSnap.days || []) as Array<any>;
+      const products = (inSnap.products || []) as Array<any>;
+      downloadSeminarRoasPdf({
+        webinarName: r.webinar_name,
+        webinarMode: r.webinar_mode,
+        totalDays: r.total_webinar_days,
+        watchPct: r.watch_point_percent,
+        salesDay: (r as any).sales_day || inSnap.salesDay || 1,
+        revenueBasisLabel: revBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value",
+        conversionBasisLabel: convBasisLabels[convBasis] || "—",
+        totals: {
+          totalRev: Number(r.total_revenue_including_gst),
+          adInc: Number(r.total_ad_spend_including_gst),
+          profit: Number(r.profit_after_gst),
+          totalUnits: Number(r.total_conversions),
+          convRate: (r as any).conversion_rate ?? outSnap.convRate ?? null,
+          cpa: r.cpa == null ? null : Number(r.cpa),
+          cpl: outSnap.cpl ?? null,
+          roas: r.roas == null ? null : Number(r.roas),
+        },
+        days: days.map((d: any, i: number) => {
+          const t = dayTimings[i];
+          return {
+            day: i + 1,
+            date: d.date,
+            startTime: d.startTime,
+            endTime: d.endTime,
+            duration: t?.dur ?? null,
+            watchPointTime: t?.wpTime,
+            registrations: Number(d.registrations || 0),
+            showUp: Number(d.showUp || 0),
+            watchOrOffer: Number(d.watchOrOffer || 0),
+            isSalesDay: i + 1 === ((r as any).sales_day || inSnap.salesDay),
+          };
+        }),
+        products: products.map((p: any) => {
+          const u = Number(p.units || 0);
+          const pr = Number(p.price || 0);
+          const tk = p.token === "" || p.token == null ? null : Number(p.token);
+          const rev = (revBasis === "token_collected_amount" && tk != null && tk > 0) ? u * tk : u * pr;
+          return { type: p.type, units: u, price: pr, token: tk, revenue: rev };
+        }),
+      });
+      toast.success("PDF downloaded");
+    } catch (e: any) {
+      toast.error("PDF export failed", { description: e?.message });
+    }
+  };
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
