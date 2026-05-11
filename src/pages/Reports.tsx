@@ -516,6 +516,53 @@ function SeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }:
   );
 }
 
+function SeminarRowActions({
+  busy, isDeleted,
+  onView, onEdit, onCopyWa, onExportCsv, onExportPdf, onDelete, onRestore,
+}: {
+  busy: boolean; isDeleted: boolean;
+  onView: () => void; onEdit: () => void; onCopyWa: () => void;
+  onExportCsv: () => void; onExportPdf: () => void;
+  onDelete: () => void; onRestore: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setExportOpen(false); }
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  return (
+    <div ref={ref} style={{ position: "relative", display: "flex", gap: 4 }}>
+      <button className="btn btn-g btn-sm" title="View" onClick={onView}>👁 View</button>
+      <button className="btn btn-g btn-sm" onClick={() => setOpen((o) => !o)} disabled={busy}>⋯</button>
+      {open && (
+        <div className="menu-pop">
+          {!isDeleted && (
+            <button className="menu-item" onClick={() => { setOpen(false); onEdit(); }}>✏️ Edit Report</button>
+          )}
+          <button className="menu-item" onClick={() => setExportOpen((o) => !o)}>📤 Export ▸</button>
+          {exportOpen && (
+            <div style={{ paddingLeft: 8, borderLeft: "2px solid #E8E5DE", margin: "0 8px" }}>
+              <button className="menu-item" onClick={() => { setOpen(false); onExportPdf(); }}>📄 Export PDF</button>
+              <button className="menu-item" onClick={() => { setOpen(false); onExportCsv(); }}>📁 Export CSV</button>
+              <button className="menu-item" onClick={() => { setOpen(false); onCopyWa(); }}>📋 Copy WhatsApp Summary</button>
+            </div>
+          )}
+          {isDeleted ? (
+            <button className="menu-item" onClick={() => { setOpen(false); onRestore(); }}>♻️ Restore</button>
+          ) : (
+            <button className="menu-item danger" onClick={() => { setOpen(false); onDelete(); }}>🗑 Delete Report</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CategoryCard({
   on, title, badge, desc, stats, onClick,
 }: { on: boolean; title: string; badge: string; desc: string; stats: { lbl: string; val: string }[]; onClick: () => void; }) {
