@@ -313,7 +313,13 @@ export default function RoasCalculator() {
           </button>
         )}
         {tool === "attr" && <AttrTabWrapper userId={user?.id} />}
-        {tool === "total" && <TotalTab userId={user?.id} />}
+        {tool === "total" && (
+          <div style={{ padding: "60px 4px", textAlign: "center" }}>
+            <div className="page-title">Tool replaced</div>
+            <p className="page-sub">This tool has been replaced by the Seminar ROAS Calculator.</p>
+            <button className="btn btn-k" onClick={() => setTool("seminar")}>Open Seminar ROAS</button>
+          </div>
+        )}
         {tool === "seminar" && <SeminarRoasCalculator key={seminarLoadId || "new"} loadReportId={seminarLoadId} onBack={() => { setTool("home"); setSeminarLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }} />}
         {tool === "sources" && <SourcesTab userId={user?.id} />}
       </div>
