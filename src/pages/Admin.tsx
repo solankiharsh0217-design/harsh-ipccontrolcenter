@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { formatTime, formatDateShort } from "@/lib/format";
+import QuickSaveInput from "@/components/QuickSaveInput";
 
 export default function Admin() {
   const { user } = useAuth();
