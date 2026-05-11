@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { formatTime, formatDateShort } from "@/lib/format";
+import QuickSaveInput from "@/components/QuickSaveInput";
 
 export default function Admin() {
   const { user } = useAuth();
@@ -41,6 +42,7 @@ export default function Admin() {
 
   const addMember = async () => {
     if (!mName || !mEmail || !mPass) return toast.error("Name, email and password required.");
+    if (!mRole.trim()) return toast.error("Please select or add a role.");
     setMBusy(true);
     const { data, error } = await supabase.functions.invoke("admin-create-member", {
       body: { full_name: mName, email: mEmail, password: mPass, role: mRole, department: mDept || null },
@@ -117,10 +119,14 @@ export default function Admin() {
           <div><label className="form-label">Temporary password</label>
             <input className="ipc-input" type="text" value={mPass} onChange={(e)=>setMPass(e.target.value)} placeholder="Set a password" /></div>
           <div><label className="form-label">Role</label>
-            <select className="ipc-input cursor-pointer" value={mRole} onChange={(e)=>setMRole(e.target.value)}>
-              {ROLES.map(r => <option key={r}>{r}</option>)}
-            </select></div>
-          <div className="col-span-2"><label className="form-label">Department (optional)</label>
+            <QuickSaveInput
+              fieldKey="team_role"
+              value={mRole}
+              onChange={setMRole}
+              placeholder="Click to choose saved role or type new"
+            />
+          </div>
+          <div><label className="form-label">Department (optional)</label>
             <input className="ipc-input" value={mDept} onChange={(e)=>setMDept(e.target.value)} placeholder="e.g. Marketing" /></div>
         </div>
         <div className="flex justify-end">

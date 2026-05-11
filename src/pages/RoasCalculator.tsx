@@ -313,7 +313,13 @@ export default function RoasCalculator() {
           </button>
         )}
         {tool === "attr" && <AttrTabWrapper userId={user?.id} />}
-        {tool === "total" && <TotalTab userId={user?.id} />}
+        {tool === "total" && (
+          <div style={{ padding: "60px 4px", textAlign: "center" }}>
+            <div className="page-title">Tool replaced</div>
+            <p className="page-sub">This tool has been replaced by the Seminar ROAS Calculator.</p>
+            <button className="btn btn-k" onClick={() => setTool("seminar")}>Open Seminar ROAS</button>
+          </div>
+        )}
         {tool === "seminar" && <SeminarRoasCalculator key={seminarLoadId || "new"} loadReportId={seminarLoadId} onBack={() => { setTool("home"); setSeminarLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }} />}
         {tool === "sources" && <SourcesTab userId={user?.id} />}
       </div>
@@ -329,9 +335,6 @@ function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
     { key: "seminar", tag: "Seminar / Webinar", title: "Seminar ROAS Calculator",
       desc: "Step-by-step calculator for any seminar, webinar or multi-day challenge — registrations, drop rate, ad spend, GST, profit and ROAS.",
       btn: "Open Seminar ROAS", primary: true },
-    { key: "total", tag: "Overall ROAS", title: "Total ROAS Calculation",
-      desc: "Calculate overall ROAS for a webinar or campaign using total ad spend and sales data.",
-      btn: "Open Total ROAS" },
     { key: "sources", tag: "Settings", title: "Data Sources",
       desc: "Manage saved Google Sheet links, reusable names, data sources, and reporting templates.",
       btn: "Open Data Sources" },
