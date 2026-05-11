@@ -455,7 +455,57 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   };
   const exportCsv = () => { downloadCsv(`seminar-roas-${(webinarName || "report").replace(/\W+/g, "-")}.csv`); toast.success("CSV downloaded"); };
   const exportSheetsCsv = () => { downloadCsv(`seminar-roas-${(webinarName || "report").replace(/\W+/g, "-")}-sheets.csv`); toast.success("Google Sheets CSV downloaded"); };
-  const exportPdf = () => { toast.message("PDF export coming soon", { description: "Use CSV export or print this page (Ctrl+P)." }); };
+  const exportPdf = async () => {
+    try {
+      const { downloadSeminarRoasPdf } = await import("@/lib/seminarRoasPdf");
+      downloadSeminarRoasPdf({
+        webinarName,
+        webinarMode,
+        totalDays,
+        watchPct,
+        salesDay,
+        revenueBasisLabel: revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value",
+        conversionBasisLabel: CONV_BASIS_LABEL[convBasis],
+        totals: {
+          totalRev: calc.totalRev,
+          adInc: calc.adInc,
+          adCost: calc.adCost,
+          netGst: calc.netGst,
+          profit: calc.profit,
+          totalUnits: calc.totalUnits,
+          convRate: calc.convRate,
+          cpa: calc.cpa,
+          cpl: calc.cpl,
+          roas: calc.roas,
+        },
+        days: days.map((d, i) => {
+          const t = dayTimings[i];
+          return {
+            day: i + 1,
+            date: d.date,
+            startTime: d.startTime,
+            endTime: d.endTime,
+            duration: t?.dur ?? null,
+            watchPointTime: t?.wpTime,
+            registrations: Number(d.registrations || 0),
+            showUp: Number(d.showUp || 0),
+            watchOrOffer: Number(d.watchOrOffer || 0),
+            isSalesDay: i + 1 === salesDay,
+          };
+        }),
+        products: products.map((p) => {
+          const u = Number(p.units || 0);
+          const pr = Number(p.price || 0);
+          const tk = p.token === "" ? null : Number(p.token);
+          const rev = (revenueBasis === "token_collected_amount" && tk != null && tk > 0) ? u * tk : u * pr;
+          return { type: p.type, units: u, price: pr, token: tk, revenue: rev };
+        }),
+      });
+      toast.success("PDF downloaded");
+    } catch (e: any) {
+      toast.error("PDF export failed", { description: e?.message });
+    }
+  };
 
   const saveReport = async () => {
     if (!user) { toast.error("Not signed in"); return; }
