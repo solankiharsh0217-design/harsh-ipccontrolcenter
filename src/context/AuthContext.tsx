@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
+import type { ModuleKey } from "@/lib/modules";
 
 export interface Profile {
   id: string;
@@ -16,6 +17,8 @@ interface AuthCtx {
   session: Session | null;
   profile: Profile | null;
   isAdmin: boolean;
+  modules: Set<ModuleKey>;
+  hasModule: (key: ModuleKey) => boolean;
   loginTime: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -30,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [modules, setModules] = useState<Set<ModuleKey>>(new Set());
   const [loginTime, setLoginTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,7 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: p } = await supabase.from("profiles").select("*").eq("id", uid).maybeSingle();
     setProfile(p as Profile | null);
     const { data: r } = await supabase.from("user_roles").select("role").eq("user_id", uid);
-    setIsAdmin(!!r?.some((x) => x.role === "admin"));
+    const admin = !!r?.some((x) => x.role === "admin");
+    setIsAdmin(admin);
+    const { data: m } = await supabase.from("user_module_access").select("module_key").eq("user_id", uid);
+    setModules(new Set((m ?? []).map((x: any) => x.module_key as ModuleKey)));
   };
 
   useEffect(() => {
@@ -47,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (s?.user) {
         setTimeout(() => loadProfile(s.user.id).finally(() => setLoading(false)), 0);
       } else {
-        setProfile(null); setIsAdmin(false); setLoading(false);
+        setProfile(null); setIsAdmin(false); setModules(new Set()); setLoading(false);
       }
     });
     supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -66,8 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => { if (user) await loadProfile(user.id); };
 
+  const hasModule = (key: ModuleKey) => isAdmin || modules.has(key);
+
   return (
-    <Ctx.Provider value={{ user, session, profile, isAdmin, loginTime, loading, signOut, refreshProfile, setLoginTime }}>
+    <Ctx.Provider value={{ user, session, profile, isAdmin, modules, hasModule, loginTime, loading, signOut, refreshProfile, setLoginTime }}>
       {children}
     </Ctx.Provider>
   );
