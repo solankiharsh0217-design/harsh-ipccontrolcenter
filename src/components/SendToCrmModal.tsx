@@ -172,7 +172,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
         const payload: any = {
           full_name: l.name, email: l.email, phone: l.phone || null, country: l.country || null,
           score: l.score, grade,
-          webinar_source: name, webinar_date: date, webinar_name: name,
+          webinar_source: batchLabel, webinar_date: date, webinar_name: batchLabel,
           pipeline_id: pipeline.id, stage_id: firstStage?.id ?? null,
           assigned_agent_id: agentId, lead_type: leadType,
           program_name: productName, deal_value: dealValue,
