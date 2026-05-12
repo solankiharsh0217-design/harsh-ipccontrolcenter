@@ -29,6 +29,7 @@ export default function Crm() {
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("gray");
   const [importOpen, setImportOpen] = useState(false);
+  const [editBatch, setEditBatch] = useState<{ origName: string; origDate: string | null; name: string; date: string } | null>(null);
 
   const load = async () => {
     let { data: p } = await supabase.from("pipelines").select("*").order("position");
