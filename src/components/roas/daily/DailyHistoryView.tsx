@@ -244,8 +244,9 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
 
       {/* Filters */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 14, padding: 12, background: "#F7F6F3", border: "1px solid #E8E5DE", borderRadius: 10 }}>
-        <div><label className="fl-sm">From</label><input type="date" className="fi-sm" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-        <div><label className="fl-sm">To</label><input type="date" className="fi-sm" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <div style={{ gridColumn: "span 2" }}>
+          <DateRangePopover from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+        </div>
         <div>
           <label className="fl-sm">Media Buyer</label>
           <select className="fi-sm" value={buyerFilter} onChange={(e) => setBuyerFilter(e.target.value)}>
