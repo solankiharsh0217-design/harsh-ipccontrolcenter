@@ -61,6 +61,14 @@ export default function Team() {
     if (!editing) return;
     setSaving(true);
     try {
+      // Update profile fields (name, role/position, department)
+      const { error: pErr } = await supabase.from("profiles").update({
+        full_name: editName.trim() || editing.full_name,
+        role: editRole.trim() || editing.role,
+        department: editDepartment.trim() || null,
+      }).eq("id", editing.id);
+      if (pErr) throw pErr;
+
       // Sync admin role
       if (editAdmin) {
         await supabase.from("user_roles").upsert({ user_id: editing.id, role: "admin" }, { onConflict: "user_id,role" });
@@ -74,8 +82,9 @@ export default function Team() {
         const { error } = await supabase.from("user_module_access").insert(rows);
         if (error) throw error;
       }
-      toast.success(`Access updated for ${editing.full_name}`);
+      toast.success(`Updated ${editName || editing.full_name}`);
       setEditing(null);
+      await load();
       if (editing.id === user?.id) await refreshProfile();
     } catch (e: any) {
       toast.error(e.message ?? "Failed to update access");
