@@ -11,6 +11,7 @@ interface Member {
   id: string;
   full_name: string;
   role: string;
+  department: string | null;
   last_login: string | null;
 }
 
@@ -20,10 +21,13 @@ export default function Team() {
   const [editing, setEditing] = useState<Member | null>(null);
   const [editAdmin, setEditAdmin] = useState(false);
   const [editModules, setEditModules] = useState<Set<ModuleKey>>(new Set());
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role").eq("status","active").order("full_name");
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department").eq("status","active").order("full_name");
     const { data: logs } = await supabase.from("attendance_logs").select("user_id, login_time").order("login_time", { ascending: false });
     const lastByUser = new Map<string, string>();
     logs?.forEach(l => { if (!lastByUser.has(l.user_id)) lastByUser.set(l.user_id, l.login_time); });
