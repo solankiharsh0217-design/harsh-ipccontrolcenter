@@ -8,6 +8,7 @@ import {
 import DailyReportDrawer from "./DailyReportDrawer";
 import { loadFullReport, runExportAction, softDeleteReport, restoreReport, permanentlyDeleteReport, daysRemaining } from "./sharedActions";
 import ExportMenu from "./ExportMenu";
+import DateRangePopover from "./DateRangePopover";
 
 type RowExt = {
   id: string; created_at: string; report_date: string; report_name: string;
