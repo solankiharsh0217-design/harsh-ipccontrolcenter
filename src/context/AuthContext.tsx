@@ -77,9 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={{ user, session, profile, isAdmin, modules, hasModule, loginTime, loading, signOut, refreshProfile, setLoginTime }}>
-
-  return (
-    <Ctx.Provider value={{ user, session, profile, isAdmin, loginTime, loading, signOut, refreshProfile, setLoginTime }}>
       {children}
     </Ctx.Provider>
   );
