@@ -17,7 +17,11 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const [step, setStep] = useState(1);
   const [date, setDate] = useState(result.webinarDate?.slice(0, 10) || new Date().toISOString().slice(0, 10));
   const [name, setName] = useState(result.webinarName || "");
-  const [webinarDay, setWebinarDay] = useState<"day1" | "day2" | "day3" | "single">("day1");
+  const [totalDays, setTotalDays] = useState<number>(3);
+  const [currentDay, setCurrentDay] = useState<number>(1);
+  const [isSingle, setIsSingle] = useState<boolean>(false);
+  const [durationHours, setDurationHours] = useState<number>(2);
+  const [durationMinutes, setDurationMinutes] = useState<number>(0);
   const [productName, setProductName] = useState("IPC Diamond Program");
   const [dealValue, setDealValue] = useState<number>(118000);
   const [leadType, setLeadType] = useState<"unpaid" | "paid">("unpaid");
