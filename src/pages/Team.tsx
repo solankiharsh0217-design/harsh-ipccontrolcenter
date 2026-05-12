@@ -194,7 +194,7 @@ export default function Team() {
 
             <div className="px-6 pb-5 pt-2 flex justify-end gap-2 border-t border-line">
               <button onClick={() => setEditing(null)} disabled={saving} className="ipc-btn">Cancel</button>
-              <button onClick={save} disabled={saving} className="ipc-btn ipc-btn-black">{saving ? "Saving…" : "Save access"}</button>
+              <button onClick={save} disabled={saving} className="ipc-btn ipc-btn-black">{saving ? "Saving…" : "Save changes"}</button>
             </div>
           </div>
         </div>
