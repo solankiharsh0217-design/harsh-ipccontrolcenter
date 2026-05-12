@@ -17,7 +17,11 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const [step, setStep] = useState(1);
   const [date, setDate] = useState(result.webinarDate?.slice(0, 10) || new Date().toISOString().slice(0, 10));
   const [name, setName] = useState(result.webinarName || "");
-  const [webinarDay, setWebinarDay] = useState<"day1" | "day2" | "day3" | "single">("day1");
+  const [totalDays, setTotalDays] = useState<number>(3);
+  const [currentDay, setCurrentDay] = useState<number>(1);
+  const [isSingle, setIsSingle] = useState<boolean>(false);
+  const [durationHours, setDurationHours] = useState<number>(2);
+  const [durationMinutes, setDurationMinutes] = useState<number>(0);
   const [productName, setProductName] = useState("IPC Diamond Program");
   const [dealValue, setDealValue] = useState<number>(118000);
   const [leadType, setLeadType] = useState<"unpaid" | "paid">("unpaid");
@@ -107,8 +111,18 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
     return c;
   }, [result.leads, superHotEmails]);
 
-  const dayLabel = webinarDay === "day1" ? "Day 1" : webinarDay === "day2" ? "Day 2" : webinarDay === "day3" ? "Day 3" : "";
-  const batchLabel = dayLabel ? `${name} — ${dayLabel}` : name;
+  const totalMinutes = Math.max(0, durationHours * 60 + durationMinutes);
+  const durationLabel = totalMinutes >= 60
+    ? `${(totalMinutes / 60).toFixed(totalMinutes % 60 === 0 ? 0 : 1)}h`
+    : `${totalMinutes}m`;
+  const dayLabel = isSingle
+    ? "Single"
+    : totalDays > 1
+      ? `Day ${currentDay} of ${totalDays}`
+      : `Day ${currentDay}`;
+  const batchLabel = name
+    ? `${name} — ${dayLabel} · ${durationLabel}`
+    : "";
 
   const importNow = async () => {
     setImporting(true);
@@ -263,29 +277,93 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
               )}
               <p className="text-[11px] text-muted-foreground mt-1.5">Saved webinars appear in the dropdown next time you import — no retyping needed.</p>
             </div>
-            <div>
-              <label className="form-label">Webinar day</label>
-              <div className="grid grid-cols-4 gap-2">
-                {([
-                  { v: "day1", l: "Day 1" },
-                  { v: "day2", l: "Day 2" },
-                  { v: "day3", l: "Day 3" },
-                  { v: "single", l: "Single / N-A" },
-                ] as const).map((d) => (
+            <div className="space-y-3">
+              <div>
+                <label className="form-label">Webinar format</label>
+                <div className="flex gap-2">
                   <button
-                    key={d.v}
                     type="button"
-                    onClick={() => setWebinarDay(d.v)}
-                    className={`px-3 py-2 rounded-md border text-xs font-medium transition-colors ${webinarDay === d.v ? "border-black bg-black text-white" : "border-line bg-white text-foreground hover:border-[#bbb]"}`}
+                    onClick={() => setIsSingle(false)}
+                    className={`flex-1 px-3 py-2 rounded-md border text-xs font-medium transition-colors ${!isSingle ? "border-black bg-black text-white" : "border-line bg-white text-foreground hover:border-[#bbb]"}`}
                   >
-                    {d.l}
+                    Multi-day series
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setIsSingle(true)}
+                    className={`flex-1 px-3 py-2 rounded-md border text-xs font-medium transition-colors ${isSingle ? "border-black bg-black text-white" : "border-line bg-white text-foreground hover:border-[#bbb]"}`}
+                  >
+                    Single session
+                  </button>
+                </div>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1.5">
-                Creates a separate batch in Calling CRM as <span className="font-medium">{batchLabel || "Webinar — Day 1"}</span> so day-wise leads stay clean.
+
+              {!isSingle && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="form-label">Total days in series</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      className="ipc-input"
+                      value={totalDays}
+                      onChange={(e) => {
+                        const n = Math.max(1, Math.min(30, Number(e.target.value) || 1));
+                        setTotalDays(n);
+                        if (currentDay > n) setCurrentDay(n);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">This upload is for</label>
+                    <select
+                      className="ipc-input"
+                      value={currentDay}
+                      onChange={(e) => setCurrentDay(Number(e.target.value))}
+                    >
+                      {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={d}>Day {d}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="form-label">Session duration {isSingle ? "" : "(per day)"}</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={24}
+                      className="ipc-input"
+                      value={durationHours}
+                      onChange={(e) => setDurationHours(Math.max(0, Math.min(24, Number(e.target.value) || 0)))}
+                    />
+                    <span className="text-xs text-muted-foreground">hours</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={59}
+                      step={5}
+                      className="ipc-input"
+                      value={durationMinutes}
+                      onChange={(e) => setDurationMinutes(Math.max(0, Math.min(59, Number(e.target.value) || 0)))}
+                    />
+                    <span className="text-xs text-muted-foreground">minutes</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">
+                Creates a separate batch in Calling CRM as <span className="font-medium">{batchLabel || "Webinar — Day 1 · 2h"}</span> so each day's leads stay clean and addressable.
               </p>
             </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
               <button onClick={() => setStep(2)} disabled={!name || !date} className="ipc-btn ipc-btn-black disabled:opacity-50">Continue</button>
