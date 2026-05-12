@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
+import type { ModuleKey } from "@/lib/modules";
 
 export interface Profile {
   id: string;
@@ -16,6 +17,8 @@ interface AuthCtx {
   session: Session | null;
   profile: Profile | null;
   isAdmin: boolean;
+  modules: Set<ModuleKey>;
+  hasModule: (key: ModuleKey) => boolean;
   loginTime: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
