@@ -111,8 +111,18 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
     return c;
   }, [result.leads, superHotEmails]);
 
-  const dayLabel = webinarDay === "day1" ? "Day 1" : webinarDay === "day2" ? "Day 2" : webinarDay === "day3" ? "Day 3" : "";
-  const batchLabel = dayLabel ? `${name} — ${dayLabel}` : name;
+  const totalMinutes = Math.max(0, durationHours * 60 + durationMinutes);
+  const durationLabel = totalMinutes >= 60
+    ? `${(totalMinutes / 60).toFixed(totalMinutes % 60 === 0 ? 0 : 1)}h`
+    : `${totalMinutes}m`;
+  const dayLabel = isSingle
+    ? "Single"
+    : totalDays > 1
+      ? `Day ${currentDay} of ${totalDays}`
+      : `Day ${currentDay}`;
+  const batchLabel = name
+    ? `${name} — ${dayLabel} · ${durationLabel}`
+    : "";
 
   const importNow = async () => {
     setImporting(true);
