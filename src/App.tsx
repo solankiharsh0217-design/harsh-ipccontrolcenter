@@ -20,10 +20,12 @@ import CrmOverview from "./pages/CrmOverview";
 import MasterData from "./pages/MasterData";
 import NotFound from "./pages/NotFound";
 
+import type { ModuleKey } from "@/lib/modules";
+
 const qc = new QueryClient();
 
-const Shell = ({ children, admin }: { children: React.ReactNode; admin?: boolean }) => (
-  <ProtectedRoute adminOnly={admin}>
+const Shell = ({ children, admin, moduleKey }: { children: React.ReactNode; admin?: boolean; moduleKey?: ModuleKey }) => (
+  <ProtectedRoute adminOnly={admin} moduleKey={moduleKey}>
     <AppLayout>{children}</AppLayout>
   </ProtectedRoute>
 );
@@ -36,21 +38,21 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Shell><Dashboard /></Shell>} />
-            <Route path="/roas-calculator" element={<Shell><RoasCalculator /></Shell>} />
-            <Route path="/roas" element={<Shell><RoasCalculator /></Shell>} />
-            <Route path="/search" element={<Shell><StudentSearch /></Shell>} />
+            <Route path="/" element={<Shell moduleKey="dashboard"><Dashboard /></Shell>} />
+            <Route path="/roas-calculator" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
+            <Route path="/roas" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
+            <Route path="/search" element={<Shell moduleKey="search"><StudentSearch /></Shell>} />
             <Route path="/leadflow" element={<Navigate to="/daily-lead-reporting" replace />} />
             <Route path="/daily-lead-flow" element={<Navigate to="/daily-lead-reporting" replace />} />
-            <Route path="/daily-lead-reporting" element={<Shell><DailyLeadReporting /></Shell>} />
-            <Route path="/reports" element={<Shell><Reports /></Shell>} />
-            <Route path="/lead-qualifier" element={<Shell><LeadQualifier /></Shell>} />
-            <Route path="/crm" element={<Shell><Crm /></Shell>} />
-            <Route path="/crm/overview" element={<Shell><CrmOverview /></Shell>} />
-            <Route path="/team" element={<Shell><Team /></Shell>} />
-            <Route path="/announcements" element={<Shell><Announcements /></Shell>} />
+            <Route path="/daily-lead-reporting" element={<Shell moduleKey="daily-reporting"><DailyLeadReporting /></Shell>} />
+            <Route path="/reports" element={<Shell moduleKey="reports"><Reports /></Shell>} />
+            <Route path="/lead-qualifier" element={<Shell moduleKey="lead-qualifier"><LeadQualifier /></Shell>} />
+            <Route path="/crm" element={<Shell moduleKey="crm"><Crm /></Shell>} />
+            <Route path="/crm/overview" element={<Shell moduleKey="crm"><CrmOverview /></Shell>} />
+            <Route path="/team" element={<Shell moduleKey="team"><Team /></Shell>} />
+            <Route path="/announcements" element={<Shell moduleKey="announcements"><Announcements /></Shell>} />
             <Route path="/admin" element={<Shell admin><Admin /></Shell>} />
-            <Route path="/master-data" element={<Shell><MasterData /></Shell>} />
+            <Route path="/master-data" element={<Shell moduleKey="master-data"><MasterData /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

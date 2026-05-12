@@ -1,9 +1,10 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { ReactNode } from "react";
+import type { ModuleKey } from "@/lib/modules";
 
-export default function ProtectedRoute({ children, adminOnly }: { children: ReactNode; adminOnly?: boolean }) {
-  const { user, profile, isAdmin, loading } = useAuth();
+export default function ProtectedRoute({ children, adminOnly, moduleKey }: { children: ReactNode; adminOnly?: boolean; moduleKey?: ModuleKey }) {
+  const { user, profile, isAdmin, hasModule, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center font-sans text-sm text-muted-foreground">Loading…</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (profile && profile.status === "pending" && !isAdmin) {
@@ -17,5 +18,15 @@ export default function ProtectedRoute({ children, adminOnly }: { children: Reac
     );
   }
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
+  if (moduleKey && !hasModule(moduleKey)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="max-w-md text-center">
+          <div className="font-serif text-2xl mb-3">Access restricted</div>
+          <p className="font-sans text-sm text-muted-foreground leading-relaxed">You don't have access to this module. Please contact an admin to request access.</p>
+        </div>
+      </div>
+    );
+  }
   return <>{children}</>;
 }
