@@ -135,7 +135,7 @@ export default function Team() {
           <div className="bg-white rounded-xl w-full max-w-[520px] max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between px-6 pt-5 pb-3 border-b border-line">
               <div>
-                <div className="font-serif text-[20px] font-medium text-black">Manage access</div>
+                <div className="font-serif text-[20px] font-medium text-black">Manage member</div>
                 <div className="font-sans text-[12px] text-muted-foreground mt-0.5">{editing.full_name} · {editing.role}</div>
               </div>
               <button onClick={() => setEditing(null)} disabled={saving} className="text-muted-foreground hover:text-black"><X className="w-4 h-4" /></button>
