@@ -263,6 +263,29 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
               )}
               <p className="text-[11px] text-muted-foreground mt-1.5">Saved webinars appear in the dropdown next time you import — no retyping needed.</p>
             </div>
+            <div>
+              <label className="form-label">Webinar day</label>
+              <div className="grid grid-cols-4 gap-2">
+                {([
+                  { v: "day1", l: "Day 1" },
+                  { v: "day2", l: "Day 2" },
+                  { v: "day3", l: "Day 3" },
+                  { v: "single", l: "Single / N-A" },
+                ] as const).map((d) => (
+                  <button
+                    key={d.v}
+                    type="button"
+                    onClick={() => setWebinarDay(d.v)}
+                    className={`px-3 py-2 rounded-md border text-xs font-medium transition-colors ${webinarDay === d.v ? "border-black bg-black text-white" : "border-line bg-white text-foreground hover:border-[#bbb]"}`}
+                  >
+                    {d.l}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1.5">
+                Creates a separate batch in Calling CRM as <span className="font-medium">{batchLabel || "Webinar — Day 1"}</span> so day-wise leads stay clean.
+              </p>
+            </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
               <button onClick={() => setStep(2)} disabled={!name || !date} className="ipc-btn ipc-btn-black disabled:opacity-50">Continue</button>
