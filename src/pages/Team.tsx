@@ -38,6 +38,9 @@ export default function Team() {
 
   const openEdit = async (m: Member) => {
     setEditing(m);
+    setEditName(m.full_name ?? "");
+    setEditRole(m.role ?? "");
+    setEditDepartment(m.department ?? "");
     const [{ data: roles }, { data: mods }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", m.id),
       supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
