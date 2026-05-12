@@ -333,17 +333,28 @@ export default function Crm() {
             {batches.map((b) => {
               const pipe = pipelines.find((p) => p.id === b.pipelineId);
               return (
-                <button
+                <div
                   key={b.key}
+                  className="relative text-left p-5 rounded-xl border border-line bg-white hover:shadow-md hover:border-gold transition-all cursor-pointer"
                   onClick={() => {
                     if (b.pipelineId) setActivePipeline(b.pipelineId);
                     setBatchFilter(b.name);
                     setView("kanban");
                   }}
-                  className="text-left p-5 rounded-xl border border-line bg-white hover:shadow-md hover:border-gold transition-all"
                 >
-                  <div className="uppercase-label !text-[10px]">{b.date || "—"}</div>
-                  <div className="font-serif text-lg mt-1 line-clamp-2">{b.name}</div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setEditBatch({ origName: b.name, origDate: b.date, name: b.name, date: b.date || "" }); }}
+                    className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground hover:text-black hover:bg-off"
+                    title="Edit batch"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-black text-white text-[11px] font-medium tracking-wide">
+                    <Calendar className="w-3 h-3" />
+                    {b.date || "No date"}
+                  </div>
+                  <div className="font-serif text-lg mt-2 line-clamp-2">{b.name}</div>
                   <div className="text-[11px] text-muted-foreground mt-1">{pipe?.name || "—"}</div>
                   <div className="flex items-center justify-between mt-4">
                     <div className="font-serif text-3xl">{b.total}</div>
@@ -355,9 +366,44 @@ export default function Crm() {
                     <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.warm.bg, color: GRADE_STYLES.warm.fg, border: `1px solid ${GRADE_STYLES.warm.border}` }}>{b.warm} warm</span>
                     <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.cold.bg, color: GRADE_STYLES.cold.fg, border: `1px solid ${GRADE_STYLES.cold.border}` }}>{b.cold} cold</span>
                   </div>
-                </button>
+                </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {editBatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditBatch(null)}>
+          <div className="bg-white rounded-xl border border-line w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-serif text-lg">Edit batch</div>
+              <button onClick={() => setEditBatch(null)} className="p-1 rounded hover:bg-off"><XIcon className="w-4 h-4" /></button>
+            </div>
+            <label className="uppercase-label !text-[10px]">Batch label</label>
+            <input className="ipc-input !h-10 w-full mt-1" value={editBatch.name} onChange={(e) => setEditBatch({ ...editBatch, name: e.target.value })} placeholder="e.g. 6 Secrets — Day 1 of 2 · 6h" />
+            <label className="uppercase-label !text-[10px] mt-3 block">Webinar date</label>
+            <input type="date" className="ipc-input !h-10 w-full mt-1" value={editBatch.date} onChange={(e) => setEditBatch({ ...editBatch, date: e.target.value })} />
+            <div className="text-[11px] text-muted-foreground mt-3">This will update every lead in this batch.</div>
+            <div className="flex items-center justify-end gap-2 mt-5">
+              <button className="ipc-btn-ghost" onClick={() => setEditBatch(null)}>Cancel</button>
+              <button
+                className="ipc-btn-primary"
+                onClick={async () => {
+                  const newName = editBatch.name.trim();
+                  const newDate = editBatch.date || null;
+                  if (!newName) { toast.error("Label required"); return; }
+                  let q = supabase.from("leads").update({ webinar_source: newName, webinar_name: newName, webinar_date: newDate }).eq("webinar_source", editBatch.origName);
+                  q = editBatch.origDate ? q.eq("webinar_date", editBatch.origDate) : q.is("webinar_date", null);
+                  const { error } = await q;
+                  if (error) { toast.error(error.message); return; }
+                  if (batchFilter === editBatch.origName) setBatchFilter(newName);
+                  toast.success("Batch updated");
+                  setEditBatch(null);
+                  await load();
+                }}
+              >Save changes</button>
+            </div>
           </div>
         </div>
       )}
