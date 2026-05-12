@@ -11,6 +11,7 @@ interface Member {
   id: string;
   full_name: string;
   role: string;
+  department: string | null;
   last_login: string | null;
 }
 
@@ -20,10 +21,13 @@ export default function Team() {
   const [editing, setEditing] = useState<Member | null>(null);
   const [editAdmin, setEditAdmin] = useState(false);
   const [editModules, setEditModules] = useState<Set<ModuleKey>>(new Set());
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role").eq("status","active").order("full_name");
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department").eq("status","active").order("full_name");
     const { data: logs } = await supabase.from("attendance_logs").select("user_id, login_time").order("login_time", { ascending: false });
     const lastByUser = new Map<string, string>();
     logs?.forEach(l => { if (!lastByUser.has(l.user_id)) lastByUser.set(l.user_id, l.login_time); });
@@ -34,6 +38,9 @@ export default function Team() {
 
   const openEdit = async (m: Member) => {
     setEditing(m);
+    setEditName(m.full_name ?? "");
+    setEditRole(m.role ?? "");
+    setEditDepartment(m.department ?? "");
     const [{ data: roles }, { data: mods }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", m.id),
       supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
@@ -54,6 +61,14 @@ export default function Team() {
     if (!editing) return;
     setSaving(true);
     try {
+      // Update profile fields (name, role/position, department)
+      const { error: pErr } = await supabase.from("profiles").update({
+        full_name: editName.trim() || editing.full_name,
+        role: editRole.trim() || editing.role,
+        department: editDepartment.trim() || null,
+      }).eq("id", editing.id);
+      if (pErr) throw pErr;
+
       // Sync admin role
       if (editAdmin) {
         await supabase.from("user_roles").upsert({ user_id: editing.id, role: "admin" }, { onConflict: "user_id,role" });
@@ -67,8 +82,9 @@ export default function Team() {
         const { error } = await supabase.from("user_module_access").insert(rows);
         if (error) throw error;
       }
-      toast.success(`Access updated for ${editing.full_name}`);
+      toast.success(`Updated ${editName || editing.full_name}`);
       setEditing(null);
+      await load();
       if (editing.id === user?.id) await refreshProfile();
     } catch (e: any) {
       toast.error(e.message ?? "Failed to update access");
@@ -119,10 +135,28 @@ export default function Team() {
           <div className="bg-white rounded-xl w-full max-w-[520px] max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between px-6 pt-5 pb-3 border-b border-line">
               <div>
-                <div className="font-serif text-[20px] font-medium text-black">Manage access</div>
+                <div className="font-serif text-[20px] font-medium text-black">Manage member</div>
                 <div className="font-sans text-[12px] text-muted-foreground mt-0.5">{editing.full_name} · {editing.role}</div>
               </div>
               <button onClick={() => setEditing(null)} disabled={saving} className="text-muted-foreground hover:text-black"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="px-6 py-4 border-b border-line space-y-3">
+              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Profile</div>
+              <div>
+                <label className="font-sans text-[11px] text-muted-foreground block mb-1">Full name</label>
+                <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-sans text-[11px] text-muted-foreground block mb-1">Position / Role</label>
+                  <input value={editRole} onChange={(e) => setEditRole(e.target.value)} placeholder="e.g. Backend Ops" className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
+                </div>
+                <div>
+                  <label className="font-sans text-[11px] text-muted-foreground block mb-1">Department</label>
+                  <input value={editDepartment} onChange={(e) => setEditDepartment(e.target.value)} placeholder="Optional" className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
+                </div>
+              </div>
             </div>
 
             <div className="px-6 py-4 border-b border-line">
@@ -160,7 +194,7 @@ export default function Team() {
 
             <div className="px-6 pb-5 pt-2 flex justify-end gap-2 border-t border-line">
               <button onClick={() => setEditing(null)} disabled={saving} className="ipc-btn">Cancel</button>
-              <button onClick={save} disabled={saving} className="ipc-btn ipc-btn-black">{saving ? "Saving…" : "Save access"}</button>
+              <button onClick={save} disabled={saving} className="ipc-btn ipc-btn-black">{saving ? "Saving…" : "Save changes"}</button>
             </div>
           </div>
         </div>
