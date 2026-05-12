@@ -141,6 +141,24 @@ export default function Team() {
               <button onClick={() => setEditing(null)} disabled={saving} className="text-muted-foreground hover:text-black"><X className="w-4 h-4" /></button>
             </div>
 
+            <div className="px-6 py-4 border-b border-line space-y-3">
+              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Profile</div>
+              <div>
+                <label className="font-sans text-[11px] text-muted-foreground block mb-1">Full name</label>
+                <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-sans text-[11px] text-muted-foreground block mb-1">Position / Role</label>
+                  <input value={editRole} onChange={(e) => setEditRole(e.target.value)} placeholder="e.g. Backend Ops" className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
+                </div>
+                <div>
+                  <label className="font-sans text-[11px] text-muted-foreground block mb-1">Department</label>
+                  <input value={editDepartment} onChange={(e) => setEditDepartment(e.target.value)} placeholder="Optional" className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
+                </div>
+              </div>
+            </div>
+
             <div className="px-6 py-4 border-b border-line">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={editAdmin} onChange={(e) => setEditAdmin(e.target.checked)} className="w-4 h-4" />
