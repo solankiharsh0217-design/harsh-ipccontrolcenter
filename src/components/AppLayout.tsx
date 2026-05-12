@@ -67,43 +67,43 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         <div className="px-3 py-[18px] flex-1">
           <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px]">Overview</span>
-          <NavItem to="/">
+          <NavItem to="/" show={hasModule("dashboard")}>
             <Icon><><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></></Icon>
             Dashboard
           </NavItem>
-          <NavItem to="/announcements" badge>
+          <NavItem to="/announcements" badge show={hasModule("announcements")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
             Announcements
           </NavItem>
 
           <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">Tools</span>
-          <NavItem to="/roas-calculator">
+          <NavItem to="/roas-calculator" show={hasModule("roas")}>
             <Icon d="M2 8h3l2-5 2 10 2-5h3" />
             ROAS Calculator
           </NavItem>
-          <NavItem to="/search">
+          <NavItem to="/search" show={hasModule("search")}>
             <Icon><><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></></Icon>
             Student Search
           </NavItem>
-          <NavItem to="/daily-lead-reporting">
+          <NavItem to="/daily-lead-reporting" show={hasModule("daily-reporting")}>
             <Icon d="M2 12l4-4 3 3 5-6" />
             Daily Lead Reporting
           </NavItem>
-          <NavItem to="/reports">
+          <NavItem to="/reports" show={hasModule("reports")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></></Icon>
             Reports & History
           </NavItem>
-          <NavItem to="/lead-qualifier">
+          <NavItem to="/lead-qualifier" show={hasModule("lead-qualifier")}>
             <Icon><><path d="M3 3h10v10H3z"/><path d="M5 7h6M5 9h4"/></></Icon>
             Lead Qualifier
           </NavItem>
-          <NavItem to="/crm">
+          <NavItem to="/crm" show={hasModule("crm")}>
             <Icon><><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M2 14c0-2 1.5-3 3-3s3 1 3 3M8 14c0-2 1.5-3 3-3s3 1 3 3"/></></Icon>
             Calling CRM
           </NavItem>
 
           <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">People</span>
-          <NavItem to="/team">
+          <NavItem to="/team" show={hasModule("team")}>
             <Icon><><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/></></Icon>
             Team Directory
           </NavItem>
@@ -113,7 +113,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               Admin Panel
             </NavItem>
           )}
-          <NavItem to="/master-data">
+          <NavItem to="/master-data" show={hasModule("master-data")}>
             <Icon><><rect x="2" y="2" width="3" height="3" rx="0.5"/><rect x="6.5" y="2" width="3" height="3" rx="0.5"/><rect x="11" y="2" width="3" height="3" rx="0.5"/><rect x="2" y="6.5" width="3" height="3" rx="0.5"/><rect x="6.5" y="6.5" width="3" height="3" rx="0.5"/><rect x="11" y="6.5" width="3" height="3" rx="0.5"/><rect x="2" y="11" width="3" height="3" rx="0.5"/><rect x="6.5" y="11" width="3" height="3" rx="0.5"/><rect x="11" y="11" width="3" height="3" rx="0.5"/></></Icon>
             Master Data
           </NavItem>
