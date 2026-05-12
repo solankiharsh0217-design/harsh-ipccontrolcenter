@@ -26,8 +26,9 @@ const PAGE_TITLES: Record<string, string> = {
   "/master-data": "Master Data",
 };
 
-const NavItem = ({ to, children, badge }: { to: string; children: ReactNode; badge?: boolean }) => {
+const NavItem = ({ to, children, badge, show = true }: { to: string; children: ReactNode; badge?: boolean; show?: boolean }) => {
   const loc = useLocation();
+  if (!show) return null;
   const active = loc.pathname === to;
   return (
     <NavLink to={to} data-active={active} className="nav-item">
@@ -38,7 +39,7 @@ const NavItem = ({ to, children, badge }: { to: string; children: ReactNode; bad
 };
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const { profile, isAdmin, loginTime, signOut } = useAuth();
+  const { profile, isAdmin, hasModule, loginTime, signOut } = useAuth();
   const loc = useLocation();
   const nav = useNavigate();
   const title = PAGE_TITLES[loc.pathname] ?? "";
