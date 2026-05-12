@@ -107,6 +107,9 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
     return c;
   }, [result.leads, superHotEmails]);
 
+  const dayLabel = webinarDay === "day1" ? "Day 1" : webinarDay === "day2" ? "Day 2" : webinarDay === "day3" ? "Day 3" : "";
+  const batchLabel = dayLabel ? `${name} — ${dayLabel}` : name;
+
   const importNow = async () => {
     setImporting(true);
     try {
@@ -126,7 +129,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
       let rr = 0;
 
       await supabase.from("lead_qualifier_sessions").insert({
-        webinar_name: name, webinar_date: date,
+        webinar_name: batchLabel, webinar_date: date,
         total_duration: result.durationMin, registrants: result.registrants,
         viewers: result.viewers, uploaded_by: profile?.id,
         mode: result.mode, zoom_file_name: result.zoomFileName || null,
