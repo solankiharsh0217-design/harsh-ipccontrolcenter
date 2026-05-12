@@ -17,6 +17,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const [step, setStep] = useState(1);
   const [date, setDate] = useState(result.webinarDate?.slice(0, 10) || new Date().toISOString().slice(0, 10));
   const [name, setName] = useState(result.webinarName || "");
+  const [webinarDay, setWebinarDay] = useState<"day1" | "day2" | "day3" | "single">("day1");
   const [productName, setProductName] = useState("IPC Diamond Program");
   const [dealValue, setDealValue] = useState<number>(118000);
   const [leadType, setLeadType] = useState<"unpaid" | "paid">("unpaid");
@@ -106,6 +107,9 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
     return c;
   }, [result.leads, superHotEmails]);
 
+  const dayLabel = webinarDay === "day1" ? "Day 1" : webinarDay === "day2" ? "Day 2" : webinarDay === "day3" ? "Day 3" : "";
+  const batchLabel = dayLabel ? `${name} — ${dayLabel}` : name;
+
   const importNow = async () => {
     setImporting(true);
     try {
@@ -125,7 +129,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
       let rr = 0;
 
       await supabase.from("lead_qualifier_sessions").insert({
-        webinar_name: name, webinar_date: date,
+        webinar_name: batchLabel, webinar_date: date,
         total_duration: result.durationMin, registrants: result.registrants,
         viewers: result.viewers, uploaded_by: profile?.id,
         mode: result.mode, zoom_file_name: result.zoomFileName || null,
@@ -168,7 +172,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
         const payload: any = {
           full_name: l.name, email: l.email, phone: l.phone || null, country: l.country || null,
           score: l.score, grade,
-          webinar_source: name, webinar_date: date, webinar_name: name,
+          webinar_source: batchLabel, webinar_date: date, webinar_name: batchLabel,
           pipeline_id: pipeline.id, stage_id: firstStage?.id ?? null,
           assigned_agent_id: agentId, lead_type: leadType,
           program_name: productName, deal_value: dealValue,
@@ -258,6 +262,29 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
                 </div>
               )}
               <p className="text-[11px] text-muted-foreground mt-1.5">Saved webinars appear in the dropdown next time you import — no retyping needed.</p>
+            </div>
+            <div>
+              <label className="form-label">Webinar day</label>
+              <div className="grid grid-cols-4 gap-2">
+                {([
+                  { v: "day1", l: "Day 1" },
+                  { v: "day2", l: "Day 2" },
+                  { v: "day3", l: "Day 3" },
+                  { v: "single", l: "Single / N-A" },
+                ] as const).map((d) => (
+                  <button
+                    key={d.v}
+                    type="button"
+                    onClick={() => setWebinarDay(d.v)}
+                    className={`px-3 py-2 rounded-md border text-xs font-medium transition-colors ${webinarDay === d.v ? "border-black bg-black text-white" : "border-line bg-white text-foreground hover:border-[#bbb]"}`}
+                  >
+                    {d.l}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1.5">
+                Creates a separate batch in Calling CRM as <span className="font-medium">{batchLabel || "Webinar — Day 1"}</span> so day-wise leads stay clean.
+              </p>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
