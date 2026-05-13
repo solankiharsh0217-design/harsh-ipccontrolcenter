@@ -1,87 +1,102 @@
-## Goal
+## Payroll Automation + Profit Statement Build
 
-Add an **Attendees** step to the ROAS Auto Attribution wizard (and Manual flow if used) that captures attendee lists for **every webinar day + the sales pitch**, supports both **CSV upload** and **Google Sheet tab** as sources, stores them durably against the attribution session, and lets users **download / re-trace** the original CSV later from the saved report.
+This is a large, multi-module build. Below is the plan I'll follow. Please confirm or edit before I start — once you approve I'll ship it end-to-end.
 
-This is **storage-only** — no change to attribution math.
+### Important finding
+You referenced an "existing Profit Statement prototype/module" — I searched the codebase and **there is no Profit Statement module yet** (no file matching profit/payroll exists). I'll build it from scratch under `/profit-statement` using the existing IPC design system (no global CSS / font / sidebar changes).
 
----
-
-## What gets built
-
-### 1. Database (1 migration)
-
-**New bucket** `roas-attendees` (private) for raw CSV files.
-
-**New table `attribution_attendee_lists`**
-- `session_id` → `attribution_sessions.id`
-- `slot_type` text (`day` | `sales_pitch`)
-- `slot_label` text (e.g. "Day 1", "Day 2", "Sales Pitch")
-- `slot_date` date (nullable, auto-suggested from webinar dates)
-- `source_kind` text (`csv_upload` | `google_sheet`)
-- `file_path` text (storage path, when `csv_upload`)
-- `file_name`, `file_size_bytes`
-- `sheet_url`, `sheet_id`, `tab_name`, `tab_gid` (when `google_sheet`)
-- `headers` jsonb, `row_count` int, `parsed_rows` jsonb (cap ~5,000 rows; larger files keep CSV in storage and store a pointer + sample)
-- `column_mapping` jsonb (name/email/phone/duration auto-guess + override)
-- `notes` text
-- `uploaded_by`, `uploaded_at`
-
-**RLS:** read for active members, insert/update/delete restricted to session owner or admin (mirrors `attribution_sessions` policies). Storage policies: same — files keyed by `{session_id}/{list_id}-{filename}`.
-
-### 2. New wizard step: "Attendees" (between Ad Spends and Results)
-
-`AutoWizardV6` step labels become: `Webinar Details → Connect Sheet → Ad Spends → Attendees → Results` (5 steps).
-
-**Step 4 UI — `Step4Attendees`:**
-- Auto-pre-fills one slot per webinar day from `webinar.dateMode`/`dates` + one **Sales Pitch** slot (date optional)
-- "**+ Add another day**" / "**+ Add another sales pitch**" buttons for flexibility
-- Per slot:
-  - Source toggle: **CSV upload** | **Google Sheet tab**
-  - CSV: drag/drop (PapaParse, already a dep), shows row count + first-row preview, column mapper (Name / Email / Phone / Duration — auto-guessed)
-  - Sheet: paste sheet URL or pick a tab from the already-detected master-sheet tabs (reuse `detectedTabs` list); same mapper drawer pattern as `ColumnMappingDrawer.tsx`
-  - "Remove" button
-- Validation: **required** — every prefilled slot must have a source attached before "Calculate" is enabled
-- Slots persist into the existing wizard draft `roas_calculation_drafts.detected_tabs`/new field so refresh-safe
-
-### 3. Persistence on save
-
-When the user saves results (existing flow in `AutoWizardV6` `runCalculation` → insert into `attribution_sessions`), also:
-1. For each CSV slot: upload file to `roas-attendees/{sessionId}/...`, parse with PapaParse, insert one row into `attribution_attendee_lists` with `parsed_rows` (truncated if huge) + storage path
-2. For each Sheet slot: fetch via existing `fetchTabAsRows` / `resolveSheetCsvUrl` helpers, store rows + sheet pointer
-
-All inserts happen in parallel after the session insert succeeds. Failure of an attendee upload does not roll back the session — shows a toast and lets user retry from the saved report detail.
-
-### 4. Saved report detail — view & download
-
-In `Reports.tsx` (Attribution tab) and `AttributionResultsView.tsx`:
-- New **"Attendees"** card listing each slot with: label, date, row count, source badge, **Download CSV** button (signed URL from storage for uploads; regenerated CSV from `parsed_rows` for sheet sources), **View rows** drawer (paginated table)
-- Edit affordance: replace/remove a slot from the saved report (admin or owner)
-
-### 5. No change to attribution engine
-
-`attributionEngine.ts`, sales matching, ROAS math — untouched.
+If you actually have a prototype somewhere (different name, separate project, screenshot only), tell me before I start so I match it.
 
 ---
 
-## Files
+### Scope breakdown
 
-```text
-NEW   supabase/migrations/<ts>_attribution_attendees.sql
-NEW   src/components/roas/auto/Step4Attendees.tsx
-NEW   src/components/roas/AttendeesPanel.tsx        (used in saved report detail)
-NEW   src/lib/roas/attendees.ts                     (parse/upload/fetch helpers)
-EDIT  src/components/roas/auto/AutoWizardV6.tsx     (insert Attendees step, wire save)
-EDIT  src/components/roas/AttributionResultsView.tsx (mount AttendeesPanel)
-EDIT  src/pages/Reports.tsx                         (show attendee count badge per session)
-EDIT  src/integrations/supabase/types.ts            (auto-regenerated post-migration)
-```
+**1. Database (Supabase migrations)**
+New tables:
+- `team_payroll_profiles` — payroll details per team member (pay_type, salary, joining/exit, cycle, classification, etc.)
+- `team_salary_history` — change log for salary edits
+- `payroll_runs` — one row per (business_unit, period) generation
+- `payroll_run_entries` — calculated salary rows per member per run
+- `recurring_expense_templates` — Zoom, rent, tools, etc.
+- `profit_statements` — saved monthly P&L
+- `profit_statement_lines` — revenue/COGS/expense line items
+- `incentives` — variable pay entries
 
-No new dependencies (PapaParse already in `src/lib/roas/preview.ts`; storage SDK available).
+RLS: admin-only read/write on payroll/salary tables. Profit statements: admin + finance role read; admin write. Adds `finance` to the existing `app_role` enum.
+
+**2. Add/Edit Team Member form (Admin Panel + Team Directory)**
+Extends existing `Admin.tsx` add form and `Team.tsx` "Manage member" modal with a collapsible **Payroll Details** section:
+- Payroll Applicable (Yes/No)
+- Pay Type (saved dropdown via existing QuickSaveInput, key `team_pay_type`)
+- Conditional amount fields (monthly / one-time / daily / hourly / custom)
+- Joining date (required), Exit date (optional)
+- Salary Expense Category, P&L Cost Classification (saved dropdowns)
+- Salary cycle, disbursement window (default 7–10), notes
+Validation per Part 19, inline + toast.
+
+**3. Team Directory display**
+Adds payroll columns visible to admin only (pay type, joining date, amount, status). Hidden for non-admin.
+
+**4. Profit Statement module** (new pages/components)
+Route: `/profit-statement` (added to sidebar, gated by new module key `profit-statement`, admin/finance only)
+Tabs: Overview · Revenue · COGS · Operating Expenses · Team Payroll · Incentives · Recurring · Summary
+
+**5. Team Payroll tab**
+- Payroll Settings card (period, cycle, disbursement, accrual/cash basis)
+- Backend Team Directory card (live fetched, no static data)
+- "Generate Payroll From Team Directory" → preview → edit → "Post to Profit Statement"
+- Pro-rata math per Part 6, pay-type logic per Part 7
+- Duplicate guard per (business_unit, period_start, period_end)
+- Stores in `payroll_runs` + `payroll_run_entries`
+
+**6. Push to Profit Statement**
+Posted payroll entries become `profit_statement_lines` mapped by `cost_classification` (Operating Expense / COGS / Fixed / Variable / One-Time).
+
+**7. Incentives tab**
+Separate from payroll. Fetches members from backend. Saved-dropdown reasons/types.
+
+**8. Recurring Expenses**
+Templates + "Generate Monthly Recurring" with duplicate guard.
+
+**9. Reports & History**
+New "Profit Statement" report type in existing Reports page with View/Edit/Delete (soft)/Export CSV/PDF/Copy. Status: Draft/Posted/Locked.
+
+**10. Master Data**
+Adds new QuickSave field keys: `team_pay_type`, `salary_expense_category`, `pnl_cost_classification`, `incentive_reason`, `incentive_type`, `expense_category`, `revenue_category`, `business_unit`. Visible + button.
+
+**11. Permissions**
+- Adds `finance` to `app_role`
+- New module key `profit-statement` in `src/lib/modules.ts`
+- `ProtectedRoute` gates the route
+- Salary fields hidden in Team Directory for non-admin/non-finance
+- RLS enforces server-side
 
 ---
 
-## Out of scope
+### What I will NOT touch
+- Global CSS, fonts, Tailwind tokens
+- Sidebar/topbar visual design (only adds new nav entry)
+- ROAS Calculator, Daily Lead Reporting, CRM logic
+- `src/integrations/supabase/client.ts` or `types.ts` (auto-generated)
+- Existing data — all migrations are additive
 
-- Cross-matching attendees against leads / changing attribution
-- Editing existing past sessions to add attendees retroactively (those sessions just show "no attendee data captured")
-- xlsx upload — CSV only in v1 (matches existing CSV-only pattern in the app)
+---
+
+### Delivery order
+1. Migration for all new tables + RLS + `finance` role + module key
+2. Extend Add Team Member form (Admin + Team modals)
+3. Profit Statement scaffold + route + sidebar entry
+4. Team Payroll tab (fetch + generate + preview + post)
+5. Incentives + Recurring + Revenue/COGS/Expenses tabs
+6. Reports & History integration
+7. QA pass on calculations and duplicate guards
+
+---
+
+### Open questions (please answer in your reply, or I'll use the defaults shown)
+1. **Business Unit / Brand**: do you already have a brands table, or should I add one and seed a single default ("IPC")? *Default: add `business_units` table, seed "IPC".*
+2. **Finance role**: should I create a `finance` role now, or keep payroll admin-only for v1? *Default: admin-only for v1, leave hook for finance later.*
+3. **Currency**: INR only? *Default: INR (₹), no multi-currency.*
+4. **Profit Statement granularity**: per business unit per month, or one global per month? *Default: per business unit per month.*
+
+Reply with "go" (and any answers) to start.

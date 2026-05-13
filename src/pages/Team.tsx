@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { initials, formatTime, formatDateShort } from "@/lib/format";
 import { useAuth } from "@/context/AuthContext";
 import { MODULES, type ModuleKey } from "@/lib/modules";
+import PayrollFieldsSection, { emptyPayroll, dbToPayroll, payrollToDb, type PayrollFormState } from "@/components/PayrollFieldsSection";
 import { toast } from "sonner";
 import { Shield, X } from "lucide-react";
 
@@ -24,6 +25,7 @@ export default function Team() {
   const [editName, setEditName] = useState("");
   const [editRole, setEditRole] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
+  const [editPayroll, setEditPayroll] = useState<PayrollFormState>(emptyPayroll());
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -41,12 +43,15 @@ export default function Team() {
     setEditName(m.full_name ?? "");
     setEditRole(m.role ?? "");
     setEditDepartment(m.department ?? "");
-    const [{ data: roles }, { data: mods }] = await Promise.all([
+    setEditPayroll(emptyPayroll());
+    const [{ data: roles }, { data: mods }, { data: payroll }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", m.id),
       supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
+      supabase.from("team_payroll_profiles").select("*").eq("team_member_id", m.id).maybeSingle(),
     ]);
     setEditAdmin(!!roles?.some((r: any) => r.role === "admin"));
     setEditModules(new Set((mods ?? []).map((x: any) => x.module_key as ModuleKey)));
+    if (payroll) setEditPayroll(dbToPayroll(payroll));
   };
 
   const toggleModule = (k: ModuleKey) => {
@@ -81,6 +86,24 @@ export default function Team() {
       if (rows.length) {
         const { error } = await supabase.from("user_module_access").insert(rows);
         if (error) throw error;
+      }
+      // Upsert payroll profile
+      if (isAdmin) {
+        if (editPayroll.payroll_applicable && !editPayroll.joining_date) {
+          throw new Error("Joining date is required for payroll-applicable members.");
+        }
+        const payload = {
+          team_member_id: editing.id,
+          full_name_snapshot: editName.trim() || editing.full_name,
+          role_snapshot: editRole.trim() || editing.role,
+          department_snapshot: editDepartment.trim() || null,
+          ...payrollToDb(editPayroll),
+          updated_by: user?.id ?? null,
+        };
+        const { error: payErr } = await supabase
+          .from("team_payroll_profiles")
+          .upsert(payload, { onConflict: "team_member_id" });
+        if (payErr) throw payErr;
       }
       toast.success(`Updated ${editName || editing.full_name}`);
       setEditing(null);
@@ -191,6 +214,12 @@ export default function Team() {
                 </div>
               ))}
             </div>
+
+            {isAdmin && (
+              <div className="px-6 py-4 border-t border-line">
+                <PayrollFieldsSection value={editPayroll} onChange={setEditPayroll} />
+              </div>
+            )}
 
             <div className="px-6 pb-5 pt-2 flex justify-end gap-2 border-t border-line">
               <button onClick={() => setEditing(null)} disabled={saving} className="ipc-btn">Cancel</button>

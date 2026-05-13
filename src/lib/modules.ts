@@ -9,7 +9,8 @@ export type ModuleKey =
   | "crm"
   | "team"
   | "admin"
-  | "master-data";
+  | "master-data"
+  | "profit-statement";
 
 export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "dashboard", label: "Dashboard", group: "Overview" },
@@ -20,6 +21,7 @@ export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "reports", label: "Reports & History", group: "Tools" },
   { key: "lead-qualifier", label: "Lead Qualifier", group: "Tools" },
   { key: "crm", label: "Calling CRM", group: "Tools" },
+  { key: "profit-statement", label: "Profit Statement", group: "Tools" },
   { key: "team", label: "Team Directory", group: "People" },
   { key: "admin", label: "Admin Panel", group: "People" },
   { key: "master-data", label: "Master Data", group: "People" },

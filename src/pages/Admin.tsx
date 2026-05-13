@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { formatTime, formatDateShort } from "@/lib/format";
 import QuickSaveInput from "@/components/QuickSaveInput";
+import PayrollFieldsSection, { emptyPayroll, PayrollFormState, payrollToDb } from "@/components/PayrollFieldsSection";
 
 export default function Admin() {
   const { user } = useAuth();
@@ -38,19 +39,32 @@ export default function Admin() {
   const [mPass, setMPass] = useState("");
   const [mRole, setMRole] = useState("Media Buyer");
   const [mDept, setMDept] = useState("");
+  const [mPayroll, setMPayroll] = useState<PayrollFormState>(emptyPayroll());
   const [mBusy, setMBusy] = useState(false);
 
   const addMember = async () => {
     if (!mName || !mEmail || !mPass) return toast.error("Name, email and password required.");
     if (!mRole.trim()) return toast.error("Please select or add a role.");
+    if (mPayroll.payroll_applicable && !mPayroll.joining_date) return toast.error("Joining date is required for payroll-applicable members.");
+    if (mPayroll.payroll_applicable) {
+      const pt = mPayroll.pay_type;
+      if (["Monthly Salary","Retainer","Internship / Stipend"].includes(pt) && !Number(mPayroll.monthly_salary)) return toast.error("Monthly salary amount is required.");
+      if (["One-Time / Outsourced","Project-Based","Event-Based"].includes(pt) && !Number(mPayroll.one_time_pay)) return toast.error("One-time / project / event pay amount is required.");
+      if (pt === "Daily Wage" && !Number(mPayroll.daily_wage)) return toast.error("Daily wage amount is required.");
+      if (pt === "Hourly Pay" && !Number(mPayroll.hourly_rate)) return toast.error("Hourly rate is required.");
+    }
     setMBusy(true);
     const { data, error } = await supabase.functions.invoke("admin-create-member", {
-      body: { full_name: mName, email: mEmail, password: mPass, role: mRole, department: mDept || null },
+      body: {
+        full_name: mName, email: mEmail, password: mPass, role: mRole,
+        department: mDept || null,
+        payroll: payrollToDb(mPayroll),
+      },
     });
     setMBusy(false);
     if (error || (data as any)?.error) return toast.error((data as any)?.error || error!.message);
     toast.success(`${mName} added and activated.`);
-    setMName(""); setMEmail(""); setMPass(""); setMDept("");
+    setMName(""); setMEmail(""); setMPass(""); setMDept(""); setMPayroll(emptyPayroll());
     load();
   };
 
@@ -129,10 +143,13 @@ export default function Admin() {
           <div><label className="form-label">Department (optional)</label>
             <input className="ipc-input" value={mDept} onChange={(e)=>setMDept(e.target.value)} placeholder="e.g. Marketing" /></div>
         </div>
-        <div className="flex justify-end">
+        <div className="mt-4">
+          <PayrollFieldsSection value={mPayroll} onChange={setMPayroll} />
+        </div>
+        <div className="flex justify-end mt-4">
           <button disabled={mBusy} onClick={addMember} className="ipc-btn ipc-btn-black">{mBusy ? "Adding…" : "Add member"}</button>
         </div>
-        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — share the credentials with them.</p>
+        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — payroll details are saved to backend and used by Profit Statement.</p>
       </div>
 
       <SectionLabel>Student database</SectionLabel>
