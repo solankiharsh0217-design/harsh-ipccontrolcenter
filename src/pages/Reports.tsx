@@ -344,14 +344,26 @@ export default function Reports() {
           onClick={() => setSection("seminar")}
         />
         <CategoryCard
+          on={section === "profit"}
+          title="Profit Statements"
+          badge={`${profitStats.count} statements`}
+          desc="Monthly P&L statements with payroll, expenses, revenue and net profit."
+          stats={[
+            { lbl: "Statements", val: String(profitStats.count) },
+            { lbl: "Total Revenue", val: inr(profitStats.totalRev) },
+            { lbl: "Net Profit", val: inr(profitStats.totalNet) },
+          ]}
+          onClick={() => setSection("profit")}
+        />
+        <CategoryCard
           on={section === "overview"}
           title="Reports Overview"
           badge="Analytics"
           desc="High-level analytics across attribution and daily lead reports."
           stats={[
-            { lbl: "Reports Saved", val: String(attrStats.count + dailyStats.count + seminarStats.count) },
+            { lbl: "Reports Saved", val: String(attrStats.count + dailyStats.count + seminarStats.count + profitStats.count) },
             { lbl: "Latest Report", val: latestReportDate ? fmtDate(latestReportDate) : "—" },
-            { lbl: "Active Types", val: String((attrStats.count > 0 ? 1 : 0) + (dailyStats.count > 0 ? 1 : 0) + (seminarStats.count > 0 ? 1 : 0)) },
+            { lbl: "Active Types", val: String((attrStats.count > 0 ? 1 : 0) + (dailyStats.count > 0 ? 1 : 0) + (seminarStats.count > 0 ? 1 : 0) + (profitStats.count > 0 ? 1 : 0)) },
           ]}
           onClick={() => setSection("overview")}
         />
