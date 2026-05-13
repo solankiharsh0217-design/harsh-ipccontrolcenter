@@ -254,6 +254,7 @@ export default function Reports() {
       reloadSessions();
       loadDailyStats();
       reloadSeminar();
+      reloadProfit();
     })();
   }, []);
 
