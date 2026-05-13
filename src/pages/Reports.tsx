@@ -280,6 +280,17 @@ export default function Reports() {
     return { count: live.length, totalRev, avgRoas: avg };
   }, [visibleSessions]);
 
+  const visibleProfit = useMemo(() =>
+    profitRows.filter((s) => showDeleted ? true : !s.is_deleted),
+  [profitRows, showDeleted]);
+
+  const profitStats = useMemo(() => {
+    const live = visibleProfit;
+    const totalRev = live.reduce((a, s) => a + Number(s.total_revenue || 0), 0);
+    const totalNet = live.reduce((a, s) => a + Number(s.net_profit || 0), 0);
+    return { count: live.length, totalRev, totalNet };
+  }, [visibleProfit]);
+
   const latestReportDate = useMemo(() => {
     const dates: string[] = [];
     visibleSessions.forEach((s) => s.created_at && dates.push(s.created_at));
