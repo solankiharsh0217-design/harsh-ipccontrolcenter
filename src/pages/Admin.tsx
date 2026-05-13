@@ -143,10 +143,13 @@ export default function Admin() {
           <div><label className="form-label">Department (optional)</label>
             <input className="ipc-input" value={mDept} onChange={(e)=>setMDept(e.target.value)} placeholder="e.g. Marketing" /></div>
         </div>
-        <div className="flex justify-end">
+        <div className="mt-4">
+          <PayrollFieldsSection value={mPayroll} onChange={setMPayroll} />
+        </div>
+        <div className="flex justify-end mt-4">
           <button disabled={mBusy} onClick={addMember} className="ipc-btn ipc-btn-black">{mBusy ? "Adding…" : "Add member"}</button>
         </div>
-        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — share the credentials with them.</p>
+        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — payroll details are saved to backend and used by Profit Statement.</p>
       </div>
 
       <SectionLabel>Student database</SectionLabel>
