@@ -43,12 +43,15 @@ export default function Team() {
     setEditName(m.full_name ?? "");
     setEditRole(m.role ?? "");
     setEditDepartment(m.department ?? "");
-    const [{ data: roles }, { data: mods }] = await Promise.all([
+    setEditPayroll(emptyPayroll());
+    const [{ data: roles }, { data: mods }, { data: payroll }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", m.id),
       supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
+      supabase.from("team_payroll_profiles").select("*").eq("team_member_id", m.id).maybeSingle(),
     ]);
     setEditAdmin(!!roles?.some((r: any) => r.role === "admin"));
     setEditModules(new Set((mods ?? []).map((x: any) => x.module_key as ModuleKey)));
+    if (payroll) setEditPayroll(dbToPayroll(payroll));
   };
 
   const toggleModule = (k: ModuleKey) => {
