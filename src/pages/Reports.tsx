@@ -146,7 +146,28 @@ function periodMonth(s: SessionRow): string {
   return d ? String(d).slice(0, 7) : "";
 }
 
-type SectionKey = "attribution" | "daily" | "seminar" | "overview";
+type SectionKey = "attribution" | "daily" | "seminar" | "profit" | "overview";
+
+type ProfitStatementRow = {
+  id: string;
+  business_unit: string;
+  statement_month: string;
+  status: string;
+  total_revenue: number;
+  total_cogs: number;
+  gross_profit: number;
+  total_payroll: number;
+  total_operating_expense: number;
+  total_fixed_expense: number;
+  total_variable_expense: number;
+  total_one_time_expense: number;
+  total_incentives: number;
+  net_profit: number;
+  net_margin: number;
+  is_deleted: boolean;
+  deleted_at: string | null;
+  created_at: string;
+};
 
 type SeminarRow = {
   id: string;
@@ -177,6 +198,17 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [dailyStats, setDailyStats] = useState({ count: 0, spend: 0, leadsTotal: 0, avgCpl: null as number | null });
   const [seminarRows, setSeminarRows] = useState<SeminarRow[]>([]);
+  const [profitRows, setProfitRows] = useState<ProfitStatementRow[]>([]);
+
+  const reloadProfit = async () => {
+    const { data } = await (supabase as any)
+      .from("profit_statements")
+      .select("*")
+      .order("statement_month", { ascending: false })
+      .limit(500);
+    setProfitRows((data || []) as ProfitStatementRow[]);
+  };
+
 
   const reloadSeminar = async () => {
     const { data } = await (supabase as any)
@@ -222,6 +254,7 @@ export default function Reports() {
       reloadSessions();
       loadDailyStats();
       reloadSeminar();
+      reloadProfit();
     })();
   }, []);
 
@@ -246,6 +279,17 @@ export default function Reports() {
     const avg = live.length ? live.reduce((a, s) => a + Number(s.overall_roas || 0), 0) / live.length : 0;
     return { count: live.length, totalRev, avgRoas: avg };
   }, [visibleSessions]);
+
+  const visibleProfit = useMemo(() =>
+    profitRows.filter((s) => showDeleted ? true : !s.is_deleted),
+  [profitRows, showDeleted]);
+
+  const profitStats = useMemo(() => {
+    const live = visibleProfit;
+    const totalRev = live.reduce((a, s) => a + Number(s.total_revenue || 0), 0);
+    const totalNet = live.reduce((a, s) => a + Number(s.net_profit || 0), 0);
+    return { count: live.length, totalRev, totalNet };
+  }, [visibleProfit]);
 
   const latestReportDate = useMemo(() => {
     const dates: string[] = [];
@@ -300,14 +344,26 @@ export default function Reports() {
           onClick={() => setSection("seminar")}
         />
         <CategoryCard
+          on={section === "profit"}
+          title="Profit Statements"
+          badge={`${profitStats.count} statements`}
+          desc="Monthly P&L statements with payroll, expenses, revenue and net profit."
+          stats={[
+            { lbl: "Statements", val: String(profitStats.count) },
+            { lbl: "Total Revenue", val: inr(profitStats.totalRev) },
+            { lbl: "Net Profit", val: inr(profitStats.totalNet) },
+          ]}
+          onClick={() => setSection("profit")}
+        />
+        <CategoryCard
           on={section === "overview"}
           title="Reports Overview"
           badge="Analytics"
           desc="High-level analytics across attribution and daily lead reports."
           stats={[
-            { lbl: "Reports Saved", val: String(attrStats.count + dailyStats.count + seminarStats.count) },
+            { lbl: "Reports Saved", val: String(attrStats.count + dailyStats.count + seminarStats.count + profitStats.count) },
             { lbl: "Latest Report", val: latestReportDate ? fmtDate(latestReportDate) : "—" },
-            { lbl: "Active Types", val: String((attrStats.count > 0 ? 1 : 0) + (dailyStats.count > 0 ? 1 : 0) + (seminarStats.count > 0 ? 1 : 0)) },
+            { lbl: "Active Types", val: String((attrStats.count > 0 ? 1 : 0) + (dailyStats.count > 0 ? 1 : 0) + (seminarStats.count > 0 ? 1 : 0) + (profitStats.count > 0 ? 1 : 0)) },
           ]}
           onClick={() => setSection("overview")}
         />
@@ -335,6 +391,10 @@ export default function Reports() {
 
       {section === "seminar" && (
         <SeminarSection rows={visibleSeminar} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadSeminar} navigate={navigate} />
+      )}
+
+      {section === "profit" && (
+        <ProfitStatementsSection rows={visibleProfit} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadProfit} navigate={navigate} />
       )}
 
       {section === "overview" && (
@@ -1449,5 +1509,173 @@ function ReportDrawer({ session, onClose, onEdit, onDelete }: { session: Session
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/* ============================================================
+   PROFIT STATEMENTS SECTION
+   ============================================================ */
+function ProfitStatementsSection({
+  rows, showDeleted, setShowDeleted, reload, navigate,
+}: { rows: ProfitStatementRow[]; showDeleted: boolean; setShowDeleted: (b: boolean) => void; reload: () => void; navigate: (p: string) => void; }) {
+  const { user } = useAuth();
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusF, setStatusF] = useState<"all" | "draft" | "posted">("all");
+  const [unit, setUnit] = useState("all");
+
+  const units = useMemo(() => {
+    const s = new Set<string>();
+    rows.forEach((r) => r.business_unit && s.add(r.business_unit));
+    return Array.from(s).sort();
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return rows.filter((r) => {
+      if (statusF !== "all" && r.status !== statusF) return false;
+      if (unit !== "all" && r.business_unit !== unit) return false;
+      if (q) {
+        const hay = [r.business_unit, r.statement_month, r.status].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [rows, search, statusF, unit]);
+
+  const trash = async (id: string) => {
+    if (!confirm("Move this Profit Statement to Trash? It will auto-delete in 14 days.")) return;
+    setBusyId(id);
+    try {
+      const { error } = await (supabase as any)
+        .from("profit_statements")
+        .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Moved to Trash.");
+      reload();
+    } catch (e: any) { toast.error(e?.message || "Could not delete."); }
+    finally { setBusyId(null); }
+  };
+
+  const restore = async (id: string) => {
+    setBusyId(id);
+    try {
+      const { error } = await (supabase as any)
+        .from("profit_statements")
+        .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Restored.");
+      reload();
+    } catch (e: any) { toast.error(e?.message || "Could not restore."); }
+    finally { setBusyId(null); }
+  };
+
+  const exportCsv = async (s: ProfitStatementRow) => {
+    const { data: lines } = await (supabase as any)
+      .from("profit_statement_lines")
+      .select("bucket, category, label, amount, source_type, notes")
+      .eq("profit_statement_id", s.id);
+    const header = ["Bucket", "Category", "Label", "Amount (INR)", "Source", "Notes"];
+    const rs = (lines ?? []).map((l: any) => [l.bucket, l.category ?? "", l.label ?? "", Number(l.amount ?? 0), l.source_type ?? "", (l.notes ?? "").replace(/\n/g, " ")]);
+    const summary = [
+      ["", "", "", "", "", ""],
+      ["Summary", "", "", "", "", ""],
+      ["Revenue", "", "", Number(s.total_revenue ?? 0), "", ""],
+      ["COGS", "", "", Number(s.total_cogs ?? 0), "", ""],
+      ["Gross Profit", "", "", Number(s.gross_profit ?? 0), "", ""],
+      ["Operating Expense", "", "", Number(s.total_operating_expense ?? 0), "", ""],
+      ["Fixed Expense", "", "", Number(s.total_fixed_expense ?? 0), "", ""],
+      ["Variable Expense", "", "", Number(s.total_variable_expense ?? 0), "", ""],
+      ["One-Time Expense", "", "", Number(s.total_one_time_expense ?? 0), "", ""],
+      ["Payroll", "", "", Number(s.total_payroll ?? 0), "", ""],
+      ["Incentives", "", "", Number(s.total_incentives ?? 0), "", ""],
+      ["Net Profit", "", "", Number(s.net_profit ?? 0), "", ""],
+      ["Net Margin %", "", "", Number(s.net_margin ?? 0), "", ""],
+    ];
+    const csv = [header, ...rs, ...summary].map((r) => r.map((c) => {
+      const v = String(c ?? "");
+      return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    }).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `profit-statement-${s.business_unit}-${s.statement_month?.slice(0, 7)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end" }}>
+        <div style={{ flex: "1 1 200px" }}>
+          <label className="filter-lbl">Search</label>
+          <input className="fi fi-sm" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Month, business unit, status…" />
+        </div>
+        <div>
+          <label className="filter-lbl">Business Unit</label>
+          <select className="fsel fsel-sm" value={unit} onChange={(e) => setUnit(e.target.value)}>
+            <option value="all">All</option>
+            {units.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="filter-lbl">Status</label>
+          <select className="fsel fsel-sm" value={statusF} onChange={(e) => setStatusF(e.target.value as any)}>
+            <option value="all">All</option>
+            <option value="draft">Draft</option>
+            <option value="posted">Posted</option>
+          </select>
+        </div>
+        <button className="btn btn-g btn-sm" onClick={() => setShowDeleted(!showDeleted)}>
+          {showDeleted ? "Hide deleted" : "Show deleted"}
+        </button>
+        <button className="btn btn-k btn-sm" onClick={() => navigate("/profit-statement")}>+ New Statement</button>
+      </div>
+
+      <div style={{ border: "1px solid #E8E5DE", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+        <table className="attr-table">
+          <thead>
+            <tr>
+              <th>Month</th><th>Business Unit</th><th>Revenue</th><th>Gross Profit</th><th>Payroll</th><th>Net Profit</th><th>Margin</th><th>Status</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr><td colSpan={9} style={{ textAlign: "center", padding: 24, color: "#888" }}>No profit statements yet.</td></tr>
+            )}
+            {filtered.map((s) => (
+              <tr key={s.id}>
+                <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }}>{s.statement_month?.slice(0, 7)}</td>
+                <td>{s.business_unit}</td>
+                <td>{inr(Number(s.total_revenue))}</td>
+                <td>{inr(Number(s.gross_profit))}</td>
+                <td>{inr(Number(s.total_payroll))}</td>
+                <td style={{ fontWeight: 500 }}>{inr(Number(s.net_profit))}</td>
+                <td>{Number(s.net_margin).toFixed(1)}%</td>
+                <td>
+                  <span style={{
+                    padding: "2px 8px", borderRadius: 4, fontSize: 11,
+                    background: s.status === "posted" ? "#F0FDF4" : "#F7F6F3",
+                    color: s.status === "posted" ? "#16A34A" : "#888",
+                    border: s.status === "posted" ? "1px solid #BBF7D0" : "1px solid #E8E5DE",
+                  }}>{s.status}</span>
+                  {s.is_deleted && <span style={{ marginLeft: 6, fontSize: 10, color: "#DC2626" }}>· Trash {daysRemaining(s.deleted_at)}d</span>}
+                </td>
+                <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                  <button className="btn btn-g btn-sm" onClick={() => exportCsv(s)} style={{ marginRight: 6 }}>Export CSV</button>
+                  <button className="btn btn-g btn-sm" onClick={() => navigate(`/profit-statement`)} style={{ marginRight: 6 }}>Open</button>
+                  {s.is_deleted
+                    ? <button className="btn btn-g btn-sm" disabled={busyId === s.id} onClick={() => restore(s.id)}>Restore</button>
+                    : <button className="btn btn-g btn-sm" disabled={busyId === s.id} onClick={() => trash(s.id)} style={{ color: "#DC2626" }}>Delete</button>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
