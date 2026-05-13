@@ -146,7 +146,28 @@ function periodMonth(s: SessionRow): string {
   return d ? String(d).slice(0, 7) : "";
 }
 
-type SectionKey = "attribution" | "daily" | "seminar" | "overview";
+type SectionKey = "attribution" | "daily" | "seminar" | "profit" | "overview";
+
+type ProfitStatementRow = {
+  id: string;
+  business_unit: string;
+  statement_month: string;
+  status: string;
+  total_revenue: number;
+  total_cogs: number;
+  gross_profit: number;
+  total_payroll: number;
+  total_operating_expense: number;
+  total_fixed_expense: number;
+  total_variable_expense: number;
+  total_one_time_expense: number;
+  total_incentives: number;
+  net_profit: number;
+  net_margin: number;
+  is_deleted: boolean;
+  deleted_at: string | null;
+  created_at: string;
+};
 
 type SeminarRow = {
   id: string;
