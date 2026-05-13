@@ -387,11 +387,23 @@ export default function Crm() {
                     <div className="font-serif text-3xl">{b.total}</div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">leads</div>
                   </div>
-                  <div className="flex items-center gap-2 mt-3 text-[10px]">
+                  <div className="flex items-center gap-1.5 mt-3 text-[10px] flex-wrap">
                     {b.superHot > 0 && <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES["super-hot"].bg, color: GRADE_STYLES["super-hot"].fg, border: `1px solid ${GRADE_STYLES["super-hot"].border}` }}>★ {b.superHot}</span>}
                     <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.hot.bg, color: GRADE_STYLES.hot.fg, border: `1px solid ${GRADE_STYLES.hot.border}` }}>{b.hot} hot</span>
                     <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.warm.bg, color: GRADE_STYLES.warm.fg, border: `1px solid ${GRADE_STYLES.warm.border}` }}>{b.warm} warm</span>
                     <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.cold.bg, color: GRADE_STYLES.cold.fg, border: `1px solid ${GRADE_STYLES.cold.border}` }}>{b.cold} cold</span>
+                    {b.absentees > 0 && <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES["true-absentee"].bg, color: GRADE_STYLES["true-absentee"].fg, border: `1px solid ${GRADE_STYLES["true-absentee"].border}` }}>{b.absentees} absentees</span>}
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-line" onClick={(e) => e.stopPropagation()}>
+                    <div className="uppercase-label !text-[9px] mb-1.5 flex items-center gap-1"><Download className="w-3 h-3" /> Download by category</div>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button onClick={() => downloadBatchCsv(b, "all")} className="px-2 py-1 rounded-md border border-line text-[10px] hover:bg-off">All ({b.total})</button>
+                      {b.superHot > 0 && <button onClick={() => downloadBatchCsv(b, "super-hot")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES["super-hot"].bg, color: GRADE_STYLES["super-hot"].fg, borderColor: GRADE_STYLES["super-hot"].border }}>★ {b.superHot}</button>}
+                      {b.hot > 0 && <button onClick={() => downloadBatchCsv(b, "hot")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES.hot.bg, color: GRADE_STYLES.hot.fg, borderColor: GRADE_STYLES.hot.border }}>Hot ({b.hot})</button>}
+                      {b.warm > 0 && <button onClick={() => downloadBatchCsv(b, "warm")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES.warm.bg, color: GRADE_STYLES.warm.fg, borderColor: GRADE_STYLES.warm.border }}>Warm ({b.warm})</button>}
+                      {b.cold > 0 && <button onClick={() => downloadBatchCsv(b, "cold")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES.cold.bg, color: GRADE_STYLES.cold.fg, borderColor: GRADE_STYLES.cold.border }}>Cold ({b.cold})</button>}
+                      {b.absentees > 0 && <button onClick={() => downloadBatchCsv(b, "absentees")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES["true-absentee"].bg, color: GRADE_STYLES["true-absentee"].fg, borderColor: GRADE_STYLES["true-absentee"].border }}>Absentees ({b.absentees})</button>}
+                    </div>
                   </div>
                 </div>
               );
