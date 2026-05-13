@@ -198,6 +198,17 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [dailyStats, setDailyStats] = useState({ count: 0, spend: 0, leadsTotal: 0, avgCpl: null as number | null });
   const [seminarRows, setSeminarRows] = useState<SeminarRow[]>([]);
+  const [profitRows, setProfitRows] = useState<ProfitStatementRow[]>([]);
+
+  const reloadProfit = async () => {
+    const { data } = await (supabase as any)
+      .from("profit_statements")
+      .select("*")
+      .order("statement_month", { ascending: false })
+      .limit(500);
+    setProfitRows((data || []) as ProfitStatementRow[]);
+  };
+
 
   const reloadSeminar = async () => {
     const { data } = await (supabase as any)
