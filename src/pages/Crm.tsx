@@ -67,20 +67,47 @@ export default function Crm() {
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
-    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; created: string | null }>();
+    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null }>();
     for (const l of leads) {
       const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
-      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, created: l.created_at };
+      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at };
       cur.total++;
       if (l.is_super_hot) cur.superHot++;
       if (l.grade === "hot") cur.hot++;
       else if (l.grade === "warm") cur.warm++;
       else if (l.grade === "cold") cur.cold++;
+      else if (l.grade === "non-attendee" || l.grade === "true-absentee" || l.grade === "very-cold") cur.absentees++;
       if (!cur.created || (l.created_at && l.created_at > cur.created)) cur.created = l.created_at;
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
   }, [leads]);
+
+  type BatchCategory = "all" | "super-hot" | "hot" | "warm" | "cold" | "absentees";
+  const downloadBatchCsv = (batch: { name: string; date: string | null }, category: BatchCategory) => {
+    const inBatch = leads.filter((l) => (l.webinar_source || "Unsourced") === batch.name && (l.webinar_date || null) === batch.date);
+    const filtered = inBatch.filter((l) => {
+      if (category === "all") return true;
+      if (category === "super-hot") return l.is_super_hot;
+      if (category === "absentees") return l.grade === "non-attendee" || l.grade === "true-absentee" || l.grade === "very-cold";
+      return l.grade === category;
+    });
+    if (filtered.length === 0) { toast.info(`No ${category} leads in this batch`); return; }
+    const rows = [["Name","Email","Phone","Country","Score","Grade","Super Hot","Attendance %","Total Minutes","Sessions","Webinar","Webinar Date","Stage","Agent","Deal Value"]];
+    for (const l of filtered) {
+      const stg = stages.find((s) => s.id === l.stage_id)?.name || "";
+      const ag = agents.find((a) => a.id === l.assigned_agent_id)?.full_name || "";
+      rows.push([l.full_name||"", l.email||"", l.phone||"", l.country||"", String(l.score), l.grade, l.is_super_hot?"Yes":"", String(l.attendance_pct||0), String(l.total_minutes||0), String(l.sessions_count||0), l.webinar_source||"", l.webinar_date||"", stg, ag, String(l.deal_value||0)]);
+    }
+    const csv = rows.map((r) => r.map((c) => `"${(c||"").replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const slug = `${batch.name}-${batch.date||"nodate"}-${category}`.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    a.download = `crm-batch-${slug}.csv`;
+    a.click();
+    toast.success(`Downloaded ${filtered.length} ${category} leads`);
+  };
 
   const onDrop = async (e: React.DragEvent, stageId: string, beforeLeadId?: string) => {
     e.preventDefault();
@@ -360,11 +387,23 @@ export default function Crm() {
                     <div className="font-serif text-3xl">{b.total}</div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">leads</div>
                   </div>
-                  <div className="flex items-center gap-2 mt-3 text-[10px]">
+                  <div className="flex items-center gap-1.5 mt-3 text-[10px] flex-wrap">
                     {b.superHot > 0 && <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES["super-hot"].bg, color: GRADE_STYLES["super-hot"].fg, border: `1px solid ${GRADE_STYLES["super-hot"].border}` }}>★ {b.superHot}</span>}
                     <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.hot.bg, color: GRADE_STYLES.hot.fg, border: `1px solid ${GRADE_STYLES.hot.border}` }}>{b.hot} hot</span>
                     <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.warm.bg, color: GRADE_STYLES.warm.fg, border: `1px solid ${GRADE_STYLES.warm.border}` }}>{b.warm} warm</span>
                     <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES.cold.bg, color: GRADE_STYLES.cold.fg, border: `1px solid ${GRADE_STYLES.cold.border}` }}>{b.cold} cold</span>
+                    {b.absentees > 0 && <span className="px-1.5 py-0.5 rounded-full" style={{ background: GRADE_STYLES["true-absentee"].bg, color: GRADE_STYLES["true-absentee"].fg, border: `1px solid ${GRADE_STYLES["true-absentee"].border}` }}>{b.absentees} absentees</span>}
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-line" onClick={(e) => e.stopPropagation()}>
+                    <div className="uppercase-label !text-[9px] mb-1.5 flex items-center gap-1"><Download className="w-3 h-3" /> Download by category</div>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button onClick={() => downloadBatchCsv(b, "all")} className="px-2 py-1 rounded-md border border-line text-[10px] hover:bg-off">All ({b.total})</button>
+                      {b.superHot > 0 && <button onClick={() => downloadBatchCsv(b, "super-hot")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES["super-hot"].bg, color: GRADE_STYLES["super-hot"].fg, borderColor: GRADE_STYLES["super-hot"].border }}>★ {b.superHot}</button>}
+                      {b.hot > 0 && <button onClick={() => downloadBatchCsv(b, "hot")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES.hot.bg, color: GRADE_STYLES.hot.fg, borderColor: GRADE_STYLES.hot.border }}>Hot ({b.hot})</button>}
+                      {b.warm > 0 && <button onClick={() => downloadBatchCsv(b, "warm")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES.warm.bg, color: GRADE_STYLES.warm.fg, borderColor: GRADE_STYLES.warm.border }}>Warm ({b.warm})</button>}
+                      {b.cold > 0 && <button onClick={() => downloadBatchCsv(b, "cold")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES.cold.bg, color: GRADE_STYLES.cold.fg, borderColor: GRADE_STYLES.cold.border }}>Cold ({b.cold})</button>}
+                      {b.absentees > 0 && <button onClick={() => downloadBatchCsv(b, "absentees")} className="px-2 py-1 rounded-md border text-[10px] hover:opacity-80" style={{ background: GRADE_STYLES["true-absentee"].bg, color: GRADE_STYLES["true-absentee"].fg, borderColor: GRADE_STYLES["true-absentee"].border }}>Absentees ({b.absentees})</button>}
+                    </div>
                   </div>
                 </div>
               );
