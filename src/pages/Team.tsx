@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { initials, formatTime, formatDateShort } from "@/lib/format";
 import { useAuth } from "@/context/AuthContext";
 import { MODULES, type ModuleKey } from "@/lib/modules";
+import PayrollFieldsSection, { emptyPayroll, dbToPayroll, payrollToDb, type PayrollFormState } from "@/components/PayrollFieldsSection";
 import { toast } from "sonner";
 import { Shield, X } from "lucide-react";
 
