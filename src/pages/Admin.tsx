@@ -39,19 +39,32 @@ export default function Admin() {
   const [mPass, setMPass] = useState("");
   const [mRole, setMRole] = useState("Media Buyer");
   const [mDept, setMDept] = useState("");
+  const [mPayroll, setMPayroll] = useState<PayrollFormState>(emptyPayroll());
   const [mBusy, setMBusy] = useState(false);
 
   const addMember = async () => {
     if (!mName || !mEmail || !mPass) return toast.error("Name, email and password required.");
     if (!mRole.trim()) return toast.error("Please select or add a role.");
+    if (mPayroll.payroll_applicable && !mPayroll.joining_date) return toast.error("Joining date is required for payroll-applicable members.");
+    if (mPayroll.payroll_applicable) {
+      const pt = mPayroll.pay_type;
+      if (["Monthly Salary","Retainer","Internship / Stipend"].includes(pt) && !Number(mPayroll.monthly_salary)) return toast.error("Monthly salary amount is required.");
+      if (["One-Time / Outsourced","Project-Based","Event-Based"].includes(pt) && !Number(mPayroll.one_time_pay)) return toast.error("One-time / project / event pay amount is required.");
+      if (pt === "Daily Wage" && !Number(mPayroll.daily_wage)) return toast.error("Daily wage amount is required.");
+      if (pt === "Hourly Pay" && !Number(mPayroll.hourly_rate)) return toast.error("Hourly rate is required.");
+    }
     setMBusy(true);
     const { data, error } = await supabase.functions.invoke("admin-create-member", {
-      body: { full_name: mName, email: mEmail, password: mPass, role: mRole, department: mDept || null },
+      body: {
+        full_name: mName, email: mEmail, password: mPass, role: mRole,
+        department: mDept || null,
+        payroll: payrollToDb(mPayroll),
+      },
     });
     setMBusy(false);
     if (error || (data as any)?.error) return toast.error((data as any)?.error || error!.message);
     toast.success(`${mName} added and activated.`);
-    setMName(""); setMEmail(""); setMPass(""); setMDept("");
+    setMName(""); setMEmail(""); setMPass(""); setMDept(""); setMPayroll(emptyPayroll());
     load();
   };
 
