@@ -995,6 +995,42 @@ function SavedStatementsTab() {
     load();
   };
 
+  const exportCsv = async (s: any) => {
+    const { data: lines } = await supabase
+      .from("profit_statement_lines")
+      .select("bucket, category, label, amount, source_type, notes")
+      .eq("profit_statement_id", s.id);
+    const header = ["Bucket","Category","Label","Amount (INR)","Source","Notes"];
+    const rows = (lines ?? []).map((l: any) => [l.bucket, l.category ?? "", l.label ?? "", Number(l.amount ?? 0), l.source_type ?? "", (l.notes ?? "").replace(/\n/g, " ")]);
+    const summary = [
+      ["", "", "", "", "", ""],
+      ["Summary", "", "", "", "", ""],
+      ["Revenue","","",Number(s.total_revenue ?? 0),"",""],
+      ["COGS","","",Number(s.total_cogs ?? 0),"",""],
+      ["Gross Profit","","",Number(s.gross_profit ?? 0),"",""],
+      ["Operating Expense","","",Number(s.total_operating_expense ?? 0),"",""],
+      ["Fixed Expense","","",Number(s.total_fixed_expense ?? 0),"",""],
+      ["Variable Expense","","",Number(s.total_variable_expense ?? 0),"",""],
+      ["One-Time Expense","","",Number(s.total_one_time_expense ?? 0),"",""],
+      ["Payroll","","",Number(s.total_payroll ?? 0),"",""],
+      ["Incentives","","",Number(s.total_incentives ?? 0),"",""],
+      ["Net Profit","","",Number(s.net_profit ?? 0),"",""],
+      ["Net Margin %","","",Number(s.net_margin ?? 0),"",""],
+    ];
+    const all = [header, ...rows, ...summary];
+    const csv = all.map(r => r.map(c => {
+      const v = String(c ?? "");
+      return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    }).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `profit-statement-${s.business_unit}-${s.statement_month?.slice(0,7)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="border border-line rounded-xl bg-white overflow-hidden">
       <table className="w-full border-collapse font-sans text-[12px]">
@@ -1013,7 +1049,10 @@ function SavedStatementsTab() {
               <td className="py-2.5 px-3 font-medium">{inr(s.net_profit)}</td>
               <td className="py-2.5 px-3">{Number(s.net_margin).toFixed(1)}%</td>
               <td className="py-2.5 px-3"><span className={`px-2 py-0.5 rounded text-[10px] ${s.status === "posted" ? "bg-[#0d7a5f]/10 text-[#0d7a5f]" : "bg-off border border-line"}`}>{s.status}</span></td>
-              <td className="py-2.5 px-3 text-right"><button onClick={() => softDelete(s.id)} className="text-[10px] text-[#DC2626] hover:underline">Delete</button></td>
+              <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                <button onClick={() => exportCsv(s)} className="text-[10px] text-black hover:underline mr-3">Export CSV</button>
+                <button onClick={() => softDelete(s.id)} className="text-[10px] text-[#DC2626] hover:underline">Delete</button>
+              </td>
             </tr>
           ))}
         </tbody>
