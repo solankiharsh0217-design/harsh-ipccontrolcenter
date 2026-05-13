@@ -7,7 +7,6 @@ import {
   calcPayrollEntry,
   inr,
   monthBounds,
-  PAY_TYPES,
   PNL_CLASSIFICATIONS,
 } from "@/lib/payroll";
 import QuickSaveInput from "@/components/QuickSaveInput";
