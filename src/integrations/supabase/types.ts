@@ -491,6 +491,27 @@ export type Database = {
           },
         ]
       }
+      business_units: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       daily_custom_metrics: {
         Row: {
           aggregation_method: string
@@ -878,6 +899,57 @@ export type Database = {
           },
         ]
       }
+      incentives: {
+        Row: {
+          amount: number
+          business_unit: string | null
+          cadence: string | null
+          cost_classification: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          incentive_date: string | null
+          incentive_type: string | null
+          notes: string | null
+          reason: string | null
+          team_member_id: string | null
+          team_member_name_snapshot: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          business_unit?: string | null
+          cadence?: string | null
+          cost_classification?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incentive_date?: string | null
+          incentive_type?: string | null
+          notes?: string | null
+          reason?: string | null
+          team_member_id?: string | null
+          team_member_name_snapshot?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          business_unit?: string | null
+          cadence?: string | null
+          cost_classification?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incentive_date?: string | null
+          incentive_type?: string | null
+          notes?: string | null
+          reason?: string | null
+          team_member_id?: string | null
+          team_member_name_snapshot?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lead_entries: {
         Row: {
           ad_spend: number
@@ -1106,6 +1178,155 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_run_entries: {
+        Row: {
+          base_monthly_salary: number | null
+          calculated_amount: number
+          cost_classification: string | null
+          created_at: string
+          daily_wage: number | null
+          excluded: boolean
+          exit_date: string | null
+          expense_category: string | null
+          final_payable_amount: number
+          hourly_rate: number | null
+          hours_worked: number | null
+          id: string
+          joining_date: string | null
+          manual_adjustment_amount: number
+          one_time_pay: number | null
+          pay_type: string | null
+          payable_days: number | null
+          payroll_run_id: string
+          period_end: string | null
+          period_start: string | null
+          reason: string | null
+          role_snapshot: string | null
+          status: string
+          team_member_id: string | null
+          team_member_name_snapshot: string | null
+          total_period_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          base_monthly_salary?: number | null
+          calculated_amount?: number
+          cost_classification?: string | null
+          created_at?: string
+          daily_wage?: number | null
+          excluded?: boolean
+          exit_date?: string | null
+          expense_category?: string | null
+          final_payable_amount?: number
+          hourly_rate?: number | null
+          hours_worked?: number | null
+          id?: string
+          joining_date?: string | null
+          manual_adjustment_amount?: number
+          one_time_pay?: number | null
+          pay_type?: string | null
+          payable_days?: number | null
+          payroll_run_id: string
+          period_end?: string | null
+          period_start?: string | null
+          reason?: string | null
+          role_snapshot?: string | null
+          status?: string
+          team_member_id?: string | null
+          team_member_name_snapshot?: string | null
+          total_period_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          base_monthly_salary?: number | null
+          calculated_amount?: number
+          cost_classification?: string | null
+          created_at?: string
+          daily_wage?: number | null
+          excluded?: boolean
+          exit_date?: string | null
+          expense_category?: string | null
+          final_payable_amount?: number
+          hourly_rate?: number | null
+          hours_worked?: number | null
+          id?: string
+          joining_date?: string | null
+          manual_adjustment_amount?: number
+          one_time_pay?: number | null
+          pay_type?: string | null
+          payable_days?: number | null
+          payroll_run_id?: string
+          period_end?: string | null
+          period_start?: string | null
+          reason?: string | null
+          role_snapshot?: string | null
+          status?: string
+          team_member_id?: string | null
+          team_member_name_snapshot?: string | null
+          total_period_days?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_run_entries_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_runs: {
+        Row: {
+          business_unit: string
+          created_at: string
+          created_by: string | null
+          disbursement_date: string | null
+          id: string
+          notes: string | null
+          period_end: string
+          period_start: string
+          salary_cycle: string | null
+          statement_basis: string
+          statement_month: string
+          status: string
+          total_payroll_amount: number
+          updated_at: string
+        }
+        Insert: {
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          disbursement_date?: string | null
+          id?: string
+          notes?: string | null
+          period_end: string
+          period_start: string
+          salary_cycle?: string | null
+          statement_basis?: string
+          statement_month: string
+          status?: string
+          total_payroll_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          disbursement_date?: string | null
+          id?: string
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          salary_cycle?: string | null
+          statement_basis?: string
+          statement_month?: string
+          status?: string
+          total_payroll_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pipelines: {
         Row: {
           created_at: string
@@ -1163,6 +1384,131 @@ export type Database = {
         }
         Relationships: []
       }
+      profit_statement_lines: {
+        Row: {
+          amount: number
+          bucket: string
+          category: string | null
+          created_at: string
+          id: string
+          label: string
+          notes: string | null
+          profit_statement_id: string
+          source_id: string | null
+          source_type: string | null
+        }
+        Insert: {
+          amount?: number
+          bucket: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          label: string
+          notes?: string | null
+          profit_statement_id: string
+          source_id?: string | null
+          source_type?: string | null
+        }
+        Update: {
+          amount?: number
+          bucket?: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          profit_statement_id?: string
+          source_id?: string | null
+          source_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profit_statement_lines_profit_statement_id_fkey"
+            columns: ["profit_statement_id"]
+            isOneToOne: false
+            referencedRelation: "profit_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profit_statements: {
+        Row: {
+          business_unit: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          gross_profit: number
+          id: string
+          is_deleted: boolean
+          net_margin: number
+          net_profit: number
+          notes: string | null
+          statement_basis: string
+          statement_month: string
+          status: string
+          total_cogs: number
+          total_fixed_expense: number
+          total_incentives: number
+          total_one_time_expense: number
+          total_operating_expense: number
+          total_payroll: number
+          total_revenue: number
+          total_variable_expense: number
+          updated_at: string
+        }
+        Insert: {
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          gross_profit?: number
+          id?: string
+          is_deleted?: boolean
+          net_margin?: number
+          net_profit?: number
+          notes?: string | null
+          statement_basis?: string
+          statement_month: string
+          status?: string
+          total_cogs?: number
+          total_fixed_expense?: number
+          total_incentives?: number
+          total_one_time_expense?: number
+          total_operating_expense?: number
+          total_payroll?: number
+          total_revenue?: number
+          total_variable_expense?: number
+          updated_at?: string
+        }
+        Update: {
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          gross_profit?: number
+          id?: string
+          is_deleted?: boolean
+          net_margin?: number
+          net_profit?: number
+          notes?: string | null
+          statement_basis?: string
+          statement_month?: string
+          status?: string
+          total_cogs?: number
+          total_fixed_expense?: number
+          total_incentives?: number
+          total_one_time_expense?: number
+          total_operating_expense?: number
+          total_payroll?: number
+          total_revenue?: number
+          total_variable_expense?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quick_save_entries: {
         Row: {
           created_at: string
@@ -1193,6 +1539,57 @@ export type Database = {
           sort_order?: number
           updated_at?: string
           value?: string
+        }
+        Relationships: []
+      }
+      recurring_expense_templates: {
+        Row: {
+          amount: number
+          business_unit: string | null
+          category: string | null
+          cost_classification: string | null
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          expense_name: string
+          frequency: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          start_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          business_unit?: string | null
+          category?: string | null
+          cost_classification?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          expense_name: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          business_unit?: string | null
+          category?: string | null
+          cost_classification?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          expense_name?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_date?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2353,6 +2750,138 @@ export type Database = {
           phone?: string | null
           search_text?: string
           source?: string
+        }
+        Relationships: []
+      }
+      team_payroll_profiles: {
+        Row: {
+          business_unit: string | null
+          created_at: string
+          created_by: string | null
+          custom_cycle_end_day: number | null
+          custom_cycle_start_day: number | null
+          daily_wage: number
+          department_snapshot: string | null
+          disbursement_end_day: number | null
+          disbursement_start_day: number | null
+          exit_date: string | null
+          full_name_snapshot: string | null
+          hourly_rate: number
+          id: string
+          is_active: boolean
+          joining_date: string | null
+          monthly_salary: number
+          notes: string | null
+          one_time_pay: number
+          pay_type: string
+          payroll_applicable: boolean
+          pnl_cost_classification: string | null
+          role_snapshot: string | null
+          salary_cycle: string | null
+          salary_expense_category: string | null
+          team_member_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          business_unit?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_cycle_end_day?: number | null
+          custom_cycle_start_day?: number | null
+          daily_wage?: number
+          department_snapshot?: string | null
+          disbursement_end_day?: number | null
+          disbursement_start_day?: number | null
+          exit_date?: string | null
+          full_name_snapshot?: string | null
+          hourly_rate?: number
+          id?: string
+          is_active?: boolean
+          joining_date?: string | null
+          monthly_salary?: number
+          notes?: string | null
+          one_time_pay?: number
+          pay_type?: string
+          payroll_applicable?: boolean
+          pnl_cost_classification?: string | null
+          role_snapshot?: string | null
+          salary_cycle?: string | null
+          salary_expense_category?: string | null
+          team_member_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          business_unit?: string | null
+          created_at?: string
+          created_by?: string | null
+          custom_cycle_end_day?: number | null
+          custom_cycle_start_day?: number | null
+          daily_wage?: number
+          department_snapshot?: string | null
+          disbursement_end_day?: number | null
+          disbursement_start_day?: number | null
+          exit_date?: string | null
+          full_name_snapshot?: string | null
+          hourly_rate?: number
+          id?: string
+          is_active?: boolean
+          joining_date?: string | null
+          monthly_salary?: number
+          notes?: string | null
+          one_time_pay?: number
+          pay_type?: string
+          payroll_applicable?: boolean
+          pnl_cost_classification?: string | null
+          role_snapshot?: string | null
+          salary_cycle?: string | null
+          salary_expense_category?: string | null
+          team_member_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      team_salary_history: {
+        Row: {
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string
+          effective_from: string | null
+          effective_to: string | null
+          id: string
+          new_amount: number | null
+          new_pay_type: string | null
+          old_amount: number | null
+          old_pay_type: string | null
+          team_member_id: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: string
+          new_amount?: number | null
+          new_pay_type?: string | null
+          old_amount?: number | null
+          old_pay_type?: string | null
+          team_member_id: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          effective_from?: string | null
+          effective_to?: string | null
+          id?: string
+          new_amount?: number | null
+          new_pay_type?: string | null
+          old_amount?: number | null
+          old_pay_type?: string | null
+          team_member_id?: string
         }
         Relationships: []
       }
