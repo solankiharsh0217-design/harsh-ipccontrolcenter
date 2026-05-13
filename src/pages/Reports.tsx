@@ -393,6 +393,10 @@ export default function Reports() {
         <SeminarSection rows={visibleSeminar} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadSeminar} navigate={navigate} />
       )}
 
+      {section === "profit" && (
+        <ProfitStatementsSection rows={visibleProfit} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadProfit} navigate={navigate} />
+      )}
+
       {section === "overview" && (
         <OverviewSection sessions={visibleSessions} dailyStats={dailyStats} />
       )}
