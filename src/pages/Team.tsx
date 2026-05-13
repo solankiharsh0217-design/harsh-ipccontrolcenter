@@ -25,6 +25,7 @@ export default function Team() {
   const [editName, setEditName] = useState("");
   const [editRole, setEditRole] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
+  const [editPayroll, setEditPayroll] = useState<PayrollFormState>(emptyPayroll());
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
