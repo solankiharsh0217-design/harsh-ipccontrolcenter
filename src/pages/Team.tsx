@@ -87,6 +87,24 @@ export default function Team() {
         const { error } = await supabase.from("user_module_access").insert(rows);
         if (error) throw error;
       }
+      // Upsert payroll profile
+      if (isAdmin) {
+        if (editPayroll.payroll_applicable && !editPayroll.joining_date) {
+          throw new Error("Joining date is required for payroll-applicable members.");
+        }
+        const payload = {
+          team_member_id: editing.id,
+          full_name_snapshot: editName.trim() || editing.full_name,
+          role_snapshot: editRole.trim() || editing.role,
+          department_snapshot: editDepartment.trim() || null,
+          ...payrollToDb(editPayroll),
+          updated_by: user?.id ?? null,
+        };
+        const { error: payErr } = await supabase
+          .from("team_payroll_profiles")
+          .upsert(payload, { onConflict: "team_member_id" });
+        if (payErr) throw payErr;
+      }
       toast.success(`Updated ${editName || editing.full_name}`);
       setEditing(null);
       await load();
