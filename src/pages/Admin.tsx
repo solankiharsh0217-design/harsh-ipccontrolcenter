@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { formatTime, formatDateShort } from "@/lib/format";
 import QuickSaveInput from "@/components/QuickSaveInput";
+import PayrollFieldsSection, { emptyPayroll, PayrollFormState, payrollToDb } from "@/components/PayrollFieldsSection";
 
 export default function Admin() {
   const { user } = useAuth();
