@@ -67,20 +67,47 @@ export default function Crm() {
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
-    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; created: string | null }>();
+    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null }>();
     for (const l of leads) {
       const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
-      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, created: l.created_at };
+      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at };
       cur.total++;
       if (l.is_super_hot) cur.superHot++;
       if (l.grade === "hot") cur.hot++;
       else if (l.grade === "warm") cur.warm++;
       else if (l.grade === "cold") cur.cold++;
+      else if (l.grade === "non-attendee" || l.grade === "true-absentee" || l.grade === "very-cold") cur.absentees++;
       if (!cur.created || (l.created_at && l.created_at > cur.created)) cur.created = l.created_at;
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
   }, [leads]);
+
+  type BatchCategory = "all" | "super-hot" | "hot" | "warm" | "cold" | "absentees";
+  const downloadBatchCsv = (batch: { name: string; date: string | null }, category: BatchCategory) => {
+    const inBatch = leads.filter((l) => (l.webinar_source || "Unsourced") === batch.name && (l.webinar_date || null) === batch.date);
+    const filtered = inBatch.filter((l) => {
+      if (category === "all") return true;
+      if (category === "super-hot") return l.is_super_hot;
+      if (category === "absentees") return l.grade === "non-attendee" || l.grade === "true-absentee" || l.grade === "very-cold";
+      return l.grade === category;
+    });
+    if (filtered.length === 0) { toast.info(`No ${category} leads in this batch`); return; }
+    const rows = [["Name","Email","Phone","Country","Score","Grade","Super Hot","Attendance %","Total Minutes","Sessions","Webinar","Webinar Date","Stage","Agent","Deal Value"]];
+    for (const l of filtered) {
+      const stg = stages.find((s) => s.id === l.stage_id)?.name || "";
+      const ag = agents.find((a) => a.id === l.assigned_agent_id)?.full_name || "";
+      rows.push([l.full_name||"", l.email||"", l.phone||"", l.country||"", String(l.score), l.grade, l.is_super_hot?"Yes":"", String(l.attendance_pct||0), String(l.total_minutes||0), String(l.sessions_count||0), l.webinar_source||"", l.webinar_date||"", stg, ag, String(l.deal_value||0)]);
+    }
+    const csv = rows.map((r) => r.map((c) => `"${(c||"").replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const slug = `${batch.name}-${batch.date||"nodate"}-${category}`.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    a.download = `crm-batch-${slug}.csv`;
+    a.click();
+    toast.success(`Downloaded ${filtered.length} ${category} leads`);
+  };
 
   const onDrop = async (e: React.DragEvent, stageId: string, beforeLeadId?: string) => {
     e.preventDefault();
