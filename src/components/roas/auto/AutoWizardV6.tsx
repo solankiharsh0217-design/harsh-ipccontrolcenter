@@ -103,7 +103,7 @@ function loadDraft(): DraftV6 {
     const j = JSON.parse(raw);
     const merged: DraftV6 = { ...EMPTY, ...j, webinar: { ...EMPTY_WEBINAR, ...(j?.webinar || {}) } };
     merged.results = sanitizeResults(merged.results);
-    if (!merged.results && merged.step === 5) merged.step = 4;
+    if (!merged.results && merged.step >= 4) merged.step = 3;
     if (!merged.results) merged.resultsStatus = null;
     return merged;
   } catch { return EMPTY; }
@@ -219,7 +219,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       setResultsStatus(sanitizeResults(rd.results) ? (rd.resultsStatus || null) : null);
       setSavedSessionId(rd.savedSessionId || null);
       setShowRestored(true);
-      if (!sanitizeResults(rd.results) && (rd.step || 1) === 5) setStep(4);
+      if (!sanitizeResults(rd.results) && (rd.step || 1) >= 4) setStep(3);
     });
   }, [user?.id]);
 
@@ -275,8 +275,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     if (detectedTabs.length === 0) return false;
     if (!selectedSales || selectedMBs.length === 0 || !mbNamesUnique) return false;
     if (target === 3) return true;
-    if (target === 4) return true; // attendees step always reachable after step 3
-    if (target === 5) return !!results;
+    if (target === 4) return !!results;
     return false;
   }
   function goto(n: number) {
@@ -447,7 +446,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       setResultsStatus("fresh");
       setSavedHist(false);
       setSavedSessionId(null);
-      setStep(5);
+      setStep(4);
 
       // Persist mapping for next time (best-effort)
       if (user && spreadsheetId) {
