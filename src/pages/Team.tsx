@@ -218,7 +218,16 @@ export default function Team() {
             </div>
 
             <div className="px-6 py-4">
-              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3">Module access</div>
+              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center justify-between">
+                <span>Module access</span>
+                {accessLoading && <span className="text-[10px] normal-case tracking-normal">Loading…</span>}
+              </div>
+              {accessError && (
+                <div className="mb-3 p-3 rounded-md border border-line bg-off flex items-center justify-between">
+                  <span className="font-sans text-[12px] text-black">{accessError}</span>
+                  <button onClick={() => editing && fetchMemberAccess(editing)} className="h-7 px-2 rounded-md border border-line bg-white text-[11px] font-sans hover:bg-off">Retry</button>
+                </div>
+              )}
               {Array.from(new Set(MODULES.map(m => m.group))).map(group => (
                 <div key={group} className="mb-4">
                   <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{group}</div>
