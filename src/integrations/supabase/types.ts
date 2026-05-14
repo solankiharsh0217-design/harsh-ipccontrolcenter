@@ -1178,6 +1178,348 @@ export type Database = {
         }
         Relationships: []
       }
+      paid_pipeline_activity_logs: {
+        Row: {
+          activity_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          new_value: Json | null
+          note: string | null
+          old_value: Json | null
+          paid_pipeline_lead_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          old_value?: Json | null
+          paid_pipeline_lead_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          old_value?: Json | null
+          paid_pipeline_lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paid_pipeline_activity_logs_paid_pipeline_lead_id_fkey"
+            columns: ["paid_pipeline_lead_id"]
+            isOneToOne: false
+            referencedRelation: "paid_pipeline_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paid_pipeline_finance_details: {
+        Row: {
+          application_date: string | null
+          approval_date: string | null
+          created_at: string
+          disbursement_date: string | null
+          down_payment: number
+          finance_partner: string | null
+          finance_status: string | null
+          id: string
+          loan_amount: number
+          notes: string | null
+          paid_pipeline_lead_id: string
+          rejection_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          application_date?: string | null
+          approval_date?: string | null
+          created_at?: string
+          disbursement_date?: string | null
+          down_payment?: number
+          finance_partner?: string | null
+          finance_status?: string | null
+          id?: string
+          loan_amount?: number
+          notes?: string | null
+          paid_pipeline_lead_id: string
+          rejection_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          application_date?: string | null
+          approval_date?: string | null
+          created_at?: string
+          disbursement_date?: string | null
+          down_payment?: number
+          finance_partner?: string | null
+          finance_status?: string | null
+          id?: string
+          loan_amount?: number
+          notes?: string | null
+          paid_pipeline_lead_id?: string
+          rejection_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paid_pipeline_finance_details_paid_pipeline_lead_id_fkey"
+            columns: ["paid_pipeline_lead_id"]
+            isOneToOne: true
+            referencedRelation: "paid_pipeline_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paid_pipeline_leads: {
+        Row: {
+          assigned_sales_executive: string | null
+          attributed_media_buyer: string | null
+          attribution_sale_id: string | null
+          attribution_session_id: string | null
+          balance_pending: number
+          business_unit: string
+          created_at: string
+          created_by: string | null
+          created_from_attribution: boolean
+          deal_value_including_gst: number
+          default_token_amount: number
+          deleted_at: string | null
+          deleted_by: string | null
+          email: string | null
+          final_revenue_realized: number
+          finance_partner: string | null
+          finance_required: boolean
+          finance_status: string | null
+          follow_up_date: string | null
+          id: string
+          is_deleted: boolean
+          is_dropped: boolean
+          is_enrolled: boolean
+          is_final_sale: boolean
+          is_refunded: boolean
+          match_method: string | null
+          name: string | null
+          notes: string | null
+          payment_model: string | null
+          payment_status: string | null
+          phone: string | null
+          pipeline_stage: string | null
+          product_id: string | null
+          product_name_snapshot: string | null
+          source_report_date: string | null
+          source_webinar: string | null
+          token_amount_collected: number
+          total_collected: number
+          updated_at: string
+          webinar_batch_id: string | null
+        }
+        Insert: {
+          assigned_sales_executive?: string | null
+          attributed_media_buyer?: string | null
+          attribution_sale_id?: string | null
+          attribution_session_id?: string | null
+          balance_pending?: number
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          created_from_attribution?: boolean
+          deal_value_including_gst?: number
+          default_token_amount?: number
+          deleted_at?: string | null
+          deleted_by?: string | null
+          email?: string | null
+          final_revenue_realized?: number
+          finance_partner?: string | null
+          finance_required?: boolean
+          finance_status?: string | null
+          follow_up_date?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_dropped?: boolean
+          is_enrolled?: boolean
+          is_final_sale?: boolean
+          is_refunded?: boolean
+          match_method?: string | null
+          name?: string | null
+          notes?: string | null
+          payment_model?: string | null
+          payment_status?: string | null
+          phone?: string | null
+          pipeline_stage?: string | null
+          product_id?: string | null
+          product_name_snapshot?: string | null
+          source_report_date?: string | null
+          source_webinar?: string | null
+          token_amount_collected?: number
+          total_collected?: number
+          updated_at?: string
+          webinar_batch_id?: string | null
+        }
+        Update: {
+          assigned_sales_executive?: string | null
+          attributed_media_buyer?: string | null
+          attribution_sale_id?: string | null
+          attribution_session_id?: string | null
+          balance_pending?: number
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          created_from_attribution?: boolean
+          deal_value_including_gst?: number
+          default_token_amount?: number
+          deleted_at?: string | null
+          deleted_by?: string | null
+          email?: string | null
+          final_revenue_realized?: number
+          finance_partner?: string | null
+          finance_required?: boolean
+          finance_status?: string | null
+          follow_up_date?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_dropped?: boolean
+          is_enrolled?: boolean
+          is_final_sale?: boolean
+          is_refunded?: boolean
+          match_method?: string | null
+          name?: string | null
+          notes?: string | null
+          payment_model?: string | null
+          payment_status?: string | null
+          phone?: string | null
+          pipeline_stage?: string | null
+          product_id?: string | null
+          product_name_snapshot?: string | null
+          source_report_date?: string | null
+          source_webinar?: string | null
+          token_amount_collected?: number
+          total_collected?: number
+          updated_at?: string
+          webinar_batch_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paid_pipeline_leads_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "program_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paid_pipeline_leads_webinar_batch_id_fkey"
+            columns: ["webinar_batch_id"]
+            isOneToOne: false
+            referencedRelation: "webinar_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paid_pipeline_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          is_deleted: boolean
+          is_final_payment: boolean
+          is_token: boolean
+          notes: string | null
+          paid_pipeline_lead_id: string
+          payment_date: string
+          payment_mode: string | null
+          payment_reference: string | null
+          payment_type: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_final_payment?: boolean
+          is_token?: boolean
+          notes?: string | null
+          paid_pipeline_lead_id: string
+          payment_date?: string
+          payment_mode?: string | null
+          payment_reference?: string | null
+          payment_type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_final_payment?: boolean
+          is_token?: boolean
+          notes?: string | null
+          paid_pipeline_lead_id?: string
+          payment_date?: string
+          payment_mode?: string | null
+          payment_reference?: string | null
+          payment_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paid_pipeline_payments_paid_pipeline_lead_id_fkey"
+            columns: ["paid_pipeline_lead_id"]
+            isOneToOne: false
+            referencedRelation: "paid_pipeline_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paid_pipeline_settings: {
+        Row: {
+          business_unit: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          is_deleted: boolean
+          is_system: boolean
+          label: string
+          setting_type: string
+          sort_order: number
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          business_unit?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          is_system?: boolean
+          label: string
+          setting_type: string
+          sort_order?: number
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          business_unit?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          is_system?: boolean
+          label?: string
+          setting_type?: string
+          sort_order?: number
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       payroll_run_entries: {
         Row: {
           base_monthly_salary: number | null
@@ -1505,6 +1847,60 @@ export type Database = {
           total_payroll?: number
           total_revenue?: number
           total_variable_expense?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      program_products: {
+        Row: {
+          business_unit: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          default_token_amount: number
+          gst_applicable: boolean
+          gst_rate: number
+          id: string
+          is_active: boolean
+          is_deleted: boolean
+          notes: string | null
+          product_name: string
+          product_price_including_gst: number
+          revenue_recognition_rule: string
+          updated_at: string
+        }
+        Insert: {
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          default_token_amount?: number
+          gst_applicable?: boolean
+          gst_rate?: number
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          notes?: string | null
+          product_name: string
+          product_price_including_gst?: number
+          revenue_recognition_rule?: string
+          updated_at?: string
+        }
+        Update: {
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          default_token_amount?: number
+          gst_applicable?: boolean
+          gst_rate?: number
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          notes?: string | null
+          product_name?: string
+          product_price_including_gst?: number
+          revenue_recognition_rule?: string
           updated_at?: string
         }
         Relationships: []
@@ -2924,6 +3320,51 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      webinar_batches: {
+        Row: {
+          batch_name: string
+          business_unit: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_deleted: boolean
+          notes: string | null
+          offer_name: string | null
+          updated_at: string
+          webinar_date: string | null
+          webinar_name: string
+          webinar_type: string | null
+        }
+        Insert: {
+          batch_name: string
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_deleted?: boolean
+          notes?: string | null
+          offer_name?: string | null
+          updated_at?: string
+          webinar_date?: string | null
+          webinar_name: string
+          webinar_type?: string | null
+        }
+        Update: {
+          batch_name?: string
+          business_unit?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_deleted?: boolean
+          notes?: string | null
+          offer_name?: string | null
+          updated_at?: string
+          webinar_date?: string | null
+          webinar_name?: string
+          webinar_type?: string | null
         }
         Relationships: []
       }
