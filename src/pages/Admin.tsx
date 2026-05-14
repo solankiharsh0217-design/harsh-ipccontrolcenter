@@ -6,6 +6,29 @@ import { toast } from "sonner";
 import { formatTime, formatDateShort } from "@/lib/format";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import PayrollFieldsSection, { emptyPayroll, PayrollFormState, payrollToDb } from "@/components/PayrollFieldsSection";
+import { MODULES, type ModuleKey } from "@/lib/modules";
+
+const DEFAULT_ROLES = [
+  "Admin","Media Buyer","Backend Operations","Community Manager","Content Creator",
+  "Operations Lead","Photography Lead","Sales Agent","Sales Executive","Sales Manager",
+  "Support Executive","Telecaller","Finance Executive",
+];
+
+const ROLE_PRESETS: Record<string, ModuleKey[]> = {
+  "Admin": MODULES.map(m => m.key),
+  "Media Buyer": ["dashboard","roas","daily-reporting","reports"],
+  "Backend Operations": ["dashboard","search","daily-reporting","reports","crm"],
+  "Telecaller": ["dashboard","crm","search","lead-qualifier"],
+  "Sales Executive": ["dashboard","crm","lead-qualifier","reports"],
+  "Sales Agent": ["dashboard","crm","lead-qualifier"],
+  "Sales Manager": ["dashboard","crm","lead-qualifier","reports","search"],
+  "Content Creator": ["dashboard","announcements"],
+  "Community Manager": ["dashboard","announcements","search","crm"],
+  "Operations Lead": ["dashboard","reports","daily-reporting","team","master-data"],
+  "Finance Executive": ["dashboard","reports","profit-statement","master-data"],
+  "Support Executive": ["dashboard","crm","search"],
+  "Photography Lead": ["dashboard","announcements"],
+};
 
 export default function Admin() {
   const { user } = useAuth();
