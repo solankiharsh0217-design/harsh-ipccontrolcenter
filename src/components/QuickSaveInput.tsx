@@ -154,10 +154,10 @@ export default function QuickSaveInput({
           style={inputStyle}
           value={v}
           placeholder={placeholder}
-          onChange={(e) => { onChange(e.target.value); setOpen(true); setHi(-1); }}
-          onFocus={() => setOpen(true)}
-          onClick={() => setOpen(true)}
-          onDoubleClick={() => setOpen(true)}
+          onChange={(e) => { setUserTyped(true); onChange(e.target.value); setOpen(true); setHi(-1); }}
+          onFocus={() => { setUserTyped(false); setOpen(true); }}
+          onClick={() => { setUserTyped(false); setOpen(true); }}
+          onDoubleClick={() => { setUserTyped(false); setOpen(true); }}
           onBlur={() => {
             if (blurTimer.current) window.clearTimeout(blurTimer.current);
             blurTimer.current = window.setTimeout(() => setOpen(false), 180);
