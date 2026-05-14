@@ -271,17 +271,6 @@ export default function Team() {
               <button onClick={() => setEditing(null)} disabled={saving} className="ipc-btn">Cancel</button>
               <button onClick={save} disabled={saving} className="ipc-btn ipc-btn-black">{saving ? "Saving…" : "Save changes"}</button>
             </div>
-
-            {isAdmin && (
-              <div className="px-6 py-4 border-t border-line">
-                <PayrollFieldsSection value={editPayroll} onChange={setEditPayroll} />
-              </div>
-            )}
-
-            <div className="px-6 pb-5 pt-2 flex justify-end gap-2 border-t border-line">
-              <button onClick={() => setEditing(null)} disabled={saving} className="ipc-btn">Cancel</button>
-              <button onClick={save} disabled={saving} className="ipc-btn ipc-btn-black">{saving ? "Saving…" : "Save changes"}</button>
-            </div>
           </div>
         </div>
       )}
