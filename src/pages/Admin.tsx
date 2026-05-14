@@ -6,6 +6,29 @@ import { toast } from "sonner";
 import { formatTime, formatDateShort } from "@/lib/format";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import PayrollFieldsSection, { emptyPayroll, PayrollFormState, payrollToDb } from "@/components/PayrollFieldsSection";
+import { MODULES, type ModuleKey } from "@/lib/modules";
+
+const DEFAULT_ROLES = [
+  "Admin","Media Buyer","Backend Operations","Community Manager","Content Creator",
+  "Operations Lead","Photography Lead","Sales Agent","Sales Executive","Sales Manager",
+  "Support Executive","Telecaller","Finance Executive",
+];
+
+const ROLE_PRESETS: Record<string, ModuleKey[]> = {
+  "Admin": MODULES.map(m => m.key),
+  "Media Buyer": ["dashboard","roas","daily-reporting","reports"],
+  "Backend Operations": ["dashboard","search","daily-reporting","reports","crm"],
+  "Telecaller": ["dashboard","crm","search","lead-qualifier"],
+  "Sales Executive": ["dashboard","crm","lead-qualifier","reports"],
+  "Sales Agent": ["dashboard","crm","lead-qualifier"],
+  "Sales Manager": ["dashboard","crm","lead-qualifier","reports","search"],
+  "Content Creator": ["dashboard","announcements"],
+  "Community Manager": ["dashboard","announcements","search","crm"],
+  "Operations Lead": ["dashboard","reports","daily-reporting","team","master-data"],
+  "Finance Executive": ["dashboard","reports","profit-statement","master-data"],
+  "Support Executive": ["dashboard","crm","search"],
+  "Photography Lead": ["dashboard","announcements"],
+};
 
 export default function Admin() {
   const { user } = useAuth();
@@ -33,14 +56,29 @@ export default function Admin() {
   const [busy, setBusy] = useState(false);
 
   // add member form
-  const ROLES = ["Media Buyer","Backend Operations","Community Manager","Content Creator","Operations Lead","Photography Lead","Admin"];
   const [mName, setMName] = useState("");
   const [mEmail, setMEmail] = useState("");
   const [mPass, setMPass] = useState("");
   const [mRole, setMRole] = useState("Media Buyer");
   const [mDept, setMDept] = useState("");
   const [mPayroll, setMPayroll] = useState<PayrollFormState>(emptyPayroll());
+  const [mIsAdmin, setMIsAdmin] = useState(false);
+  const [mModules, setMModules] = useState<Set<ModuleKey>>(new Set(["dashboard","announcements"]));
   const [mBusy, setMBusy] = useState(false);
+
+  const toggleMModule = (k: ModuleKey) =>
+    setMModules(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+
+  const applyRolePreset = () => {
+    const preset = ROLE_PRESETS[mRole.trim()];
+    if (!preset) {
+      toast.message("No preset for this role — please select modules manually.");
+      return;
+    }
+    setMModules(new Set(preset));
+    if (mRole.trim() === "Admin") setMIsAdmin(true);
+    toast.success(`Applied ${mRole} preset (${preset.length} modules).`);
+  };
 
   const addMember = async () => {
     if (!mName || !mEmail || !mPass) return toast.error("Name, email and password required.");
@@ -53,6 +91,10 @@ export default function Admin() {
       if (pt === "Daily Wage" && !Number(mPayroll.daily_wage)) return toast.error("Daily wage amount is required.");
       if (pt === "Hourly Pay" && !Number(mPayroll.hourly_rate)) return toast.error("Hourly rate is required.");
     }
+    if (!mIsAdmin && mModules.size === 0) return toast.error("Select at least one module or enable Admin access.");
+    if (mModules.has("admin") && !mIsAdmin) {
+      if (!confirm("Admin Panel access gives sensitive system access. Are you sure?")) return;
+    }
     setMBusy(true);
     const { data, error } = await supabase.functions.invoke("admin-create-member", {
       body: {
@@ -61,10 +103,42 @@ export default function Admin() {
         payroll: payrollToDb(mPayroll),
       },
     });
+    if (error || (data as any)?.error) {
+      setMBusy(false);
+      return toast.error((data as any)?.error || error!.message);
+    }
+    const newId = (data as any).id as string;
+
+    // Persist access permissions
+    let accessFailed = false;
+    try {
+      if (mIsAdmin) {
+        await supabase.from("user_roles").upsert(
+          { user_id: newId, role: "admin" },
+          { onConflict: "user_id,role" }
+        );
+      }
+      if (!mIsAdmin) {
+        const rows = Array.from(mModules).map(k => ({
+          user_id: newId, module_key: k, granted_by: user?.id ?? null,
+        }));
+        if (rows.length) {
+          const { error: aErr } = await supabase.from("user_module_access").insert(rows);
+          if (aErr) throw aErr;
+        }
+      }
+    } catch (e: any) {
+      accessFailed = true;
+      console.error("access save failed", e);
+    }
     setMBusy(false);
-    if (error || (data as any)?.error) return toast.error((data as any)?.error || error!.message);
-    toast.success(`${mName} added and activated.`);
+    if (accessFailed) {
+      toast.error("Member created, but access permissions could not be saved. Please retry from Team Directory.");
+    } else {
+      toast.success(`${mName} added and activated.`);
+    }
     setMName(""); setMEmail(""); setMPass(""); setMDept(""); setMPayroll(emptyPayroll());
+    setMIsAdmin(false); setMModules(new Set(["dashboard","announcements"]));
     load();
   };
 
@@ -134,22 +208,66 @@ export default function Admin() {
             <input className="ipc-input" type="text" value={mPass} onChange={(e)=>setMPass(e.target.value)} placeholder="Set a password" /></div>
           <div><label className="form-label">Role</label>
             <QuickSaveInput
-              fieldKey="team_role"
+              fieldKey="team_member_role"
               value={mRole}
               onChange={setMRole}
               placeholder="Click to choose saved role or type new"
             />
+            <div className="mt-1 flex flex-wrap gap-1">
+              {DEFAULT_ROLES.map(r => (
+                <button type="button" key={r} onClick={() => setMRole(r)} className={`text-[10px] font-sans px-2 py-0.5 rounded border ${mRole === r ? "bg-black text-white border-black" : "bg-white border-line text-muted-foreground hover:text-black"}`}>{r}</button>
+              ))}
+            </div>
           </div>
           <div><label className="form-label">Department (optional)</label>
-            <input className="ipc-input" value={mDept} onChange={(e)=>setMDept(e.target.value)} placeholder="e.g. Marketing" /></div>
+            <QuickSaveInput
+              fieldKey="department"
+              value={mDept}
+              onChange={setMDept}
+              placeholder="e.g. Marketing"
+            />
+          </div>
         </div>
         <div className="mt-4">
           <PayrollFieldsSection value={mPayroll} onChange={setMPayroll} />
         </div>
+
+        {/* Access Control */}
+        <div className="mt-4 bg-white border border-line rounded-xl py-[18px] px-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-serif text-[15px] font-medium text-black">Access Control</div>
+              <div className="font-sans text-[11px] text-muted-foreground">Choose which modules this team member can access.</div>
+            </div>
+            <button type="button" onClick={applyRolePreset} className="h-[28px] px-3 rounded-md border border-line bg-off hover:bg-white text-[11px] font-sans">
+              Apply Role Preset
+            </button>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer mb-3">
+            <input type="checkbox" checked={mIsAdmin} onChange={(e)=>setMIsAdmin(e.target.checked)} className="w-4 h-4" />
+            <span className="font-sans text-[12px] text-black">Admin access (full access to all modules including Admin Panel)</span>
+          </label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {MODULES.map(mod => (
+              <label key={mod.key} className={`flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-colors ${mIsAdmin ? "opacity-50 bg-off border-line" : (mModules.has(mod.key) ? "bg-off border-line" : "border-line hover:bg-off")}`}>
+                <input
+                  type="checkbox"
+                  checked={mIsAdmin || mModules.has(mod.key)}
+                  disabled={mIsAdmin}
+                  onChange={() => toggleMModule(mod.key)}
+                  className="w-4 h-4"
+                />
+                <span className="font-serif text-[13px] text-black">{mod.label}</span>
+                <span className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground ml-auto">{mod.group}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="flex justify-end mt-4">
           <button disabled={mBusy} onClick={addMember} className="ipc-btn ipc-btn-black">{mBusy ? "Adding…" : "Add member"}</button>
         </div>
-        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — payroll details are saved to backend and used by Profit Statement.</p>
+        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — payroll, role, and module access are saved together.</p>
       </div>
 
       <SectionLabel>Student database</SectionLabel>

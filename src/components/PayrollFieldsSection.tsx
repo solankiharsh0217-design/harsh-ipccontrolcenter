@@ -166,9 +166,17 @@ export default function PayrollFieldsSection({ value: p, onChange }: Props) {
             )}
             <div>
               <label className="form-label">Salary Cycle</label>
-              <select value={p.salary_cycle} onChange={(e) => set({ salary_cycle: e.target.value })} className="ipc-input cursor-pointer">
-                {SALARY_CYCLES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <QuickSaveInput
+                fieldKey="salary_cycle"
+                value={p.salary_cycle}
+                onChange={(v) => set({ salary_cycle: v })}
+                placeholder="Choose or add salary cycle"
+              />
+              <div className="mt-1 flex flex-wrap gap-1">
+                {SALARY_CYCLES.map(c => (
+                  <button type="button" key={c} onClick={() => set({ salary_cycle: c })} className={`text-[10px] font-sans px-2 py-0.5 rounded border ${p.salary_cycle === c ? "bg-black text-white border-black" : "bg-white border-line text-muted-foreground hover:text-black"}`}>{c}</button>
+                ))}
+              </div>
             </div>
           </div>
 

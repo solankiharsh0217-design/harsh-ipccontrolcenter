@@ -67,6 +67,7 @@ export default function QuickSaveInput({
   const [removedMsg, setRemovedMsg] = useState(false);
   const [pulse, setPulse] = useState(false);
   const [hi, setHi] = useState(-1);
+  const [userTyped, setUserTyped] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimer = useRef<number | null>(null);
@@ -79,7 +80,9 @@ export default function QuickSaveInput({
     ? "Click to choose from saved list or type a new value"
     : "No saved options yet — type a value and press + to save";
 
-  const filtered = trimmed
+  // Show all entries when the dropdown was opened by click/focus.
+  // Only filter once the user actively types in this session.
+  const filtered = userTyped && trimmed
     ? entries.filter((e) => e.value.toLowerCase().includes(trimmed.toLowerCase()))
     : entries;
 
@@ -151,10 +154,10 @@ export default function QuickSaveInput({
           style={inputStyle}
           value={v}
           placeholder={placeholder}
-          onChange={(e) => { onChange(e.target.value); setOpen(true); setHi(-1); }}
-          onFocus={() => setOpen(true)}
-          onClick={() => setOpen(true)}
-          onDoubleClick={() => setOpen(true)}
+          onChange={(e) => { setUserTyped(true); onChange(e.target.value); setOpen(true); setHi(-1); }}
+          onFocus={() => { setUserTyped(false); setOpen(true); }}
+          onClick={() => { setUserTyped(false); setOpen(true); }}
+          onDoubleClick={() => { setUserTyped(false); setOpen(true); }}
           onBlur={() => {
             if (blurTimer.current) window.clearTimeout(blurTimer.current);
             blurTimer.current = window.setTimeout(() => setOpen(false), 180);
@@ -197,7 +200,7 @@ export default function QuickSaveInput({
             className="qsi-plus qsi-plus-chev"
             title={entries.length > 0 ? "Show saved options" : "Type a value, then press + to save"}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => { setOpen((o) => !o); inputRef.current?.focus(); }}
+            onClick={() => { setUserTyped(false); setOpen((o) => !o); inputRef.current?.focus(); }}
             aria-label="Show saved options"
           >▾</button>
         )}

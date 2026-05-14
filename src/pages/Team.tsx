@@ -38,20 +38,45 @@ export default function Team() {
 
   useEffect(() => { load(); }, []);
 
+  const [accessError, setAccessError] = useState<string | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
+
+  const fetchMemberAccess = async (m: Member) => {
+    setAccessError(null);
+    setAccessLoading(true);
+    try {
+      if (!m?.id) throw new Error("Missing team member id");
+      const [rolesRes, modsRes, payrollRes] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", m.id),
+        supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
+        supabase.from("team_payroll_profiles").select("*").eq("team_member_id", m.id).maybeSingle(),
+      ]);
+      if (rolesRes.error) throw rolesRes.error;
+      if (modsRes.error) throw modsRes.error;
+      if (payrollRes.error && payrollRes.error.code !== "PGRST116") throw payrollRes.error;
+      setEditAdmin(!!rolesRes.data?.some((r: any) => r.role === "admin"));
+      setEditModules(new Set((modsRes.data ?? []).map((x: any) => x.module_key as ModuleKey)));
+      setEditPayroll(payrollRes.data ? dbToPayroll(payrollRes.data) : emptyPayroll());
+    } catch (e: any) {
+      console.error("access fetch failed", e);
+      setAccessError("Could not load access settings. Please retry.");
+      setEditAdmin(false);
+      setEditModules(new Set());
+      setEditPayroll(emptyPayroll());
+    } finally {
+      setAccessLoading(false);
+    }
+  };
+
   const openEdit = async (m: Member) => {
     setEditing(m);
     setEditName(m.full_name ?? "");
     setEditRole(m.role ?? "");
     setEditDepartment(m.department ?? "");
     setEditPayroll(emptyPayroll());
-    const [{ data: roles }, { data: mods }, { data: payroll }] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", m.id),
-      supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
-      supabase.from("team_payroll_profiles").select("*").eq("team_member_id", m.id).maybeSingle(),
-    ]);
-    setEditAdmin(!!roles?.some((r: any) => r.role === "admin"));
-    setEditModules(new Set((mods ?? []).map((x: any) => x.module_key as ModuleKey)));
-    if (payroll) setEditPayroll(dbToPayroll(payroll));
+    setEditAdmin(false);
+    setEditModules(new Set());
+    await fetchMemberAccess(m);
   };
 
   const toggleModule = (k: ModuleKey) => {
@@ -193,7 +218,16 @@ export default function Team() {
             </div>
 
             <div className="px-6 py-4">
-              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3">Module access</div>
+              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center justify-between">
+                <span>Module access</span>
+                {accessLoading && <span className="text-[10px] normal-case tracking-normal">Loading…</span>}
+              </div>
+              {accessError && (
+                <div className="mb-3 p-3 rounded-md border border-line bg-off flex items-center justify-between">
+                  <span className="font-sans text-[12px] text-black">{accessError}</span>
+                  <button onClick={() => editing && fetchMemberAccess(editing)} className="h-7 px-2 rounded-md border border-line bg-white text-[11px] font-sans hover:bg-off">Retry</button>
+                </div>
+              )}
               {Array.from(new Set(MODULES.map(m => m.group))).map(group => (
                 <div key={group} className="mb-4">
                   <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{group}</div>
