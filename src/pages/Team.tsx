@@ -5,6 +5,7 @@ import { initials, formatTime, formatDateShort } from "@/lib/format";
 import { useAuth } from "@/context/AuthContext";
 import { MODULES, type ModuleKey } from "@/lib/modules";
 import PayrollFieldsSection, { emptyPayroll, dbToPayroll, payrollToDb, type PayrollFormState } from "@/components/PayrollFieldsSection";
+import QuickSaveInput from "@/components/QuickSaveInput";
 import { toast } from "sonner";
 import { Shield, X } from "lucide-react";
 
@@ -180,34 +181,44 @@ export default function Team() {
 
       {editing && (
         <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-6" onClick={() => !saving && setEditing(null)}>
-          <div className="bg-white rounded-xl w-full max-w-[520px] max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between px-6 pt-5 pb-3 border-b border-line">
+          <div className="bg-white rounded-xl w-full max-w-[860px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between px-7 pt-6 pb-4 border-b border-line sticky top-0 bg-white z-10">
               <div>
-                <div className="font-serif text-[20px] font-medium text-black">Manage member</div>
+                <div className="font-serif text-[22px] font-medium text-black">Manage member</div>
                 <div className="font-sans text-[12px] text-muted-foreground mt-0.5">{editing.full_name} · {editing.role}</div>
               </div>
               <button onClick={() => setEditing(null)} disabled={saving} className="text-muted-foreground hover:text-black"><X className="w-4 h-4" /></button>
             </div>
 
-            <div className="px-6 py-4 border-b border-line space-y-3">
+            <div className="px-7 py-5 border-b border-line space-y-3">
               <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Profile</div>
               <div>
                 <label className="font-sans text-[11px] text-muted-foreground block mb-1">Full name</label>
                 <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="font-sans text-[11px] text-muted-foreground block mb-1">Position / Role</label>
-                  <input value={editRole} onChange={(e) => setEditRole(e.target.value)} placeholder="e.g. Backend Ops" className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
+                  <QuickSaveInput
+                    fieldKey="team_member_role"
+                    value={editRole}
+                    onChange={setEditRole}
+                    placeholder="Click to choose saved role or type new"
+                  />
                 </div>
                 <div>
                   <label className="font-sans text-[11px] text-muted-foreground block mb-1">Department</label>
-                  <input value={editDepartment} onChange={(e) => setEditDepartment(e.target.value)} placeholder="Optional" className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
+                  <QuickSaveInput
+                    fieldKey="department"
+                    value={editDepartment}
+                    onChange={setEditDepartment}
+                    placeholder="e.g. Marketing"
+                  />
                 </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 border-b border-line">
+            <div className="px-7 py-5 border-b border-line">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={editAdmin} onChange={(e) => setEditAdmin(e.target.checked)} className="w-4 h-4" />
                 <div>
@@ -217,7 +228,7 @@ export default function Team() {
               </label>
             </div>
 
-            <div className="px-6 py-4">
+            <div className="px-7 py-5">
               <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center justify-between">
                 <span>Module access</span>
                 {accessLoading && <span className="text-[10px] normal-case tracking-normal">Loading…</span>}
@@ -231,7 +242,7 @@ export default function Team() {
               {Array.from(new Set(MODULES.map(m => m.group))).map(group => (
                 <div key={group} className="mb-4">
                   <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{group}</div>
-                  <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                     {MODULES.filter(m => m.group === group).map(mod => (
                       <label key={mod.key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editAdmin ? "opacity-50 bg-off border-line" : editModules.has(mod.key) ? "bg-off border-line" : "border-line hover:bg-off"}`}>
                         <input
@@ -250,12 +261,13 @@ export default function Team() {
             </div>
 
             {isAdmin && (
-              <div className="px-6 py-4 border-t border-line">
+              <div className="px-7 py-5 border-t border-line">
+                <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3">Payroll</div>
                 <PayrollFieldsSection value={editPayroll} onChange={setEditPayroll} />
               </div>
             )}
 
-            <div className="px-6 pb-5 pt-2 flex justify-end gap-2 border-t border-line">
+            <div className="px-7 pb-5 pt-3 flex justify-end gap-2 border-t border-line sticky bottom-0 bg-white z-10">
               <button onClick={() => setEditing(null)} disabled={saving} className="ipc-btn">Cancel</button>
               <button onClick={save} disabled={saving} className="ipc-btn ipc-btn-black">{saving ? "Saving…" : "Save changes"}</button>
             </div>
