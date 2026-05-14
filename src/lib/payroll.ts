@@ -36,6 +36,10 @@ export const PNL_CLASSIFICATIONS = [
 export const SALARY_CYCLES = [
   "Calendar Month: 1st to Last Day",
   "Custom Cycle",
+  "Weekly",
+  "Bi-Weekly",
+  "15th to 14th",
+  "26th to 25th",
   "Not Applicable",
 ] as const;
 
