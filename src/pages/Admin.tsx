@@ -208,22 +208,66 @@ export default function Admin() {
             <input className="ipc-input" type="text" value={mPass} onChange={(e)=>setMPass(e.target.value)} placeholder="Set a password" /></div>
           <div><label className="form-label">Role</label>
             <QuickSaveInput
-              fieldKey="team_role"
+              fieldKey="team_member_role"
               value={mRole}
               onChange={setMRole}
               placeholder="Click to choose saved role or type new"
             />
+            <div className="mt-1 flex flex-wrap gap-1">
+              {DEFAULT_ROLES.map(r => (
+                <button type="button" key={r} onClick={() => setMRole(r)} className={`text-[10px] font-sans px-2 py-0.5 rounded border ${mRole === r ? "bg-black text-white border-black" : "bg-white border-line text-muted-foreground hover:text-black"}`}>{r}</button>
+              ))}
+            </div>
           </div>
           <div><label className="form-label">Department (optional)</label>
-            <input className="ipc-input" value={mDept} onChange={(e)=>setMDept(e.target.value)} placeholder="e.g. Marketing" /></div>
+            <QuickSaveInput
+              fieldKey="department"
+              value={mDept}
+              onChange={setMDept}
+              placeholder="e.g. Marketing"
+            />
+          </div>
         </div>
         <div className="mt-4">
           <PayrollFieldsSection value={mPayroll} onChange={setMPayroll} />
         </div>
+
+        {/* Access Control */}
+        <div className="mt-4 bg-white border border-line rounded-xl py-[18px] px-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="font-serif text-[15px] font-medium text-black">Access Control</div>
+              <div className="font-sans text-[11px] text-muted-foreground">Choose which modules this team member can access.</div>
+            </div>
+            <button type="button" onClick={applyRolePreset} className="h-[28px] px-3 rounded-md border border-line bg-off hover:bg-white text-[11px] font-sans">
+              Apply Role Preset
+            </button>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer mb-3">
+            <input type="checkbox" checked={mIsAdmin} onChange={(e)=>setMIsAdmin(e.target.checked)} className="w-4 h-4" />
+            <span className="font-sans text-[12px] text-black">Admin access (full access to all modules including Admin Panel)</span>
+          </label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {MODULES.map(mod => (
+              <label key={mod.key} className={`flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-colors ${mIsAdmin ? "opacity-50 bg-off border-line" : (mModules.has(mod.key) ? "bg-off border-line" : "border-line hover:bg-off")}`}>
+                <input
+                  type="checkbox"
+                  checked={mIsAdmin || mModules.has(mod.key)}
+                  disabled={mIsAdmin}
+                  onChange={() => toggleMModule(mod.key)}
+                  className="w-4 h-4"
+                />
+                <span className="font-serif text-[13px] text-black">{mod.label}</span>
+                <span className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground ml-auto">{mod.group}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="flex justify-end mt-4">
           <button disabled={mBusy} onClick={addMember} className="ipc-btn ipc-btn-black">{mBusy ? "Adding…" : "Add member"}</button>
         </div>
-        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — payroll details are saved to backend and used by Profit Statement.</p>
+        <p className="font-sans text-[11px] text-muted-foreground mt-2.5">Member is created as <strong>active</strong> immediately — payroll, role, and module access are saved together.</p>
       </div>
 
       <SectionLabel>Student database</SectionLabel>
