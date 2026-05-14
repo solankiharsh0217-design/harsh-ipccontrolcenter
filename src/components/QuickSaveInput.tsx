@@ -67,6 +67,7 @@ export default function QuickSaveInput({
   const [removedMsg, setRemovedMsg] = useState(false);
   const [pulse, setPulse] = useState(false);
   const [hi, setHi] = useState(-1);
+  const [userTyped, setUserTyped] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimer = useRef<number | null>(null);
@@ -79,7 +80,9 @@ export default function QuickSaveInput({
     ? "Click to choose from saved list or type a new value"
     : "No saved options yet — type a value and press + to save";
 
-  const filtered = trimmed
+  // Show all entries when the dropdown was opened by click/focus.
+  // Only filter once the user actively types in this session.
+  const filtered = userTyped && trimmed
     ? entries.filter((e) => e.value.toLowerCase().includes(trimmed.toLowerCase()))
     : entries;
 
