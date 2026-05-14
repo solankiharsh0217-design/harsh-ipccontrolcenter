@@ -218,7 +218,7 @@ export default function Team() {
               </div>
             </div>
 
-            <div className="px-6 py-4 border-b border-line">
+            <div className="px-7 py-5 border-b border-line">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={editAdmin} onChange={(e) => setEditAdmin(e.target.checked)} className="w-4 h-4" />
                 <div>
@@ -228,7 +228,7 @@ export default function Team() {
               </label>
             </div>
 
-            <div className="px-6 py-4">
+            <div className="px-7 py-5">
               <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center justify-between">
                 <span>Module access</span>
                 {accessLoading && <span className="text-[10px] normal-case tracking-normal">Loading…</span>}
@@ -242,7 +242,7 @@ export default function Team() {
               {Array.from(new Set(MODULES.map(m => m.group))).map(group => (
                 <div key={group} className="mb-4">
                   <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{group}</div>
-                  <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                     {MODULES.filter(m => m.group === group).map(mod => (
                       <label key={mod.key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editAdmin ? "opacity-50 bg-off border-line" : editModules.has(mod.key) ? "bg-off border-line" : "border-line hover:bg-off"}`}>
                         <input
@@ -258,6 +258,18 @@ export default function Team() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {isAdmin && (
+              <div className="px-7 py-5 border-t border-line">
+                <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3">Payroll</div>
+                <PayrollFieldsSection value={editPayroll} onChange={setEditPayroll} />
+              </div>
+            )}
+
+            <div className="px-7 pb-5 pt-3 flex justify-end gap-2 border-t border-line sticky bottom-0 bg-white z-10">
+              <button onClick={() => setEditing(null)} disabled={saving} className="ipc-btn">Cancel</button>
+              <button onClick={save} disabled={saving} className="ipc-btn ipc-btn-black">{saving ? "Saving…" : "Save changes"}</button>
             </div>
 
             {isAdmin && (
