@@ -140,26 +140,34 @@ Deno.serve(async (req) => {
     const tabs = await Promise.all(sheets.map(async (s) => {
       const sheetId = String(s.properties?.sheetId ?? "");
       const tabName: string = s.properties?.title || "";
-      const range = `${tabName}!A1:Z20`;
-      const valuesUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${apiKey}`;
+      const headerRange = `${tabName}!A1:Z5`;
+      const countRange = `${tabName}!A1:A20000`;
       const warnings: string[] = [];
       let detectedHeaders: string[] = [];
       let sampleRows: string[][] = [];
       let validRowsCount = 0;
       try {
-        const r = await fetch(valuesUrl);
-        if (r.ok) {
-          const j = await r.json();
+        const [hRes, cRes] = await Promise.all([
+          fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(headerRange)}?key=${apiKey}`),
+          fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(countRange)}?key=${apiKey}`),
+        ]);
+        if (hRes.ok) {
+          const j = await hRes.json();
           const values: string[][] = j.values || [];
           if (values.length > 0) {
             detectedHeaders = (values[0] || []).map((x) => String(x || ""));
             sampleRows = values.slice(1, 6);
-            validRowsCount = Math.max(0, values.length - 1);
           } else {
             warnings.push("Empty tab");
           }
         } else {
-          warnings.push(`Could not read values (${r.status})`);
+          warnings.push(`Could not read values (${hRes.status})`);
+        }
+        if (cRes.ok) {
+          const j = await cRes.json();
+          const colA: string[][] = j.values || [];
+          // Subtract 1 for header row if any data row exists
+          validRowsCount = Math.max(0, colA.length - (colA.length > 0 ? 1 : 0));
         }
       } catch (e) {
         warnings.push("Read error: " + (e as Error).message);
