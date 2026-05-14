@@ -56,14 +56,29 @@ export default function Admin() {
   const [busy, setBusy] = useState(false);
 
   // add member form
-  const ROLES = ["Media Buyer","Backend Operations","Community Manager","Content Creator","Operations Lead","Photography Lead","Admin"];
   const [mName, setMName] = useState("");
   const [mEmail, setMEmail] = useState("");
   const [mPass, setMPass] = useState("");
   const [mRole, setMRole] = useState("Media Buyer");
   const [mDept, setMDept] = useState("");
   const [mPayroll, setMPayroll] = useState<PayrollFormState>(emptyPayroll());
+  const [mIsAdmin, setMIsAdmin] = useState(false);
+  const [mModules, setMModules] = useState<Set<ModuleKey>>(new Set(["dashboard","announcements"]));
   const [mBusy, setMBusy] = useState(false);
+
+  const toggleMModule = (k: ModuleKey) =>
+    setMModules(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+
+  const applyRolePreset = () => {
+    const preset = ROLE_PRESETS[mRole.trim()];
+    if (!preset) {
+      toast.message("No preset for this role — please select modules manually.");
+      return;
+    }
+    setMModules(new Set(preset));
+    if (mRole.trim() === "Admin") setMIsAdmin(true);
+    toast.success(`Applied ${mRole} preset (${preset.length} modules).`);
+  };
 
   const addMember = async () => {
     if (!mName || !mEmail || !mPass) return toast.error("Name, email and password required.");
@@ -76,6 +91,10 @@ export default function Admin() {
       if (pt === "Daily Wage" && !Number(mPayroll.daily_wage)) return toast.error("Daily wage amount is required.");
       if (pt === "Hourly Pay" && !Number(mPayroll.hourly_rate)) return toast.error("Hourly rate is required.");
     }
+    if (!mIsAdmin && mModules.size === 0) return toast.error("Select at least one module or enable Admin access.");
+    if (mModules.has("admin") && !mIsAdmin) {
+      if (!confirm("Admin Panel access gives sensitive system access. Are you sure?")) return;
+    }
     setMBusy(true);
     const { data, error } = await supabase.functions.invoke("admin-create-member", {
       body: {
@@ -84,10 +103,42 @@ export default function Admin() {
         payroll: payrollToDb(mPayroll),
       },
     });
+    if (error || (data as any)?.error) {
+      setMBusy(false);
+      return toast.error((data as any)?.error || error!.message);
+    }
+    const newId = (data as any).id as string;
+
+    // Persist access permissions
+    let accessFailed = false;
+    try {
+      if (mIsAdmin) {
+        await supabase.from("user_roles").upsert(
+          { user_id: newId, role: "admin" },
+          { onConflict: "user_id,role" }
+        );
+      }
+      if (!mIsAdmin) {
+        const rows = Array.from(mModules).map(k => ({
+          user_id: newId, module_key: k, granted_by: user?.id ?? null,
+        }));
+        if (rows.length) {
+          const { error: aErr } = await supabase.from("user_module_access").insert(rows);
+          if (aErr) throw aErr;
+        }
+      }
+    } catch (e: any) {
+      accessFailed = true;
+      console.error("access save failed", e);
+    }
     setMBusy(false);
-    if (error || (data as any)?.error) return toast.error((data as any)?.error || error!.message);
-    toast.success(`${mName} added and activated.`);
+    if (accessFailed) {
+      toast.error("Member created, but access permissions could not be saved. Please retry from Team Directory.");
+    } else {
+      toast.success(`${mName} added and activated.`);
+    }
     setMName(""); setMEmail(""); setMPass(""); setMDept(""); setMPayroll(emptyPayroll());
+    setMIsAdmin(false); setMModules(new Set(["dashboard","announcements"]));
     load();
   };
 
