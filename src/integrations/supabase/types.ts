@@ -1275,42 +1275,111 @@ export type Database = {
           },
         ]
       }
+      paid_pipeline_followups: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          follow_up_date: string
+          follow_up_reason: string | null
+          follow_up_time: string | null
+          id: string
+          notes: string | null
+          paid_pipeline_lead_id: string
+          priority: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          follow_up_date: string
+          follow_up_reason?: string | null
+          follow_up_time?: string | null
+          id?: string
+          notes?: string | null
+          paid_pipeline_lead_id: string
+          priority?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          follow_up_date?: string
+          follow_up_reason?: string | null
+          follow_up_time?: string | null
+          id?: string
+          notes?: string | null
+          paid_pipeline_lead_id?: string
+          priority?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       paid_pipeline_leads: {
         Row: {
           assigned_sales_executive: string | null
           attributed_media_buyer: string | null
           attribution_sale_id: string | null
           attribution_session_id: string | null
+          balance_category: string | null
+          balance_description: string | null
           balance_pending: number
           business_unit: string
           created_at: string
           created_by: string | null
           created_from_attribution: boolean
+          crm_lead_id: string | null
+          crm_pipeline_id: string | null
+          crm_stage_id: string | null
           deal_value_including_gst: number
           default_token_amount: number
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
           final_revenue_realized: number
+          finance_follow_up_date: string | null
+          finance_notes: string | null
+          finance_owner: string | null
           finance_partner: string | null
           finance_required: boolean
           finance_status: string | null
           follow_up_date: string | null
+          follow_up_priority: string | null
+          follow_up_reason: string | null
+          follow_up_status: string | null
           id: string
           is_deleted: boolean
           is_dropped: boolean
           is_enrolled: boolean
           is_final_sale: boolean
           is_refunded: boolean
+          lead_temperature: string | null
           match_method: string | null
           name: string | null
+          next_balance_follow_up_date: string | null
+          next_follow_up_date: string | null
+          next_follow_up_time: string | null
           notes: string | null
+          onboarding_batch_name: string | null
+          paid_batch_name: string | null
           payment_model: string | null
           payment_status: string | null
           phone: string | null
           pipeline_stage: string | null
           product_id: string | null
           product_name_snapshot: string | null
+          revenue_recognition_rule: string | null
+          revenue_to_be_realized: number | null
+          sent_to_crm: boolean | null
+          sent_to_crm_at: string | null
           source_report_date: string | null
           source_webinar: string | null
           token_amount_collected: number
@@ -1323,36 +1392,57 @@ export type Database = {
           attributed_media_buyer?: string | null
           attribution_sale_id?: string | null
           attribution_session_id?: string | null
+          balance_category?: string | null
+          balance_description?: string | null
           balance_pending?: number
           business_unit?: string
           created_at?: string
           created_by?: string | null
           created_from_attribution?: boolean
+          crm_lead_id?: string | null
+          crm_pipeline_id?: string | null
+          crm_stage_id?: string | null
           deal_value_including_gst?: number
           default_token_amount?: number
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           final_revenue_realized?: number
+          finance_follow_up_date?: string | null
+          finance_notes?: string | null
+          finance_owner?: string | null
           finance_partner?: string | null
           finance_required?: boolean
           finance_status?: string | null
           follow_up_date?: string | null
+          follow_up_priority?: string | null
+          follow_up_reason?: string | null
+          follow_up_status?: string | null
           id?: string
           is_deleted?: boolean
           is_dropped?: boolean
           is_enrolled?: boolean
           is_final_sale?: boolean
           is_refunded?: boolean
+          lead_temperature?: string | null
           match_method?: string | null
           name?: string | null
+          next_balance_follow_up_date?: string | null
+          next_follow_up_date?: string | null
+          next_follow_up_time?: string | null
           notes?: string | null
+          onboarding_batch_name?: string | null
+          paid_batch_name?: string | null
           payment_model?: string | null
           payment_status?: string | null
           phone?: string | null
           pipeline_stage?: string | null
           product_id?: string | null
           product_name_snapshot?: string | null
+          revenue_recognition_rule?: string | null
+          revenue_to_be_realized?: number | null
+          sent_to_crm?: boolean | null
+          sent_to_crm_at?: string | null
           source_report_date?: string | null
           source_webinar?: string | null
           token_amount_collected?: number
@@ -1365,36 +1455,57 @@ export type Database = {
           attributed_media_buyer?: string | null
           attribution_sale_id?: string | null
           attribution_session_id?: string | null
+          balance_category?: string | null
+          balance_description?: string | null
           balance_pending?: number
           business_unit?: string
           created_at?: string
           created_by?: string | null
           created_from_attribution?: boolean
+          crm_lead_id?: string | null
+          crm_pipeline_id?: string | null
+          crm_stage_id?: string | null
           deal_value_including_gst?: number
           default_token_amount?: number
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
           final_revenue_realized?: number
+          finance_follow_up_date?: string | null
+          finance_notes?: string | null
+          finance_owner?: string | null
           finance_partner?: string | null
           finance_required?: boolean
           finance_status?: string | null
           follow_up_date?: string | null
+          follow_up_priority?: string | null
+          follow_up_reason?: string | null
+          follow_up_status?: string | null
           id?: string
           is_deleted?: boolean
           is_dropped?: boolean
           is_enrolled?: boolean
           is_final_sale?: boolean
           is_refunded?: boolean
+          lead_temperature?: string | null
           match_method?: string | null
           name?: string | null
+          next_balance_follow_up_date?: string | null
+          next_follow_up_date?: string | null
+          next_follow_up_time?: string | null
           notes?: string | null
+          onboarding_batch_name?: string | null
+          paid_batch_name?: string | null
           payment_model?: string | null
           payment_status?: string | null
           phone?: string | null
           pipeline_stage?: string | null
           product_id?: string | null
           product_name_snapshot?: string | null
+          revenue_recognition_rule?: string | null
+          revenue_to_be_realized?: number | null
+          sent_to_crm?: boolean | null
+          sent_to_crm_at?: string | null
           source_report_date?: string | null
           source_webinar?: string | null
           token_amount_collected?: number
@@ -1424,13 +1535,17 @@ export type Database = {
           amount: number
           created_at: string
           created_by: string | null
+          finance_linked: boolean | null
           id: string
           is_deleted: boolean
           is_final_payment: boolean
           is_token: boolean
+          next_payment_expected_date: string | null
           notes: string | null
           paid_pipeline_lead_id: string
+          payment_category: string | null
           payment_date: string
+          payment_description: string | null
           payment_mode: string | null
           payment_reference: string | null
           payment_type: string
@@ -1439,13 +1554,17 @@ export type Database = {
           amount?: number
           created_at?: string
           created_by?: string | null
+          finance_linked?: boolean | null
           id?: string
           is_deleted?: boolean
           is_final_payment?: boolean
           is_token?: boolean
+          next_payment_expected_date?: string | null
           notes?: string | null
           paid_pipeline_lead_id: string
+          payment_category?: string | null
           payment_date?: string
+          payment_description?: string | null
           payment_mode?: string | null
           payment_reference?: string | null
           payment_type: string
@@ -1454,13 +1573,17 @@ export type Database = {
           amount?: number
           created_at?: string
           created_by?: string | null
+          finance_linked?: boolean | null
           id?: string
           is_deleted?: boolean
           is_final_payment?: boolean
           is_token?: boolean
+          next_payment_expected_date?: string | null
           notes?: string | null
           paid_pipeline_lead_id?: string
+          payment_category?: string | null
           payment_date?: string
+          payment_description?: string | null
           payment_mode?: string | null
           payment_reference?: string | null
           payment_type?: string
@@ -1517,6 +1640,42 @@ export type Database = {
           sort_order?: number
           updated_at?: string
           value?: string | null
+        }
+        Relationships: []
+      }
+      paid_pipeline_to_crm_links: {
+        Row: {
+          crm_lead_id: string | null
+          crm_pipeline_id: string | null
+          crm_stage_id: string | null
+          id: string
+          notes: string | null
+          onboarding_batch_name: string | null
+          paid_pipeline_lead_id: string
+          sent_at: string
+          sent_by: string | null
+        }
+        Insert: {
+          crm_lead_id?: string | null
+          crm_pipeline_id?: string | null
+          crm_stage_id?: string | null
+          id?: string
+          notes?: string | null
+          onboarding_batch_name?: string | null
+          paid_pipeline_lead_id: string
+          sent_at?: string
+          sent_by?: string | null
+        }
+        Update: {
+          crm_lead_id?: string | null
+          crm_pipeline_id?: string | null
+          crm_stage_id?: string | null
+          id?: string
+          notes?: string | null
+          onboarding_batch_name?: string | null
+          paid_pipeline_lead_id?: string
+          sent_at?: string
+          sent_by?: string | null
         }
         Relationships: []
       }

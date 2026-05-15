@@ -348,6 +348,13 @@ export default function Crm() {
                 </div>
               );
             })}
+            <div className="w-[220px] flex-shrink-0 flex items-start pt-3">
+              <div className="w-full bg-off rounded-xl border border-dashed border-line p-3">
+                <div className="font-sans text-[11px] uppercase tracking-wider font-medium mb-2 text-muted-foreground">Add stage</div>
+                <input type="text" className="ipc-input !h-9 mb-2" placeholder="New stage name" value={newStageName} onChange={(e) => setNewStageName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addStage()} />
+                <button onClick={addStage} disabled={!newStageName.trim()} className="ipc-btn ipc-btn-black !h-9 w-full disabled:opacity-50"><Plus className="w-3.5 h-3.5" /> Add stage</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
