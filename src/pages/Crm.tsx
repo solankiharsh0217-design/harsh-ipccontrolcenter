@@ -5,6 +5,7 @@ import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPL
 import LeadDrawer from "@/components/LeadDrawer";
 import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload, Pencil, Calendar } from "lucide-react";
 import ImportLeadsModal from "@/components/ImportLeadsModal";
+import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
 
 type View = "kanban" | "list" | "stages" | "batches";
@@ -29,6 +30,7 @@ export default function Crm() {
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("gray");
   const [importOpen, setImportOpen] = useState(false);
+  const [addStageOpen, setAddStageOpen] = useState(false);
   const [editBatch, setEditBatch] = useState<{ origName: string; origDate: string | null; name: string; date: string } | null>(null);
 
   const load = async () => {
@@ -290,11 +292,13 @@ export default function Crm() {
           </select>
           <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>
           <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
+          <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-10">+ Add Stage</button>
           <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-10"><Download className="w-3.5 h-3.5" /> Export</button>
         </div>
       </div>
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={() => { setImportOpen(false); load(); }} />}
+      {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
 
       {/* Kanban */}
       {view === "kanban" && (

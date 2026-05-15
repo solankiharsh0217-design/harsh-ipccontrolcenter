@@ -8,10 +8,11 @@ type Pipeline = { id: string; name: string };
 type Stage = { id: string; pipeline_id: string; name: string; position: number };
 
 export default function SendToCrmBulkModal({
-  leadIds, leads, onClose, onDone,
+  leadIds, leads, paidBatches, onClose, onDone,
 }: {
   leadIds: string[];
   leads: any[];
+  paidBatches?: { id: string; batch_name: string }[];
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -21,6 +22,7 @@ export default function SendToCrmBulkModal({
   const [pipelineId, setPipelineId] = useState("");
   const [stageId, setStageId] = useState("");
   const [batchName, setBatchName] = useState("");
+  const [paidBatchId, setPaidBatchId] = useState("");
   const [owner, setOwner] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -95,6 +97,7 @@ export default function SendToCrmBulkModal({
         await supabase.from("paid_pipeline_leads").update({
           crm_pipeline_id: pipelineId, crm_stage_id: stageId, crm_lead_id: crmLeadId,
           onboarding_batch_name: batchName || null,
+          paid_batch_id: paidBatchId || null,
           sent_to_crm: true, sent_to_crm_at: new Date().toISOString(),
         } as any).eq("id", l.id);
         await supabase.from("paid_pipeline_activity_logs").insert({
@@ -131,6 +134,13 @@ export default function SendToCrmBulkModal({
             <div className="text-[11px] text-muted-foreground mt-1">
               Need a different stage? Add it from Calling CRM → Stages or from the Kanban "+ Stage" button.
             </div>
+          </div>
+          <div>
+            <label className="qsi-label">Paid Batch (optional)</label>
+            <select className="qsi-input" value={paidBatchId} onChange={(e) => setPaidBatchId(e.target.value)}>
+              <option value="">— None —</option>
+              {(paidBatches || []).map(b => <option key={b.id} value={b.id}>{b.batch_name}</option>)}
+            </select>
           </div>
           <QuickSaveInput fieldKey="onboarding_batch_name" label="Onboarding batch name" value={batchName} onChange={setBatchName} placeholder="e.g. Diamond May 2026 Batch 1" />
           <div>
