@@ -114,7 +114,9 @@ export default function PaidPipeline() {
   const filtered = useMemo(() => {
     const td = today();
     return leads.filter(l => {
-      if (batchFilter !== "all" && l.webinar_batch_id !== batchFilter) return false;
+      if (batchFilter !== "all" && l.webinar_batch_id !== batchFilter && l.source_webinar_batch_id !== batchFilter) return false;
+      if (paidBatchFilter !== "all" && l.paid_batch_id !== paidBatchFilter) return false;
+      if (onboardingBatchFilter !== "all" && (l.onboarding_batch_name || "") !== onboardingBatchFilter) return false;
       if (stageFilter !== "all" && l.pipeline_stage !== stageFilter) return false;
       if (tempFilter !== "all" && (l.lead_temperature || "") !== tempFilter) return false;
       if (financePartnerFilter !== "all" && (l.finance_partner || "") !== financePartnerFilter) return false;
