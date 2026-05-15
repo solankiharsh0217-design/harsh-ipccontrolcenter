@@ -21,6 +21,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/lead-qualifier": "Lead Qualifier",
   "/crm": "Calling CRM",
   "/crm/overview": "CRM Overview",
+  "/paid-pipeline": "Paid Pipeline",
+  "/crm/paid-pipeline": "Paid Pipeline",
   "/team": "Team Directory",
   "/admin": "Admin Panel",
   "/master-data": "Master Data",
