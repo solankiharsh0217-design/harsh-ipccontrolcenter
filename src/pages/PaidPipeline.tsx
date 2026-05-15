@@ -46,6 +46,8 @@ type Lead = {
   balance_description: string | null;
   next_balance_follow_up_date: string | null;
   paid_batch_name: string | null;
+  paid_batch_id: string | null;
+  source_webinar_batch_id: string | null;
   onboarding_batch_name: string | null;
   sent_to_crm: boolean | null;
   is_final_sale: boolean; is_dropped: boolean; is_enrolled: boolean; is_refunded: boolean;
