@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import QuickSaveInput from "@/components/QuickSaveInput";
 import type { SaleDetail, AttributionPayload } from "@/lib/roasExport";
 
 const inr = (n: number) => "₹" + (Math.round(n || 0)).toLocaleString("en-IN");
