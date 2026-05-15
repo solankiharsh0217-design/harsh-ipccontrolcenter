@@ -1496,7 +1496,17 @@ function ReportDrawer({ session, onClose, onEdit, onDelete }: { session: Session
                 {opt("Notes", session.webinar_notes)}
                 {opt("Ad Spend Source", (session.calculation_method || "").toLowerCase().includes("auto") ? "Master Sheet" : "Manual Entry")}
               </div>
-              <AttributionResultsView payload={payload} allowSave={false} />
+              <AttributionResultsView
+                payload={payload}
+                allowSave={false}
+                sessionId={session.id}
+                sessionMeta={{
+                  webinar_name: session.webinar_name,
+                  webinar_date: session.webinar_date,
+                  webinar_type: session.webinar_type,
+                  webinar_operator: session.webinar_operator,
+                }}
+              />
               {auditData && (
                 <AttributionAuditPanel
                   result={auditData.result}
