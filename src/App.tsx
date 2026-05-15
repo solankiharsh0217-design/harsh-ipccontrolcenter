@@ -17,6 +17,7 @@ import Admin from "./pages/Admin";
 import LeadQualifier from "./pages/LeadQualifier";
 import Crm from "./pages/Crm";
 import CrmOverview from "./pages/CrmOverview";
+import PaidPipeline from "./pages/PaidPipeline";
 import MasterData from "./pages/MasterData";
 import ProfitStatement from "./pages/ProfitStatement";
 import NotFound from "./pages/NotFound";
@@ -50,6 +51,8 @@ const App = () => (
             <Route path="/lead-qualifier" element={<Shell moduleKey="lead-qualifier"><LeadQualifier /></Shell>} />
             <Route path="/crm" element={<Shell moduleKey="crm"><Crm /></Shell>} />
             <Route path="/crm/overview" element={<Shell moduleKey="crm"><CrmOverview /></Shell>} />
+            <Route path="/paid-pipeline" element={<Shell moduleKey="paid-pipeline"><PaidPipeline /></Shell>} />
+            <Route path="/crm/paid-pipeline" element={<Shell moduleKey="paid-pipeline"><PaidPipeline /></Shell>} />
             <Route path="/team" element={<Shell moduleKey="team"><Team /></Shell>} />
             <Route path="/announcements" element={<Shell moduleKey="announcements"><Announcements /></Shell>} />
             <Route path="/admin" element={<Shell admin><Admin /></Shell>} />
