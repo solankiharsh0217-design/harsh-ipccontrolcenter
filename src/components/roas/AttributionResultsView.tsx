@@ -140,7 +140,15 @@ export default function AttributionResultsView({
       </div>
 
       {/* Full sales attribution */}
-      <FullSalesTable salesDetail={salesDetail} buyers={rows.map((r) => r.name)} />
+      <FullSalesTable
+        salesDetail={salesDetail}
+        buyers={rows.map((r) => r.name)}
+        selectable={!!sessionId}
+        selectedKeys={selectedKeys}
+        setSelectedKeys={setSelectedKeys}
+        saleKey={saleKey}
+        onSendSelected={sessionId ? () => openSend("selected") : undefined}
+      />
 
       {/* Charts */}
       <div className="sl" style={{ marginTop: 28 }}>Performance charts</div>
