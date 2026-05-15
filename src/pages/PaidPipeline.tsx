@@ -147,7 +147,7 @@ export default function PaidPipeline() {
       }
       return true;
     });
-  }, [leads, batchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, search]);
+  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, search]);
 
   const totals = useMemo(() => {
     const td = today();
