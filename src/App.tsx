@@ -17,6 +17,7 @@ import Admin from "./pages/Admin";
 import LeadQualifier from "./pages/LeadQualifier";
 import Crm from "./pages/Crm";
 import CrmOverview from "./pages/CrmOverview";
+import PaidPipeline from "./pages/PaidPipeline";
 import MasterData from "./pages/MasterData";
 import ProfitStatement from "./pages/ProfitStatement";
 import NotFound from "./pages/NotFound";
