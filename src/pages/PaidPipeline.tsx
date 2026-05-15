@@ -228,10 +228,32 @@ export default function PaidPipeline() {
 
   return (
     <div className="max-w-[1500px]">
-      <h1 className="font-serif text-[28px] text-black">Paid Pipeline</h1>
-      <p className="font-sans text-[13px] font-light text-muted-foreground mt-1 mb-5">
-        Track payments, finance/EMI, balances and follow-ups. Bulk-send paid leads to Calling CRM / Paid Onboarding.
-      </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-serif text-[28px] text-black">Paid Pipeline</h1>
+          <p className="font-sans text-[13px] font-light text-muted-foreground mt-1 mb-3">
+            Track token payments, balance recovery, finance/EMI, and final revenue realization.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setNewBatchOpen(true)} className="ipc-btn ipc-btn-black !h-9">+ New Paid Batch</button>
+          <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-9">+ Add Stage</button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white inline-flex mb-4">
+        <button onClick={() => setView("leads")} className={`px-3 py-1.5 rounded-md text-xs ${view === "leads" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Leads</button>
+        <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Paid Batches</button>
+      </div>
+
+      {view === "batches" && (
+        <PaidBatchesView
+          onOpenBatch={(id) => { setPaidBatchFilter(id); setView("leads"); }}
+          onBulkSend={(ids) => { setBulkSendIdsOverride(ids); setBulkSend(true); }}
+        />
+      )}
+      {view === "leads" && (<>
+
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
         <SumCard label="Realized Revenue" value={inr(totals.realized)} accent="green" />
