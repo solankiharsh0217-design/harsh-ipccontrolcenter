@@ -1,116 +1,116 @@
-## Paid Pipeline Engine — Phased Build Plan
+# Paid Pipeline Operational Upgrade
 
-A configurable system that converts Media Buyer Attribution sales into a tracked CRM pipeline with payments, finance/EMI, balance, and realized revenue. Customizable for any coach (not IPC-only).
+This is a large, targeted enhancement to the existing Paid Pipeline + Calling CRM integration. No rebuild, no global UI changes, no data loss. I'll execute it in phased migrations + frontend additions, all preserving the existing IPC Control Center design.
 
----
+## Scope summary
 
-### Phase 1 — Database foundation (1 migration)
+- Add operational fields (balance/follow-up/temperature/batches/CRM links) to existing tables
+- New `paid_pipeline_followups` and `paid_pipeline_to_crm_links` tables
+- Upgrade `PaidPipeline.tsx` dashboard, table, drawer, filters, bulk actions
+- Upgrade `SendToPaidPipelineDrawer` minimally (lead temperature on review step)
+- Add "Send to Calling CRM / Paid Onboarding" bulk modal that writes into existing CRM `leads`/`pipelines`/`stages`
+- Add "+ New Stage" inline creator on the Calling CRM Kanban
+- QuickSaveInput across every open-ended field
+- Recalculation logic for totals/realized/balance/final sale
 
-Create 7 new tables (all soft-delete, RLS enforced):
+## Phase 1 — Database migration (single migration, all `IF NOT EXISTS`-safe)
 
-- `webinar_batches` — reusable batch identity (name, date, type, BU, offer)
-- `program_products` — products/programs per BU (price incl. GST, currency, GST flag/rate, default token, revenue-recognition rule, active)
-- `paid_pipeline_settings` — single table for all configurable lists (`setting_type` ∈ payment_type, payment_model, pipeline_stage, finance_partner, finance_status, revenue_recognition_rule), with seeded defaults
-- `paid_pipeline_leads` — main entity, stores attribution context + payment summary + flags (is_final_sale, is_enrolled, is_dropped, is_refunded)
-- `paid_pipeline_payments` — payment ledger (token / balance / EMI / refund / adjustment)
-- `paid_pipeline_finance_details` — 1:1 finance/EMI tracker
-- `paid_pipeline_activity_logs` — audit trail
+`paid_pipeline_leads` — add columns:
+balance_category, balance_description, next_balance_follow_up_date,
+next_follow_up_date (if missing), next_follow_up_time, follow_up_reason,
+follow_up_priority, follow_up_status, lead_temperature, paid_batch_name,
+onboarding_batch_name, crm_pipeline_id, crm_stage_id, sent_to_crm,
+sent_to_crm_at, revenue_to_be_realized, finance_notes,
+finance_follow_up_date, finance_owner.
 
-RLS pattern (mirrors existing `attribution_*` tables):
-- `*_admin` ALL → admin role
-- `*_read` SELECT → any active user
-- `*_insert/update` → `created_by = auth.uid()` OR admin
-- Soft-delete only (`is_deleted` flag, no DELETE for non-admins)
+`paid_pipeline_payments` — add columns:
+payment_category, next_payment_expected_date, payment_description,
+finance_linked.
 
-Indexes on: `webinar_batch_id`, `attribution_session_id`, `attribution_sale_id`, `(email, phone)` for duplicate detection.
+New tables (with RLS for active users — matches existing pattern):
+- `paid_pipeline_followups`
+- `paid_pipeline_to_crm_links`
 
-Seed `paid_pipeline_settings` with all defaults listed in your spec (payment types, models, stages, finance partners/statuses, revenue rules). Seeded as `business_unit = NULL` (global) so any BU inherits them; coaches can override per BU.
+Seed default Paid Onboarding pipeline + stages into existing CRM pipeline/stage tables ONLY if a pipeline named "Paid — Onboarding" doesn't already exist.
 
----
+## Phase 2 — Frontend: PaidPipeline.tsx
 
-### Phase 2 — Send to Paid Pipeline flow
+Dashboard cards (replace current set):
+1. Realized Revenue
+2. Revenue To Be Realized
+3. Token Collected
+4. Balance Pending
+5. Finance Pending
+6. Final Sales
+7. Dropped After Token
+8. EMI / Finance Disbursed
+9. Hot/Urgent Balance Pending
+10. Follow-Ups Due Today
 
-In `AttributionResultsView.tsx`:
-- Add **"Send Sales to Paid Pipeline"** button near Full Sales Attribution section
-- Add row checkboxes (select all / matched-only / include-unmatched filter)
+Filters bar additions: balance category, lead temperature, finance partner, finance status, follow-up date/status, revenue realization status, paid batch, onboarding batch.
 
-New `SendToPaidPipelineDrawer.tsx` (5 steps, IPC drawer styling):
-1. Webinar Batch — auto-fill from session, allow create/select existing, save to `webinar_batches`
-2. Product / Program — select from `program_products` (BU-scoped) or create inline; shows price, GST, default token
-3. Payment Model — dropdown from settings
-4. Review Buyers — editable per-row table: token amount, payment model override, initial stage, assigned executive, follow-up date. Live `balance_pending = deal_value − token_collected`
-5. Confirm & Push — duplicate check (phone/email + batch + attribution_sale_id) with Skip / Update / Create-anyway choice; default Skip
+Table additions:
+- Row checkbox column + select-all
+- Compact row actions: `+ Payment`, `Follow-Up`, inline `Stage` dropdown (QuickSave), inline `Priority/Temperature` dropdown (QuickSave), `Notes`, `Open`
+- New columns: Lead Temperature badge, Next Follow-Up date
 
-Pushes inserts into `paid_pipeline_leads` (+ initial token row in `paid_pipeline_payments` if token > 0) + activity log entry.
+Bulk action bar (appears when ≥1 selected):
+- Assign Owner, Update Stage, Update Temperature, Set Follow-Up, **Send to CRM / Paid Onboarding**, Export CSV, Delete (soft).
 
----
+## Phase 3 — New small components
 
-### Phase 3 — Paid Pipeline module (Calling CRM tab)
+- `QuickAddPaymentModal` — payment category + type + amount + mode + date + description + next follow-up + flags (token / final / finance-linked). Recomputes totals on save.
+- `QuickFollowUpModal` — date/time/reason/priority/status/assignee/notes → writes to `paid_pipeline_followups` and updates lead's next_follow_up_*.
+- `SendToCrmBulkModal` — choose CRM pipeline (default "Paid — Onboarding"), CRM stage, onboarding batch (QuickSave), owner, notes. Inserts into existing CRM `leads` (skipping duplicates by phone/email per pipeline) + writes `paid_pipeline_to_crm_links`. Marks `sent_to_crm = true`.
+- `BalanceFollowUpSection` (inside drawer) — balance_category + description + next_balance_follow_up_date.
 
-New route `/crm/paid-pipeline` (added to existing CRM page as a tab — does not touch existing pipelines):
+## Phase 4 — Lead drawer rework (within existing drawer file)
 
-- **Filters:** batch, product, stage, payment status, finance status, assigned to, media buyer, date range, search
-- **Summary cards:** Total Token Collected · Total Deal Value · Total Collected · Balance Pending · Final Sales · Dropped After Token · Finance Pending · EMI Disbursed Revenue
-- **Views:** Table (default), Board (by stage), Batch (grouped), Payment Follow-Up (sorted by follow_up_date)
-- **Row actions:** View · Edit · Add Payment · Update Stage · Assign · Copy WhatsApp · Soft Delete
+Sections: Lead Summary, Payment Summary (with Realized + To-Be-Realized), Quick Status (stage/temperature/payment status/follow-up/owner), Add Payment, Finance/EMI, Activity/Notes, WhatsApp Templates (mailto/wa.me deep links with prefilled token-received / balance reminder / EMI docs / welcome messages).
 
-`PaidLeadDrawer.tsx` — full lead detail with sections: Basic · Attribution context · Payment History (+ Add Payment) · Finance/EMI · Activity log · WhatsApp templates.
+## Phase 5 — Calling CRM "+ New Stage"
 
-**Auto-rules on payment add:**
-- `total_collected = Σ(positive amounts) − Σ(refunds)`
-- `balance_pending = deal_value − total_collected`
-- If `total_collected ≥ deal_value` → status=Full Payment Received, stage=Enrolled/Activated, is_final_sale=true
-- If finance status=Disbursed and rule allows → is_final_sale=true, realized=loan_amount + down_payment
-- `final_revenue_realized` derived from product's `revenue_recognition_rule`
+In existing CRM Kanban (`src/pages/Crm.tsx`): add a small "+ New Stage" button at the end of the stage strip → opens compact dialog (name, color, pipeline). Inserts into existing `stages` table with next position. Duplicate-name guard within pipeline.
 
----
+## Phase 6 — Recalculation helper
 
-### Phase 4 — Settings UI (Master Data → Paid Pipeline)
+Shared `recomputePaidLead(leadId)` util:
+- token_amount_collected = Σ payments where category/type ∈ {Token, Second Token}
+- total_collected = Σ positive payments − Σ refunds
+- balance_pending = max(deal_value_including_gst − total_collected, 0)
+- revenue_to_be_realized = balance_pending if not dropped/closed-lost else 0
+- final_revenue_realized per `revenue_recognition_rule`
+- is_final_sale only when full collection / finance disbursed / stage Enrolled-Active / manual
+- is_dropped when stage = Dropped After Token / Closed Lost
 
-New section in Master Data page (or new sub-page `MasterData/PaidPipeline.tsx`):
-- Tabs: Products · Payment Types · Payment Models · Pipeline Stages · Finance Partners · Finance Statuses · Revenue Rules
-- Each tab: list + add/edit/soft-delete (mirrors existing `MasterData.tsx` UX)
-- Products tab is richer (price, GST, default token, revenue rule)
+Called after every payment add/edit/delete and stage change.
 
----
+## Phase 7 — Quick-save coverage
 
-### Phase 5 — Reports & permissions
+Every open-ended field uses `QuickSaveInput` with these field keys:
+`paid_pipeline_stage`, `payment_category`, `payment_type`, `payment_mode`,
+`balance_category`, `follow_up_reason`, `follow_up_priority`,
+`lead_temperature`, `finance_partner`, `finance_status`,
+`paid_batch_name`, `onboarding_batch_name`, `crm_pipeline`,
+`crm_stage`, `revenue_recognition_rule`.
 
-- Add `paid-pipeline` to `src/lib/modules.ts` for Admin Panel access control
-- Add new sections to `Reports.tsx`: Token Collection · Final Sales Realization · Pending Balance · Finance/EMI Pending · Dropped After Token · Media Buyer Quality · Sales Exec Follow-Up · Webinar Batch Payment
-- Media Buyer Quality joins `paid_pipeline_leads.attributed_media_buyer` to compute token→final conversion %, realized revenue per buyer
+## Phase 8 — Export CSV
 
-Profit Statement integration: leave a clean read interface (`final_revenue_realized` column) but **do not** auto-wire it now — explicitly noted to avoid breaking the existing finance module.
+Filtered-view CSV with the 19 fields listed in the prompt (Part 19).
 
----
+## Out-of-scope guardrails
 
-### What stays untouched
+- No edits to global CSS, sidebar, topbar, or fonts
+- No rebuild of Reports/Attribution/SendToPaidPipeline
+- No deletion of any existing rows
+- All migrations additive, all `IF NOT EXISTS`
+- No hardcoded coach/finance/token values
 
-- Sidebar/topbar/AppLayout, fonts, `index.css`, design tokens
-- Existing Attribution tables/logic (only adds a button + drawer that *reads* sessions)
-- ROAS Calculator, Daily Lead Reporting, existing CRM pipelines
-- Existing Reports (only appends new sections)
-- Profit Statement (read-only future hook only)
+## Sequencing
 
----
+1. Run the single Supabase migration (Phase 1).
+2. After approval + types regen, ship frontend in this order: helpers → modals → table/dashboard → drawer → CRM "+ New Stage".
 
-### Suggested execution order
+Given the size, I'll deliver this in 2 turns: **Turn A** = migration only (so types regenerate). **Turn B** = all frontend changes + new components in one shot.
 
-I'd ship this across multiple turns, each independently testable:
-
-1. **Turn A** — Migration (Phase 1) + seed settings. Wait for your approval on the migration.
-2. **Turn B** — Settings UI (Phase 4) so you can configure before pushing data.
-3. **Turn C** — Send to Paid Pipeline button + drawer (Phase 2).
-4. **Turn D** — Paid Pipeline tab in CRM with table + drawer + payments/finance (Phase 3).
-5. **Turn E** — Reports + Admin access key (Phase 5).
-
-This keeps each turn reviewable and avoids a single 50-file change that's impossible to verify.
-
----
-
-### Confirmations needed before I start
-
-1. **Sidebar placement:** Paid Pipeline as a tab inside existing **Calling CRM** page (preferred per your spec) — confirm?
-2. **Settings location:** Add as new tabs inside existing **Master Data** page — confirm?
-3. **Currency:** default `INR` with field-level override per product — OK?
-4. **Phase A first:** I'll start with the migration only this turn. OK to proceed?
+Approve to proceed with the migration.
