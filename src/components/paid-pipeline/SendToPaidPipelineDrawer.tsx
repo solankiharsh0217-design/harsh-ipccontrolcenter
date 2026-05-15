@@ -355,12 +355,27 @@ export default function SendToPaidPipelineDrawer({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2"><label className={labelCls}>Batch name</label><input className={inputCls} value={batchName} onChange={e => setBatchName(e.target.value)} /></div>
-                  <div><label className={labelCls}>Webinar name</label><input className={inputCls} value={batchWebName} onChange={e => setBatchWebName(e.target.value)} /></div>
+                  <div className="col-span-2">
+                    <label className={labelCls}>Batch name</label>
+                    <QuickSaveInput fieldKey="webinar_batch_name" value={batchName} onChange={setBatchName} placeholder="e.g. Diamond Webinar - 14 May 2026" height={36} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Webinar name</label>
+                    <QuickSaveInput fieldKey="webinar_name" value={batchWebName} onChange={setBatchWebName} height={36} />
+                  </div>
                   <div><label className={labelCls}>Webinar date</label><input type="date" className={inputCls} value={batchWebDate} onChange={e => setBatchWebDate(e.target.value)} /></div>
-                  <div><label className={labelCls}>Webinar type</label><input className={inputCls} value={batchWebType} onChange={e => setBatchWebType(e.target.value)} /></div>
-                  <div><label className={labelCls}>Business unit / Coach</label><input className={inputCls} value={batchBU} onChange={e => setBatchBU(e.target.value)} /></div>
-                  <div className="col-span-2"><label className={labelCls}>Offer name (optional)</label><input className={inputCls} value={batchOffer} onChange={e => setBatchOffer(e.target.value)} /></div>
+                  <div>
+                    <label className={labelCls}>Webinar type</label>
+                    <QuickSaveInput fieldKey="webinar_type" value={batchWebType} onChange={setBatchWebType} height={36} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Business unit / Coach</label>
+                    <QuickSaveInput fieldKey="business_unit" value={batchBU} onChange={setBatchBU} height={36} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className={labelCls}>Offer name (optional)</label>
+                    <QuickSaveInput fieldKey="offer_name" value={batchOffer} onChange={setBatchOffer} height={36} />
+                  </div>
                 </div>
               )}
             </div>
