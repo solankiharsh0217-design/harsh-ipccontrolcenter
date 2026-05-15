@@ -8,10 +8,11 @@ type Pipeline = { id: string; name: string };
 type Stage = { id: string; pipeline_id: string; name: string; position: number };
 
 export default function SendToCrmBulkModal({
-  leadIds, leads, onClose, onDone,
+  leadIds, leads, paidBatches, onClose, onDone,
 }: {
   leadIds: string[];
   leads: any[];
+  paidBatches?: { id: string; batch_name: string }[];
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -21,6 +22,7 @@ export default function SendToCrmBulkModal({
   const [pipelineId, setPipelineId] = useState("");
   const [stageId, setStageId] = useState("");
   const [batchName, setBatchName] = useState("");
+  const [paidBatchId, setPaidBatchId] = useState("");
   const [owner, setOwner] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
