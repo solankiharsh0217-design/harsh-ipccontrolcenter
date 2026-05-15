@@ -68,9 +68,14 @@ export default function PaidPipeline() {
   const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [paidBatches, setPaidBatches] = useState<PaidBatch[]>([]);
+  const [onboardingBatches, setOnboardingBatches] = useState<string[]>([]);
   const [stages, setStages] = useState<string[]>([]);
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
-  const [batchFilter, setBatchFilter] = useState("all");
+  const [view, setView] = useState<"leads"|"batches">("leads");
+  const [batchFilter, setBatchFilter] = useState("all"); // source webinar batch
+  const [paidBatchFilter, setPaidBatchFilter] = useState("all");
+  const [onboardingBatchFilter, setOnboardingBatchFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
   const [tempFilter, setTempFilter] = useState("all");
   const [financePartnerFilter, setFinancePartnerFilter] = useState("all");
@@ -83,6 +88,9 @@ export default function PaidPipeline() {
   const [quickPayId, setQuickPayId] = useState<string | null>(null);
   const [quickFuId, setQuickFuId] = useState<string | null>(null);
   const [bulkSend, setBulkSend] = useState(false);
+  const [bulkSendIdsOverride, setBulkSendIdsOverride] = useState<string[] | null>(null);
+  const [newBatchOpen, setNewBatchOpen] = useState(false);
+  const [addStageOpen, setAddStageOpen] = useState(false);
 
   const load = async () => {
     const [{ data: l }, { data: b }, { data: s }, { data: ag }] = await Promise.all([
