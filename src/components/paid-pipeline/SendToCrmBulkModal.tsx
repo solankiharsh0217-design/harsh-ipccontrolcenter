@@ -97,6 +97,7 @@ export default function SendToCrmBulkModal({
         await supabase.from("paid_pipeline_leads").update({
           crm_pipeline_id: pipelineId, crm_stage_id: stageId, crm_lead_id: crmLeadId,
           onboarding_batch_name: batchName || null,
+          paid_batch_id: paidBatchId || null,
           sent_to_crm: true, sent_to_crm_at: new Date().toISOString(),
         } as any).eq("id", l.id);
         await supabase.from("paid_pipeline_activity_logs").insert({
