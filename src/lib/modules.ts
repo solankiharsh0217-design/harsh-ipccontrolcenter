@@ -7,6 +7,7 @@ export type ModuleKey =
   | "reports"
   | "lead-qualifier"
   | "crm"
+  | "paid-pipeline"
   | "team"
   | "admin"
   | "master-data"
@@ -21,6 +22,7 @@ export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "reports", label: "Reports & History", group: "Tools" },
   { key: "lead-qualifier", label: "Lead Qualifier", group: "Tools" },
   { key: "crm", label: "Calling CRM", group: "Tools" },
+  { key: "paid-pipeline", label: "Paid Pipeline", group: "Tools" },
   { key: "profit-statement", label: "Profit Statement", group: "Tools" },
   { key: "team", label: "Team Directory", group: "People" },
   { key: "admin", label: "Admin Panel", group: "People" },
