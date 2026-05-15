@@ -1219,6 +1219,57 @@ export type Database = {
           },
         ]
       }
+      paid_pipeline_batches: {
+        Row: {
+          batch_name: string
+          batch_status: string
+          business_unit: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_deleted: boolean
+          product_id: string | null
+          product_name_snapshot: string | null
+          source_webinar_batch_id: string | null
+          source_webinar_date: string | null
+          source_webinar_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          batch_name: string
+          batch_status?: string
+          business_unit?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean
+          product_id?: string | null
+          product_name_snapshot?: string | null
+          source_webinar_batch_id?: string | null
+          source_webinar_date?: string | null
+          source_webinar_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          batch_name?: string
+          batch_status?: string
+          business_unit?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean
+          product_id?: string | null
+          product_name_snapshot?: string | null
+          source_webinar_batch_id?: string | null
+          source_webinar_date?: string | null
+          source_webinar_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       paid_pipeline_finance_details: {
         Row: {
           application_date: string | null
@@ -1369,6 +1420,7 @@ export type Database = {
           next_follow_up_time: string | null
           notes: string | null
           onboarding_batch_name: string | null
+          paid_batch_id: string | null
           paid_batch_name: string | null
           payment_model: string | null
           payment_status: string | null
@@ -1382,6 +1434,7 @@ export type Database = {
           sent_to_crm_at: string | null
           source_report_date: string | null
           source_webinar: string | null
+          source_webinar_batch_id: string | null
           token_amount_collected: number
           total_collected: number
           updated_at: string
@@ -1432,6 +1485,7 @@ export type Database = {
           next_follow_up_time?: string | null
           notes?: string | null
           onboarding_batch_name?: string | null
+          paid_batch_id?: string | null
           paid_batch_name?: string | null
           payment_model?: string | null
           payment_status?: string | null
@@ -1445,6 +1499,7 @@ export type Database = {
           sent_to_crm_at?: string | null
           source_report_date?: string | null
           source_webinar?: string | null
+          source_webinar_batch_id?: string | null
           token_amount_collected?: number
           total_collected?: number
           updated_at?: string
@@ -1495,6 +1550,7 @@ export type Database = {
           next_follow_up_time?: string | null
           notes?: string | null
           onboarding_batch_name?: string | null
+          paid_batch_id?: string | null
           paid_batch_name?: string | null
           payment_model?: string | null
           payment_status?: string | null
@@ -1508,6 +1564,7 @@ export type Database = {
           sent_to_crm_at?: string | null
           source_report_date?: string | null
           source_webinar?: string | null
+          source_webinar_batch_id?: string | null
           token_amount_collected?: number
           total_collected?: number
           updated_at?: string

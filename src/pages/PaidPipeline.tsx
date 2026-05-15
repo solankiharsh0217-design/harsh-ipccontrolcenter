@@ -6,6 +6,9 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
 import QuickFollowUpModal from "@/components/paid-pipeline/QuickFollowUpModal";
 import SendToCrmBulkModal from "@/components/paid-pipeline/SendToCrmBulkModal";
+import NewPaidBatchModal from "@/components/paid-pipeline/NewPaidBatchModal";
+import AddPaidStageModal from "@/components/paid-pipeline/AddPaidStageModal";
+import PaidBatchesView from "@/components/paid-pipeline/PaidBatchesView";
 import {
   inr, fmtDate, recomputePaidLead, downloadCsv,
   TEMPERATURES, TEMP_COLORS, FOLLOWUP_PRIORITIES,
@@ -43,6 +46,8 @@ type Lead = {
   balance_description: string | null;
   next_balance_follow_up_date: string | null;
   paid_batch_name: string | null;
+  paid_batch_id: string | null;
+  source_webinar_batch_id: string | null;
   onboarding_batch_name: string | null;
   sent_to_crm: boolean | null;
   is_final_sale: boolean; is_dropped: boolean; is_enrolled: boolean; is_refunded: boolean;
@@ -53,6 +58,8 @@ type Lead = {
   created_at: string;
 };
 type Batch = { id: string; batch_name: string; webinar_name: string; webinar_date: string | null };
+type PaidBatch = { id: string; batch_name: string; batch_status: string };
+type OnboardingOpt = { name: string };
 type Payment = { id: string; payment_type: string; payment_category: string | null; amount: number; payment_date: string; payment_mode: string | null; is_token: boolean; is_final_payment: boolean; payment_description: string | null; notes: string | null; next_payment_expected_date: string | null };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -61,9 +68,14 @@ export default function PaidPipeline() {
   const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [paidBatches, setPaidBatches] = useState<PaidBatch[]>([]);
+  const [onboardingBatches, setOnboardingBatches] = useState<string[]>([]);
   const [stages, setStages] = useState<string[]>([]);
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
-  const [batchFilter, setBatchFilter] = useState("all");
+  const [view, setView] = useState<"leads"|"batches">("leads");
+  const [batchFilter, setBatchFilter] = useState("all"); // source webinar batch
+  const [paidBatchFilter, setPaidBatchFilter] = useState("all");
+  const [onboardingBatchFilter, setOnboardingBatchFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
   const [tempFilter, setTempFilter] = useState("all");
   const [financePartnerFilter, setFinancePartnerFilter] = useState("all");
@@ -76,25 +88,35 @@ export default function PaidPipeline() {
   const [quickPayId, setQuickPayId] = useState<string | null>(null);
   const [quickFuId, setQuickFuId] = useState<string | null>(null);
   const [bulkSend, setBulkSend] = useState(false);
+  const [bulkSendIdsOverride, setBulkSendIdsOverride] = useState<string[] | null>(null);
+  const [newBatchOpen, setNewBatchOpen] = useState(false);
+  const [addStageOpen, setAddStageOpen] = useState(false);
 
   const load = async () => {
-    const [{ data: l }, { data: b }, { data: s }, { data: ag }] = await Promise.all([
+    const [{ data: l }, { data: b }, { data: pb }, { data: s }, { data: ag }] = await Promise.all([
       supabase.from("paid_pipeline_leads").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("webinar_batches").select("id, batch_name, webinar_name, webinar_date").eq("is_deleted", false).order("created_at", { ascending: false }),
+      (supabase as any).from("paid_pipeline_batches").select("id, batch_name, batch_status").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("paid_pipeline_settings").select("label").eq("setting_type", "pipeline_stage").eq("is_active", true).eq("is_deleted", false).order("sort_order"),
       supabase.from("profiles").select("id, full_name, status").eq("status", "active"),
     ]);
     setLeads((l as any) || []);
     setBatches((b as any) || []);
+    setPaidBatches((pb as any) || []);
     setStages(((s as any) || []).map((x: any) => x.label));
     setAgents((ag as any) || []);
+    const obSet = new Set<string>();
+    ((l as any[]) || []).forEach(x => { if (x.onboarding_batch_name) obSet.add(x.onboarding_batch_name); });
+    setOnboardingBatches(Array.from(obSet).sort());
   };
   useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
     const td = today();
     return leads.filter(l => {
-      if (batchFilter !== "all" && l.webinar_batch_id !== batchFilter) return false;
+      if (batchFilter !== "all" && l.webinar_batch_id !== batchFilter && l.source_webinar_batch_id !== batchFilter) return false;
+      if (paidBatchFilter !== "all" && l.paid_batch_id !== paidBatchFilter) return false;
+      if (onboardingBatchFilter !== "all" && (l.onboarding_batch_name || "") !== onboardingBatchFilter) return false;
       if (stageFilter !== "all" && l.pipeline_stage !== stageFilter) return false;
       if (tempFilter !== "all" && (l.lead_temperature || "") !== tempFilter) return false;
       if (financePartnerFilter !== "all" && (l.finance_partner || "") !== financePartnerFilter) return false;
@@ -125,7 +147,7 @@ export default function PaidPipeline() {
       }
       return true;
     });
-  }, [leads, batchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, search]);
+  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, search]);
 
   const totals = useMemo(() => {
     const td = today();
@@ -206,10 +228,32 @@ export default function PaidPipeline() {
 
   return (
     <div className="max-w-[1500px]">
-      <h1 className="font-serif text-[28px] text-black">Paid Pipeline</h1>
-      <p className="font-sans text-[13px] font-light text-muted-foreground mt-1 mb-5">
-        Track payments, finance/EMI, balances and follow-ups. Bulk-send paid leads to Calling CRM / Paid Onboarding.
-      </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-serif text-[28px] text-black">Paid Pipeline</h1>
+          <p className="font-sans text-[13px] font-light text-muted-foreground mt-1 mb-3">
+            Track token payments, balance recovery, finance/EMI, and final revenue realization.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setNewBatchOpen(true)} className="ipc-btn ipc-btn-black !h-9">+ New Paid Batch</button>
+          <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-9">+ Add Stage</button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white inline-flex mb-4">
+        <button onClick={() => setView("leads")} className={`px-3 py-1.5 rounded-md text-xs ${view === "leads" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Leads</button>
+        <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Paid Batches</button>
+      </div>
+
+      {view === "batches" && (
+        <PaidBatchesView
+          onOpenBatch={(id) => { setPaidBatchFilter(id); setView("leads"); }}
+          onBulkSend={(ids) => { setBulkSendIdsOverride(ids); setBulkSend(true); }}
+        />
+      )}
+      {view === "leads" && (<>
+
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
         <SumCard label="Realized Revenue" value={inr(totals.realized)} accent="green" />
