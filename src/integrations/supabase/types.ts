@@ -3333,6 +3333,10 @@ export type Database = {
           is_deleted: boolean
           notes: string | null
           offer_name: string | null
+          source_attribution_report_id: string | null
+          source_attribution_session_id: string | null
+          source_created_from: string | null
+          source_report_type: string | null
           updated_at: string
           webinar_date: string | null
           webinar_name: string
@@ -3347,6 +3351,10 @@ export type Database = {
           is_deleted?: boolean
           notes?: string | null
           offer_name?: string | null
+          source_attribution_report_id?: string | null
+          source_attribution_session_id?: string | null
+          source_created_from?: string | null
+          source_report_type?: string | null
           updated_at?: string
           webinar_date?: string | null
           webinar_name: string
@@ -3361,6 +3369,10 @@ export type Database = {
           is_deleted?: boolean
           notes?: string | null
           offer_name?: string | null
+          source_attribution_report_id?: string | null
+          source_attribution_session_id?: string | null
+          source_created_from?: string | null
+          source_report_type?: string | null
           updated_at?: string
           webinar_date?: string | null
           webinar_name?: string
