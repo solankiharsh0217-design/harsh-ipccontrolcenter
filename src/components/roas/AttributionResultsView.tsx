@@ -21,16 +21,35 @@ function initials(name: string) {
 const PALETTE = ["#0a0a0a", "#C8A84B", "#E8D49A", "#333333", "#888888", "#7A5E10", "#D4B876", "#555"];
 
 export default function AttributionResultsView({
-  payload, onSave, savedHist, allowSave = true,
+  payload, onSave, savedHist, allowSave = true, sessionId, sessionMeta,
 }: {
   payload: AttributionPayload;
   onSave?: () => void;
   savedHist?: boolean;
   allowSave?: boolean;
+  sessionId?: string;
+  sessionMeta?: { webinar_name?: string | null; webinar_date?: string | null; webinar_type?: string | null; webinar_operator?: string | null };
 }) {
   const { rows, salesDetail, totals, webinarName, webinarDate, webinarType } = payload;
   const unmatched = salesDetail.filter((s) => s.matchMethod === "unmatched");
   const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
+
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerSelection, setDrawerSelection] = useState<SaleDetail[]>([]);
+
+  const saleKey = (s: SaleDetail, i: number) => `${i}_${s.email || s.phone || s.name || i}`;
+  const sendableSales = salesDetail; // include unmatched too — user decides
+  const hasAnySales = sendableSales.length > 0;
+
+  const openSend = (which: "all" | "selected") => {
+    if (which === "all") {
+      setDrawerSelection(sendableSales);
+    } else {
+      setDrawerSelection(sendableSales.filter((s, i) => selectedKeys.has(saleKey(s, i))));
+    }
+    setDrawerOpen(true);
+  };
 
   const pieData = rows
     .filter((r) => r.matched > 0)
@@ -45,7 +64,12 @@ export default function AttributionResultsView({
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6, gap: 12 }}>
         <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 400 }}>Attribution Results</div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {sessionId && hasAnySales && (
+            <button className="btn btn-k btn-sm" onClick={() => openSend("all")} title="Send all sales to Paid Pipeline">
+              → Send to Paid Pipeline
+            </button>
+          )}
           <button className="btn btn-g btn-sm" onClick={() => downloadCSV(payload)}>Export CSV</button>
           <button className="btn btn-g btn-sm" onClick={() => downloadPDF(payload)}>📄 Export PDF</button>
           {allowSave && onSave && (
