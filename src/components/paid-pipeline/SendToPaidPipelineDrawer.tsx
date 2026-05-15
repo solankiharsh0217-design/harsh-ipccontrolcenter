@@ -400,7 +400,10 @@ export default function SendToPaidPipelineDrawer({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2"><label className={labelCls}>Product name</label><input className={inputCls} value={newProductName} onChange={e => setNewProductName(e.target.value)} placeholder="e.g. Diamond Program" /></div>
+                  <div className="col-span-2">
+                    <label className={labelCls}>Product name</label>
+                    <QuickSaveInput fieldKey="program_product_name" value={newProductName} onChange={setNewProductName} placeholder="e.g. Diamond Program" height={36} />
+                  </div>
                   <div><label className={labelCls}>Price including GST</label><input type="number" className={inputCls} value={newProductPrice || ""} onChange={e => setNewProductPrice(Number(e.target.value))} /></div>
                   <div><label className={labelCls}>Currency</label><input className={inputCls} value={newProductCurrency} onChange={e => setNewProductCurrency(e.target.value)} /></div>
                   <div><label className={labelCls}>GST applicable</label>
