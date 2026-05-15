@@ -58,6 +58,8 @@ type Lead = {
   created_at: string;
 };
 type Batch = { id: string; batch_name: string; webinar_name: string; webinar_date: string | null };
+type PaidBatch = { id: string; batch_name: string; batch_status: string };
+type OnboardingOpt = { name: string };
 type Payment = { id: string; payment_type: string; payment_category: string | null; amount: number; payment_date: string; payment_mode: string | null; is_token: boolean; is_final_payment: boolean; payment_description: string | null; notes: string | null; next_payment_expected_date: string | null };
 
 const today = () => new Date().toISOString().slice(0, 10);
