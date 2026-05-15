@@ -207,18 +207,28 @@ export default function SendToPaidPipelineDrawer({
       let productName = "";
       let dealValue = 0;
       if (productMode === "new") {
-        const { data, error } = await supabase.from("program_products").insert({
-          product_name: newProductName, business_unit: batchBU,
-          product_price_including_gst: newProductPrice, currency: newProductCurrency,
-          gst_applicable: newProductGstApplicable, gst_rate: newProductGstRate,
-          default_token_amount: newProductDefaultToken,
-          revenue_recognition_rule: newProductRevRule,
-          created_by: user?.id,
-        } as any).select("*").single();
-        if (error) throw error;
-        productId = data!.id;
-        productName = data!.product_name;
-        dealValue = Number(data!.product_price_including_gst || 0);
+        // Duplicate prevention: same product_name + business_unit
+        const dupName = newProductName.trim().toLowerCase();
+        const existingProd = products.find(p => (p.product_name || "").trim().toLowerCase() === dupName && (p.business_unit || "") === batchBU);
+        if (existingProd) {
+          productId = existingProd.id;
+          productName = existingProd.product_name;
+          dealValue = Number(existingProd.product_price_including_gst || 0);
+          toast.message("Reusing existing product with same name");
+        } else {
+          const { data, error } = await supabase.from("program_products").insert({
+            product_name: newProductName, business_unit: batchBU,
+            product_price_including_gst: newProductPrice, currency: newProductCurrency,
+            gst_applicable: newProductGstApplicable, gst_rate: newProductGstRate,
+            default_token_amount: newProductDefaultToken,
+            revenue_recognition_rule: newProductRevRule,
+            created_by: user?.id,
+          } as any).select("*").single();
+          if (error) throw error;
+          productId = data!.id;
+          productName = data!.product_name;
+          dealValue = Number(data!.product_price_including_gst || 0);
+        }
       } else {
         const p = products.find(x => x.id === productId);
         productName = p?.product_name || "";
