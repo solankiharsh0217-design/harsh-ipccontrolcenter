@@ -5,6 +5,7 @@ import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPL
 import LeadDrawer from "@/components/LeadDrawer";
 import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload, Pencil, Calendar } from "lucide-react";
 import ImportLeadsModal from "@/components/ImportLeadsModal";
+import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
 
 type View = "kanban" | "list" | "stages" | "batches";
