@@ -317,7 +317,7 @@ export default function PaidPipeline() {
               <th className="px-3 py-2.5">Collected</th>
               <th className="px-3 py-2.5">Balance</th>
               <th className="px-3 py-2.5">Stage</th>
-              <th className="px-3 py-2.5">Temp</th>
+              <th className="px-3 py-2.5">Lead Priority</th>
               <th className="px-3 py-2.5">Follow-up</th>
               <th className="px-3 py-2.5">Finance</th>
               <th className="px-3 py-2.5"></th>
