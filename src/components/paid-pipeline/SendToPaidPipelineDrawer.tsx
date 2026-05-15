@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import QuickSaveInput from "@/components/QuickSaveInput";
 import type { SaleDetail, AttributionPayload } from "@/lib/roasExport";
 
 const inr = (n: number) => "₹" + (Math.round(n || 0)).toLocaleString("en-IN");
@@ -180,11 +181,24 @@ export default function SendToPaidPipelineDrawer({
       const { data: { user } } = await supabase.auth.getUser();
       let batchId = existingBatchId;
       if (batchMode === "new") {
-        const { data, error } = await supabase.from("webinar_batches").insert({
+        const batchPayload: any = {
           batch_name: batchName, webinar_name: batchWebName, webinar_date: batchWebDate || null,
           webinar_type: batchWebType || null, business_unit: batchBU, offer_name: batchOffer || null,
-          source_attribution_report_id: sessionId, created_by: user?.id,
-        } as any).select("id").single();
+          source_attribution_report_id: sessionId,
+          source_attribution_session_id: sessionId,
+          source_report_type: "attribution",
+          source_created_from: "attribution_report",
+          created_by: user?.id,
+        };
+        let { data, error } = await supabase.from("webinar_batches").insert(batchPayload).select("id").single();
+        if (error && /source_attribution_report_id|schema cache|column.*does not exist/i.test(error.message || "")) {
+          // Fallback: schema cache lag — retry without optional source fields
+          delete batchPayload.source_attribution_report_id;
+          delete batchPayload.source_attribution_session_id;
+          delete batchPayload.source_report_type;
+          delete batchPayload.source_created_from;
+          ({ data, error } = await supabase.from("webinar_batches").insert(batchPayload).select("id").single());
+        }
         if (error) throw error;
         batchId = data!.id;
       }
@@ -193,18 +207,28 @@ export default function SendToPaidPipelineDrawer({
       let productName = "";
       let dealValue = 0;
       if (productMode === "new") {
-        const { data, error } = await supabase.from("program_products").insert({
-          product_name: newProductName, business_unit: batchBU,
-          product_price_including_gst: newProductPrice, currency: newProductCurrency,
-          gst_applicable: newProductGstApplicable, gst_rate: newProductGstRate,
-          default_token_amount: newProductDefaultToken,
-          revenue_recognition_rule: newProductRevRule,
-          created_by: user?.id,
-        } as any).select("*").single();
-        if (error) throw error;
-        productId = data!.id;
-        productName = data!.product_name;
-        dealValue = Number(data!.product_price_including_gst || 0);
+        // Duplicate prevention: same product_name + business_unit
+        const dupName = newProductName.trim().toLowerCase();
+        const existingProd = products.find(p => (p.product_name || "").trim().toLowerCase() === dupName && (p.business_unit || "") === batchBU);
+        if (existingProd) {
+          productId = existingProd.id;
+          productName = existingProd.product_name;
+          dealValue = Number(existingProd.product_price_including_gst || 0);
+          toast.message("Reusing existing product with same name");
+        } else {
+          const { data, error } = await supabase.from("program_products").insert({
+            product_name: newProductName, business_unit: batchBU,
+            product_price_including_gst: newProductPrice, currency: newProductCurrency,
+            gst_applicable: newProductGstApplicable, gst_rate: newProductGstRate,
+            default_token_amount: newProductDefaultToken,
+            revenue_recognition_rule: newProductRevRule,
+            created_by: user?.id,
+          } as any).select("*").single();
+          if (error) throw error;
+          productId = data!.id;
+          productName = data!.product_name;
+          dealValue = Number(data!.product_price_including_gst || 0);
+        }
       } else {
         const p = products.find(x => x.id === productId);
         productName = p?.product_name || "";
@@ -331,12 +355,27 @@ export default function SendToPaidPipelineDrawer({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2"><label className={labelCls}>Batch name</label><input className={inputCls} value={batchName} onChange={e => setBatchName(e.target.value)} /></div>
-                  <div><label className={labelCls}>Webinar name</label><input className={inputCls} value={batchWebName} onChange={e => setBatchWebName(e.target.value)} /></div>
+                  <div className="col-span-2">
+                    <label className={labelCls}>Batch name</label>
+                    <QuickSaveInput fieldKey="webinar_batch_name" value={batchName} onChange={setBatchName} placeholder="e.g. Diamond Webinar - 14 May 2026" height={36} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Webinar name</label>
+                    <QuickSaveInput fieldKey="webinar_name" value={batchWebName} onChange={setBatchWebName} height={36} />
+                  </div>
                   <div><label className={labelCls}>Webinar date</label><input type="date" className={inputCls} value={batchWebDate} onChange={e => setBatchWebDate(e.target.value)} /></div>
-                  <div><label className={labelCls}>Webinar type</label><input className={inputCls} value={batchWebType} onChange={e => setBatchWebType(e.target.value)} /></div>
-                  <div><label className={labelCls}>Business unit / Coach</label><input className={inputCls} value={batchBU} onChange={e => setBatchBU(e.target.value)} /></div>
-                  <div className="col-span-2"><label className={labelCls}>Offer name (optional)</label><input className={inputCls} value={batchOffer} onChange={e => setBatchOffer(e.target.value)} /></div>
+                  <div>
+                    <label className={labelCls}>Webinar type</label>
+                    <QuickSaveInput fieldKey="webinar_type" value={batchWebType} onChange={setBatchWebType} height={36} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Business unit / Coach</label>
+                    <QuickSaveInput fieldKey="business_unit" value={batchBU} onChange={setBatchBU} height={36} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className={labelCls}>Offer name (optional)</label>
+                    <QuickSaveInput fieldKey="offer_name" value={batchOffer} onChange={setBatchOffer} height={36} />
+                  </div>
                 </div>
               )}
             </div>
@@ -361,7 +400,10 @@ export default function SendToPaidPipelineDrawer({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2"><label className={labelCls}>Product name</label><input className={inputCls} value={newProductName} onChange={e => setNewProductName(e.target.value)} placeholder="e.g. Diamond Program" /></div>
+                  <div className="col-span-2">
+                    <label className={labelCls}>Product name</label>
+                    <QuickSaveInput fieldKey="program_product_name" value={newProductName} onChange={setNewProductName} placeholder="e.g. Diamond Program" height={36} />
+                  </div>
                   <div><label className={labelCls}>Price including GST</label><input type="number" className={inputCls} value={newProductPrice || ""} onChange={e => setNewProductPrice(Number(e.target.value))} /></div>
                   <div><label className={labelCls}>Currency</label><input className={inputCls} value={newProductCurrency} onChange={e => setNewProductCurrency(e.target.value)} /></div>
                   <div><label className={labelCls}>GST applicable</label>
