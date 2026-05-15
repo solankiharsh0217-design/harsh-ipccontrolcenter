@@ -204,6 +204,16 @@ export default function AttributionResultsView({
           </ChartCard>
         </div>
       </div>
+      {sessionId && (
+        <SendToPaidPipelineDrawer
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          sessionId={sessionId}
+          payload={payload}
+          selectedSales={drawerSelection}
+          sessionMeta={sessionMeta}
+        />
+      )}
     </>
   );
 }
