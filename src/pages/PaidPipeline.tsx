@@ -385,13 +385,21 @@ export default function PaidPipeline() {
           </tbody>
         </table>
       </div>
+      </>)}
 
       {openLead && <LeadDrawer lead={openLead} agents={agents} onClose={() => { setOpenId(null); load(); }} stages={stages} onChanged={load} />}
       {quickPayId && <QuickAddPaymentModal leadId={quickPayId} leadName={leads.find(l => l.id === quickPayId)?.name || undefined} onClose={() => setQuickPayId(null)} onSaved={load} />}
       {quickFuId && <QuickFollowUpModal leadId={quickFuId} leadName={leads.find(l => l.id === quickFuId)?.name || undefined}
         defaults={{ priority: leads.find(l => l.id === quickFuId)?.lead_temperature || "Normal" }}
         onClose={() => setQuickFuId(null)} onSaved={load} />}
-      {bulkSend && <SendToCrmBulkModal leadIds={Array.from(selected)} leads={leads} onClose={() => setBulkSend(false)} onDone={() => { setSelected(new Set()); load(); }} />}
+      {bulkSend && <SendToCrmBulkModal
+        leadIds={bulkSendIdsOverride && bulkSendIdsOverride.length > 0 ? bulkSendIdsOverride : Array.from(selected)}
+        leads={leads}
+        paidBatches={paidBatches}
+        onClose={() => { setBulkSend(false); setBulkSendIdsOverride(null); }}
+        onDone={() => { setSelected(new Set()); setBulkSendIdsOverride(null); load(); }} />}
+      {newBatchOpen && <NewPaidBatchModal onClose={() => setNewBatchOpen(false)} onCreated={() => load()} />}
+      {addStageOpen && <AddPaidStageModal existingStages={stages} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
     </div>
   );
 }
