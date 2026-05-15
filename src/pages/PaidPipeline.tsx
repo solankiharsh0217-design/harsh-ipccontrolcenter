@@ -271,9 +271,11 @@ export default function PaidPipeline() {
       {/* Filters */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-3">
         <input className="h-9 border border-line rounded-md px-3 text-[13px] col-span-2" placeholder="Search name, email, phone…" value={search} onChange={e => setSearch(e.target.value)} />
-        <FilterSelect value={batchFilter} onChange={setBatchFilter} label="All batches" options={batches.map(b => ({ v: b.id, l: b.batch_name }))} />
+        <FilterSelect value={batchFilter} onChange={setBatchFilter} label="All webinar batches" options={batches.map(b => ({ v: b.id, l: b.batch_name }))} />
+        <FilterSelect value={paidBatchFilter} onChange={setPaidBatchFilter} label="All paid batches" options={paidBatches.map(b => ({ v: b.id, l: b.batch_name }))} />
+        <FilterSelect value={onboardingBatchFilter} onChange={setOnboardingBatchFilter} label="All onboarding batches" options={onboardingBatches.map(o => ({ v: o, l: o }))} />
         <FilterSelect value={stageFilter} onChange={setStageFilter} label="All stages" options={stages.map(s => ({ v: s, l: s }))} />
-        <FilterSelect value={tempFilter} onChange={setTempFilter} label="All temperatures" options={TEMPERATURES.map(t => ({ v: t, l: t }))} />
+        <FilterSelect value={tempFilter} onChange={setTempFilter} label="All priorities" options={TEMPERATURES.map(t => ({ v: t, l: t }))} />
         <FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Application Submitted","Approved","Rejected","Disbursed"].map(t => ({ v: t, l: t }))} />
         <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
           { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
