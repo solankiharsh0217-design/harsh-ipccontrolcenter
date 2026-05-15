@@ -181,11 +181,24 @@ export default function SendToPaidPipelineDrawer({
       const { data: { user } } = await supabase.auth.getUser();
       let batchId = existingBatchId;
       if (batchMode === "new") {
-        const { data, error } = await supabase.from("webinar_batches").insert({
+        const batchPayload: any = {
           batch_name: batchName, webinar_name: batchWebName, webinar_date: batchWebDate || null,
           webinar_type: batchWebType || null, business_unit: batchBU, offer_name: batchOffer || null,
-          source_attribution_report_id: sessionId, created_by: user?.id,
-        } as any).select("id").single();
+          source_attribution_report_id: sessionId,
+          source_attribution_session_id: sessionId,
+          source_report_type: "attribution",
+          source_created_from: "attribution_report",
+          created_by: user?.id,
+        };
+        let { data, error } = await supabase.from("webinar_batches").insert(batchPayload).select("id").single();
+        if (error && /source_attribution_report_id|schema cache|column.*does not exist/i.test(error.message || "")) {
+          // Fallback: schema cache lag — retry without optional source fields
+          delete batchPayload.source_attribution_report_id;
+          delete batchPayload.source_attribution_session_id;
+          delete batchPayload.source_report_type;
+          delete batchPayload.source_created_from;
+          ({ data, error } = await supabase.from("webinar_batches").insert(batchPayload).select("id").single());
+        }
         if (error) throw error;
         batchId = data!.id;
       }
