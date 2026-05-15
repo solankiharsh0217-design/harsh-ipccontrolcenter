@@ -6,6 +6,9 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
 import QuickFollowUpModal from "@/components/paid-pipeline/QuickFollowUpModal";
 import SendToCrmBulkModal from "@/components/paid-pipeline/SendToCrmBulkModal";
+import NewPaidBatchModal from "@/components/paid-pipeline/NewPaidBatchModal";
+import AddPaidStageModal from "@/components/paid-pipeline/AddPaidStageModal";
+import PaidBatchesView from "@/components/paid-pipeline/PaidBatchesView";
 import {
   inr, fmtDate, recomputePaidLead, downloadCsv,
   TEMPERATURES, TEMP_COLORS, FOLLOWUP_PRIORITIES,
