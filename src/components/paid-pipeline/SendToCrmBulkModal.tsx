@@ -135,6 +135,13 @@ export default function SendToCrmBulkModal({
               Need a different stage? Add it from Calling CRM → Stages or from the Kanban "+ Stage" button.
             </div>
           </div>
+          <div>
+            <label className="qsi-label">Paid Batch (optional)</label>
+            <select className="qsi-input" value={paidBatchId} onChange={(e) => setPaidBatchId(e.target.value)}>
+              <option value="">— None —</option>
+              {(paidBatches || []).map(b => <option key={b.id} value={b.id}>{b.batch_name}</option>)}
+            </select>
+          </div>
           <QuickSaveInput fieldKey="onboarding_batch_name" label="Onboarding batch name" value={batchName} onChange={setBatchName} placeholder="e.g. Diamond May 2026 Batch 1" />
           <div>
             <label className="qsi-label">Assign owner</label>
