@@ -237,7 +237,16 @@ function SumCard({ kind, label, value, note }: { kind: "gold" | "plain" | "grn";
   );
 }
 
-function FullSalesTable({ salesDetail, buyers }: { salesDetail: SaleDetail[]; buyers: string[] }) {
+function FullSalesTable({
+  salesDetail, buyers, selectable, selectedKeys, setSelectedKeys, saleKey, onSendSelected,
+}: {
+  salesDetail: SaleDetail[]; buyers: string[];
+  selectable?: boolean;
+  selectedKeys?: Set<string>;
+  setSelectedKeys?: React.Dispatch<React.SetStateAction<Set<string>>>;
+  saleKey?: (s: SaleDetail, i: number) => string;
+  onSendSelected?: () => void;
+}) {
   const [search, setSearch] = useState("");
   const [buyerFilter, setBuyerFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState("all");
