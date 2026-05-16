@@ -879,11 +879,18 @@ function GeneralDropdownsSection() {
   const add = async () => {
     if (!newField.trim() || !newVal.trim()) return;
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("quick_save_entries").insert({ field_key: newField.trim(), value: newVal.trim(), created_by: user?.id ?? null });
+    const fk = newField.trim(), v = newVal.trim();
+    const { error } = await supabase.from("quick_save_entries").insert({ field_key: fk, value: v, created_by: user?.id ?? null });
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: "dropdown_option_created", entity_type: "quick_save_entry", entity_label: v, new_values: { field_key: fk, value: v }, summary: `Dropdown option '${v}' added to ${fk}.` });
     setNewVal(""); await load();
   };
-  const del = async (id: string) => { await supabase.from("quick_save_entries").update({ is_active: false }).eq("id", id); await load(); };
+  const del = async (id: string) => {
+    const target = rows.find(r => r.id === id);
+    await supabase.from("quick_save_entries").update({ is_active: false }).eq("id", id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "dropdown_option_deactivated", entity_type: "quick_save_entry", entity_id: id, entity_label: target?.value, summary: `Dropdown option '${target?.value ?? id}' deactivated.`, severity: "warning" });
+    await load();
+  };
 
   return (
     <div className={cardCls + " p-6"}>
