@@ -1,5 +1,6 @@
 export type ModuleKey =
   | "dashboard"
+  | "founder-dashboard"
   | "announcements"
   | "roas"
   | "search"
