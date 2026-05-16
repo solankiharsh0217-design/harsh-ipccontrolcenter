@@ -313,22 +313,28 @@ export default function WebinarPerformance() {
     a.click();
   };
 
-  const exportTable = () => exportCsv(filtered.map((r) => ({
-    webinar: r.webinar_name, date: r.webinar_date, type: r.webinar_type, product: r.product,
-    registrations: r.registrations, show_ups: r.show_ups,
-    ad_spend: r.ad_spend, cpl: Math.round(div(r.ad_spend, r.registrations)),
-    token_buyers: r.token_buyers, final_sales: r.final_sales,
-    revenue_realized: Math.round(r.revenue_realized), revenue_to_realize: Math.round(r.revenue_to_realize),
-    roas: Number(div(r.revenue_realized, r.ad_spend).toFixed(2)),
-  })), `webinar-performance-${range.start}_${range.end}.csv`);
+  const exportTable = () => {
+    exportCsv(filtered.map((r) => ({
+      webinar: r.webinar_name, date: r.webinar_date, type: r.webinar_type, product: r.product,
+      registrations: r.registrations, show_ups: r.show_ups,
+      ad_spend: r.ad_spend, cpl: Math.round(div(r.ad_spend, r.registrations)),
+      token_buyers: r.token_buyers, final_sales: r.final_sales,
+      revenue_realized: Math.round(r.revenue_realized), revenue_to_realize: Math.round(r.revenue_to_realize),
+      roas: Number(div(r.revenue_realized, r.ad_spend).toFixed(2)),
+    })), `webinar-performance-${range.start}_${range.end}.csv`);
+    logActivity({ module_key: "webinar_performance", action_type: "webinar_table_exported", metadata: { range: range.label, rows: filtered.length }, summary: `Webinar Performance CSV exported for ${range.label}.` });
+  };
 
-  const exportMb = () => exportCsv(mediaBuyerAgg.map(([name, v]) => ({
-    media_buyer: name, leads: v.leads, ad_spend: v.spend,
-    cpl: Math.round(div(v.spend, v.leads)),
-    token_buyers: v.tokens, final_sales: v.finals,
-    revenue_realized: Math.round(v.revenue), balance_pending: Math.round(v.balance),
-    roas: Number(div(v.revenue, v.spend).toFixed(2)),
-  })), `media-buyer-quality-${range.start}_${range.end}.csv`);
+  const exportMb = () => {
+    exportCsv(mediaBuyerAgg.map(([name, v]) => ({
+      media_buyer: name, leads: v.leads, ad_spend: v.spend,
+      cpl: Math.round(div(v.spend, v.leads)),
+      token_buyers: v.tokens, final_sales: v.finals,
+      revenue_realized: Math.round(v.revenue), balance_pending: Math.round(v.balance),
+      roas: Number(div(v.revenue, v.spend).toFixed(2)),
+    })), `media-buyer-quality-${range.start}_${range.end}.csv`);
+    logActivity({ module_key: "webinar_performance", action_type: "media_buyer_quality_exported", metadata: { range: range.label }, summary: `Media Buyer Quality CSV exported for ${range.label}.` });
+  };
 
   const copyFounder = async () => {
     const lines = [
@@ -345,6 +351,7 @@ export default function WebinarPerformance() {
     ];
     await navigator.clipboard.writeText(lines.join("\n"));
     toast.success("Copied founder summary");
+    logActivity({ module_key: "webinar_performance", action_type: "founder_summary_copied", metadata: { range: range.label }, summary: `Founder Summary copied for ${range.label}.` });
   };
 
   const setChipRange = (k: string) => {
