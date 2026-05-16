@@ -33,6 +33,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/master-data": "Master Data",
   "/master-settings": "Master Settings",
   "/profit-statement": "Profit Statement",
+  "/notifications": "Notifications",
 };
 
 const NavItem = ({ to, children, badge, show = true }: { to: string; children: ReactNode; badge?: boolean; show?: boolean }) => {
