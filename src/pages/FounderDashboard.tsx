@@ -656,7 +656,7 @@ export default function FounderDashboard() {
             </div>
           </Section>
 
-          <Section title="Marketing Snapshot">
+          <Section title={`Marketing Snapshot (${rangeLabel})`}>
             <div className="rounded-xl border border-line bg-white overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-off">
