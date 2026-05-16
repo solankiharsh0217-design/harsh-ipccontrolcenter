@@ -1642,6 +1642,7 @@ function ProfitStatementsSection({
     a.download = `profit-statement-${s.business_unit}-${s.statement_month?.slice(0, 7)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    logActivity({ module_key: "reports_history", action_type: "report_exported", entity_type: "profit_statement", entity_id: s.id, entity_label: `${s.business_unit} ${s.statement_month?.slice(0,7)}`, metadata: { format: "csv", report_type: "Profit Statement" }, summary: `Profit Statement '${s.business_unit} ${s.statement_month?.slice(0,7)}' exported as CSV.` });
   };
 
   return (
