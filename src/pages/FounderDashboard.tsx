@@ -159,7 +159,7 @@ export default function FounderDashboard() {
         // Finance details
         const { data: financeDetails = [] } = await supabase
           .from("paid_pipeline_finance_details")
-          .select("finance_partner, finance_status, loan_amount, paid_pipeline_lead_id");
+          .select("finance_partner, finance_status, loan_amount, paid_pipeline_lead_id, application_date, approval_date, disbursement_date, updated_at, created_at");
         // Daily lead reports
         const { data: dailyReports = [] } = await supabase
           .from("daily_lead_reports")
