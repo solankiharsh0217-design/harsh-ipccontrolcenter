@@ -17,6 +17,7 @@ export type ModuleKey =
   | "team"
   | "admin"
   | "master-data"
+  | "master_settings"
   | "profit-statement";
 
 // Canonical module key for Founder Dashboard. We keep "founder-dashboard"
