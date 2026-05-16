@@ -301,18 +301,28 @@ function ProductsSection() {
     const { data: { user } } = await supabase.auth.getUser();
     const payload: any = { ...editing };
     if (!editing.id) payload.created_by = user?.id ?? null;
+    const oldRow = editing.id ? rows.find(r => r.id === editing.id) : null;
     const op = editing.id
       ? supabase.from("program_products").update(payload).eq("id", editing.id)
       : supabase.from("program_products").insert(payload);
     const { error } = await op;
     if (error) { toast.error(error.message); return; }
     toast.success("Saved");
+    logActivity({
+      module_key: MS, module_label: MSL,
+      action_type: editing.id ? "product_updated" : "product_created",
+      entity_type: "program_product", entity_id: editing.id ?? null, entity_label: editing.product_name,
+      old_values: oldRow ?? null, new_values: payload,
+      summary: editing.id ? `Product '${editing.product_name}' updated.` : `Product '${editing.product_name}' created.`,
+    });
     setEditing(null); await load();
   };
 
   const deactivate = async (id: string) => {
+    const target = rows.find(r => r.id === id);
     const { error } = await supabase.from("program_products").update({ is_deleted: true, is_active: false }).eq("id", id);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: "product_deactivated", entity_type: "program_product", entity_id: id, entity_label: target?.product_name, summary: `Product '${target?.product_name ?? id}' deactivated.`, severity: "warning" });
     await load();
   };
 
