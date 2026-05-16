@@ -553,22 +553,22 @@ export default function FounderDashboard() {
             </div>
           </Section>
 
-          <Section title="Monthly Money View">
+          <Section title={moneyTitle}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              <MetricCard label="Revenue" value={inr(data.monthRevenue)} tone="gold" />
-              <MetricCard label="Realized Revenue" value={inr(data.monthRealized)} />
-              <MetricCard label="Revenue To Be Realized" value={inr(data.monthToBeRealized)} sub="Active balance pending" onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Token Collected" value={inr(data.monthTokens)} />
-              <MetricCard label="Balance Pending" value={inr(data.monthBalance)} />
-              <MetricCard label="Ad Spend" value={data.hasDailyReports ? inr(data.monthSpend) : NA} />
+              <MetricCard label={`Revenue (${rangeLabel})`} value={inr(data.monthRevenue)} tone="gold" />
+              <MetricCard label={`Realized Revenue (${rangeLabel})`} value={inr(data.monthRealized)} />
+              <MetricCard label="Revenue To Be Realized" value={inr(data.monthToBeRealized)} sub={`From leads created in ${rangeLabel}`} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label={`Token Collected (${rangeLabel})`} value={inr(data.monthTokens)} />
+              <MetricCard label="Balance Pending" value={inr(data.monthBalance)} sub={`Leads created in ${rangeLabel}`} />
+              <MetricCard label={`Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.monthSpend) : NA} />
               <MetricCard label="Estimated Profit" value={data.hasDailyReports ? inr(profit) : NA} sub="Revenue − Ad Spend" onClick={() => nav("/profit-statement")} />
               <MetricCard label="Profit Margin" value={data.hasDailyReports && data.monthRevenue > 0 ? margin.toFixed(1) + "%" : NA} />
             </div>
           </Section>
 
-          <Section title="Paid Pipeline Health">
+          <Section title={`Paid Pipeline Health (${rangeLabel})`}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-              <MetricCard label="Total Leads" value={data.ppTotal} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label="New Leads" value={data.ppTotal} onClick={() => nav("/paid-pipeline")} />
               <MetricCard label="Token Paid" value={data.ppToken} />
               <MetricCard label="Balance Pending" value={data.ppBalance} />
               <MetricCard label="Finance Pending" value={data.ppFinancePending} />
@@ -577,7 +577,7 @@ export default function FounderDashboard() {
               <MetricCard label="Hot/Urgent w/ Balance" value={data.ppHotPending} />
               <MetricCard label="Follow-Ups Overdue" value={data.ppOverdue} tone={data.ppOverdue > 0 ? "alert" : "default"} />
             </div>
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-sans mb-2">Top Pending Balance Leads</div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-sans mb-2">Top Pending Balance Leads (All-Time)</div>
             <div className="rounded-xl border border-line bg-white overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-off">
