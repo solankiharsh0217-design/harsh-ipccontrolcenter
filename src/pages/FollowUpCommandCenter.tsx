@@ -102,10 +102,10 @@ export default function FollowUpCommandCenter() {
     if (!allowed) { setLoading(false); return; }
     setLoading(true);
     try {
-      const { data: fdata } = await supabase
+      const { data: fdata } = await (supabase as any)
         .from("paid_pipeline_followups")
         .select("*")
-        .eq("is_deleted" as any, false)
+        .eq("is_deleted", false)
         .order("follow_up_date", { ascending: true });
       const list = (fdata as any as FollowUp[]) || [];
       setFus(list);
@@ -231,15 +231,16 @@ export default function FollowUpCommandCenter() {
 
   const copyWa = (tpl: string, f: FollowUp) => {
     const l = f.paid_pipeline_lead_id ? leadMap[f.paid_pipeline_lead_id] : undefined;
-    const txt = tpl
-      .replaceAll("{Name}", l?.name || "there")
-      .replaceAll("{Program}", l?.product_name_snapshot || "your program")
-      .replaceAll("{TokenAmount}", String(l?.token_amount_collected || ""))
-      .replaceAll("{BalanceAmount}", String(l?.balance_pending || ""))
-      .replaceAll("{FollowUpDate}", fmtDate(f.follow_up_date))
-      .replaceAll("{FollowUpTime}", f.follow_up_time || "")
-      .replaceAll("{FinancePartner}", l?.finance_partner || "the finance partner")
-      .replaceAll("{PaymentLink}", "");
+    const rep = (s: string, k: string, v: string) => s.split(k).join(v);
+    let txt = tpl;
+    txt = rep(txt, "{Name}", l?.name || "there");
+    txt = rep(txt, "{Program}", l?.product_name_snapshot || "your program");
+    txt = rep(txt, "{TokenAmount}", String(l?.token_amount_collected || ""));
+    txt = rep(txt, "{BalanceAmount}", String(l?.balance_pending || ""));
+    txt = rep(txt, "{FollowUpDate}", fmtDate(f.follow_up_date));
+    txt = rep(txt, "{FollowUpTime}", f.follow_up_time || "");
+    txt = rep(txt, "{FinancePartner}", l?.finance_partner || "the finance partner");
+    txt = rep(txt, "{PaymentLink}", "");
     navigator.clipboard.writeText(txt);
     toast.success("WhatsApp message copied");
   };
