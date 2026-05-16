@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
 import { inr, fmtDate, downloadCsv } from "@/lib/paidPipeline";
+import { logActivity } from "@/lib/auditLog";
 import { useNavigate } from "react-router-dom";
 
 type FollowUp = {
