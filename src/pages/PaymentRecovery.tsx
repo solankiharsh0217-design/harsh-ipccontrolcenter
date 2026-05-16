@@ -87,16 +87,18 @@ const WA_TEMPLATES: { name: string; body: string }[] = [
 ];
 
 function fillTemplate(body: string, l: Lead) {
-  return body
-    .replaceAll("{Name}", l.name || "")
-    .replaceAll("{Program}", l.product_name_snapshot || "your program")
-    .replaceAll("{TokenAmount}", String(l.token_amount_collected || 0))
-    .replaceAll("{BalanceAmount}", String(l.balance_pending || 0))
-    .replaceAll("{PaidBatch}", l.paid_batch_name || "")
-    .replaceAll("{FollowUpDate}", l.next_follow_up_date ? fmtDate(l.next_follow_up_date) : "")
-    .replaceAll("{FollowUpTime}", l.next_follow_up_time || "")
-    .replaceAll("{FinancePartner}", l.finance_partner || "the finance partner")
-    .replaceAll("{PaymentLink}", "");
+  const map: Record<string, string> = {
+    "{Name}": l.name || "",
+    "{Program}": l.product_name_snapshot || "your program",
+    "{TokenAmount}": String(l.token_amount_collected || 0),
+    "{BalanceAmount}": String(l.balance_pending || 0),
+    "{PaidBatch}": l.paid_batch_name || "",
+    "{FollowUpDate}": l.next_follow_up_date ? fmtDate(l.next_follow_up_date) : "",
+    "{FollowUpTime}": l.next_follow_up_time || "",
+    "{FinancePartner}": l.finance_partner || "the finance partner",
+    "{PaymentLink}": "",
+  };
+  return body.replace(/\{[A-Za-z]+\}/g, (k) => (k in map ? map[k] : k));
 }
 
 const Pill = ({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "red" | "amber" | "blue" | "green" | "violet" }) => {
