@@ -13,6 +13,7 @@ const ALIAS_GROUPS: string[][] = [
   ["paid_pipeline", "paid-pipeline"],
   ["follow_up_command_center", "follow-up-command-center"],
   ["founder_dashboard", "founder-dashboard"],
+  ["payment_recovery"],
 ];
 
 export function moduleAliases(moduleKey: string): string[] {
