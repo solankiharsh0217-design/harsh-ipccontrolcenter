@@ -180,6 +180,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><path d="M3 2h7l3 3v9H3z" fill="none"/><path d="M5 6h6M5 8.5h6M5 11h4"/></></Icon>
             Audit Log
           </NavItem>
+          <NavItem to="/notifications" show={canSeeNotifications} badge={unread > 0}>
+            <Icon><><path d="M8 2a4 4 0 0 0-4 4v3l-1 2h10l-1-2V6a4 4 0 0 0-4-4z"/><path d="M6.5 13a1.5 1.5 0 0 0 3 0"/></></Icon>
+            Notifications
+          </NavItem>
         </div>
 
         <div className="px-3 py-[14px] border-t border-line">
