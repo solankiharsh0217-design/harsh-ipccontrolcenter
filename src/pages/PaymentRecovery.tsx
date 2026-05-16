@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { inr, fmtDate, downloadCsv, DEFAULT_FINANCE_PARTNERS } from "@/lib/paidPipeline";
+import { logActivity, logBulkPaidLeadDiff } from "@/lib/auditLog";
 import { getEligibleAssignees, type EligibleAssignee } from "@/lib/eligibleAssignees";
 import QuickFollowUpModal from "@/components/paid-pipeline/QuickFollowUpModal";
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
