@@ -597,15 +597,19 @@ function CrmPipelinesSection() {
 
   const addStage = async () => {
     if (!activePipeline || !newStage.trim()) return;
+    const name = newStage.trim();
     const { error } = await supabase.from("stages").insert({
-      pipeline_id: activePipeline, name: newStage.trim(), position: pStages.length,
+      pipeline_id: activePipeline, name, position: pStages.length,
     } as any);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: "crm_stage_created", entity_type: "crm_stage", entity_label: name, new_values: { pipeline_id: activePipeline, name }, summary: `CRM stage '${name}' created.` });
     setNewStage(""); await load();
   };
 
   const delStage = async (id: string) => {
+    const target = stages.find(s => s.id === id);
     await supabase.from("stages").delete().eq("id", id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "crm_stage_deleted", entity_type: "crm_stage", entity_id: id, entity_label: target?.name, summary: `CRM stage '${target?.name ?? id}' deleted.`, severity: "warning" });
     await load();
   };
 
