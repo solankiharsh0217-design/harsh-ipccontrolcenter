@@ -3680,6 +3680,81 @@ export type Database = {
         }
         Relationships: []
       }
+      system_refinement_items: {
+        Row: {
+          checklist_item: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          evidence_notes: string | null
+          fix_notes: string | null
+          fixed_at: string | null
+          id: string
+          is_deleted: boolean
+          issue_type: string | null
+          module_key: string | null
+          module_label: string | null
+          owner_name: string | null
+          owner_user_id: string | null
+          priority: string
+          reviewed_at: string | null
+          route: string | null
+          screenshot_url: string | null
+          section: string
+          severity: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          checklist_item: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          evidence_notes?: string | null
+          fix_notes?: string | null
+          fixed_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          issue_type?: string | null
+          module_key?: string | null
+          module_label?: string | null
+          owner_name?: string | null
+          owner_user_id?: string | null
+          priority?: string
+          reviewed_at?: string | null
+          route?: string | null
+          screenshot_url?: string | null
+          section: string
+          severity?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          checklist_item?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          evidence_notes?: string | null
+          fix_notes?: string | null
+          fixed_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          issue_type?: string | null
+          module_key?: string | null
+          module_label?: string | null
+          owner_name?: string | null
+          owner_user_id?: string | null
+          priority?: string
+          reviewed_at?: string | null
+          route?: string | null
+          screenshot_url?: string | null
+          section?: string
+          severity?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       team_payroll_profiles: {
         Row: {
           business_unit: string | null
