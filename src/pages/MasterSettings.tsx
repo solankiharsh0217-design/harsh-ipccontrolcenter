@@ -682,6 +682,7 @@ function RecoverySettingsSection() {
       else await supabase.from("app_settings" as any).insert({ setting_group: "payment_recovery", setting_key: k, setting_value: { v }, created_by: user?.id ?? null } as any);
     }
     toast.success("Recovery settings saved");
+    logActivity({ module_key: MS, module_label: MSL, action_type: "recovery_threshold_updated", entity_type: "payment_recovery_settings", new_values: s, summary: "Payment recovery thresholds updated." });
   };
 
   if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
