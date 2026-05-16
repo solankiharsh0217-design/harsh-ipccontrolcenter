@@ -296,9 +296,9 @@ export default function Notifications() {
           <div className="text-[10px] text-muted-foreground mb-1">Search</div>
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search title, message..." />
         </div>
-        <Button variant="outline" onClick={load} disabled={loading}>
+        <Button variant="outline" onClick={() => load({ generate: true })} disabled={loading}>
           <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Refresh Notifications
         </Button>
         <Button variant="outline" onClick={markAll}>Mark all read</Button>
       </div>
