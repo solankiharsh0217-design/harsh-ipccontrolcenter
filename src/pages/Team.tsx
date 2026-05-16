@@ -136,12 +136,18 @@ export default function Team() {
     if (!editing) return;
     setSaving(true);
     try {
-      // Update profile fields (name, role/position, department)
+      // Update profile fields (name, role/position, department, assignment eligibility)
       const { error: pErr } = await supabase.from("profiles").update({
         full_name: editName.trim() || editing.full_name,
         role: editRole.trim() || editing.role,
         department: editDepartment.trim() || null,
-      }).eq("id", editing.id);
+        can_receive_calling_crm_leads: editEligibility.can_receive_calling_crm_leads,
+        can_receive_paid_pipeline_leads: editEligibility.can_receive_paid_pipeline_leads,
+        can_receive_follow_up_tasks: editEligibility.can_receive_follow_up_tasks,
+        can_receive_payment_recovery_leads: editEligibility.can_receive_payment_recovery_leads,
+        include_in_round_robin: editEligibility.include_in_round_robin,
+        active_for_assignment: editEligibility.active_for_assignment,
+      } as any).eq("id", editing.id);
       if (pErr) throw pErr;
 
       // Sync admin role
