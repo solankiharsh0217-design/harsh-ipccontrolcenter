@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RefreshCw, ExternalLink, Bell } from "lucide-react";
 import { toast } from "sonner";
-import { NOTIFICATION_MODULE_LABELS, markNotificationsRead, markAllRead } from "@/lib/notifications";
+import { NOTIFICATION_MODULE_LABELS, markNotificationsRead, markAllRead, generateNotifications } from "@/lib/notifications";
 
 type Row = {
   id: string;
