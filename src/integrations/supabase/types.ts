@@ -530,6 +530,78 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action_label: string | null
+          action_type: string
+          actor_email: string | null
+          actor_name: string | null
+          actor_user_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_label: string | null
+          entity_type: string | null
+          id: string
+          is_deleted: boolean
+          metadata: Json | null
+          module_key: string | null
+          module_label: string | null
+          new_values: Json | null
+          old_values: Json | null
+          severity: string
+          source: string
+          summary: string | null
+          target_name: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action_label?: string | null
+          action_type: string
+          actor_email?: string | null
+          actor_name?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type?: string | null
+          id?: string
+          is_deleted?: boolean
+          metadata?: Json | null
+          module_key?: string | null
+          module_label?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          severity?: string
+          source?: string
+          summary?: string | null
+          target_name?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action_label?: string | null
+          action_type?: string
+          actor_email?: string | null
+          actor_name?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type?: string | null
+          id?: string
+          is_deleted?: boolean
+          metadata?: Json | null
+          module_key?: string | null
+          module_label?: string | null
+          new_values?: Json | null
+          old_values?: Json | null
+          severity?: string
+          source?: string
+          summary?: string | null
+          target_name?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       business_units: {
         Row: {
           created_at: string
