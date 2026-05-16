@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
+import { logActivity } from "@/lib/auditLog";
 
 export default function QuickFollowUpModal({
   leadId, leadName, defaults, onClose, onSaved,
