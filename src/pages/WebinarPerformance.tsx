@@ -364,7 +364,7 @@ export default function WebinarPerformance() {
       <div className="flex items-start justify-between mb-6">
         <PageHead title="Webinar Performance" sub="Analytics layer over existing ROAS, Attribution, Daily Lead, and Paid Pipeline reports. No new sheet import required." />
         <div className="flex gap-2 shrink-0">
-          <button onClick={load} disabled={loading} className="ipc-btn ipc-btn-ghost text-[11px]">{loading ? "Refreshing…" : "Refresh Existing Data"}</button>
+          <button onClick={() => { load(); logActivity({ module_key: "webinar_performance", action_type: "webinar_data_refreshed", metadata: { range: range.label }, summary: `Webinar Performance data refreshed for ${range.label}.` }); }} disabled={loading} className="ipc-btn ipc-btn-ghost text-[11px]">{loading ? "Refreshing…" : "Refresh Existing Data"}</button>
           <button onClick={() => nav("/reports")} className="ipc-btn ipc-btn-ghost text-[11px]">View Source Reports</button>
         </div>
       </div>
