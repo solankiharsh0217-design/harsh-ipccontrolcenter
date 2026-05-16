@@ -14,6 +14,7 @@ import {
   TEMPERATURES, TEMP_COLORS, FOLLOWUP_PRIORITIES,
 } from "@/lib/paidPipeline";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
+import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLog";
 
 type Lead = {
   id: string;
