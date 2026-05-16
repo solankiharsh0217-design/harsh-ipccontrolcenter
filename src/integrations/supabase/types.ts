@@ -1289,6 +1289,174 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_enabled: boolean
+          id: string
+          in_app_enabled: boolean
+          module_key: string | null
+          notification_type: string | null
+          team_member_id: string | null
+          updated_at: string
+          user_id: string | null
+          whatsapp_enabled: boolean
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          in_app_enabled?: boolean
+          module_key?: string | null
+          notification_type?: string | null
+          team_member_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          whatsapp_enabled?: boolean
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          in_app_enabled?: boolean
+          module_key?: string | null
+          notification_type?: string | null
+          team_member_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          whatsapp_enabled?: boolean
+        }
+        Relationships: []
+      }
+      notification_rules: {
+        Row: {
+          conditions: Json | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          is_deleted: boolean
+          module_key: string | null
+          priority: string
+          recipient_config: Json | null
+          recipient_type: string | null
+          rule_key: string
+          rule_name: string
+          trigger_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          conditions?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          module_key?: string | null
+          priority?: string
+          recipient_config?: Json | null
+          recipient_type?: string | null
+          rule_key: string
+          rule_name: string
+          trigger_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conditions?: Json | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          module_key?: string | null
+          priority?: string
+          recipient_config?: Json | null
+          recipient_type?: string | null
+          rule_key?: string
+          rule_name?: string
+          trigger_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          action_label: string | null
+          action_url: string | null
+          created_at: string
+          dismissed_at: string | null
+          entity_id: string | null
+          entity_label: string | null
+          entity_type: string | null
+          id: string
+          is_deleted: boolean
+          message: string | null
+          metadata: Json | null
+          module_key: string | null
+          notification_type: string | null
+          priority: string
+          read_at: string | null
+          recipient_role: string | null
+          recipient_team_member_id: string | null
+          recipient_user_id: string | null
+          source: string
+          status: string
+          title: string
+          triggered_by_name: string | null
+          triggered_by_user_id: string | null
+        }
+        Insert: {
+          action_label?: string | null
+          action_url?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type?: string | null
+          id?: string
+          is_deleted?: boolean
+          message?: string | null
+          metadata?: Json | null
+          module_key?: string | null
+          notification_type?: string | null
+          priority?: string
+          read_at?: string | null
+          recipient_role?: string | null
+          recipient_team_member_id?: string | null
+          recipient_user_id?: string | null
+          source?: string
+          status?: string
+          title: string
+          triggered_by_name?: string | null
+          triggered_by_user_id?: string | null
+        }
+        Update: {
+          action_label?: string | null
+          action_url?: string | null
+          created_at?: string
+          dismissed_at?: string | null
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type?: string | null
+          id?: string
+          is_deleted?: boolean
+          message?: string | null
+          metadata?: Json | null
+          module_key?: string | null
+          notification_type?: string | null
+          priority?: string
+          read_at?: string | null
+          recipient_role?: string | null
+          recipient_team_member_id?: string | null
+          recipient_user_id?: string | null
+          source?: string
+          status?: string
+          title?: string
+          triggered_by_name?: string | null
+          triggered_by_user_id?: string | null
+        }
+        Relationships: []
+      }
       paid_pipeline_activity_logs: {
         Row: {
           activity_type: string

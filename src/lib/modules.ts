@@ -20,6 +20,7 @@ export type ModuleKey =
   | "master-data"
   | "master_settings"
   | "audit_log"
+  | "notifications"
   | "profit-statement";
 
 // Canonical module key for Founder Dashboard. We keep "founder-dashboard"
@@ -47,6 +48,7 @@ export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "master-data", label: "Master Data", group: "People" },
   { key: "master_settings", label: "Master Settings", group: "People" },
   { key: "audit_log", label: "Audit Log", group: "People" },
+  { key: "notifications", label: "Notifications", group: "Overview" },
 ];
 
 

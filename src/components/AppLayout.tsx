@@ -2,7 +2,8 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { initials, formatDateLong } from "@/lib/format";
 import { Search, Bell, LogOut } from "lucide-react";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Icon = ({ d, children }: { d?: string; children?: ReactNode }) => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -32,6 +33,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/master-data": "Master Data",
   "/master-settings": "Master Settings",
   "/profit-statement": "Profit Statement",
+  "/notifications": "Notifications",
 };
 
 const NavItem = ({ to, children, badge, show = true }: { to: string; children: ReactNode; badge?: boolean; show?: boolean }) => {
@@ -47,10 +49,32 @@ const NavItem = ({ to, children, badge, show = true }: { to: string; children: R
 };
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const { profile, isAdmin, hasModule, loginTime, signOut } = useAuth();
+  const { profile, isAdmin, hasModule, loginTime, signOut, user } = useAuth();
   const loc = useLocation();
   const nav = useNavigate();
   const title = PAGE_TITLES[loc.pathname] ?? "";
+  const [unread, setUnread] = useState(0);
+
+  const canSeeNotifications = isAdmin || hasModule("notifications");
+
+  useEffect(() => {
+    if (!user || !canSeeNotifications) { setUnread(0); return; }
+    let active = true;
+    const load = async () => {
+      try {
+        const { count } = await (supabase as any)
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("recipient_user_id", user.id)
+          .eq("status", "unread")
+          .eq("is_deleted", false);
+        if (active) setUnread(count ?? 0);
+      } catch { /* noop */ }
+    };
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { active = false; clearInterval(t); };
+  }, [user, canSeeNotifications, loc.pathname]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -157,6 +181,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><path d="M3 2h7l3 3v9H3z" fill="none"/><path d="M5 6h6M5 8.5h6M5 11h4"/></></Icon>
             Audit Log
           </NavItem>
+          <NavItem to="/notifications" show={canSeeNotifications} badge={unread > 0}>
+            <Icon><><path d="M8 2a4 4 0 0 0-4 4v3l-1 2h10l-1-2V6a4 4 0 0 0-4-4z"/><path d="M6.5 13a1.5 1.5 0 0 0 3 0"/></></Icon>
+            Notifications
+          </NavItem>
         </div>
 
         <div className="px-3 py-[14px] border-t border-line">
@@ -186,8 +214,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <button className="w-8 h-8 border border-line rounded-md bg-white flex items-center justify-center text-muted-foreground hover:text-black hover:border-[#bbb] transition-colors">
               <Search className="w-3.5 h-3.5" />
             </button>
-            <button className="w-8 h-8 border border-line rounded-md bg-white flex items-center justify-center text-muted-foreground hover:text-black hover:border-[#bbb] transition-colors">
+            <button
+              onClick={() => canSeeNotifications && nav("/notifications")}
+              disabled={!canSeeNotifications}
+              className="relative w-8 h-8 border border-line rounded-md bg-white flex items-center justify-center text-muted-foreground hover:text-black hover:border-[#bbb] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Notifications"
+            >
               <Bell className="w-3.5 h-3.5" />
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#B91C1C] text-white text-[9px] font-medium flex items-center justify-center">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </button>
           </div>
         </div>
