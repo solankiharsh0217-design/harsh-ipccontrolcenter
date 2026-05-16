@@ -45,15 +45,15 @@ export default function Crm() {
       const reload = await supabase.from("pipelines").select("*").order("position");
       p = reload.data || [];
     }
-    const [{ data: s }, { data: l }, { data: ag }] = await Promise.all([
+    const [{ data: s }, { data: l }, elig] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
       supabase.from("leads").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id, full_name, role, status").eq("status","active"),
+      getEligibleAssignees("calling_crm"),
     ]);
     setPipelines((p || []) as any);
     setStages((s || []) as any);
     setLeads((l || []) as any);
-    setAgents(((ag || []) as any).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")));
+    setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
     if (!activePipeline && p && p.length) setActivePipeline(p[0].id);
   };
   useEffect(() => { load(); }, []);
