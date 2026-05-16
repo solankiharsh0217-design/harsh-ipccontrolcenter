@@ -9,6 +9,7 @@ import PayrollFieldsSection, { emptyPayroll, dbToPayroll, payrollToDb, type Payr
 import QuickSaveInput from "@/components/QuickSaveInput";
 import { toast } from "sonner";
 import { Shield, X } from "lucide-react";
+import { logActivity } from "@/lib/auditLog";
 
 interface Member {
   id: string;
