@@ -502,14 +502,16 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     await supabase.from("paid_pipeline_leads").update(patch as any).eq("id", lead.id);
   };
   const saveAll = async () => {
-    await save({
+    const patch: any = {
       pipeline_stage: stage, lead_temperature: temperature, paid_batch_name: paidBatch,
       onboarding_batch_name: onboardingBatch, revenue_recognition_rule: revRule,
       balance_category: balCat, balance_description: balDesc, next_balance_follow_up_date: balDate || null,
       finance_partner: financePartner, finance_status: financeStatus, finance_notes: financeNotes,
       finance_follow_up_date: financeFu || null,
       finance_required: !!financePartner || lead.finance_required,
-    } as any);
+    };
+    await save(patch);
+    logPaidLeadDiff(lead as any, patch, { leadId: lead.id, leadName: lead.name || undefined });
     await recomputePaidLead(lead.id);
     toast.success("Saved");
     onChanged();
@@ -517,7 +519,16 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
 
   const deletePayment = async (id: string) => {
     if (!confirm("Delete this payment?")) return;
+    const pay = payments.find((p: any) => p.id === id);
     await supabase.from("paid_pipeline_payments").update({ is_deleted: true } as any).eq("id", id);
+    logActivity({
+      module_key: "paid_pipeline", module_label: "Paid Pipeline",
+      action_type: "payment_deleted", action_label: "Payment deleted",
+      entity_type: "paid_pipeline_lead", entity_id: lead.id, entity_label: lead.name || undefined,
+      old_values: pay ? { amount: pay.amount, type: pay.payment_type, category: pay.payment_category } : null,
+      severity: "warning",
+      summary: pay ? `Payment of ₹${Number(pay.amount).toLocaleString("en-IN")} (${pay.payment_category}) deleted for ${lead.name || "lead"}.` : "Payment deleted.",
+    });
     await recomputePaidLead(lead.id);
     await loadInner();
     onChanged();
