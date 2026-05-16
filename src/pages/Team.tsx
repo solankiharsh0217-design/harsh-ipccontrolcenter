@@ -255,18 +255,21 @@ export default function Team() {
                 <div key={group} className="mb-4">
                   <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{group}</div>
                   <div className="grid grid-cols-2 gap-2">
-                    {MODULES.filter(m => m.group === group).map(mod => (
-                      <label key={mod.key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editAdmin ? "opacity-50 bg-off border-line" : editModules.has(mod.key) ? "bg-off border-line" : "border-line hover:bg-off"}`}>
+                    {MODULES.filter(m => m.group === group).map(mod => {
+                      const checked = hasModuleChecked(mod.key);
+                      return (
+                      <label key={mod.key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editAdmin ? "opacity-50 bg-off border-line" : checked ? "bg-off border-line" : "border-line hover:bg-off"}`}>
                         <input
                           type="checkbox"
-                          checked={editAdmin || editModules.has(mod.key)}
+                          checked={editAdmin || checked}
                           disabled={editAdmin}
                           onChange={() => toggleModule(mod.key)}
                           className="w-4 h-4"
                         />
                         <span className="font-serif text-[14px] text-black">{mod.label}</span>
                       </label>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
