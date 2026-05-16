@@ -94,18 +94,18 @@ export default function PaidPipeline() {
   const [addStageOpen, setAddStageOpen] = useState(false);
 
   const load = async () => {
-    const [{ data: l }, { data: b }, { data: pb }, { data: s }, { data: ag }] = await Promise.all([
+    const [{ data: l }, { data: b }, { data: pb }, { data: s }, elig] = await Promise.all([
       supabase.from("paid_pipeline_leads").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("webinar_batches").select("id, batch_name, webinar_name, webinar_date").eq("is_deleted", false).order("created_at", { ascending: false }),
       (supabase as any).from("paid_pipeline_batches").select("id, batch_name, batch_status").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("paid_pipeline_settings").select("label").eq("setting_type", "pipeline_stage").eq("is_active", true).eq("is_deleted", false).order("sort_order"),
-      supabase.from("profiles").select("id, full_name, status").eq("status", "active"),
+      getEligibleAssignees(["paid_pipeline", "calling_crm"]),
     ]);
     setLeads((l as any) || []);
     setBatches((b as any) || []);
     setPaidBatches((pb as any) || []);
     setStages(((s as any) || []).map((x: any) => x.label));
-    setAgents((ag as any) || []);
+    setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })) as any);
     const obSet = new Set<string>();
     ((l as any[]) || []).forEach(x => { if (x.onboarding_batch_name) obSet.add(x.onboarding_batch_name); });
     setOnboardingBatches(Array.from(obSet).sort());
