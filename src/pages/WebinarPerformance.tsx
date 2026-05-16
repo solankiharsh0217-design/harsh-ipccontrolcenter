@@ -353,7 +353,13 @@ export default function WebinarPerformance() {
 
   return (
     <div className="max-w-[1380px]">
-      <PageHead title="Webinar Performance" sub="Compare webinar performance across registrations, attendance, offer show-up, ROAS, sales, payment recovery, and final revenue." />
+      <div className="flex items-start justify-between mb-6">
+        <PageHead title="Webinar Performance" sub="Analytics layer over existing ROAS, Attribution, Daily Lead, and Paid Pipeline reports. No new sheet import required." />
+        <div className="flex gap-2 shrink-0">
+          <button onClick={load} disabled={loading} className="ipc-btn ipc-btn-ghost text-[11px]">{loading ? "Refreshing…" : "Refresh Existing Data"}</button>
+          <button onClick={() => nav("/reports")} className="ipc-btn ipc-btn-ghost text-[11px]">View Source Reports</button>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="bg-off rounded-xl p-4 mb-5">
