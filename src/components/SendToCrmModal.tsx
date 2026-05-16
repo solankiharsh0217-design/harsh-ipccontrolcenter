@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { MergedLead, QualifierResult } from "@/lib/qualifier";
 import { GRADE_STYLES, ensurePipelineExists } from "@/lib/crmTypes";
 import { X, Plus } from "lucide-react";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 interface Props {
   result: QualifierResult;
