@@ -75,6 +75,9 @@ const App = () => (
             <Route path="/profit-statement" element={<Shell moduleKey="profit-statement"><ProfitStatement /></Shell>} />
             <Route path="/audit-log" element={<Shell admin moduleKey="audit_log"><AuditLog /></Shell>} />
             <Route path="/notifications" element={<Shell moduleKey="notifications"><Notifications /></Shell>} />
+            <Route path="/revenue-command-center" element={<Shell><RevenueCommandCenter /></Shell>} />
+            <Route path="/analytics-center" element={<Shell><AnalyticsCenter /></Shell>} />
+            <Route path="/admin-center" element={<Shell><AdminCenter /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
