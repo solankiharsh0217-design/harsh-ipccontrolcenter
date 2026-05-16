@@ -8,6 +8,7 @@ import ImportLeadsModal from "@/components/ImportLeadsModal";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
+import { logActivity } from "@/lib/auditLog";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
