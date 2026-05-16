@@ -18,6 +18,23 @@ interface Member {
   last_login: string | null;
 }
 
+type EligibilityFlags = {
+  can_receive_calling_crm_leads: boolean;
+  can_receive_paid_pipeline_leads: boolean;
+  can_receive_follow_up_tasks: boolean;
+  can_receive_payment_recovery_leads: boolean;
+  include_in_round_robin: boolean;
+  active_for_assignment: boolean;
+};
+const emptyEligibility = (): EligibilityFlags => ({
+  can_receive_calling_crm_leads: false,
+  can_receive_paid_pipeline_leads: false,
+  can_receive_follow_up_tasks: false,
+  can_receive_payment_recovery_leads: false,
+  include_in_round_robin: false,
+  active_for_assignment: true,
+});
+
 export default function Team() {
   const { isAdmin, user, refreshProfile } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
@@ -28,6 +45,7 @@ export default function Team() {
   const [editRole, setEditRole] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
   const [editPayroll, setEditPayroll] = useState<PayrollFormState>(emptyPayroll());
+  const [editEligibility, setEditEligibility] = useState<EligibilityFlags>(emptyEligibility());
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
