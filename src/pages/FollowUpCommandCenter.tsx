@@ -603,23 +603,32 @@ export default function FollowUpCommandCenter() {
             {filtered.map(f => {
               const l = f.paid_pipeline_lead_id ? leadMap[f.paid_pipeline_lead_id] : undefined;
               const overdue = f.status !== "Done" && f.status !== "Cancelled" && f.follow_up_date < ymd;
+              const src = f.source_module || "paid_pipeline";
+              const leadName = l?.name || f.crmLeadName || "—";
+              const leadPhone = l?.phone || f.crmLeadPhone || "—";
+              const program = l?.product_name_snapshot || f.crmProgram || "—";
+              const amount = l ? inr(l.balance_pending || 0) : "—";
               return (
                 <tr key={f.id} className="border-t border-line hover:bg-off/40">
-                  <td className="p-2"><input type="checkbox" checked={selected.has(f.id)} onChange={()=>toggleSelect(f.id)}/></td>
                   <td className="p-2">
-                    <div className="font-medium">{l?.name || "—"}</div>
+                    <input type="checkbox" checked={selected.has(f.id)} onChange={()=>toggleSelect(f.id)}
+                      disabled={f.isSynthetic && f.syntheticKind !== "crm_reminder"} title={f.isSynthetic ? "Synthetic row — use Done/actions" : ""}/>
+                  </td>
+                  <td className="p-2">
+                    <div className="font-medium">{leadName}</div>
                     <div className="text-[11px] text-muted-foreground">{l?.email || ""}</div>
                   </td>
-                  <td className="p-2">{l?.phone || "—"}</td>
+                  <td className="p-2">{leadPhone}</td>
                   <td className="p-2">
-                    <div>{l?.product_name_snapshot || "—"}</div>
+                    <div>{program}</div>
                     <div className="text-[11px] text-muted-foreground">{l?.paid_batch_name || ""}</div>
                   </td>
                   <td className="p-2">
                     <div>{f.follow_up_type || "—"}</div>
                     <div className="text-[11px] text-muted-foreground">{f.follow_up_reason || ""}</div>
+                    {f.syntheticContext && <div className="text-[11px] text-amber-700 mt-0.5">{f.syntheticContext}</div>}
                   </td>
-                  <td className="p-2">{l ? inr(l.balance_pending || 0) : "—"}</td>
+                  <td className="p-2">{amount}</td>
                   <td className="p-2">
                     {f.priority ? <span className="px-2 py-0.5 rounded-full text-[11px] border border-line">{f.priority}</span> : "—"}
                   </td>
@@ -631,14 +640,16 @@ export default function FollowUpCommandCenter() {
                   <td className="p-2">
                     <span className={`px-2 py-0.5 rounded-full text-[11px] border ${f.status==="Done"?"border-green-300 bg-green-50 text-green-700":f.status==="Missed"?"border-red-300 bg-red-50 text-red-700":"border-line"}`}>{f.status}</span>
                   </td>
-                  <td className="p-2 text-[11px] text-muted-foreground">{f.source_module || "paid_pipeline"}</td>
+                  <td className="p-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] border ${SOURCE_BADGE[src] || "border-line"}`}>{SOURCE_LABELS[src] || src}</span>
+                  </td>
                   <td className="p-2 whitespace-nowrap">
                     <button title="Mark done" onClick={()=>markDone([f.id])} className="text-[11px] underline mr-2">Done</button>
-                    <button title="Add payment" onClick={()=>f.paid_pipeline_lead_id && setPayFor(f.paid_pipeline_lead_id)} className="text-[11px] underline mr-2">Pay</button>
-                    <button title="Finance" onClick={()=>f.paid_pipeline_lead_id && setFinanceFor(f.paid_pipeline_lead_id)} className="text-[11px] underline mr-2">Finance</button>
-                    <button title="Note" onClick={()=>setNoteFor(f.id)} className="text-[11px] underline mr-2">Note</button>
+                    {f.paid_pipeline_lead_id && <button title="Add payment" onClick={()=>setPayFor(f.paid_pipeline_lead_id!)} className="text-[11px] underline mr-2">Pay</button>}
+                    {f.paid_pipeline_lead_id && <button title="Finance" onClick={()=>setFinanceFor(f.paid_pipeline_lead_id!)} className="text-[11px] underline mr-2">Finance</button>}
+                    {!f.isSynthetic && <button title="Note" onClick={()=>setNoteFor(f.id)} className="text-[11px] underline mr-2">Note</button>}
                     <button title="WhatsApp" onClick={()=>setWaFor(f)} className="text-[11px] underline mr-2">WA</button>
-                    <button title="Open lead" onClick={()=>nav("/paid-pipeline")} className="text-[11px] underline">Open</button>
+                    <button title="Open lead" onClick={()=>nav(src === "crm" ? "/calling-crm" : "/paid-pipeline")} className="text-[11px] underline">Open</button>
                   </td>
                 </tr>
               );
@@ -651,10 +662,14 @@ export default function FollowUpCommandCenter() {
       <div>
         <div className="font-serif text-[18px] mb-2">Follow-Up Red Flags</div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {redFlags.map((r,i) => (
-            <div key={i} className="rounded-lg border border-line p-4 bg-white">
+          {redFlags.map((r) => (
+            <div key={r.key} className="rounded-lg border border-line p-4 bg-white flex flex-col">
               <div className="text-[12px] text-muted-foreground">{r.title}</div>
               <div className="font-serif text-[22px] mt-1">{r.count}</div>
+              <button onClick={() => viewRedFlag(r.key)} disabled={r.count === 0}
+                className="mt-2 text-[11px] underline text-left disabled:text-muted-foreground disabled:no-underline">
+                View leads →
+              </button>
             </div>
           ))}
         </div>
