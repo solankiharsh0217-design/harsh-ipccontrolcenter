@@ -737,6 +737,7 @@ function AttributionSection({
 
   const confirmDelete = async (id: string) => {
     if (!confirm("Move this attribution report to Trash? It will be hidden from history and permanently deleted after 14 days unless restored.")) return;
+    const target = sessions.find((s: any) => s.id === id);
     setDeletingId(id);
     try {
       const { error } = await (supabase as any)
@@ -745,6 +746,7 @@ function AttributionSection({
         .eq("id", id);
       if (error) throw error;
       toast.success("Moved to Trash. Will auto-delete in 14 days.");
+      logActivity({ module_key: "reports_history", action_type: "report_soft_deleted", entity_type: "attribution_session", entity_id: id, entity_label: target?.webinar_name, metadata: { report_type: "Attribution", webinar_date: target?.webinar_date }, summary: `Attribution Report '${target?.webinar_name ?? id}' moved to trash.`, severity: "warning" });
       setOpenSession(null);
       reload();
     } catch (e: any) {
@@ -753,6 +755,7 @@ function AttributionSection({
   };
 
   const restoreSession = async (id: string) => {
+    const target = sessions.find((s: any) => s.id === id);
     try {
       const { error } = await (supabase as any)
         .from("attribution_sessions")
@@ -760,6 +763,7 @@ function AttributionSection({
         .eq("id", id);
       if (error) throw error;
       toast.success("Report restored.");
+      logActivity({ module_key: "reports_history", action_type: "report_restored", entity_type: "attribution_session", entity_id: id, entity_label: target?.webinar_name, summary: `Attribution Report '${target?.webinar_name ?? id}' restored.` });
       reload();
     } catch (e: any) {
       toast.error(e?.message || "Could not restore report.");
