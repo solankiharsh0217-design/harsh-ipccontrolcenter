@@ -23,6 +23,32 @@ type FollowUp = {
   related_crm_lead_id: string | null;
   completed_at: string | null;
   created_at: string;
+  // Synthetic / display-only metadata
+  isSynthetic?: boolean;
+  syntheticKind?: "payment_expected" | "crm_reminder";
+  syntheticContext?: string;
+  crmLeadName?: string | null;
+  crmLeadPhone?: string | null;
+  crmProgram?: string | null;
+  crmPipelineId?: string | null;
+  crmStageId?: string | null;
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  paid_pipeline: "Paid Pipeline",
+  payment_expected: "Payment Expected Date",
+  finance: "Finance / EMI",
+  crm: "Calling CRM",
+  onboarding: "Onboarding",
+  manual: "Manual Follow-Up",
+};
+const SOURCE_BADGE: Record<string, string> = {
+  paid_pipeline: "bg-slate-50 border-slate-200 text-slate-700",
+  payment_expected: "bg-amber-50 border-amber-200 text-amber-800",
+  finance: "bg-violet-50 border-violet-200 text-violet-800",
+  crm: "bg-blue-50 border-blue-200 text-blue-800",
+  onboarding: "bg-emerald-50 border-emerald-200 text-emerald-800",
+  manual: "bg-gray-50 border-gray-200 text-gray-700",
 };
 
 type Lead = {
@@ -98,73 +124,204 @@ export default function FollowUpCommandCenter() {
   const [payFor, setPayFor] = useState<string | null>(null);
   const [financeFor, setFinanceFor] = useState<string | null>(null);
 
+  // Extra "red flag" filter that constrains the table beyond the quick preset
+  const [redFlagKey, setRedFlagKey] = useState<string>("");
+
+  const [realFus, setRealFus] = useState<FollowUp[]>([]);
+  const [syntheticFus, setSyntheticFus] = useState<FollowUp[]>([]);
+
   const load = async () => {
     if (!allowed) { setLoading(false); return; }
     setLoading(true);
     try {
+      // 1) Real follow-ups
       const { data: fdata } = await (supabase as any)
         .from("paid_pipeline_followups")
         .select("*")
         .eq("is_deleted", false)
         .order("follow_up_date", { ascending: true });
-      const list = (fdata as any as FollowUp[]) || [];
-      setFus(list);
+      const realList = (fdata as any as FollowUp[]) || [];
+      setRealFus(realList);
+      setFus(realList);
 
-      // Pull all referenced leads (and add synthetic from paid pipeline with no FU)
-      const ids = Array.from(new Set(list.map(f => f.paid_pipeline_lead_id).filter(Boolean))) as string[];
-      let leadsArr: Lead[] = [];
-      if (ids.length > 0) {
-        const { data: ld } = await supabase
-          .from("paid_pipeline_leads")
-          .select("id,name,email,phone,product_name_snapshot,paid_batch_name,deal_value_including_gst,token_amount_collected,total_collected,balance_pending,revenue_to_be_realized,balance_category,balance_description,lead_temperature,pipeline_stage,assigned_sales_executive,next_follow_up_date,next_follow_up_time,finance_required,finance_partner,finance_status,finance_follow_up_date,finance_notes,follow_up_reason,follow_up_priority,follow_up_status,onboarding_batch_name")
-          .in("id", ids);
-        leadsArr = (ld as any as Lead[]) || [];
-      }
+      // 2) Pull all paid pipeline leads with balance > 0 OR referenced by a follow-up
+      const fuIds = new Set(realList.map(f => f.paid_pipeline_lead_id).filter(Boolean) as string[]);
+      const { data: leadsAll } = await supabase
+        .from("paid_pipeline_leads")
+        .select("id,name,email,phone,product_name_snapshot,paid_batch_name,deal_value_including_gst,token_amount_collected,total_collected,balance_pending,revenue_to_be_realized,balance_category,balance_description,lead_temperature,pipeline_stage,assigned_sales_executive,next_follow_up_date,next_follow_up_time,finance_required,finance_partner,finance_status,finance_follow_up_date,finance_notes,follow_up_reason,follow_up_priority,follow_up_status,onboarding_batch_name,is_final_sale,is_enrolled")
+        .eq("is_deleted", false);
+      const leadsArr = ((leadsAll as any as (Lead & { is_final_sale?: boolean; is_enrolled?: boolean })[]) || []);
       const map: Record<string, Lead> = {};
       leadsArr.forEach(l => { map[l.id] = l; });
       setLeadMap(map);
+
+      // 3) Synthetic from paid_pipeline_payments.next_payment_expected_date
+      const syn: FollowUp[] = [];
+      const { data: pays } = await (supabase as any)
+        .from("paid_pipeline_payments")
+        .select("id,paid_pipeline_lead_id,next_payment_expected_date,amount,payment_type,payment_category,payment_description,payment_date,is_deleted")
+        .eq("is_deleted", false)
+        .not("next_payment_expected_date", "is", null);
+      (pays as any[] || []).forEach((p: any) => {
+        const l = map[p.paid_pipeline_lead_id];
+        // Dedup: skip if a real follow-up exists for same lead + same date + payment-ish reason
+        const dup = realList.some(f =>
+          f.paid_pipeline_lead_id === p.paid_pipeline_lead_id &&
+          f.follow_up_date === p.next_payment_expected_date &&
+          (f.related_payment_id === p.id ||
+            (f.follow_up_type || "").toLowerCase().includes("payment"))
+        );
+        if (dup) return;
+        const ctxParts = [
+          p.payment_type ? `Last: ${p.payment_type}` : null,
+          p.payment_category || null,
+          p.amount ? `₹${p.amount}` : null,
+          p.payment_description || null,
+        ].filter(Boolean);
+        syn.push({
+          id: `syn:pay:${p.id}`,
+          paid_pipeline_lead_id: p.paid_pipeline_lead_id,
+          follow_up_date: p.next_payment_expected_date,
+          follow_up_time: null,
+          follow_up_type: "Payment Follow-Up",
+          follow_up_reason: "Next Payment Expected",
+          priority: l?.lead_temperature === "Hot" ? "Hot" : (l?.follow_up_priority || "Normal"),
+          status: "Pending",
+          assigned_to: null,
+          notes: ctxParts.join(" · "),
+          source_module: "payment_expected",
+          related_payment_id: p.id,
+          related_crm_lead_id: null,
+          completed_at: null,
+          created_at: p.payment_date,
+          isSynthetic: true,
+          syntheticKind: "payment_expected",
+          syntheticContext: ctxParts.join(" · "),
+        });
+      });
+
+      // 4) Synthetic from CRM follow_up_reminders
+      try {
+        const { data: rems } = await (supabase as any)
+          .from("follow_up_reminders")
+          .select("id,lead_id,reminder_date,reminder_time,channel,note,is_completed,agent_id")
+          .eq("is_completed", false);
+        const remList = (rems as any[]) || [];
+        const crmLeadIds = Array.from(new Set(remList.map(r => r.lead_id).filter(Boolean)));
+        let crmLeads: any[] = [];
+        if (crmLeadIds.length > 0) {
+          const { data: ld } = await (supabase as any)
+            .from("leads")
+            .select("id,full_name,phone,email,program_name,pipeline_id,stage_id,assigned_agent_id")
+            .in("id", crmLeadIds);
+          crmLeads = (ld as any[]) || [];
+        }
+        const crmMap: Record<string, any> = {};
+        crmLeads.forEach((l: any) => { crmMap[l.id] = l; });
+        remList.forEach((r: any) => {
+          const cl = crmMap[r.lead_id];
+          // dedup vs real fu rows linked to same CRM lead + date
+          const dup = realList.some(f =>
+            f.related_crm_lead_id === r.lead_id &&
+            f.follow_up_date === r.reminder_date
+          );
+          if (dup) return;
+          syn.push({
+            id: `syn:crm:${r.id}`,
+            paid_pipeline_lead_id: null,
+            follow_up_date: r.reminder_date,
+            follow_up_time: r.reminder_time ? String(r.reminder_time).slice(0, 5) : null,
+            follow_up_type: r.channel === "call" ? "CRM Callback" : "CRM Follow-Up",
+            follow_up_reason: r.note || "CRM reminder",
+            priority: null,
+            status: "Pending",
+            assigned_to: null,
+            notes: r.note || null,
+            source_module: "crm",
+            related_payment_id: null,
+            related_crm_lead_id: r.lead_id,
+            completed_at: null,
+            created_at: r.created_at || new Date().toISOString(),
+            isSynthetic: true,
+            syntheticKind: "crm_reminder",
+            crmLeadName: cl?.full_name || null,
+            crmLeadPhone: cl?.phone || null,
+            crmProgram: cl?.program_name || null,
+            crmPipelineId: cl?.pipeline_id || null,
+            crmStageId: cl?.stage_id || null,
+          });
+        });
+      } catch { /* CRM table not available — silently skip */ }
+
+      setSyntheticFus(syn);
     } catch (e: any) {
       toast.error(e.message || "Failed to load follow-ups");
     } finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [allowed]);
 
-  // Derive synthetic follow-ups from lead fields when no row exists
+  // Unified follow-up list: real + synthetic, deduped
   const allFollowUps = useMemo(() => {
-    return fus;
-  }, [fus]);
+    return [...realFus, ...syntheticFus];
+  }, [realFus, syntheticFus]);
 
   const ymd = today();
 
+  const isOpenStatus = (s: string) => s !== "Done" && s !== "Cancelled";
+
   // ---- Counts ----
   const counts = useMemo(() => {
-    const isOpen = (s: string) => s !== "Done" && s !== "Cancelled";
-    const due = allFollowUps.filter(f => isOpen(f.status) && f.follow_up_date === ymd).length;
-    const overdue = allFollowUps.filter(f => isOpen(f.status) && f.follow_up_date < ymd).length;
-    const hot = allFollowUps.filter(f => isOpen(f.status) && ["Hot","Urgent"].includes(f.priority || "")).length;
-    const pay = allFollowUps.filter(f => isOpen(f.status) && (f.follow_up_type || "").toLowerCase().includes("payment")).length;
-    const fin = allFollowUps.filter(f => isOpen(f.status) && ((f.follow_up_type || "").toLowerCase().includes("finance") || (f.follow_up_type || "").toLowerCase().includes("emi"))).length;
-    const onb = allFollowUps.filter(f => isOpen(f.status) && ((f.follow_up_type || "").toLowerCase().includes("onboarding") || (f.follow_up_type || "").toLowerCase().includes("welcome"))).length;
+    const due = allFollowUps.filter(f => isOpenStatus(f.status) && f.follow_up_date === ymd).length;
+    const overdue = allFollowUps.filter(f => isOpenStatus(f.status) && f.follow_up_date < ymd).length;
+    const hot = allFollowUps.filter(f => isOpenStatus(f.status) && ["Hot","Urgent"].includes(f.priority || "")).length;
+    const pay = allFollowUps.filter(f => isOpenStatus(f.status) && ((f.follow_up_type || "").toLowerCase().includes("payment") || f.source_module === "payment_expected")).length;
+    const fin = allFollowUps.filter(f => isOpenStatus(f.status) && ((f.follow_up_type || "").toLowerCase().includes("finance") || (f.follow_up_type || "").toLowerCase().includes("emi") || f.source_module === "finance")).length;
+    const onb = allFollowUps.filter(f => isOpenStatus(f.status) && ((f.follow_up_type || "").toLowerCase().includes("onboarding") || (f.follow_up_type || "").toLowerCase().includes("welcome"))).length;
     const missed = allFollowUps.filter(f => f.status === "Missed").length;
-
-    // No Follow-Up Set: paid leads with balance pending and no next FU. Compute from leadMap (best-effort) + scan distinct.
     const leadsWithBalanceNoFu = Object.values(leadMap).filter(l => (l.balance_pending || 0) > 0 && !l.next_follow_up_date).length;
     return { due, overdue, hot, pay, fin, onb, missed, noFu: leadsWithBalanceNoFu };
   }, [allFollowUps, leadMap, ymd]);
 
   // ---- Filtering ----
   const filtered = useMemo(() => {
-    const isOpen = (s: string) => s !== "Done" && s !== "Cancelled";
+    const ageDays = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
     return allFollowUps.filter(f => {
-      // quick preset
-      if (quickPreset === "due_today" && !(f.follow_up_date === ymd && isOpen(f.status))) return false;
-      if (quickPreset === "overdue" && !(f.follow_up_date < ymd && isOpen(f.status))) return false;
-      if (quickPreset === "upcoming" && !(f.follow_up_date > ymd && isOpen(f.status))) return false;
+      const l = f.paid_pipeline_lead_id ? leadMap[f.paid_pipeline_lead_id] : undefined;
+
+      if (quickPreset === "due_today" && !(f.follow_up_date === ymd && isOpenStatus(f.status))) return false;
+      if (quickPreset === "overdue" && !(f.follow_up_date < ymd && isOpenStatus(f.status))) return false;
+      if (quickPreset === "upcoming" && !(f.follow_up_date > ymd && isOpenStatus(f.status))) return false;
       if (quickPreset === "missed" && f.status !== "Missed") return false;
-      if (quickPreset === "hot" && !(["Hot","Urgent"].includes(f.priority || "") && isOpen(f.status))) return false;
-      if (quickPreset === "payment" && !((f.follow_up_type || "").toLowerCase().includes("payment") && isOpen(f.status))) return false;
-      if (quickPreset === "finance" && !(((f.follow_up_type || "").toLowerCase().includes("finance") || (f.follow_up_type || "").toLowerCase().includes("emi")) && isOpen(f.status))) return false;
-      if (quickPreset === "onboarding" && !(((f.follow_up_type || "").toLowerCase().includes("onboarding") || (f.follow_up_type || "").toLowerCase().includes("welcome")) && isOpen(f.status))) return false;
+      if (quickPreset === "hot" && !(["Hot","Urgent"].includes(f.priority || "") && isOpenStatus(f.status))) return false;
+      if (quickPreset === "payment" && !(((f.follow_up_type || "").toLowerCase().includes("payment") || f.source_module === "payment_expected") && isOpenStatus(f.status))) return false;
+      if (quickPreset === "finance" && !(((f.follow_up_type || "").toLowerCase().includes("finance") || (f.follow_up_type || "").toLowerCase().includes("emi") || f.source_module === "finance") && isOpenStatus(f.status))) return false;
+      if (quickPreset === "onboarding" && !(((f.follow_up_type || "").toLowerCase().includes("onboarding") || (f.follow_up_type || "").toLowerCase().includes("welcome")) && isOpenStatus(f.status))) return false;
+
+      // Red flag deep-link filters
+      if (redFlagKey === "rf_token_no_fu") {
+        if (!l || !((l.token_amount_collected || 0) > 0 && (l.balance_pending || 0) > 0 && !l.next_follow_up_date)) return false;
+      }
+      if (redFlagKey === "rf_balance_no_owner") {
+        if (!l || !((l.balance_pending || 0) > 0 && !l.assigned_sales_executive)) return false;
+      }
+      if (redFlagKey === "rf_hot_overdue") {
+        if (!(["Hot","Urgent"].includes(f.priority || "") && f.follow_up_date < ymd && isOpenStatus(f.status))) return false;
+      }
+      if (redFlagKey === "rf_finance_3d") {
+        if (!l || !(l.finance_required && (l.finance_status || "").toLowerCase().match(/pending|in.?review|applied|submitted/) && ageDays(f.created_at) > 3)) return false;
+      }
+      if (redFlagKey === "rf_pay_today_not_collected") {
+        if (!(f.source_module === "payment_expected" && f.follow_up_date === ymd && isOpenStatus(f.status))) return false;
+      }
+      if (redFlagKey === "rf_missed_no_reschedule") {
+        if (f.status !== "Missed") return false;
+        const future = allFollowUps.some(g => g.paid_pipeline_lead_id && g.paid_pipeline_lead_id === f.paid_pipeline_lead_id && g.id !== f.id && g.follow_up_date > ymd && isOpenStatus(g.status));
+        if (future) return false;
+      }
+      if (redFlagKey === "rf_onb_pending") {
+        const final = (l as any)?.is_final_sale === true || l?.pipeline_stage === "Full Payment Received";
+        if (!l || !(final && !l.onboarding_batch_name)) return false;
+      }
 
       if (statusFilter !== "all" && f.status !== statusFilter) return false;
       if (typeFilter !== "all" && (f.follow_up_type || "") !== typeFilter) return false;
@@ -174,16 +331,16 @@ export default function FollowUpCommandCenter() {
 
       if (search) {
         const s = search.toLowerCase();
-        const lead = f.paid_pipeline_lead_id ? leadMap[f.paid_pipeline_lead_id] : undefined;
         const hay = [
-          lead?.name, lead?.email, lead?.phone, lead?.product_name_snapshot,
+          l?.name, l?.email, l?.phone, l?.product_name_snapshot,
+          f.crmLeadName, f.crmLeadPhone, f.crmProgram,
           f.follow_up_reason, f.follow_up_type, f.notes,
         ].filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(s)) return false;
       }
       return true;
     });
-  }, [allFollowUps, quickPreset, statusFilter, typeFilter, priorityFilter, ownerFilter, sourceFilter, search, leadMap, ymd]);
+  }, [allFollowUps, quickPreset, redFlagKey, statusFilter, typeFilter, priorityFilter, ownerFilter, sourceFilter, search, leadMap, ymd]);
 
   const owners = useMemo(() => Array.from(new Set(allFollowUps.map(f => f.assigned_to).filter(Boolean) as string[])), [allFollowUps]);
   const types = useMemo(() => Array.from(new Set([...DEFAULT_TYPES, ...allFollowUps.map(f => f.follow_up_type || "").filter(Boolean)])), [allFollowUps]);
@@ -196,7 +353,7 @@ export default function FollowUpCommandCenter() {
   };
   const selectAll = () => {
     if (selected.size === filtered.length) setSelected(new Set());
-    else setSelected(new Set(filtered.map(f => f.id)));
+    else setSelected(new Set(filtered.map(f => f.id).filter(id => !id.startsWith("syn:"))));
   };
   const requireSelection = () => {
     if (selected.size === 0) { toast("Please select at least one follow-up."); return false; }
@@ -205,12 +362,50 @@ export default function FollowUpCommandCenter() {
 
   const markDone = async (ids: string[]) => {
     if (ids.length === 0) return;
-    await supabase.from("paid_pipeline_followups")
-      .update({ status: "Done", completed_at: new Date().toISOString(), completed_by: user?.id } as any)
-      .in("id", ids);
-    toast.success(`${ids.length} marked done`);
-    setSelected(new Set());
-    load();
+    const realIds = ids.filter(id => !id.startsWith("syn:"));
+    const synIds = ids.filter(id => id.startsWith("syn:"));
+    try {
+      if (realIds.length) {
+        await supabase.from("paid_pipeline_followups")
+          .update({ status: "Done", completed_at: new Date().toISOString(), completed_by: user?.id } as any)
+          .in("id", realIds);
+      }
+      for (const sid of synIds) {
+        const fu = allFollowUps.find(f => f.id === sid);
+        if (!fu) continue;
+        if (fu.syntheticKind === "crm_reminder" && fu.related_crm_lead_id) {
+          // Resolve original reminder id from synthetic id
+          const remId = sid.replace("syn:crm:", "");
+          await (supabase as any).from("follow_up_reminders")
+            .update({ is_completed: true })
+            .eq("id", remId);
+        } else {
+          // Create a real done follow-up row for audit trail
+          await (supabase as any).from("paid_pipeline_followups").insert({
+            paid_pipeline_lead_id: fu.paid_pipeline_lead_id,
+            follow_up_date: fu.follow_up_date,
+            follow_up_time: fu.follow_up_time,
+            follow_up_type: fu.follow_up_type,
+            follow_up_reason: fu.follow_up_reason,
+            priority: fu.priority,
+            status: "Done",
+            assigned_to: fu.assigned_to,
+            notes: fu.notes,
+            source_module: fu.source_module,
+            related_payment_id: fu.related_payment_id,
+            related_crm_lead_id: fu.related_crm_lead_id,
+            completed_at: new Date().toISOString(),
+            completed_by: user?.id,
+            created_by: user?.id,
+          });
+        }
+      }
+      toast.success(`${ids.length} marked done`);
+      setSelected(new Set());
+      load();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to mark done");
+    }
   };
 
   const exportCsv = () => {
@@ -220,10 +415,12 @@ export default function FollowUpCommandCenter() {
     filtered.forEach(f => {
       const l = f.paid_pipeline_lead_id ? leadMap[f.paid_pipeline_lead_id] : undefined;
       rows.push([
-        l?.name || "", l?.phone || "", l?.product_name_snapshot || "", l?.paid_batch_name || "",
+        l?.name || f.crmLeadName || "", l?.phone || f.crmLeadPhone || "",
+        l?.product_name_snapshot || f.crmProgram || "", l?.paid_batch_name || "",
         f.follow_up_type || "", f.follow_up_reason || "",
         l?.balance_pending ?? "", f.priority || "", f.follow_up_date,
-        f.follow_up_time || "", f.assigned_to || "", f.status, f.source_module || "paid_pipeline",
+        f.follow_up_time || "", f.assigned_to || "", f.status,
+        SOURCE_LABELS[f.source_module || "paid_pipeline"] || (f.source_module || ""),
       ]);
     });
     downloadCsv(`follow-ups-${ymd}.csv`, rows);
@@ -233,8 +430,8 @@ export default function FollowUpCommandCenter() {
     const l = f.paid_pipeline_lead_id ? leadMap[f.paid_pipeline_lead_id] : undefined;
     const rep = (s: string, k: string, v: string) => s.split(k).join(v);
     let txt = tpl;
-    txt = rep(txt, "{Name}", l?.name || "there");
-    txt = rep(txt, "{Program}", l?.product_name_snapshot || "your program");
+    txt = rep(txt, "{Name}", l?.name || f.crmLeadName || "there");
+    txt = rep(txt, "{Program}", l?.product_name_snapshot || f.crmProgram || "your program");
     txt = rep(txt, "{TokenAmount}", String(l?.token_amount_collected || ""));
     txt = rep(txt, "{BalanceAmount}", String(l?.balance_pending || ""));
     txt = rep(txt, "{FollowUpDate}", fmtDate(f.follow_up_date));
@@ -245,19 +442,41 @@ export default function FollowUpCommandCenter() {
     toast.success("WhatsApp message copied");
   };
 
-  // ---- Red flags ----
+  // ---- Red flags with deep-link filters ----
   const redFlags = useMemo(() => {
-    const isOpen = (s: string) => s !== "Done" && s !== "Cancelled";
     const leadsArr = Object.values(leadMap);
+    const ageDays = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
     return [
-      { title: "Token paid but no follow-up date", count: leadsArr.filter(l => (l.token_amount_collected || 0) > 0 && (l.balance_pending || 0) > 0 && !l.next_follow_up_date).length },
-      { title: "Balance pending but no owner assigned", count: leadsArr.filter(l => (l.balance_pending || 0) > 0 && !l.assigned_sales_executive).length },
-      { title: "Hot/Urgent lead overdue", count: allFollowUps.filter(f => ["Hot","Urgent"].includes(f.priority || "") && isOpen(f.status) && f.follow_up_date < ymd).length },
-      { title: "Finance pending overdue", count: allFollowUps.filter(f => isOpen(f.status) && f.follow_up_date < ymd && ((f.follow_up_type || "").toLowerCase().includes("finance") || (f.follow_up_type || "").toLowerCase().includes("emi"))).length },
-      { title: "Missed follow-up not rescheduled", count: allFollowUps.filter(f => f.status === "Missed").length },
-      { title: "Onboarding pending after payment", count: leadsArr.filter(l => l.pipeline_stage === "Full Payment Received" && !l.onboarding_batch_name).length },
+      { key: "rf_token_no_fu", title: "Token paid but no follow-up date",
+        count: leadsArr.filter(l => (l.token_amount_collected || 0) > 0 && (l.balance_pending || 0) > 0 && !l.next_follow_up_date).length },
+      { key: "rf_balance_no_owner", title: "Balance pending but no owner assigned",
+        count: leadsArr.filter(l => (l.balance_pending || 0) > 0 && !l.assigned_sales_executive).length },
+      { key: "rf_hot_overdue", title: "Hot/Urgent lead overdue",
+        count: allFollowUps.filter(f => ["Hot","Urgent"].includes(f.priority || "") && isOpenStatus(f.status) && f.follow_up_date < ymd).length },
+      { key: "rf_finance_3d", title: "Finance pending more than 3 days",
+        count: allFollowUps.filter(f => {
+          const l = f.paid_pipeline_lead_id ? leadMap[f.paid_pipeline_lead_id] : undefined;
+          return l?.finance_required && (l.finance_status || "").toLowerCase().match(/pending|in.?review|applied|submitted/) && ageDays(f.created_at) > 3;
+        }).length },
+      { key: "rf_pay_today_not_collected", title: "Payment promised today but not collected",
+        count: allFollowUps.filter(f => f.source_module === "payment_expected" && f.follow_up_date === ymd && isOpenStatus(f.status)).length },
+      { key: "rf_missed_no_reschedule", title: "Missed follow-up not rescheduled",
+        count: allFollowUps.filter(f => {
+          if (f.status !== "Missed") return false;
+          const future = allFollowUps.some(g => g.paid_pipeline_lead_id && g.paid_pipeline_lead_id === f.paid_pipeline_lead_id && g.id !== f.id && g.follow_up_date > ymd && isOpenStatus(g.status));
+          return !future;
+        }).length },
+      { key: "rf_onb_pending", title: "Onboarding pending after payment confirmation",
+        count: leadsArr.filter(l => ((l as any).is_final_sale === true || l.pipeline_stage === "Full Payment Received") && !l.onboarding_batch_name).length },
     ];
   }, [leadMap, allFollowUps, ymd]);
+
+  const viewRedFlag = (key: string) => {
+    setRedFlagKey(key);
+    setQuickPreset("all");
+    setStatusFilter("all"); setTypeFilter("all"); setPriorityFilter("all"); setOwnerFilter("all"); setSourceFilter("all");
+    setTimeout(() => { document.querySelector("table")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
+  };
 
   if (!allowed) {
     return (
@@ -307,16 +526,21 @@ export default function FollowUpCommandCenter() {
       </div>
 
       {/* Quick filter chips */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         {[
           ["all","All"],["due_today","Due Today"],["overdue","Overdue"],["upcoming","Upcoming"],
-          ["missed","Missed"],["hot","Hot/Urgent"],["payment","Payment"],["finance","Finance"],["onboarding","Onboarding"],
+          ["missed","Missed"],["hot","Hot/Urgent"],["payment","Payment Pending"],["finance","Finance Pending"],["onboarding","Onboarding Pending"],
         ].map(([k,l]) => (
-          <button key={k} onClick={() => setQuickPreset(k)}
-            className={`px-3 py-1.5 rounded-full text-[12px] border ${quickPreset===k?"bg-black text-white border-black":"bg-white border-line hover:border-[#bbb]"}`}>
+          <button key={k} onClick={() => { setQuickPreset(k); setRedFlagKey(""); }}
+            className={`px-3 py-1.5 rounded-full text-[12px] border ${quickPreset===k && !redFlagKey?"bg-black text-white border-black":"bg-white border-line hover:border-[#bbb]"}`}>
             {l}
           </button>
         ))}
+        {redFlagKey && (
+          <button onClick={() => setRedFlagKey("")} className="px-3 py-1.5 rounded-full text-[12px] border border-red-300 bg-red-50 text-red-700">
+            Red flag filter active · clear
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -340,10 +564,7 @@ export default function FollowUpCommandCenter() {
         </select>
         <select className="qsi-input" value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}>
           <option value="all">All sources</option>
-          <option value="paid_pipeline">Paid Pipeline</option>
-          <option value="finance">Finance / EMI</option>
-          <option value="crm">Calling CRM</option>
-          <option value="onboarding">Onboarding</option>
+          {Object.entries(SOURCE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </div>
 
@@ -382,23 +603,32 @@ export default function FollowUpCommandCenter() {
             {filtered.map(f => {
               const l = f.paid_pipeline_lead_id ? leadMap[f.paid_pipeline_lead_id] : undefined;
               const overdue = f.status !== "Done" && f.status !== "Cancelled" && f.follow_up_date < ymd;
+              const src = f.source_module || "paid_pipeline";
+              const leadName = l?.name || f.crmLeadName || "—";
+              const leadPhone = l?.phone || f.crmLeadPhone || "—";
+              const program = l?.product_name_snapshot || f.crmProgram || "—";
+              const amount = l ? inr(l.balance_pending || 0) : "—";
               return (
                 <tr key={f.id} className="border-t border-line hover:bg-off/40">
-                  <td className="p-2"><input type="checkbox" checked={selected.has(f.id)} onChange={()=>toggleSelect(f.id)}/></td>
                   <td className="p-2">
-                    <div className="font-medium">{l?.name || "—"}</div>
+                    <input type="checkbox" checked={selected.has(f.id)} onChange={()=>toggleSelect(f.id)}
+                      disabled={f.isSynthetic && f.syntheticKind !== "crm_reminder"} title={f.isSynthetic ? "Synthetic row — use Done/actions" : ""}/>
+                  </td>
+                  <td className="p-2">
+                    <div className="font-medium">{leadName}</div>
                     <div className="text-[11px] text-muted-foreground">{l?.email || ""}</div>
                   </td>
-                  <td className="p-2">{l?.phone || "—"}</td>
+                  <td className="p-2">{leadPhone}</td>
                   <td className="p-2">
-                    <div>{l?.product_name_snapshot || "—"}</div>
+                    <div>{program}</div>
                     <div className="text-[11px] text-muted-foreground">{l?.paid_batch_name || ""}</div>
                   </td>
                   <td className="p-2">
                     <div>{f.follow_up_type || "—"}</div>
                     <div className="text-[11px] text-muted-foreground">{f.follow_up_reason || ""}</div>
+                    {f.syntheticContext && <div className="text-[11px] text-amber-700 mt-0.5">{f.syntheticContext}</div>}
                   </td>
-                  <td className="p-2">{l ? inr(l.balance_pending || 0) : "—"}</td>
+                  <td className="p-2">{amount}</td>
                   <td className="p-2">
                     {f.priority ? <span className="px-2 py-0.5 rounded-full text-[11px] border border-line">{f.priority}</span> : "—"}
                   </td>
@@ -410,14 +640,16 @@ export default function FollowUpCommandCenter() {
                   <td className="p-2">
                     <span className={`px-2 py-0.5 rounded-full text-[11px] border ${f.status==="Done"?"border-green-300 bg-green-50 text-green-700":f.status==="Missed"?"border-red-300 bg-red-50 text-red-700":"border-line"}`}>{f.status}</span>
                   </td>
-                  <td className="p-2 text-[11px] text-muted-foreground">{f.source_module || "paid_pipeline"}</td>
+                  <td className="p-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] border ${SOURCE_BADGE[src] || "border-line"}`}>{SOURCE_LABELS[src] || src}</span>
+                  </td>
                   <td className="p-2 whitespace-nowrap">
                     <button title="Mark done" onClick={()=>markDone([f.id])} className="text-[11px] underline mr-2">Done</button>
-                    <button title="Add payment" onClick={()=>f.paid_pipeline_lead_id && setPayFor(f.paid_pipeline_lead_id)} className="text-[11px] underline mr-2">Pay</button>
-                    <button title="Finance" onClick={()=>f.paid_pipeline_lead_id && setFinanceFor(f.paid_pipeline_lead_id)} className="text-[11px] underline mr-2">Finance</button>
-                    <button title="Note" onClick={()=>setNoteFor(f.id)} className="text-[11px] underline mr-2">Note</button>
+                    {f.paid_pipeline_lead_id && <button title="Add payment" onClick={()=>setPayFor(f.paid_pipeline_lead_id!)} className="text-[11px] underline mr-2">Pay</button>}
+                    {f.paid_pipeline_lead_id && <button title="Finance" onClick={()=>setFinanceFor(f.paid_pipeline_lead_id!)} className="text-[11px] underline mr-2">Finance</button>}
+                    {!f.isSynthetic && <button title="Note" onClick={()=>setNoteFor(f.id)} className="text-[11px] underline mr-2">Note</button>}
                     <button title="WhatsApp" onClick={()=>setWaFor(f)} className="text-[11px] underline mr-2">WA</button>
-                    <button title="Open lead" onClick={()=>nav("/paid-pipeline")} className="text-[11px] underline">Open</button>
+                    <button title="Open lead" onClick={()=>nav(src === "crm" ? "/calling-crm" : "/paid-pipeline")} className="text-[11px] underline">Open</button>
                   </td>
                 </tr>
               );
@@ -430,10 +662,14 @@ export default function FollowUpCommandCenter() {
       <div>
         <div className="font-serif text-[18px] mb-2">Follow-Up Red Flags</div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {redFlags.map((r,i) => (
-            <div key={i} className="rounded-lg border border-line p-4 bg-white">
+          {redFlags.map((r) => (
+            <div key={r.key} className="rounded-lg border border-line p-4 bg-white flex flex-col">
               <div className="text-[12px] text-muted-foreground">{r.title}</div>
               <div className="font-serif text-[22px] mt-1">{r.count}</div>
+              <button onClick={() => viewRedFlag(r.key)} disabled={r.count === 0}
+                className="mt-2 text-[11px] underline text-left disabled:text-muted-foreground disabled:no-underline">
+                View leads →
+              </button>
             </div>
           ))}
         </div>
