@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import type { ModuleKey } from "@/lib/modules";
+import { moduleAliases } from "@/lib/eligibleAssignees";
 
 export interface Profile {
   id: string;
@@ -73,7 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => { if (user) await loadProfile(user.id); };
 
-  const hasModule = (key: ModuleKey) => isAdmin || modules.has(key);
+  const hasModule = (key: ModuleKey) => {
+    if (isAdmin) return true;
+    const aliases = moduleAliases(key as string);
+    return aliases.some((a) => modules.has(a as ModuleKey));
+  };
 
   return (
     <Ctx.Provider value={{ user, session, profile, isAdmin, modules, hasModule, loginTime, loading, signOut, refreshProfile, setLoginTime }}>

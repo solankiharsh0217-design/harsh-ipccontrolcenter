@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { initials, formatTime, formatDateShort } from "@/lib/format";
 import { useAuth } from "@/context/AuthContext";
 import { MODULES, type ModuleKey } from "@/lib/modules";
+import { moduleAliases } from "@/lib/eligibleAssignees";
 import PayrollFieldsSection, { emptyPayroll, dbToPayroll, payrollToDb, type PayrollFormState } from "@/components/PayrollFieldsSection";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import { toast } from "sonner";
@@ -80,10 +81,21 @@ export default function Team() {
     await fetchMemberAccess(m);
   };
 
+  const hasModuleChecked = (k: ModuleKey) =>
+    moduleAliases(k as string).some((a) => editModules.has(a as ModuleKey));
+
   const toggleModule = (k: ModuleKey) => {
     setEditModules(prev => {
       const n = new Set(prev);
-      n.has(k) ? n.delete(k) : n.add(k);
+      const aliases = moduleAliases(k as string) as ModuleKey[];
+      const has = aliases.some((a) => n.has(a));
+      if (has) {
+        // remove all aliases
+        aliases.forEach((a) => n.delete(a));
+      } else {
+        // grant canonical key
+        n.add(k);
+      }
       return n;
     });
   };
@@ -200,7 +212,7 @@ export default function Team() {
                 <div>
                   <label className="font-sans text-[11px] text-muted-foreground block mb-1">Position / Role</label>
                   <QuickSaveInput
-                    fieldKey="team_member_role"
+                    fieldKey="team_role"
                     value={editRole}
                     onChange={setEditRole}
                     placeholder="Click to choose saved role or type new"
@@ -243,18 +255,21 @@ export default function Team() {
                 <div key={group} className="mb-4">
                   <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{group}</div>
                   <div className="grid grid-cols-2 gap-2">
-                    {MODULES.filter(m => m.group === group).map(mod => (
-                      <label key={mod.key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editAdmin ? "opacity-50 bg-off border-line" : editModules.has(mod.key) ? "bg-off border-line" : "border-line hover:bg-off"}`}>
+                    {MODULES.filter(m => m.group === group).map(mod => {
+                      const checked = hasModuleChecked(mod.key);
+                      return (
+                      <label key={mod.key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editAdmin ? "opacity-50 bg-off border-line" : checked ? "bg-off border-line" : "border-line hover:bg-off"}`}>
                         <input
                           type="checkbox"
-                          checked={editAdmin || editModules.has(mod.key)}
+                          checked={editAdmin || checked}
                           disabled={editAdmin}
                           onChange={() => toggleModule(mod.key)}
                           className="w-4 h-4"
                         />
                         <span className="font-serif text-[14px] text-black">{mod.label}</span>
                       </label>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}

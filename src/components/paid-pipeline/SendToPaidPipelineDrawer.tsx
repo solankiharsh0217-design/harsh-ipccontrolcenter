@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import type { SaleDetail, AttributionPayload } from "@/lib/roasExport";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 const inr = (n: number) => "₹" + (Math.round(n || 0)).toLocaleString("en-IN");
 
@@ -88,16 +89,16 @@ export default function SendToPaidPipelineDrawer({
     setStep(0);
     setResult(null);
     (async () => {
-      const [{ data: s }, { data: pr }, { data: ba }, { data: ex }] = await Promise.all([
+      const [{ data: s }, { data: pr }, { data: ba }, elig] = await Promise.all([
         supabase.from("paid_pipeline_settings").select("*").eq("is_active", true).eq("is_deleted", false).order("sort_order"),
         supabase.from("program_products").select("*").eq("is_active", true).eq("is_deleted", false).order("product_name"),
         supabase.from("webinar_batches").select("*").eq("is_deleted", false).order("created_at", { ascending: false }).limit(50),
-        supabase.from("profiles").select("id, full_name, role, status").eq("status", "active"),
+        getEligibleAssignees(["paid_pipeline", "calling_crm"]),
       ]);
       setSettings((s as any) || []);
       setProducts((pr as any) || []);
       setBatches((ba as any) || []);
-      setExecutives(((ex as any) || []).filter((p: any) => /sales|bde|agent|manager|executive/i.test(p.role || "")));
+      setExecutives(elig.map((a) => ({ id: a.id, full_name: a.full_name, role: a.role })) as any);
     })();
   }, [open]);
 

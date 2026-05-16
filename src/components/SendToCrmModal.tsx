@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { MergedLead, QualifierResult } from "@/lib/qualifier";
 import { GRADE_STYLES, ensurePipelineExists } from "@/lib/crmTypes";
 import { X, Plus } from "lucide-react";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 interface Props {
   result: QualifierResult;
@@ -74,11 +75,11 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
         const reload = await supabase.from("pipelines").select("*").order("position");
         pl = reload.data || [];
       }
-      const [{ data: ag }, { data: st }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, role, status").eq("status", "active"),
+      const [elig, { data: st }] = await Promise.all([
+        getEligibleAssignees("calling_crm"),
         supabase.from("stages").select("*").order("position"),
       ]);
-      setAgents((ag || []).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")) as any);
+      setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name, role: a.role })) as any);
       setPipelines(pl || []);
       setStages(st || []);
       const defaultPipe = (pl || []).find((p: any) => p.type === leadType) || (pl || [])[0];

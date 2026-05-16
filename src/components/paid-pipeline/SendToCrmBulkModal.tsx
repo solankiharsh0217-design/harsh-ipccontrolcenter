@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 type Pipeline = { id: string; name: string };
 type Stage = { id: string; pipeline_id: string; name: string; position: number };
@@ -30,15 +31,15 @@ export default function SendToCrmBulkModal({
 
   useEffect(() => {
     (async () => {
-      const [{ data: p }, { data: s }, { data: ag }] = await Promise.all([
+      const [{ data: p }, { data: s }, elig] = await Promise.all([
         supabase.from("pipelines").select("id, name").order("position"),
         supabase.from("stages").select("id, pipeline_id, name, position").order("position"),
-        supabase.from("profiles").select("id, full_name, status").eq("status", "active"),
+        getEligibleAssignees("calling_crm"),
       ]);
       const pipes = (p || []) as any;
       setPipelines(pipes);
       setStages((s || []) as any);
-      setAgents((ag || []) as any);
+      setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
       const onboarding = pipes.find((x: any) => /onboarding/i.test(x.name));
       if (onboarding) setPipelineId(onboarding.id);
       else if (pipes[0]) setPipelineId(pipes[0].id);
