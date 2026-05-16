@@ -58,6 +58,7 @@ const App = () => (
             <Route path="/paid-pipeline" element={<Shell moduleKey="paid-pipeline"><PaidPipeline /></Shell>} />
             <Route path="/crm/paid-pipeline" element={<Shell moduleKey="paid-pipeline"><PaidPipeline /></Shell>} />
             <Route path="/follow-up-command-center" element={<Shell moduleKey="follow_up_command_center"><FollowUpCommandCenter /></Shell>} />
+            <Route path="/payment-recovery" element={<Shell moduleKey="payment_recovery"><PaymentRecovery /></Shell>} />
             <Route path="/team" element={<Shell moduleKey="team"><Team /></Shell>} />
             <Route path="/announcements" element={<Shell moduleKey="announcements"><Announcements /></Shell>} />
             <Route path="/admin" element={<Shell admin><Admin /></Shell>} />
