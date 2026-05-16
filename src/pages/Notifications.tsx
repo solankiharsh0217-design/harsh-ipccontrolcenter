@@ -77,9 +77,12 @@ export default function Notifications() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<Row | null>(null);
 
-  async function load() {
+  async function load(opts?: { generate?: boolean }) {
     setLoading(true);
     try {
+      if (opts?.generate && user) {
+        await generateNotifications({ userId: user.id, isAdmin });
+      }
       let q: any = (supabase as any)
         .from("notifications")
         .select("*")
@@ -97,7 +100,7 @@ export default function Notifications() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load({ generate: true }); /* eslint-disable-next-line */ }, [user?.id]);
 
   const filtered = useMemo(() => {
     let list = rows;
