@@ -7,6 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import FounderDashboard from "./pages/FounderDashboard";
 import RoasCalculator from "./pages/RoasCalculator";
 import StudentSearch from "./pages/StudentSearch";
 import DailyLeadReporting from "./pages/DailyLeadReporting";
@@ -41,6 +42,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Shell moduleKey="dashboard"><Dashboard /></Shell>} />
+            <Route path="/founder-dashboard" element={<Shell moduleKey="founder-dashboard"><FounderDashboard /></Shell>} />
             <Route path="/roas-calculator" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
             <Route path="/roas" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
             <Route path="/search" element={<Shell moduleKey="search"><StudentSearch /></Shell>} />

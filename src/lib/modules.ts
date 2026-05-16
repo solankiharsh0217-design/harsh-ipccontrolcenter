@@ -1,5 +1,6 @@
 export type ModuleKey =
   | "dashboard"
+  | "founder-dashboard"
   | "announcements"
   | "roas"
   | "search"
@@ -15,6 +16,7 @@ export type ModuleKey =
 
 export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "dashboard", label: "Dashboard", group: "Overview" },
+  { key: "founder-dashboard", label: "Founder Dashboard", group: "Overview" },
   { key: "announcements", label: "Announcements", group: "Overview" },
   { key: "roas", label: "ROAS Calculator", group: "Tools" },
   { key: "search", label: "Student Search", group: "Tools" },
