@@ -131,7 +131,10 @@ export default function FounderDashboard() {
 
   const bounds = useMemo(() => rangeBounds(rangeKey, customStart, customEnd), [rangeKey, customStart, customEnd]);
   const todayIso = isoDay(new Date());
-  const monthBounds = useMemo(() => rangeBounds("thisMonth"), []);
+  const isTodayFilter = rangeKey === "today";
+  const snapshotTitle = isTodayFilter ? "Today's Business Snapshot" : "Selected Period Snapshot";
+  const moneyTitle = isTodayFilter ? "Today's Money View" : "Selected Period Money View";
+  const rangeLabel = RANGES.find((r) => r.key === rangeKey)?.label || "Selected Period";
 
   useEffect(() => {
     if (!allowed) { setLoading(false); return; }
