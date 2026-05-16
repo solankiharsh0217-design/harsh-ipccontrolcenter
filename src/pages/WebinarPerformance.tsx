@@ -452,7 +452,17 @@ export default function WebinarPerformance() {
           </thead>
           <tbody>
             {loading && <tr><td colSpan={18} className="py-6 px-3 text-center text-muted-foreground">Loading…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan={18} className="py-6 px-3 text-center text-muted-foreground">No webinar data in this range.</td></tr>}
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={18} className="py-10 px-3 text-center">
+                <div className="font-serif text-[15px] text-black mb-1">No webinar reports found for this period.</div>
+                <div className="font-sans text-[12px] text-muted-foreground mb-3">This dashboard uses existing ROAS, Attribution, Daily Lead, and Paid Pipeline reports. Please create or sync those reports first.</div>
+                <div className="flex gap-2 justify-center">
+                  <button onClick={() => nav("/roas-calculator")} className="ipc-btn ipc-btn-ghost text-[11px]">Open ROAS Calculator</button>
+                  <button onClick={() => nav("/reports")} className="ipc-btn ipc-btn-ghost text-[11px]">Open Reports & History</button>
+                  <button onClick={() => nav("/daily-lead-reporting")} className="ipc-btn ipc-btn-ghost text-[11px]">Open Daily Lead Reporting</button>
+                </div>
+              </td></tr>
+            )}
             {filtered.map((r) => {
               const cpl = div(r.ad_spend, r.registrations);
               const roas = div(r.revenue_realized, r.ad_spend);
