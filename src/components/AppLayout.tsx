@@ -12,6 +12,7 @@ const Icon = ({ d, children }: { d?: string; children?: ReactNode }) => (
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Dashboard",
+  "/founder-dashboard": "Founder Dashboard",
   "/announcements": "Announcements",
   "/roas": "ROAS Calculator",
   "/roas-calculator": "ROAS Calculator",
