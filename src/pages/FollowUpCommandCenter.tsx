@@ -23,6 +23,32 @@ type FollowUp = {
   related_crm_lead_id: string | null;
   completed_at: string | null;
   created_at: string;
+  // Synthetic / display-only metadata
+  isSynthetic?: boolean;
+  syntheticKind?: "payment_expected" | "crm_reminder";
+  syntheticContext?: string;
+  crmLeadName?: string | null;
+  crmLeadPhone?: string | null;
+  crmProgram?: string | null;
+  crmPipelineId?: string | null;
+  crmStageId?: string | null;
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  paid_pipeline: "Paid Pipeline",
+  payment_expected: "Payment Expected Date",
+  finance: "Finance / EMI",
+  crm: "Calling CRM",
+  onboarding: "Onboarding",
+  manual: "Manual Follow-Up",
+};
+const SOURCE_BADGE: Record<string, string> = {
+  paid_pipeline: "bg-slate-50 border-slate-200 text-slate-700",
+  payment_expected: "bg-amber-50 border-amber-200 text-amber-800",
+  finance: "bg-violet-50 border-violet-200 text-violet-800",
+  crm: "bg-blue-50 border-blue-200 text-blue-800",
+  onboarding: "bg-emerald-50 border-emerald-200 text-emerald-800",
+  manual: "bg-gray-50 border-gray-200 text-gray-700",
 };
 
 type Lead = {
