@@ -99,10 +99,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         <div className="px-3 py-[18px] flex-1">
           <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px]">Overview</span>
-          <NavItem to="/founder-dashboard" show={isAdmin || hasModule("founder_dashboard") || hasModule("founder-dashboard")}>
-            <Icon d="M2 14V6l6-4 6 4v8H2zM7 14V9h2v5" />
-            Founder Dashboard
-          </NavItem>
           <NavItem to="/" show={hasModule("dashboard")}>
             <Icon><><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></></Icon>
             Dashboard
@@ -123,11 +119,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </NavItem>
           <NavItem to="/daily-lead-reporting" show={hasModule("daily-reporting")}>
             <Icon d="M2 12l4-4 3 3 5-6" />
-            Daily Lead Reporting
+            Daily Reporting
           </NavItem>
           <NavItem to="/reports" show={hasModule("reports")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></></Icon>
-            Reports & History
+            Report History
           </NavItem>
           <NavItem to="/lead-qualifier" show={hasModule("lead-qualifier")}>
             <Icon><><path d="M3 3h10v10H3z"/><path d="M5 7h6M5 9h4"/></></Icon>
@@ -137,53 +133,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M2 14c0-2 1.5-3 3-3s3 1 3 3M8 14c0-2 1.5-3 3-3s3 1 3 3"/></></Icon>
             Calling CRM
           </NavItem>
-          <NavItem to="/paid-pipeline" show={hasModule("paid-pipeline")}>
-            <Icon><><path d="M2 4h12v8H2z"/><path d="M2 7h12M5 10h2"/></></Icon>
-            Paid Pipeline
-          </NavItem>
-          <NavItem to="/follow-up-command-center" show={hasModule("follow_up_command_center")}>
-            <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
-            Follow-Up Command Center
-          </NavItem>
-          <NavItem to="/payment-recovery" show={hasModule("payment_recovery")}>
-            <Icon><><path d="M2 5h12v6H2z"/><circle cx="8" cy="8" r="1.5"/></></Icon>
-            Payment Recovery
-          </NavItem>
-          <NavItem to="/webinar-performance" show={hasModule("webinar_performance")}>
-            <Icon><><path d="M2 12V4h12v8H2z"/><path d="M5 8l2 2 4-4"/></></Icon>
-            Webinar Performance
-          </NavItem>
-          <NavItem to="/profit-statement" show={hasModule("profit-statement")}>
-            <Icon d="M2 13l3-4 3 2 5-7" />
-            Profit Statement
-          </NavItem>
 
-          <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">People</span>
-          <NavItem to="/team" show={hasModule("team")}>
-            <Icon><><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/></></Icon>
-            Team Directory
+          <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">Centers</span>
+          <NavItem to="/revenue-command-center">
+            <Icon><><path d="M2 4h12v8H2z"/><path d="M2 7h12M5 10h2"/></></Icon>
+            Revenue Center
           </NavItem>
-          {isAdmin && (
-            <NavItem to="/admin">
-              <Icon d="M8 1l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9l-3 1.5.5-3.5L3 4.5 6.5 4z" />
-              Admin Panel
-            </NavItem>
-          )}
-          <NavItem to="/master-data" show={hasModule("master-data")}>
-            <Icon><><rect x="2" y="2" width="3" height="3" rx="0.5"/><rect x="6.5" y="2" width="3" height="3" rx="0.5"/><rect x="11" y="2" width="3" height="3" rx="0.5"/><rect x="2" y="6.5" width="3" height="3" rx="0.5"/><rect x="6.5" y="6.5" width="3" height="3" rx="0.5"/><rect x="11" y="6.5" width="3" height="3" rx="0.5"/><rect x="2" y="11" width="3" height="3" rx="0.5"/><rect x="6.5" y="11" width="3" height="3" rx="0.5"/><rect x="11" y="11" width="3" height="3" rx="0.5"/></></Icon>
-            Master Data
+          <NavItem to="/analytics-center">
+            <Icon d="M2 13l3-4 3 2 5-7" />
+            Analytics Center
           </NavItem>
-          <NavItem to="/master-settings" show={isAdmin || hasModule("master_settings")}>
-            <Icon><><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M3 13l1.5-1.5M11.5 4.5L13 3"/></></Icon>
-            Master Settings
-          </NavItem>
-          <NavItem to="/audit-log" show={isAdmin || hasModule("audit_log")}>
-            <Icon><><path d="M3 2h7l3 3v9H3z" fill="none"/><path d="M5 6h6M5 8.5h6M5 11h4"/></></Icon>
-            Audit Log
-          </NavItem>
-          <NavItem to="/notifications" show={canSeeNotifications} badge={unread > 0}>
-            <Icon><><path d="M8 2a4 4 0 0 0-4 4v3l-1 2h10l-1-2V6a4 4 0 0 0-4-4z"/><path d="M6.5 13a1.5 1.5 0 0 0 3 0"/></></Icon>
-            Notifications
+          <NavItem to="/admin-center">
+            <Icon d="M8 1l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9l-3 1.5.5-3.5L3 4.5 6.5 4z" />
+            Admin Center
           </NavItem>
         </div>
 
