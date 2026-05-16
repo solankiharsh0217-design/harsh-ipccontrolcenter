@@ -526,16 +526,21 @@ export default function FollowUpCommandCenter() {
       </div>
 
       {/* Quick filter chips */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         {[
           ["all","All"],["due_today","Due Today"],["overdue","Overdue"],["upcoming","Upcoming"],
-          ["missed","Missed"],["hot","Hot/Urgent"],["payment","Payment"],["finance","Finance"],["onboarding","Onboarding"],
+          ["missed","Missed"],["hot","Hot/Urgent"],["payment","Payment Pending"],["finance","Finance Pending"],["onboarding","Onboarding Pending"],
         ].map(([k,l]) => (
-          <button key={k} onClick={() => setQuickPreset(k)}
-            className={`px-3 py-1.5 rounded-full text-[12px] border ${quickPreset===k?"bg-black text-white border-black":"bg-white border-line hover:border-[#bbb]"}`}>
+          <button key={k} onClick={() => { setQuickPreset(k); setRedFlagKey(""); }}
+            className={`px-3 py-1.5 rounded-full text-[12px] border ${quickPreset===k && !redFlagKey?"bg-black text-white border-black":"bg-white border-line hover:border-[#bbb]"}`}>
             {l}
           </button>
         ))}
+        {redFlagKey && (
+          <button onClick={() => setRedFlagKey("")} className="px-3 py-1.5 rounded-full text-[12px] border border-red-300 bg-red-50 text-red-700">
+            Red flag filter active · clear
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -559,10 +564,7 @@ export default function FollowUpCommandCenter() {
         </select>
         <select className="qsi-input" value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}>
           <option value="all">All sources</option>
-          <option value="paid_pipeline">Paid Pipeline</option>
-          <option value="finance">Finance / EMI</option>
-          <option value="crm">Calling CRM</option>
-          <option value="onboarding">Onboarding</option>
+          {Object.entries(SOURCE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </div>
 
