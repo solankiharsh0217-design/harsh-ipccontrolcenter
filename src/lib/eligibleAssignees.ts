@@ -8,15 +8,16 @@ export interface EligibleAssignee {
 }
 
 // Aliases — historical / alternate module keys that should be treated equivalently.
-const MODULE_ALIASES: Record<string, string[]> = {
-  calling_crm: ["calling_crm", "crm", "calling-crm", "callingCRM"],
-  paid_pipeline: ["paid_pipeline", "paid-pipeline"],
-  follow_up_command_center: ["follow_up_command_center", "follow-up-command-center"],
-  founder_dashboard: ["founder_dashboard", "founder-dashboard"],
-};
+const ALIAS_GROUPS: string[][] = [
+  ["calling_crm", "crm", "calling-crm", "callingCRM"],
+  ["paid_pipeline", "paid-pipeline"],
+  ["follow_up_command_center", "follow-up-command-center"],
+  ["founder_dashboard", "founder-dashboard"],
+];
 
 export function moduleAliases(moduleKey: string): string[] {
-  return MODULE_ALIASES[moduleKey] || [moduleKey];
+  const group = ALIAS_GROUPS.find((g) => g.includes(moduleKey));
+  return group ? [...group] : [moduleKey];
 }
 
 /**
