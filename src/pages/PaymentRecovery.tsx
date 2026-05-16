@@ -551,7 +551,7 @@ export default function PaymentRecovery() {
       <div className="flex flex-wrap items-center gap-2 mb-3 text-[12px]">
         <div className="text-muted-foreground">{selected.size > 0 ? `${selected.size} selected · ` : ""}{filteredRows.length} rows</div>
         <div className="flex-1" />
-        <button className="ipc-btn ipc-btn-ghost" onClick={() => setBulkFollowUp(true)}>Set Follow-Up</button>
+        <button className="ipc-btn ipc-btn-ghost" onClick={() => { if (selected.size === 0) { toast.error("Please select at least one lead."); return; } setBulkFollowUp(true); }}>Set Follow-Up</button>
         <button className="ipc-btn ipc-btn-ghost" onClick={bulkAssignOwner}>Assign Owner</button>
         <button className="ipc-btn ipc-btn-ghost" onClick={() => bulkUpdate("lead_temperature","Priority",["Urgent","Hot","Warm","Cold","Dropped Risk"])}>Update Priority</button>
         <button className="ipc-btn ipc-btn-ghost" onClick={() => bulkUpdate("balance_category","Balance Category",balCatOptions.length ? balCatOptions : ["Balance Payment Pending"])}>Update Balance Cat.</button>
