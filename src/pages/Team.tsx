@@ -200,7 +200,7 @@ export default function Team() {
                 <div>
                   <label className="font-sans text-[11px] text-muted-foreground block mb-1">Position / Role</label>
                   <QuickSaveInput
-                    fieldKey="team_member_role"
+                    fieldKey="team_role"
                     value={editRole}
                     onChange={setEditRole}
                     placeholder="Click to choose saved role or type new"
