@@ -273,9 +273,36 @@ export default function Team() {
                 <input type="checkbox" checked={editAdmin} onChange={(e) => setEditAdmin(e.target.checked)} className="w-4 h-4" />
                 <div>
                   <div className="font-serif text-[15px] text-black">Admin access</div>
-                  <div className="font-sans text-[11px] text-muted-foreground">Full access to all modules, including Admin Panel.</div>
+                  <div className="font-sans text-[11px] text-muted-foreground">Full access to all modules, including Admin Panel. Admins can access everything, but will <span className="font-medium">not</span> receive leads unless assignment eligibility is enabled below.</div>
                 </div>
               </label>
+            </div>
+
+            <div className="px-7 py-5 border-b border-line">
+              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-2">Assignment eligibility</div>
+              <div className="font-sans text-[11px] text-muted-foreground mb-3 leading-relaxed">
+                Module access controls what this member can <span className="font-medium">open</span>. Assignment eligibility controls whether this member can <span className="font-medium">receive</span> leads, tasks, or round-robin assignments.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ["active_for_assignment", "Active for assignments"],
+                  ["can_receive_calling_crm_leads", "Can receive Calling CRM leads"],
+                  ["can_receive_paid_pipeline_leads", "Can receive Paid Pipeline leads"],
+                  ["can_receive_follow_up_tasks", "Can receive Follow-Up tasks"],
+                  ["can_receive_payment_recovery_leads", "Can receive Payment Recovery leads"],
+                  ["include_in_round_robin", "Include in Round Robin"],
+                ] as [keyof EligibilityFlags, string][]).map(([key, label]) => (
+                  <label key={key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editEligibility[key] ? "bg-off border-line" : "border-line hover:bg-off"}`}>
+                    <input
+                      type="checkbox"
+                      checked={!!editEligibility[key]}
+                      onChange={() => toggleEligibility(key)}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-serif text-[14px] text-black">{label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="px-7 py-5">
