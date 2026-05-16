@@ -540,16 +540,16 @@ export default function FounderDashboard() {
         <div className="text-sm text-muted-foreground">Loading founder dashboard…</div>
       ) : (
         <>
-          <Section title="Today's Business Snapshot">
+          <Section title={snapshotTitle}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              <MetricCard label="Leads Today" value={data.hasDailyReports ? data.leadsToday : NA} sub={data.hasDailyReports ? "Daily Lead Reporting" : "No data available"} />
-              <MetricCard label="Ad Spend Today" value={data.hasDailyReports ? inr(data.spendToday) : NA} />
-              <MetricCard label="CPL Today" value={data.leadsToday > 0 ? inr(cpl) : NA} sub="Spend / Leads" />
-              <MetricCard label="Token Collected Today" value={inr(data.tokenToday)} tone="gold" onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Realized Revenue Today" value={inr(data.realizedToday)} onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Balance Pending" value={inr(data.balanceOverall)} sub="Active leads" onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Follow-Ups Due Today" value={data.followupsToday} onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Finance Pending" value={data.financePending} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label={`Leads (${rangeLabel})`} value={data.hasDailyReports ? data.leadsToday : NA} sub={data.hasDailyReports ? "Daily Lead Reporting" : "No data available"} />
+              <MetricCard label={`Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.spendToday) : NA} />
+              <MetricCard label={`CPL (${rangeLabel})`} value={data.leadsToday > 0 ? inr(cpl) : NA} sub="Spend / Leads" />
+              <MetricCard label={`Token Collected (${rangeLabel})`} value={inr(data.tokenToday)} tone="gold" onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label={`Realized Revenue (${rangeLabel})`} value={inr(data.realizedToday)} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label="Total Active Pending Revenue" value={inr(data.balanceOverall)} sub="All-time" onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label={`Follow-Ups Due (${rangeLabel})`} value={data.followupsToday} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label="Active Finance Pending" value={data.financePending} sub="All-time" onClick={() => nav("/paid-pipeline")} />
             </div>
           </Section>
 
