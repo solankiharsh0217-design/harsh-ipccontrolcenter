@@ -71,7 +71,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         <div className="px-3 py-[18px] flex-1">
           <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px]">Overview</span>
-          <NavItem to="/founder-dashboard" show={isAdmin || hasModule("founder-dashboard")}>
+          <NavItem to="/founder-dashboard" show={isAdmin || hasModule("founder_dashboard") || hasModule("founder-dashboard")}>
             <Icon d="M2 14V6l6-4 6 4v8H2zM7 14V9h2v5" />
             Founder Dashboard
           </NavItem>
