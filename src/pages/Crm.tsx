@@ -7,6 +7,7 @@ import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2
 import ImportLeadsModal from "@/components/ImportLeadsModal";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
