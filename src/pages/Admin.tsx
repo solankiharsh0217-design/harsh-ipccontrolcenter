@@ -7,6 +7,7 @@ import { formatTime, formatDateShort } from "@/lib/format";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import PayrollFieldsSection, { emptyPayroll, PayrollFormState, payrollToDb } from "@/components/PayrollFieldsSection";
 import { MODULES, type ModuleKey } from "@/lib/modules";
+import { logActivity } from "@/lib/auditLog";
 
 const DEFAULT_ROLES = [
   "Admin","Media Buyer","Backend Operations","Community Manager","Content Creator",
