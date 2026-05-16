@@ -213,8 +213,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <button className="w-8 h-8 border border-line rounded-md bg-white flex items-center justify-center text-muted-foreground hover:text-black hover:border-[#bbb] transition-colors">
               <Search className="w-3.5 h-3.5" />
             </button>
-            <button className="w-8 h-8 border border-line rounded-md bg-white flex items-center justify-center text-muted-foreground hover:text-black hover:border-[#bbb] transition-colors">
+            <button
+              onClick={() => canSeeNotifications && nav("/notifications")}
+              disabled={!canSeeNotifications}
+              className="relative w-8 h-8 border border-line rounded-md bg-white flex items-center justify-center text-muted-foreground hover:text-black hover:border-[#bbb] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Notifications"
+            >
               <Bell className="w-3.5 h-3.5" />
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#B91C1C] text-white text-[9px] font-medium flex items-center justify-center">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </button>
           </div>
         </div>
