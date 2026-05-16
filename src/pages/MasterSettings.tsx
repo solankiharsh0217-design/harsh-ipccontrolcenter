@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/auditLog";
+
+const MS = "master_settings";
+const MSL = "Master Settings";
 
 // ───────────────────────── Types ─────────────────────────
 type PPSetting = {
