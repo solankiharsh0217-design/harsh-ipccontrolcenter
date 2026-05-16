@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 type Pipeline = { id: string; name: string };
 type Stage = { id: string; pipeline_id: string; name: string; position: number };
