@@ -300,6 +300,19 @@ export default function SendToPaidPipelineDrawer({
           created_by: user?.id,
         } as any);
 
+        logActivity({
+          module_key: "paid_pipeline", module_label: "Paid Pipeline",
+          action_type: "paid_pipeline_lead_created", action_label: "Paid pipeline lead created",
+          entity_type: "paid_pipeline_lead", entity_id: leadRow!.id, entity_label: r.sale.name || r.sale.email || undefined,
+          new_values: {
+            name: r.sale.name, email: r.sale.email, phone: r.sale.phone,
+            product: productName, batch: batchId, source_webinar: payload.webinarName,
+            token: r.token, deal_value: r.deal_value || dealValue,
+          },
+          metadata: { source_module: "attribution", media_buyer: r.sale.attributedTo },
+          summary: `Lead ${r.sale.name || r.sale.email || "(unnamed)"} created from ${payload.webinarName}.`,
+        });
+
         created++;
       }
 
