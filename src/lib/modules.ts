@@ -14,6 +14,7 @@ export type ModuleKey =
   | "paid_pipeline"
   | "follow_up_command_center"
   | "payment_recovery"
+  | "webinar_performance"
   | "team"
   | "admin"
   | "master-data"
@@ -38,6 +39,7 @@ export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "paid_pipeline", label: "Paid Pipeline", group: "Tools" },
   { key: "follow_up_command_center", label: "Follow-Up Command Center", group: "Tools" },
   { key: "payment_recovery", label: "Payment Recovery", group: "Tools" },
+  { key: "webinar_performance", label: "Webinar Performance", group: "Tools" },
   { key: "profit-statement", label: "Profit Statement", group: "Tools" },
   { key: "team", label: "Team Directory", group: "People" },
   { key: "admin", label: "Admin Panel", group: "People" },
