@@ -967,6 +967,7 @@ function AttributionSection({
                           if (!p) return;
                           if (kind === "pdf") downloadPDF(p);
                           else downloadCSV(p);
+                          logActivity({ module_key: "reports_history", action_type: "report_exported", entity_type: "attribution_session", entity_id: s.id, entity_label: s.webinar_name, metadata: { format: kind, report_type: "Attribution" }, summary: `Attribution Report '${s.webinar_name}' exported as ${kind.toUpperCase()}.` });
                         }}
                         onDelete={() => confirmDelete(s.id)}
                         disabled={!!s.is_deleted}
