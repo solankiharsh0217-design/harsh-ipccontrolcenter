@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import type { SaleDetail, AttributionPayload } from "@/lib/roasExport";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 const inr = (n: number) => "₹" + (Math.round(n || 0)).toLocaleString("en-IN");
 
