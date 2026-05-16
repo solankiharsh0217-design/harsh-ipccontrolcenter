@@ -689,13 +689,13 @@ export default function FounderDashboard() {
             </div>
           </Section>
 
-          <Section title="Finance / EMI Health">
+          <Section title={`Finance / EMI Health (${rangeLabel})`}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
               {Object.entries(data.finance).map(([k, v]) => (
-                <MetricCard key={k} label={k} value={v} />
+                <MetricCard key={k} label={k} value={v} sub={k === "Active Finance Pending" ? "All-time" : undefined} />
               ))}
             </div>
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-sans mb-2">Finance Partner Performance</div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-sans mb-2">Finance Partner Performance ({rangeLabel})</div>
             <div className="rounded-xl border border-line bg-white overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-off">
