@@ -99,7 +99,7 @@ export default function PaidPipeline() {
       supabase.from("webinar_batches").select("id, batch_name, webinar_name, webinar_date").eq("is_deleted", false).order("created_at", { ascending: false }),
       (supabase as any).from("paid_pipeline_batches").select("id, batch_name, batch_status").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("paid_pipeline_settings").select("label").eq("setting_type", "pipeline_stage").eq("is_active", true).eq("is_deleted", false).order("sort_order"),
-      getEligibleAssignees(["paid_pipeline", "calling_crm"]),
+      getEligibleAssignees("paid_pipeline"),
     ]);
     setLeads((l as any) || []);
     setBatches((b as any) || []);
