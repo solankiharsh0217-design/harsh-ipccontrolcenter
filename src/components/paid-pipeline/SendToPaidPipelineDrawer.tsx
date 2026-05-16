@@ -93,7 +93,7 @@ export default function SendToPaidPipelineDrawer({
         supabase.from("paid_pipeline_settings").select("*").eq("is_active", true).eq("is_deleted", false).order("sort_order"),
         supabase.from("program_products").select("*").eq("is_active", true).eq("is_deleted", false).order("product_name"),
         supabase.from("webinar_batches").select("*").eq("is_deleted", false).order("created_at", { ascending: false }).limit(50),
-        getEligibleAssignees(["paid_pipeline", "calling_crm"]),
+        getEligibleAssignees("paid_pipeline"),
       ]);
       setSettings((s as any) || []);
       setProducts((pr as any) || []);
