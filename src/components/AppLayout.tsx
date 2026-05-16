@@ -2,7 +2,8 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { initials, formatDateLong } from "@/lib/format";
 import { Search, Bell, LogOut } from "lucide-react";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Icon = ({ d, children }: { d?: string; children?: ReactNode }) => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
