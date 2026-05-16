@@ -6,6 +6,7 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
 import { inr, fmtDate, downloadCsv } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
+import { resolveNotificationsForEntity } from "@/lib/notifications";
 import { useNavigate } from "react-router-dom";
 
 type FollowUp = {
@@ -414,6 +415,12 @@ export default function FollowUpCommandCenter() {
           new_values: { status: "Done" },
           summary: `Follow-up for ${l?.name || fu?.crmLeadName || "lead"} marked done.`,
         });
+        if (fu?.paid_pipeline_lead_id) {
+          resolveNotificationsForEntity({
+            entity_id: fu.paid_pipeline_lead_id,
+            notification_types: ["follow_up_due_today", "follow_up_overdue", "follow_up_hot_overdue", "follow_up_missed"],
+          });
+        }
       }
       setSelected(new Set());
       load();

@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RefreshCw, ExternalLink, Bell } from "lucide-react";
 import { toast } from "sonner";
-import { NOTIFICATION_MODULE_LABELS, markNotificationsRead, markAllRead } from "@/lib/notifications";
+import { NOTIFICATION_MODULE_LABELS, markNotificationsRead, markAllRead, generateNotifications } from "@/lib/notifications";
 
 type Row = {
   id: string;
@@ -77,9 +77,12 @@ export default function Notifications() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<Row | null>(null);
 
-  async function load() {
+  async function load(opts?: { generate?: boolean }) {
     setLoading(true);
     try {
+      if (opts?.generate && user) {
+        await generateNotifications({ userId: user.id, isAdmin });
+      }
       let q: any = (supabase as any)
         .from("notifications")
         .select("*")
@@ -97,7 +100,7 @@ export default function Notifications() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load({ generate: true }); /* eslint-disable-next-line */ }, [user?.id]);
 
   const filtered = useMemo(() => {
     let list = rows;
@@ -293,9 +296,9 @@ export default function Notifications() {
           <div className="text-[10px] text-muted-foreground mb-1">Search</div>
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search title, message..." />
         </div>
-        <Button variant="outline" onClick={load} disabled={loading}>
+        <Button variant="outline" onClick={() => load({ generate: true })} disabled={loading}>
           <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Refresh Notifications
         </Button>
         <Button variant="outline" onClick={markAll}>Mark all read</Button>
       </div>
