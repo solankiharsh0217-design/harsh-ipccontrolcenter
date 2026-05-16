@@ -7,6 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import FounderDashboard from "./pages/FounderDashboard";
 import RoasCalculator from "./pages/RoasCalculator";
 import StudentSearch from "./pages/StudentSearch";
 import DailyLeadReporting from "./pages/DailyLeadReporting";
