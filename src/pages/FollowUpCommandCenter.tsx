@@ -402,6 +402,19 @@ export default function FollowUpCommandCenter() {
         }
       }
       toast.success(`${ids.length} marked done`);
+      for (const id of ids) {
+        const fu = allFollowUps.find(f => f.id === id);
+        const l = fu?.paid_pipeline_lead_id ? leadMap[fu.paid_pipeline_lead_id] : undefined;
+        logActivity({
+          module_key: "follow_up_command_center", module_label: "Follow-Up Command Center",
+          action_type: "follow_up_completed", action_label: "Follow-up completed",
+          entity_type: "follow_up", entity_id: id.startsWith("syn:") ? null : id,
+          entity_label: l?.name || fu?.crmLeadName || undefined,
+          old_values: { status: fu?.status },
+          new_values: { status: "Done" },
+          summary: `Follow-up for ${l?.name || fu?.crmLeadName || "lead"} marked done.`,
+        });
+      }
       setSelected(new Set());
       load();
     } catch (e: any) {
