@@ -411,26 +411,42 @@ function SeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }:
 
   const softDelete = async (id: string) => {
     if (!confirm("Move this report to trash? It will auto-delete after 14 days.")) return;
+    const target = rows.find(r => r.id === id);
     setBusyId(id);
     const { error } = await (supabase as any)
       .from("seminar_roas_reports")
       .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id })
       .eq("id", id);
     setBusyId(null);
-    if (error) toast.error(error.message); else { toast.success("Report moved to trash"); reload(); }
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Report moved to trash");
+      logActivity({ module_key: "reports_history", action_type: "report_soft_deleted", entity_type: "seminar_roas_report", entity_id: id, entity_label: target?.webinar_name, metadata: { report_type: "Seminar ROAS" }, summary: `Seminar ROAS Report '${target?.webinar_name ?? id}' moved to trash.`, severity: "warning" });
+      reload();
+    }
   };
   const restore = async (id: string) => {
+    const target = rows.find(r => r.id === id);
     setBusyId(id);
     const { error } = await (supabase as any)
       .from("seminar_roas_reports")
       .update({ is_deleted: false, deleted_at: null, deleted_by: null })
       .eq("id", id);
     setBusyId(null);
-    if (error) toast.error(error.message); else { toast.success("Report restored"); reload(); }
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Report restored");
+      logActivity({ module_key: "reports_history", action_type: "report_restored", entity_type: "seminar_roas_report", entity_id: id, entity_label: target?.webinar_name, summary: `Seminar ROAS Report '${target?.webinar_name ?? id}' restored.` });
+      reload();
+    }
   };
   const copyWa = async (r: SeminarRow) => {
     if (!r.whatsapp_summary_text) { toast.error("No WhatsApp summary saved"); return; }
-    try { await navigator.clipboard.writeText(r.whatsapp_summary_text); toast.success("WhatsApp summary copied"); } catch { toast.error("Copy failed"); }
+    try {
+      await navigator.clipboard.writeText(r.whatsapp_summary_text);
+      toast.success("WhatsApp summary copied");
+      logActivity({ module_key: "reports_history", action_type: "whatsapp_summary_copied", entity_type: "seminar_roas_report", entity_id: r.id, entity_label: r.webinar_name, summary: `WhatsApp summary copied for '${r.webinar_name}'.` });
+    } catch { toast.error("Copy failed"); }
   };
   const exportCsv = (r: SeminarRow) => {
     const rowsCsv = [
@@ -451,6 +467,7 @@ function SeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }:
     a.href = URL.createObjectURL(blob);
     a.download = `seminar-roas-${r.webinar_name.replace(/\W+/g, "-")}.csv`;
     a.click();
+    logActivity({ module_key: "reports_history", action_type: "report_exported", entity_type: "seminar_roas_report", entity_id: r.id, entity_label: r.webinar_name, metadata: { format: "csv", report_type: "Seminar ROAS" }, summary: `Seminar ROAS Report '${r.webinar_name}' exported as CSV.` });
   };
 
   const exportPdfRow = async (r: SeminarRow) => {
