@@ -131,7 +131,10 @@ export default function FounderDashboard() {
 
   const bounds = useMemo(() => rangeBounds(rangeKey, customStart, customEnd), [rangeKey, customStart, customEnd]);
   const todayIso = isoDay(new Date());
-  const monthBounds = useMemo(() => rangeBounds("thisMonth"), []);
+  const isTodayFilter = rangeKey === "today";
+  const snapshotTitle = isTodayFilter ? "Today's Business Snapshot" : "Selected Period Snapshot";
+  const moneyTitle = isTodayFilter ? "Today's Money View" : "Selected Period Money View";
+  const rangeLabel = RANGES.find((r) => r.key === rangeKey)?.label || "Selected Period";
 
   useEffect(() => {
     if (!allowed) { setLoading(false); return; }
@@ -156,7 +159,7 @@ export default function FounderDashboard() {
         // Finance details
         const { data: financeDetails = [] } = await supabase
           .from("paid_pipeline_finance_details")
-          .select("finance_partner, finance_status, loan_amount, paid_pipeline_lead_id");
+          .select("finance_partner, finance_status, loan_amount, paid_pipeline_lead_id, application_date, approval_date, disbursement_date, updated_at, created_at");
         // Daily lead reports
         const { data: dailyReports = [] } = await supabase
           .from("daily_lead_reports")
@@ -168,8 +171,10 @@ export default function FounderDashboard() {
 
         if (canceled) return;
 
-        const inRange = (d: string | null | undefined, s: string, e: string) =>
-          !!d && d >= s && d <= e;
+        const S = bounds.start;
+        const E = bounds.end;
+        const inRange = (d: string | null | undefined) => !!d && d >= S && d <= E;
+        const dayOnly = (v: any) => (typeof v === "string" ? v.slice(0, 10) : "");
 
         const isRefund = (p: any) =>
           p.payment_type === "Refund" || p.payment_category === "Refund";
@@ -177,24 +182,47 @@ export default function FounderDashboard() {
           p.is_token || p.payment_type === "Token" ||
           p.payment_category === "Token Amount" || p.payment_category === "Second Token";
 
-        // --- Today metrics ---
-        const todayPays = (pays as any[]).filter((p) => p.payment_date === todayIso);
-        const tokenToday = todayPays.filter(isTokenPay).reduce((a, p) => a + Number(p.amount || 0), 0);
-        const realizedToday = todayPays.reduce(
+        // Payments in selected range — prefer payment_date, fallback created_at
+        const payDate = (p: any) => dayOnly(p.payment_date) || dayOnly(p.created_at);
+        const rangePays = (pays as any[]).filter((p) => inRange(payDate(p)));
+        const tokenInRange = rangePays.filter(isTokenPay)
+          .reduce((a, p) => a + Number(p.amount || 0), 0);
+        const realizedInRange = rangePays.reduce(
           (a, p) => a + (isRefund(p) ? -Number(p.amount || 0) : Number(p.amount || 0)),
           0,
         );
-        const todayDR = (dailyReports as any[]).filter((r) => r.report_date === todayIso);
-        const leadsToday = todayDR.reduce((a, r) => a + (r.total_leads || 0), 0);
-        const spendToday = todayDR.reduce((a, r) => a + Number(r.total_ad_spend || 0), 0);
 
-        const activeLeads = (leads as any[]).filter((l) => !l.is_dropped && !l.is_refunded);
-        const balanceOverall = activeLeads.reduce((a, l) => a + Number(l.balance_pending || 0), 0);
+        // Daily reports in selected range
+        const rangeDR = (dailyReports as any[]).filter((r) => inRange(dayOnly(r.report_date)));
+        const leadsInRange = rangeDR.reduce((a, r) => a + (r.total_leads || 0), 0);
+        const spendInRange = rangeDR.reduce((a, r) => a + Number(r.total_ad_spend || 0), 0);
 
-        const followupsToday = (followups as any[]).filter(
-          (f) => f.follow_up_date === todayIso && f.status !== "Done" && f.status !== "Cancelled",
+        // Follow-ups in selected range
+        const rangeFollowups = (followups as any[]).filter((f) => inRange(dayOnly(f.follow_up_date)));
+        const followupsDueRange = rangeFollowups.filter(
+          (f) => f.status !== "Done" && f.status !== "Cancelled",
+        ).length;
+        const overdueRange = rangeFollowups.filter(
+          (f) => dayOnly(f.follow_up_date) < todayIso && f.status !== "Done" && f.status !== "Cancelled",
         ).length;
 
+        // Leads created in selected range
+        const leadsRange = (leads as any[]).filter((l) => inRange(dayOnly(l.created_at)));
+        // Active (not dropped/refunded) - all time, used for "Active Pending"
+        const activeLeads = (leads as any[]).filter((l) => !l.is_dropped && !l.is_refunded);
+        const balanceActiveAllTime = activeLeads.reduce(
+          (a, l) => a + Number(l.balance_pending || 0),
+          0,
+        );
+
+        // --- Snapshot (uses bounds) ---
+        const leadsTodayMetric = leadsInRange;
+        const spendTodayMetric = spendInRange;
+        const tokenTodayMetric = tokenInRange;
+        const realizedTodayMetric = realizedInRange;
+        const followupsTodayMetric = followupsDueRange;
+
+        // Finance-pending count (active, all-time — labeled)
         const financePendingLeads = (leads as any[]).filter(
           (l) =>
             l.finance_required &&
@@ -202,108 +230,156 @@ export default function FounderDashboard() {
             !["Disbursed", "Rejected", "Dropped", "Not Required"].includes(l.finance_status),
         );
 
-        // --- Monthly metrics (uses bounds — date range selector) ---
-        const inB = (d: string | null | undefined) => inRange(d, bounds.start, bounds.end);
-        const rangePays = (pays as any[]).filter((p) => inB(p.payment_date));
-        const monthTokens = rangePays.filter(isTokenPay).reduce((a, p) => a + Number(p.amount || 0), 0);
-        const monthRealized = rangePays.reduce(
-          (a, p) => a + (isRefund(p) ? -Number(p.amount || 0) : Number(p.amount || 0)),
-          0,
-        );
-        const monthRevenue = monthRealized;
-        const monthToBeRealized = activeLeads.reduce((a, l) => a + Number(l.balance_pending || 0), 0);
+        // --- Money view (selected period) ---
+        const monthRevenue = realizedInRange;
+        const monthRealized = realizedInRange;
+        const monthTokens = tokenInRange;
+        // Pending revenue from leads created in range (active)
+        const monthToBeRealized = leadsRange
+          .filter((l) => !l.is_dropped && !l.is_refunded)
+          .reduce((a, l) => a + Number(l.balance_pending || 0), 0);
         const monthBalance = monthToBeRealized;
-        const rangeDR = (dailyReports as any[]).filter((r) => inB(r.report_date));
-        const monthSpend = rangeDR.reduce((a, r) => a + Number(r.total_ad_spend || 0), 0);
+        const monthSpend = spendInRange;
 
-        // --- Pipeline health ---
-        const ppTotal = (leads as any[]).length;
-        const ppToken = (leads as any[]).filter((l) => Number(l.token_amount_collected || 0) > 0).length;
-        const ppBalance = (leads as any[]).filter(
+        // --- Pipeline health (selected period; counts based on lead created_at) ---
+        const ppTotal = leadsRange.length;
+        const ppToken = leadsRange.filter((l) => Number(l.token_amount_collected || 0) > 0).length;
+        const ppBalance = leadsRange.filter(
           (l) => Number(l.balance_pending || 0) > 0 && !l.is_dropped,
         ).length;
-        const ppFinancePending = financePendingLeads.length;
-        const ppFinal = (leads as any[]).filter((l) => l.is_final_sale).length;
+        const ppFinancePending = leadsRange.filter(
+          (l) =>
+            l.finance_required &&
+            l.finance_status &&
+            !["Disbursed", "Rejected", "Dropped", "Not Required"].includes(l.finance_status),
+        ).length;
+        // Final sales: prefer updated_at (status flip) within range
+        const ppFinal = (leads as any[]).filter(
+          (l) => l.is_final_sale && inRange(dayOnly(l.updated_at || l.created_at)),
+        ).length;
         const ppDropped = (leads as any[]).filter(
-          (l) => l.is_dropped || l.pipeline_stage === "Dropped After Token",
+          (l) =>
+            (l.is_dropped || l.pipeline_stage === "Dropped After Token") &&
+            inRange(dayOnly(l.updated_at || l.created_at)),
         ).length;
         const hotPriorities = ["Hot", "Urgent"];
-        const ppHotPending = (leads as any[]).filter(
+        const ppHotPending = leadsRange.filter(
           (l) =>
             Number(l.balance_pending || 0) > 0 &&
             (hotPriorities.includes(l.follow_up_priority) || hotPriorities.includes(l.lead_temperature)),
         ).length;
-        const ppOverdue = (followups as any[]).filter(
-          (f) => f.follow_up_date < todayIso && f.status !== "Done" && f.status !== "Cancelled",
-        ).length;
+        const ppOverdue = overdueRange;
 
+        // Top pending — all-time (labeled)
         const topPending = [...activeLeads]
           .filter((l) => Number(l.balance_pending || 0) > 0)
           .sort((a, b) => Number(b.balance_pending || 0) - Number(a.balance_pending || 0))
           .slice(0, 8);
 
-        // --- Sales team snapshot ---
+        // --- Sales team snapshot (selected period) ---
+        const leadById = new Map((leads as any[]).map((l) => [l.id, l]));
         const team: Record<string, any> = {};
-        for (const l of leads as any[]) {
-          const ownerId = l.assigned_sales_executive || "unassigned";
-          const name = profMap.get(ownerId) || (ownerId === "unassigned" ? "Unassigned" : "—");
+        const ensureTeam = (ownerId: string) => {
           if (!team[ownerId]) {
+            const name = profMap.get(ownerId) || (ownerId === "unassigned" ? "Unassigned" : "—");
             team[ownerId] = {
               name, leadsAssigned: 0, followupsDue: 0, followupsDone: 0,
               tokens: 0, balanceCollected: 0, finalSales: 0, revenue: 0, missed: 0,
             };
           }
-          team[ownerId].leadsAssigned += 1;
-          team[ownerId].tokens += Number(l.token_amount_collected || 0);
-          team[ownerId].revenue += Number(l.final_revenue_realized || l.total_collected || 0);
-          team[ownerId].balanceCollected +=
-            Math.max(0, Number(l.total_collected || 0) - Number(l.token_amount_collected || 0));
-          if (l.is_final_sale) team[ownerId].finalSales += 1;
+          return team[ownerId];
+        };
+        // Leads assigned in range
+        for (const l of leadsRange) {
+          const ownerId = l.assigned_sales_executive || "unassigned";
+          ensureTeam(ownerId).leadsAssigned += 1;
         }
-        for (const f of followups as any[]) {
-          const lead = (leads as any[]).find((x) => x.id === f.paid_pipeline_lead_id);
+        // Final sales in range
+        for (const l of leads as any[]) {
+          if (!l.is_final_sale) continue;
+          if (!inRange(dayOnly(l.updated_at || l.created_at))) continue;
+          const ownerId = l.assigned_sales_executive || "unassigned";
+          ensureTeam(ownerId).finalSales += 1;
+        }
+        // Payments in range → tokens, revenue, balanceCollected
+        for (const p of rangePays) {
+          const lead = leadById.get(p.paid_pipeline_lead_id);
           if (!lead) continue;
           const ownerId = lead.assigned_sales_executive || "unassigned";
-          if (!team[ownerId]) continue;
-          if (f.follow_up_date === todayIso && f.status !== "Done") team[ownerId].followupsDue += 1;
-          if (f.status === "Done") team[ownerId].followupsDone += 1;
-          if (f.follow_up_date < todayIso && f.status !== "Done" && f.status !== "Cancelled")
-            team[ownerId].missed += 1;
+          const t = ensureTeam(ownerId);
+          const amt = Number(p.amount || 0) * (isRefund(p) ? -1 : 1);
+          t.revenue += amt;
+          if (isTokenPay(p)) t.tokens += amt;
+          else t.balanceCollected += amt;
+        }
+        // Follow-ups in range
+        for (const f of rangeFollowups) {
+          const lead = leadById.get(f.paid_pipeline_lead_id);
+          if (!lead) continue;
+          const ownerId = lead.assigned_sales_executive || "unassigned";
+          const t = ensureTeam(ownerId);
+          if (f.status === "Done") t.followupsDone += 1;
+          else t.followupsDue += 1;
+          if (dayOnly(f.follow_up_date) < todayIso && f.status !== "Done" && f.status !== "Cancelled")
+            t.missed += 1;
         }
 
-        // --- Marketing snapshot ---
+        // --- Marketing snapshot (selected period) ---
         const marketing: Record<string, any> = {};
-        for (const l of leads as any[]) {
-          const mb = l.attributed_media_buyer || "Unattributed";
+        const ensureMb = (mb: string) => {
           if (!marketing[mb]) {
             marketing[mb] = {
               name: mb, leads: 0, spend: 0, tokenSales: 0, finalSales: 0,
               revenue: 0, balance: 0,
             };
           }
-          marketing[mb].leads += 1;
-          if (Number(l.token_amount_collected || 0) > 0) marketing[mb].tokenSales += 1;
-          if (l.is_final_sale) marketing[mb].finalSales += 1;
-          marketing[mb].revenue += Number(l.final_revenue_realized || l.total_collected || 0);
-          marketing[mb].balance += Number(l.balance_pending || 0);
+          return marketing[mb];
+        };
+        for (const l of leadsRange) {
+          const mb = l.attributed_media_buyer || "Unattributed";
+          const m = ensureMb(mb);
+          m.leads += 1;
+          if (Number(l.token_amount_collected || 0) > 0) m.tokenSales += 1;
+          m.balance += Number(l.balance_pending || 0);
+        }
+        for (const l of leads as any[]) {
+          if (!l.is_final_sale) continue;
+          if (!inRange(dayOnly(l.updated_at || l.created_at))) continue;
+          const mb = l.attributed_media_buyer || "Unattributed";
+          ensureMb(mb).finalSales += 1;
+        }
+        for (const p of rangePays) {
+          const lead = leadById.get(p.paid_pipeline_lead_id);
+          if (!lead) continue;
+          const mb = lead.attributed_media_buyer || "Unattributed";
+          const amt = Number(p.amount || 0) * (isRefund(p) ? -1 : 1);
+          ensureMb(mb).revenue += amt;
         }
 
-        // --- Finance status counts ---
+        // --- Finance/EMI (selected period via updated_at / status dates) ---
         const fStatuses = [
           "Documents Pending", "Application Submitted", "Approved", "Rejected",
           "Disbursed", "Failed - Trying Another Partner",
         ];
-        const finance: Record<string, number> = { "Finance Pending": ppFinancePending };
+        const finance: Record<string, number> = { "Active Finance Pending": financePendingLeads.length };
         for (const s of fStatuses) finance[s] = 0;
-        for (const l of leads as any[]) {
-          if (!l.finance_required) continue;
-          if (l.finance_status && finance[l.finance_status] !== undefined) {
-            finance[l.finance_status] += 1;
+        const financeInRange = (financeDetails as any[]).filter((fd) => {
+          const d =
+            dayOnly(fd.disbursement_date) ||
+            dayOnly(fd.approval_date) ||
+            dayOnly(fd.application_date) ||
+            dayOnly(fd.updated_at) ||
+            dayOnly(fd.created_at);
+          return inRange(d);
+        });
+        for (const fd of financeInRange) {
+          if (fd.finance_status && finance[fd.finance_status] !== undefined) {
+            finance[fd.finance_status] += 1;
           }
         }
-        // Finance partners
+        // Finance partners (selected period)
         const financePartners: Record<string, any> = {};
-        for (const fd of financeDetails as any[]) {
+        for (const fd of financeInRange) {
           const p = fd.finance_partner || "Other";
           if (!financePartners[p]) {
             financePartners[p] = {
@@ -321,9 +397,9 @@ export default function FounderDashboard() {
           }
         }
 
-        // --- Alerts ---
+        // --- Alerts (selected period) ---
         const alerts: DashboardData["alerts"] = [];
-        const hotNoFup = (leads as any[]).filter(
+        const hotNoFup = leadsRange.filter(
           (l) =>
             (hotPriorities.includes(l.follow_up_priority) || hotPriorities.includes(l.lead_temperature)) &&
             !l.next_follow_up_date,
@@ -332,11 +408,11 @@ export default function FounderDashboard() {
           alerts.push({
             title: "Hot leads without follow-up date",
             count: hotNoFup,
-            explain: "Hot or Urgent leads have no next follow-up scheduled.",
+            explain: `Hot/Urgent leads created in ${rangeLabel} have no next follow-up.`,
             actionLabel: "Open Paid Pipeline",
             action: () => nav("/paid-pipeline"),
           });
-        const tokenNoFup = (leads as any[]).filter(
+        const tokenNoFup = leadsRange.filter(
           (l) =>
             Number(l.token_amount_collected || 0) > 0 &&
             Number(l.balance_pending || 0) > 0 &&
@@ -347,16 +423,18 @@ export default function FounderDashboard() {
           alerts.push({
             title: "Token paid but no payment follow-up",
             count: tokenNoFup,
-            explain: "Leads with token collected and balance pending have no follow-up.",
+            explain: `Leads in ${rangeLabel} with token collected and balance pending have no follow-up.`,
             actionLabel: "Open Paid Pipeline",
             action: () => nav("/paid-pipeline"),
           });
-        const bigBalance = activeLeads.filter((l) => Number(l.balance_pending || 0) >= 50000).length;
+        const bigBalance = leadsRange.filter(
+          (l) => !l.is_dropped && !l.is_refunded && Number(l.balance_pending || 0) >= 50000,
+        ).length;
         if (bigBalance > 0)
           alerts.push({
             title: "Balance pending above ₹50,000",
             count: bigBalance,
-            explain: "High-value pending balances that need urgent collection.",
+            explain: `High-value pending balances on leads in ${rangeLabel}.`,
             actionLabel: "Open Paid Pipeline",
             action: () => nav("/paid-pipeline"),
           });
@@ -364,7 +442,7 @@ export default function FounderDashboard() {
           alerts.push({
             title: "Follow-ups overdue",
             count: ppOverdue,
-            explain: "Follow-up date passed but not marked Done.",
+            explain: `Follow-up dates in ${rangeLabel} passed but not marked Done.`,
             actionLabel: "Open Paid Pipeline",
             action: () => nav("/paid-pipeline"),
           });
@@ -372,14 +450,17 @@ export default function FounderDashboard() {
           alerts.push({
             title: "Dropped after token",
             count: ppDropped,
-            explain: "Leads that paid token but later dropped — review root cause.",
+            explain: `Leads in ${rangeLabel} that paid token but later dropped.`,
             actionLabel: "Open Paid Pipeline",
             action: () => nav("/paid-pipeline"),
           });
 
         setData({
-          leadsToday, spendToday, tokenToday, realizedToday,
-          balanceOverall, followupsToday, financePending: ppFinancePending,
+          leadsToday: leadsTodayMetric, spendToday: spendTodayMetric,
+          tokenToday: tokenTodayMetric, realizedToday: realizedTodayMetric,
+          balanceOverall: balanceActiveAllTime,
+          followupsToday: followupsTodayMetric,
+          financePending: financePendingLeads.length,
           monthRevenue, monthRealized, monthToBeRealized, monthTokens, monthBalance, monthSpend,
           ppTotal, ppToken, ppBalance, ppFinancePending, ppFinal, ppDropped, ppHotPending, ppOverdue,
           topPending, team, marketing, finance, financePartners, alerts,
@@ -392,7 +473,7 @@ export default function FounderDashboard() {
       }
     })();
     return () => { canceled = true; };
-  }, [allowed, bounds.start, bounds.end, todayIso, nav]);
+  }, [allowed, bounds.start, bounds.end, todayIso, nav, rangeLabel]);
 
   if (!allowed) {
     return (
@@ -459,35 +540,35 @@ export default function FounderDashboard() {
         <div className="text-sm text-muted-foreground">Loading founder dashboard…</div>
       ) : (
         <>
-          <Section title="Today's Business Snapshot">
+          <Section title={snapshotTitle}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              <MetricCard label="Leads Today" value={data.hasDailyReports ? data.leadsToday : NA} sub={data.hasDailyReports ? "Daily Lead Reporting" : "No data available"} />
-              <MetricCard label="Ad Spend Today" value={data.hasDailyReports ? inr(data.spendToday) : NA} />
-              <MetricCard label="CPL Today" value={data.leadsToday > 0 ? inr(cpl) : NA} sub="Spend / Leads" />
-              <MetricCard label="Token Collected Today" value={inr(data.tokenToday)} tone="gold" onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Realized Revenue Today" value={inr(data.realizedToday)} onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Balance Pending" value={inr(data.balanceOverall)} sub="Active leads" onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Follow-Ups Due Today" value={data.followupsToday} onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Finance Pending" value={data.financePending} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label={`Leads (${rangeLabel})`} value={data.hasDailyReports ? data.leadsToday : NA} sub={data.hasDailyReports ? "Daily Lead Reporting" : "No data available"} />
+              <MetricCard label={`Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.spendToday) : NA} />
+              <MetricCard label={`CPL (${rangeLabel})`} value={data.leadsToday > 0 ? inr(cpl) : NA} sub="Spend / Leads" />
+              <MetricCard label={`Token Collected (${rangeLabel})`} value={inr(data.tokenToday)} tone="gold" onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label={`Realized Revenue (${rangeLabel})`} value={inr(data.realizedToday)} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label="Total Active Pending Revenue" value={inr(data.balanceOverall)} sub="All-time" onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label={`Follow-Ups Due (${rangeLabel})`} value={data.followupsToday} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label="Active Finance Pending" value={data.financePending} sub="All-time" onClick={() => nav("/paid-pipeline")} />
             </div>
           </Section>
 
-          <Section title="Monthly Money View">
+          <Section title={moneyTitle}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              <MetricCard label="Revenue" value={inr(data.monthRevenue)} tone="gold" />
-              <MetricCard label="Realized Revenue" value={inr(data.monthRealized)} />
-              <MetricCard label="Revenue To Be Realized" value={inr(data.monthToBeRealized)} sub="Active balance pending" onClick={() => nav("/paid-pipeline")} />
-              <MetricCard label="Token Collected" value={inr(data.monthTokens)} />
-              <MetricCard label="Balance Pending" value={inr(data.monthBalance)} />
-              <MetricCard label="Ad Spend" value={data.hasDailyReports ? inr(data.monthSpend) : NA} />
+              <MetricCard label={`Revenue (${rangeLabel})`} value={inr(data.monthRevenue)} tone="gold" />
+              <MetricCard label={`Realized Revenue (${rangeLabel})`} value={inr(data.monthRealized)} />
+              <MetricCard label="Revenue To Be Realized" value={inr(data.monthToBeRealized)} sub={`From leads created in ${rangeLabel}`} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label={`Token Collected (${rangeLabel})`} value={inr(data.monthTokens)} />
+              <MetricCard label="Balance Pending" value={inr(data.monthBalance)} sub={`Leads created in ${rangeLabel}`} />
+              <MetricCard label={`Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.monthSpend) : NA} />
               <MetricCard label="Estimated Profit" value={data.hasDailyReports ? inr(profit) : NA} sub="Revenue − Ad Spend" onClick={() => nav("/profit-statement")} />
               <MetricCard label="Profit Margin" value={data.hasDailyReports && data.monthRevenue > 0 ? margin.toFixed(1) + "%" : NA} />
             </div>
           </Section>
 
-          <Section title="Paid Pipeline Health">
+          <Section title={`Paid Pipeline Health (${rangeLabel})`}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-              <MetricCard label="Total Leads" value={data.ppTotal} onClick={() => nav("/paid-pipeline")} />
+              <MetricCard label="New Leads" value={data.ppTotal} onClick={() => nav("/paid-pipeline")} />
               <MetricCard label="Token Paid" value={data.ppToken} />
               <MetricCard label="Balance Pending" value={data.ppBalance} />
               <MetricCard label="Finance Pending" value={data.ppFinancePending} />
@@ -496,7 +577,7 @@ export default function FounderDashboard() {
               <MetricCard label="Hot/Urgent w/ Balance" value={data.ppHotPending} />
               <MetricCard label="Follow-Ups Overdue" value={data.ppOverdue} tone={data.ppOverdue > 0 ? "alert" : "default"} />
             </div>
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-sans mb-2">Top Pending Balance Leads</div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-sans mb-2">Top Pending Balance Leads (All-Time)</div>
             <div className="rounded-xl border border-line bg-white overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-off">
@@ -538,7 +619,7 @@ export default function FounderDashboard() {
             </div>
           </Section>
 
-          <Section title="Sales Team Snapshot">
+          <Section title={`Sales Team Snapshot (${rangeLabel})`}>
             <div className="rounded-xl border border-line bg-white overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-off">
@@ -575,7 +656,7 @@ export default function FounderDashboard() {
             </div>
           </Section>
 
-          <Section title="Marketing Snapshot">
+          <Section title={`Marketing Snapshot (${rangeLabel})`}>
             <div className="rounded-xl border border-line bg-white overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-off">
@@ -608,13 +689,13 @@ export default function FounderDashboard() {
             </div>
           </Section>
 
-          <Section title="Finance / EMI Health">
+          <Section title={`Finance / EMI Health (${rangeLabel})`}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
               {Object.entries(data.finance).map(([k, v]) => (
-                <MetricCard key={k} label={k} value={v} />
+                <MetricCard key={k} label={k} value={v} sub={k === "Active Finance Pending" ? "All-time" : undefined} />
               ))}
             </div>
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-sans mb-2">Finance Partner Performance</div>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-sans mb-2">Finance Partner Performance ({rangeLabel})</div>
             <div className="rounded-xl border border-line bg-white overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-off">
