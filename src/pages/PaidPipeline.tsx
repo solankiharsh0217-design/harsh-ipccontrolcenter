@@ -186,15 +186,19 @@ export default function PaidPipeline() {
   };
 
   const updateLead = async (id: string, patch: Partial<Lead>) => {
+    const oldLead = leads.find(l => l.id === id) as any;
     await supabase.from("paid_pipeline_leads").update(patch as any).eq("id", id);
     setLeads(prev => prev.map(l => l.id === id ? { ...l, ...patch } as Lead : l));
+    logPaidLeadDiff(oldLead, patch as any, { leadId: id, leadName: oldLead?.name });
   };
 
   const bulkUpdate = async (patch: Partial<Lead>) => {
     if (selected.size === 0) { toast.error("Select at least one lead"); return; }
     const ids = Array.from(selected);
+    const oldSnapshots = leads.filter(l => selected.has(l.id)) as any[];
     await supabase.from("paid_pipeline_leads").update(patch as any).in("id", ids);
     toast.success(`Updated ${ids.length} lead(s)`);
+    logBulkPaidLeadDiff(oldSnapshots, patch as any, { ids });
     setSelected(new Set());
     await load();
   };
@@ -215,12 +219,18 @@ export default function PaidPipeline() {
     }
     downloadCsv(`paid-pipeline-${Date.now()}.csv`, rows);
     toast.success(`Exported ${target.length} row(s)`);
+    logActivity({ module_key: "paid_pipeline", module_label: "Paid Pipeline", action_type: "report_exported", action_label: "Paid Pipeline exported", summary: `Exported ${target.length} paid pipeline row(s).`, metadata: { count: target.length } });
   };
 
   const softDeleteSelected = async () => {
     if (selected.size === 0) { toast.error("Select at least one lead"); return; }
     if (!confirm(`Soft-delete ${selected.size} lead(s)?`)) return;
-    await supabase.from("paid_pipeline_leads").update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id } as any).in("id", Array.from(selected));
+    const ids = Array.from(selected);
+    const snaps = leads.filter(l => selected.has(l.id));
+    await supabase.from("paid_pipeline_leads").update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id } as any).in("id", ids);
+    for (const s of snaps) {
+      logActivity({ module_key: "paid_pipeline", module_label: "Paid Pipeline", action_type: "soft_deleted", action_label: "Lead soft-deleted", entity_type: "paid_pipeline_lead", entity_id: s.id, entity_label: s.name || undefined, severity: "warning", summary: `${s.name || "Lead"} soft-deleted.` });
+    }
     setSelected(new Set());
     toast.success("Deleted");
     await load();
