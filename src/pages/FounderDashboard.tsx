@@ -121,7 +121,7 @@ interface DashboardData {
 export default function FounderDashboard() {
   const { isAdmin, hasModule } = useAuth();
   const nav = useNavigate();
-  const allowed = isAdmin || hasModule("founder-dashboard");
+  const allowed = isAdmin || hasModule("founder_dashboard") || hasModule("founder-dashboard");
 
   const [rangeKey, setRangeKey] = useState<RangeKey>("thisMonth");
   const [customStart, setCustomStart] = useState("");

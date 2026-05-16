@@ -1,5 +1,6 @@
 export type ModuleKey =
   | "dashboard"
+  | "founder_dashboard"
   | "founder-dashboard"
   | "announcements"
   | "roas"
@@ -14,9 +15,14 @@ export type ModuleKey =
   | "master-data"
   | "profit-statement";
 
+// Canonical module key for Founder Dashboard. We keep "founder-dashboard"
+// in the ModuleKey union as a backward-compatible alias for any prior grants.
+export const FOUNDER_DASHBOARD_KEY: ModuleKey = "founder_dashboard";
+export const FOUNDER_DASHBOARD_ALIASES: ModuleKey[] = ["founder_dashboard", "founder-dashboard"];
+
 export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "dashboard", label: "Dashboard", group: "Overview" },
-  { key: "founder-dashboard", label: "Founder Dashboard", group: "Overview" },
+  { key: "founder_dashboard", label: "Founder Dashboard", group: "Overview" },
   { key: "announcements", label: "Announcements", group: "Overview" },
   { key: "roas", label: "ROAS Calculator", group: "Tools" },
   { key: "search", label: "Student Search", group: "Tools" },
@@ -30,3 +36,4 @@ export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "admin", label: "Admin Panel", group: "People" },
   { key: "master-data", label: "Master Data", group: "People" },
 ];
+

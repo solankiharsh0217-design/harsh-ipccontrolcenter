@@ -42,7 +42,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Shell moduleKey="dashboard"><Dashboard /></Shell>} />
-            <Route path="/founder-dashboard" element={<Shell moduleKey="founder-dashboard"><FounderDashboard /></Shell>} />
+            <Route path="/founder-dashboard" element={<Shell><FounderDashboard /></Shell>} />
             <Route path="/roas-calculator" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
             <Route path="/roas" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
             <Route path="/search" element={<Shell moduleKey="search"><StudentSearch /></Shell>} />
