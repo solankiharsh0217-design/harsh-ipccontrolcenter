@@ -29,6 +29,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/team": "Team Directory",
   "/admin": "Admin Panel",
   "/master-data": "Master Data",
+  "/master-settings": "Master Settings",
   "/profit-statement": "Profit Statement",
 };
 
