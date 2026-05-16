@@ -764,6 +764,7 @@ function EligibilitySection() {
       .select("id").eq("setting_group", "eligibility_defaults").eq("setting_key", key).eq("is_deleted", false).maybeSingle();
     if (existing) await supabase.from("app_settings" as any).update({ setting_value: next }).eq("id", (existing as any).id);
     else await supabase.from("app_settings" as any).insert({ setting_group: "eligibility_defaults", setting_key: key, setting_value: next, created_by: user?.id ?? null } as any);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "eligibility_default_updated", entity_type: "eligibility_default", entity_label: role, old_values: { [flag]: cur[flag] ?? false }, new_values: { [flag]: val }, summary: `Eligibility default for ${role}: ${flag} ${val ? "enabled" : "disabled"}.` });
   };
 
   if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
