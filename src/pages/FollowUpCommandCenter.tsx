@@ -6,6 +6,7 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
 import { inr, fmtDate, downloadCsv } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
+import { resolveNotificationsForEntity } from "@/lib/notifications";
 import { useNavigate } from "react-router-dom";
 
 type FollowUp = {
