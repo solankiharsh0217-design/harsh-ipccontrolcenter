@@ -899,6 +899,14 @@ function BulkFollowUpModal({ selectedIds, assignees, onClose, onSaved }: { selec
         ...(assignedOwner && assignees.find(a => a.full_name === assignedOwner) ? { assigned_sales_executive: assignees.find(a => a.full_name === assignedOwner)!.id } : {}),
       } as any).in("id", selectedIds);
       toast.success(`Created ${selectedIds.length} follow-ups`);
+      logActivity({
+        module_key: "payment_recovery", module_label: "Payment Recovery",
+        action_type: "recovery_follow_up_created", action_label: "Recovery follow-up created",
+        entity_type: "paid_pipeline_lead",
+        new_values: { date, time, reason, priority, assignee: assignedOwner, count: selectedIds.length },
+        metadata: { source_module: "payment_recovery", lead_ids: selectedIds },
+        summary: `Created ${selectedIds.length} recovery follow-up(s) on ${date} (${reason || "—"}).`,
+      });
       onSaved();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
