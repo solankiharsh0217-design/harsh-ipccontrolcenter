@@ -1586,6 +1586,8 @@ function ProfitStatementsSection({
         .eq("id", id);
       if (error) throw error;
       toast.success("Moved to Trash.");
+      const target = rows.find(r => r.id === id);
+      logActivity({ module_key: "reports_history", action_type: "report_soft_deleted", entity_type: "profit_statement", entity_id: id, entity_label: `${target?.business_unit ?? ""} ${target?.statement_month?.slice(0,7) ?? ""}`.trim(), metadata: { report_type: "Profit Statement" }, summary: `Profit Statement '${target?.business_unit ?? ""} ${target?.statement_month?.slice(0,7) ?? id}' moved to trash.`, severity: "warning" });
       reload();
     } catch (e: any) { toast.error(e?.message || "Could not delete."); }
     finally { setBusyId(null); }
@@ -1600,6 +1602,8 @@ function ProfitStatementsSection({
         .eq("id", id);
       if (error) throw error;
       toast.success("Restored.");
+      const target = rows.find(r => r.id === id);
+      logActivity({ module_key: "reports_history", action_type: "report_restored", entity_type: "profit_statement", entity_id: id, entity_label: `${target?.business_unit ?? ""} ${target?.statement_month?.slice(0,7) ?? ""}`.trim(), summary: `Profit Statement restored.` });
       reload();
     } catch (e: any) { toast.error(e?.message || "Could not restore."); }
     finally { setBusyId(null); }
