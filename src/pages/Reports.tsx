@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import DailyHistoryView from "@/components/roas/daily/DailyHistoryView";
 import type { DailyReport } from "@/lib/dailyReports/helpers";
+import { logActivity } from "@/lib/auditLog";
 
 const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
 const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
