@@ -42,6 +42,13 @@ export default function AdminCenter() {
       to: "/notifications",
       show: isAdmin || hasModule("notifications"),
     },
+    {
+      title: "System Refinement Checklist",
+      desc: "Track QA issues, functional gaps, data accuracy checks, and refinement tasks before finalizing the Business OS.",
+      cta: "Open Checklist",
+      to: "/admin-center/system-refinement",
+      show: isAdmin,
+    },
   ].filter((c) => c.show);
 
   return (
