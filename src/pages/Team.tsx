@@ -18,6 +18,23 @@ interface Member {
   last_login: string | null;
 }
 
+type EligibilityFlags = {
+  can_receive_calling_crm_leads: boolean;
+  can_receive_paid_pipeline_leads: boolean;
+  can_receive_follow_up_tasks: boolean;
+  can_receive_payment_recovery_leads: boolean;
+  include_in_round_robin: boolean;
+  active_for_assignment: boolean;
+};
+const emptyEligibility = (): EligibilityFlags => ({
+  can_receive_calling_crm_leads: false,
+  can_receive_paid_pipeline_leads: false,
+  can_receive_follow_up_tasks: false,
+  can_receive_payment_recovery_leads: false,
+  include_in_round_robin: false,
+  active_for_assignment: true,
+});
+
 export default function Team() {
   const { isAdmin, user, refreshProfile } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
@@ -28,6 +45,7 @@ export default function Team() {
   const [editRole, setEditRole] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
   const [editPayroll, setEditPayroll] = useState<PayrollFormState>(emptyPayroll());
+  const [editEligibility, setEditEligibility] = useState<EligibilityFlags>(emptyEligibility());
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -48,10 +66,11 @@ export default function Team() {
     setAccessLoading(true);
     try {
       if (!m?.id) throw new Error("Missing team member id");
-      const [rolesRes, modsRes, payrollRes] = await Promise.all([
+      const [rolesRes, modsRes, payrollRes, eligRes] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", m.id),
         supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
         supabase.from("team_payroll_profiles").select("*").eq("team_member_id", m.id).maybeSingle(),
+        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, include_in_round_robin, active_for_assignment").eq("id", m.id).maybeSingle(),
       ]);
       if (rolesRes.error) throw rolesRes.error;
       if (modsRes.error) throw modsRes.error;
@@ -59,12 +78,21 @@ export default function Team() {
       setEditAdmin(!!rolesRes.data?.some((r: any) => r.role === "admin"));
       setEditModules(new Set((modsRes.data ?? []).map((x: any) => x.module_key as ModuleKey)));
       setEditPayroll(payrollRes.data ? dbToPayroll(payrollRes.data) : emptyPayroll());
+      setEditEligibility(eligRes.data ? {
+        can_receive_calling_crm_leads: !!(eligRes.data as any).can_receive_calling_crm_leads,
+        can_receive_paid_pipeline_leads: !!(eligRes.data as any).can_receive_paid_pipeline_leads,
+        can_receive_follow_up_tasks: !!(eligRes.data as any).can_receive_follow_up_tasks,
+        can_receive_payment_recovery_leads: !!(eligRes.data as any).can_receive_payment_recovery_leads,
+        include_in_round_robin: !!(eligRes.data as any).include_in_round_robin,
+        active_for_assignment: (eligRes.data as any).active_for_assignment !== false,
+      } : emptyEligibility());
     } catch (e: any) {
       console.error("access fetch failed", e);
       setAccessError("Could not load access settings. Please retry.");
       setEditAdmin(false);
       setEditModules(new Set());
       setEditPayroll(emptyPayroll());
+      setEditEligibility(emptyEligibility());
     } finally {
       setAccessLoading(false);
     }
@@ -78,8 +106,12 @@ export default function Team() {
     setEditPayroll(emptyPayroll());
     setEditAdmin(false);
     setEditModules(new Set());
+    setEditEligibility(emptyEligibility());
     await fetchMemberAccess(m);
   };
+
+  const toggleEligibility = (k: keyof EligibilityFlags) =>
+    setEditEligibility((p) => ({ ...p, [k]: !p[k] }));
 
   const hasModuleChecked = (k: ModuleKey) =>
     moduleAliases(k as string).some((a) => editModules.has(a as ModuleKey));
@@ -104,12 +136,18 @@ export default function Team() {
     if (!editing) return;
     setSaving(true);
     try {
-      // Update profile fields (name, role/position, department)
+      // Update profile fields (name, role/position, department, assignment eligibility)
       const { error: pErr } = await supabase.from("profiles").update({
         full_name: editName.trim() || editing.full_name,
         role: editRole.trim() || editing.role,
         department: editDepartment.trim() || null,
-      }).eq("id", editing.id);
+        can_receive_calling_crm_leads: editEligibility.can_receive_calling_crm_leads,
+        can_receive_paid_pipeline_leads: editEligibility.can_receive_paid_pipeline_leads,
+        can_receive_follow_up_tasks: editEligibility.can_receive_follow_up_tasks,
+        can_receive_payment_recovery_leads: editEligibility.can_receive_payment_recovery_leads,
+        include_in_round_robin: editEligibility.include_in_round_robin,
+        active_for_assignment: editEligibility.active_for_assignment,
+      } as any).eq("id", editing.id);
       if (pErr) throw pErr;
 
       // Sync admin role
@@ -235,9 +273,36 @@ export default function Team() {
                 <input type="checkbox" checked={editAdmin} onChange={(e) => setEditAdmin(e.target.checked)} className="w-4 h-4" />
                 <div>
                   <div className="font-serif text-[15px] text-black">Admin access</div>
-                  <div className="font-sans text-[11px] text-muted-foreground">Full access to all modules, including Admin Panel.</div>
+                  <div className="font-sans text-[11px] text-muted-foreground">Full access to all modules, including Admin Panel. Admins can access everything, but will <span className="font-medium">not</span> receive leads unless assignment eligibility is enabled below.</div>
                 </div>
               </label>
+            </div>
+
+            <div className="px-7 py-5 border-b border-line">
+              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-2">Assignment eligibility</div>
+              <div className="font-sans text-[11px] text-muted-foreground mb-3 leading-relaxed">
+                Module access controls what this member can <span className="font-medium">open</span>. Assignment eligibility controls whether this member can <span className="font-medium">receive</span> leads, tasks, or round-robin assignments.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ["active_for_assignment", "Active for assignments"],
+                  ["can_receive_calling_crm_leads", "Can receive Calling CRM leads"],
+                  ["can_receive_paid_pipeline_leads", "Can receive Paid Pipeline leads"],
+                  ["can_receive_follow_up_tasks", "Can receive Follow-Up tasks"],
+                  ["can_receive_payment_recovery_leads", "Can receive Payment Recovery leads"],
+                  ["include_in_round_robin", "Include in Round Robin"],
+                ] as [keyof EligibilityFlags, string][]).map(([key, label]) => (
+                  <label key={key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editEligibility[key] ? "bg-off border-line" : "border-line hover:bg-off"}`}>
+                    <input
+                      type="checkbox"
+                      checked={!!editEligibility[key]}
+                      onChange={() => toggleEligibility(key)}
+                      className="w-4 h-4"
+                    />
+                    <span className="font-serif text-[14px] text-black">{label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="px-7 py-5">
