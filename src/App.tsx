@@ -25,6 +25,7 @@ import WebinarPerformance from "./pages/WebinarPerformance";
 import MasterSettings from "./pages/MasterSettings";
 import MasterData from "./pages/MasterData";
 import ProfitStatement from "./pages/ProfitStatement";
+import AuditLog from "./pages/AuditLog";
 import NotFound from "./pages/NotFound";
 
 import type { ModuleKey } from "@/lib/modules";
