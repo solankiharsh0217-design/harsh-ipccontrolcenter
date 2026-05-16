@@ -420,25 +420,31 @@ function PPSettingsGroup({ title, subtitle, groups }:
       setting_type: tab, label: v, value: v, sort_order: filtered.length, created_by: user?.id ?? null,
     } as any);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: `${tab}_created`, entity_type: "paid_pipeline_setting", entity_label: v, new_values: { setting_type: tab, label: v }, summary: `${tab} option '${v}' created.` });
     setNewVal(""); await load();
   };
 
   const saveEdit = async () => {
     if (!editing) return;
+    const oldRow = rows.find(r => r.id === editing.id);
     const { error } = await supabase.from("paid_pipeline_settings").update({
       label: editing.label, value: editing.value, sort_order: editing.sort_order, is_active: editing.is_active,
     }).eq("id", editing.id);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: `${editing.setting_type}_updated`, entity_type: "paid_pipeline_setting", entity_id: editing.id, entity_label: editing.label, old_values: oldRow ? { label: oldRow.label, sort_order: oldRow.sort_order, is_active: oldRow.is_active } : null, new_values: { label: editing.label, sort_order: editing.sort_order, is_active: editing.is_active }, summary: `${editing.setting_type} option '${editing.label}' updated.` });
     setEditing(null); await load();
   };
 
   const del = async (id: string) => {
+    const target = rows.find(r => r.id === id);
     const { error } = await supabase.from("paid_pipeline_settings").update({ is_deleted: true, is_active: false }).eq("id", id);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: `${target?.setting_type ?? "setting"}_deactivated`, entity_type: "paid_pipeline_setting", entity_id: id, entity_label: target?.label, summary: `${target?.setting_type ?? "Setting"} '${target?.label ?? id}' deactivated.`, severity: "warning" });
     await load();
   };
   const toggleActive = async (r: PPSetting) => {
     await supabase.from("paid_pipeline_settings").update({ is_active: !r.is_active }).eq("id", r.id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: `${r.setting_type}_updated`, entity_type: "paid_pipeline_setting", entity_id: r.id, entity_label: r.label, old_values: { is_active: r.is_active }, new_values: { is_active: !r.is_active }, summary: `${r.setting_type} '${r.label}' ${!r.is_active ? "activated" : "deactivated"}.` });
     await load();
   };
 
