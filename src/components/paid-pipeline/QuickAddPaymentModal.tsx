@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import { recomputePaidLead } from "@/lib/paidPipeline";
+import { logActivity } from "@/lib/auditLog";
 
 export default function QuickAddPaymentModal({
   leadId, leadName, onClose, onSaved,
