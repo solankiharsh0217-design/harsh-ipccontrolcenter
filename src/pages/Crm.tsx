@@ -252,6 +252,7 @@ export default function Crm() {
         toast.success(`Round-robin assigned ${target.length} leads to ${buckets.size} agents`);
       }
       setAssignOpen(false);
+      logActivity({ module_key: "calling_crm", action_type: assignMode === "unassign" ? "crm_bulk_unassigned" : "crm_bulk_assigned", entity_type: "crm_lead", metadata: { mode: assignMode, scope: assignScope, count: target.length, agent_id: assignAgentId || null }, summary: `${target.length} CRM leads ${assignMode === "unassign" ? "unassigned" : assignMode === "manual" ? `assigned to ${agents.find(a => a.id === assignAgentId)?.full_name ?? "agent"}` : "round-robin assigned"}.` });
       await load();
     } catch (e: any) { toast.error(e.message || "Assignment failed"); }
     finally { setAssignBusy(false); }
