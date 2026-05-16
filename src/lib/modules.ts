@@ -13,6 +13,7 @@ export type ModuleKey =
   | "paid-pipeline"
   | "paid_pipeline"
   | "follow_up_command_center"
+  | "payment_recovery"
   | "team"
   | "admin"
   | "master-data"
