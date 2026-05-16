@@ -20,6 +20,7 @@ import Crm from "./pages/Crm";
 import CrmOverview from "./pages/CrmOverview";
 import PaidPipeline from "./pages/PaidPipeline";
 import FollowUpCommandCenter from "./pages/FollowUpCommandCenter";
+import PaymentRecovery from "./pages/PaymentRecovery";
 import MasterData from "./pages/MasterData";
 import ProfitStatement from "./pages/ProfitStatement";
 import NotFound from "./pages/NotFound";
