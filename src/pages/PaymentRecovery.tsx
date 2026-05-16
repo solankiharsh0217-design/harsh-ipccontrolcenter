@@ -147,7 +147,7 @@ export default function PaymentRecovery() {
       const [{ data: leadRows }, { data: payRows }, eligible] = await Promise.all([
         supabase.from("paid_pipeline_leads").select("*").eq("is_deleted", false).limit(5000),
         supabase.from("paid_pipeline_payments").select("id, paid_pipeline_lead_id, amount, payment_date, payment_category, payment_type, next_payment_expected_date").eq("is_deleted", false).limit(20000),
-        getEligibleAssignees(["payment_recovery", "paid_pipeline", "calling_crm"]),
+        getEligibleAssignees("payment_recovery"),
       ]);
       setLeads((leadRows as any[]) || []);
       setPayments((payRows as any[]) || []);
