@@ -48,10 +48,32 @@ const NavItem = ({ to, children, badge, show = true }: { to: string; children: R
 };
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const { profile, isAdmin, hasModule, loginTime, signOut } = useAuth();
+  const { profile, isAdmin, hasModule, loginTime, signOut, user } = useAuth();
   const loc = useLocation();
   const nav = useNavigate();
   const title = PAGE_TITLES[loc.pathname] ?? "";
+  const [unread, setUnread] = useState(0);
+
+  const canSeeNotifications = isAdmin || hasModule("notifications");
+
+  useEffect(() => {
+    if (!user || !canSeeNotifications) { setUnread(0); return; }
+    let active = true;
+    const load = async () => {
+      try {
+        const { count } = await (supabase as any)
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("recipient_user_id", user.id)
+          .eq("status", "unread")
+          .eq("is_deleted", false);
+        if (active) setUnread(count ?? 0);
+      } catch { /* noop */ }
+    };
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { active = false; clearInterval(t); };
+  }, [user, canSeeNotifications, loc.pathname]);
 
   const handleSignOut = async () => {
     await signOut();
