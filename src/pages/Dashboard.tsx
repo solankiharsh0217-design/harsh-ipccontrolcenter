@@ -70,7 +70,23 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <SectionLabel>Quick access</SectionLabel>
+      <div className="grid grid-cols-3 gap-3.5 mb-9">
+        {[
+          { to: "/revenue-command-center", name: "Revenue Command Center", desc: "Paid Pipeline · Follow-Up Command Center · Payment Recovery" },
+          { to: "/analytics-center", name: "Analytics Center", desc: "Founder Dashboard · Webinar Performance · AI Insights" },
+          { to: "/admin-center", name: "Admin Center", desc: "Master Settings · Audit Log · Team Directory / Admin" },
+        ].map((c) => (
+          <button key={c.to} onClick={() => nav(c.to)} className="text-left rounded-xl border border-line bg-white pt-[22px] px-[22px] pb-5 hover:bg-off hover:border-[#bbb] transition-all">
+            <div className="font-serif text-lg font-medium text-black mb-1.5 leading-tight">{c.name}</div>
+            <div className="font-sans text-xs font-light text-muted-foreground leading-[1.65] mb-3">{c.desc}</div>
+            <div className="font-sans text-[11px] text-muted-foreground">Open →</div>
+          </button>
+        ))}
+      </div>
+
       <SectionLabel>Core tools</SectionLabel>
+
 
       <div className="grid grid-cols-3 gap-3.5 mb-9">
         {MODULES.map(m => (

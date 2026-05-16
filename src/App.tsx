@@ -27,6 +27,9 @@ import MasterData from "./pages/MasterData";
 import ProfitStatement from "./pages/ProfitStatement";
 import AuditLog from "./pages/AuditLog";
 import Notifications from "./pages/Notifications";
+import RevenueCommandCenter from "./pages/RevenueCommandCenter";
+import AnalyticsCenter from "./pages/AnalyticsCenter";
+import AdminCenter from "./pages/AdminCenter";
 import NotFound from "./pages/NotFound";
 
 import type { ModuleKey } from "@/lib/modules";
@@ -72,6 +75,9 @@ const App = () => (
             <Route path="/profit-statement" element={<Shell moduleKey="profit-statement"><ProfitStatement /></Shell>} />
             <Route path="/audit-log" element={<Shell admin moduleKey="audit_log"><AuditLog /></Shell>} />
             <Route path="/notifications" element={<Shell moduleKey="notifications"><Notifications /></Shell>} />
+            <Route path="/revenue-command-center" element={<Shell><RevenueCommandCenter /></Shell>} />
+            <Route path="/analytics-center" element={<Shell><AnalyticsCenter /></Shell>} />
+            <Route path="/admin-center" element={<Shell><AdminCenter /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
