@@ -531,11 +531,14 @@ function QSGroup({ title, subtitle, groups }:
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("quick_save_entries").insert({ field_key: tab, value: v, created_by: user?.id ?? null });
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: "dropdown_option_created", entity_type: "quick_save_entry", entity_label: v, new_values: { field_key: tab, value: v }, summary: `Dropdown option '${v}' added to ${tab}.` });
     setNewVal(""); await load();
   };
 
   const del = async (id: string) => {
+    const target = rows.find(r => r.id === id);
     await supabase.from("quick_save_entries").update({ is_active: false }).eq("id", id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "dropdown_option_deactivated", entity_type: "quick_save_entry", entity_id: id, entity_label: target?.value, summary: `Dropdown option '${target?.value ?? id}' deactivated from ${target?.field_key ?? "field"}.`, severity: "warning" });
     await load();
   };
 
