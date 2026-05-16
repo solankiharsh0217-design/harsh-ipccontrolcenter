@@ -1330,45 +1330,63 @@ export type Database = {
         Row: {
           assigned_to: string | null
           completed_at: string | null
+          completed_by: string | null
           created_at: string
           created_by: string | null
           follow_up_date: string
           follow_up_reason: string | null
           follow_up_time: string | null
+          follow_up_type: string | null
           id: string
+          is_deleted: boolean
           notes: string | null
-          paid_pipeline_lead_id: string
+          paid_pipeline_lead_id: string | null
           priority: string | null
+          related_crm_lead_id: string | null
+          related_payment_id: string | null
+          source_module: string | null
           status: string
           updated_at: string
         }
         Insert: {
           assigned_to?: string | null
           completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           created_by?: string | null
           follow_up_date: string
           follow_up_reason?: string | null
           follow_up_time?: string | null
+          follow_up_type?: string | null
           id?: string
+          is_deleted?: boolean
           notes?: string | null
-          paid_pipeline_lead_id: string
+          paid_pipeline_lead_id?: string | null
           priority?: string | null
+          related_crm_lead_id?: string | null
+          related_payment_id?: string | null
+          source_module?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           assigned_to?: string | null
           completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
           created_by?: string | null
           follow_up_date?: string
           follow_up_reason?: string | null
           follow_up_time?: string | null
+          follow_up_type?: string | null
           id?: string
+          is_deleted?: boolean
           notes?: string | null
-          paid_pipeline_lead_id?: string
+          paid_pipeline_lead_id?: string | null
           priority?: string | null
+          related_crm_lead_id?: string | null
+          related_payment_id?: string | null
+          source_module?: string | null
           status?: string
           updated_at?: string
         }
