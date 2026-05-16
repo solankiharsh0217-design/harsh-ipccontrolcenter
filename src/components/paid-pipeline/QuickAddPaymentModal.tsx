@@ -57,6 +57,14 @@ export default function QuickAddPaymentModal({
         } as any).eq("id", leadId);
       }
       await recomputePaidLead(leadId);
+      logActivity({
+        module_key: "paid_pipeline", module_label: "Paid Pipeline",
+        action_type: "payment_added", action_label: "Payment added",
+        entity_type: "paid_pipeline_lead", entity_id: leadId, entity_label: leadName,
+        new_values: { category, type, amount, mode, date, reference, is_token: isToken, is_final: isFinal, finance_linked: financeLinked },
+        severity: "info",
+        summary: `${category} (${type}): ₹${amount.toLocaleString("en-IN")}${leadName ? " — " + leadName : ""}`,
+      });
       toast.success("Payment added");
       onSaved(); onClose();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
