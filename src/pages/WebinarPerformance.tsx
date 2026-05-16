@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { inr, pct, num } from "@/lib/roas/format";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/auditLog";
 
 // ---------- helpers ----------
 type Range = { start: string; end: string; label: string };
