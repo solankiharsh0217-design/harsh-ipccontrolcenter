@@ -137,6 +137,7 @@ export default function Admin() {
       toast.error("Member created, but access permissions could not be saved. Please retry from Team Directory.");
     } else {
       toast.success(`${mName} added and activated.`);
+      logActivity({ module_key: "team_directory", action_type: "team_member_created", entity_type: "team_member", entity_id: newId, entity_label: mName, target_user_id: newId, target_name: mName, new_values: { full_name: mName, role: mRole, department: mDept || null, is_admin: mIsAdmin, modules: Array.from(mModules) }, summary: `Team member '${mName}' created (${mRole}).` });
     }
     setMName(""); setMEmail(""); setMPass(""); setMDept(""); setMPayroll(emptyPayroll());
     setMIsAdmin(false); setMModules(new Set(["dashboard","announcements"]));
