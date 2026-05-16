@@ -40,6 +40,13 @@ export default function QuickFollowUpModal({
         paid_pipeline_lead_id: leadId, activity_type: "followup_set",
         note: `${date} ${time} · ${reason || "Follow-up"} · ${priority}`, created_by: user?.id,
       } as any);
+      logActivity({
+        module_key: "follow_up_command_center", module_label: "Follow-Up Command Center",
+        action_type: "follow_up_created", action_label: "Follow-up created",
+        entity_type: "paid_pipeline_lead", entity_id: leadId, entity_label: leadName,
+        new_values: { date, time, reason, priority, status, assignee, notes },
+        summary: `Follow-up set for ${leadName || "lead"} on ${date} ${time} (${reason || "—"}, ${priority}).`,
+      });
       toast.success("Follow-up saved");
       onSaved(); onClose();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
