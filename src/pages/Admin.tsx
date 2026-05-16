@@ -161,16 +161,20 @@ export default function Admin() {
   useEffect(() => { load(); }, []);
 
   const approve = async (id: string) => {
+    const target = pending.find((p: any) => p.id === id);
     const { error } = await supabase.from("profiles").update({ status: "active" }).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Member approved.");
+    logActivity({ module_key: "team_directory", action_type: "team_member_updated", entity_type: "team_member", entity_id: id, entity_label: target?.full_name, target_user_id: id, target_name: target?.full_name, old_values: { status: "pending" }, new_values: { status: "active" }, summary: `${target?.full_name ?? "Member"} approved and activated.` });
     load();
   };
 
   const reject = async (id: string) => {
+    const target = pending.find((p: any) => p.id === id);
     const { error } = await supabase.from("profiles").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Request rejected.");
+    logActivity({ module_key: "team_directory", action_type: "member_deactivated", entity_type: "team_member", entity_id: id, entity_label: target?.full_name, target_user_id: id, target_name: target?.full_name, summary: `Membership request rejected for ${target?.full_name ?? id}.`, severity: "warning" });
     load();
   };
 
