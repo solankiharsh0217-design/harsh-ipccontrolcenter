@@ -153,6 +153,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M3 13l1.5-1.5M11.5 4.5L13 3"/></></Icon>
             Master Settings
           </NavItem>
+          <NavItem to="/audit-log" show={isAdmin || hasModule("audit_log")}>
+            <Icon><><path d="M3 2h7l3 3v9H3z" fill="none"/><path d="M5 6h6M5 8.5h6M5 11h4"/></></Icon>
+            Audit Log
+          </NavItem>
         </div>
 
         <div className="px-3 py-[14px] border-t border-line">
