@@ -34,6 +34,9 @@ const PAGE_TITLES: Record<string, string> = {
   "/master-settings": "Master Settings",
   "/profit-statement": "Profit Statement",
   "/notifications": "Notifications",
+  "/revenue-command-center": "Revenue Command Center",
+  "/analytics-center": "Analytics Center",
+  "/admin-center": "Admin Center",
 };
 
 const NavItem = ({ to, children, badge, show = true }: { to: string; children: ReactNode; badge?: boolean; show?: boolean }) => {
