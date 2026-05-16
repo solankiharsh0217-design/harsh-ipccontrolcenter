@@ -416,16 +416,28 @@ export default function PaymentRecovery() {
     if (!sel) return;
     const owner = assignees.find(a => a.full_name.toLowerCase() === sel.toLowerCase().trim());
     if (!owner) { toast.error("Owner not found in eligible list."); return; }
-    const { error } = await supabase.from("paid_pipeline_leads").update({ assigned_sales_executive: owner.id } as any).in("id", Array.from(selected));
-    if (error) toast.error(error.message); else { toast.success(`Assigned ${selected.size} leads to ${owner.full_name}`); setSelected(new Set()); load(); }
+    const ids = Array.from(selected);
+    const snaps = leads.filter((l: any) => selected.has(l.id));
+    const { error } = await supabase.from("paid_pipeline_leads").update({ assigned_sales_executive: owner.id } as any).in("id", ids);
+    if (error) toast.error(error.message); else {
+      toast.success(`Assigned ${selected.size} leads to ${owner.full_name}`);
+      logBulkPaidLeadDiff(snaps, { assigned_sales_executive: owner.id }, { ids, moduleKey: "payment_recovery", moduleLabel: "Payment Recovery" });
+      setSelected(new Set()); load();
+    }
   };
 
   const bulkUpdate = async (field: string, label: string, options: string[]) => {
     if (selected.size === 0) { toast.error("Please select at least one lead."); return; }
     const val = window.prompt(`${label} — options: ${options.join(", ")}`);
     if (!val) return;
-    const { error } = await supabase.from("paid_pipeline_leads").update({ [field]: val } as any).in("id", Array.from(selected));
-    if (error) toast.error(error.message); else { toast.success(`Updated ${selected.size} leads`); setSelected(new Set()); load(); }
+    const ids = Array.from(selected);
+    const snaps = leads.filter((l: any) => selected.has(l.id));
+    const { error } = await supabase.from("paid_pipeline_leads").update({ [field]: val } as any).in("id", ids);
+    if (error) toast.error(error.message); else {
+      toast.success(`Updated ${selected.size} leads`);
+      logBulkPaidLeadDiff(snaps, { [field]: val }, { ids, moduleKey: "payment_recovery", moduleLabel: "Payment Recovery" });
+      setSelected(new Set()); load();
+    }
   };
 
   const bulkCopyWA = () => {
