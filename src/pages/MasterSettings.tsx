@@ -831,6 +831,8 @@ function WhatsAppTemplatesSection() {
     if (existing) await supabase.from("app_settings" as any).update({ setting_value: { v } }).eq("id", (existing as any).id);
     else await supabase.from("app_settings" as any).insert({ setting_group: "whatsapp_template", setting_key: key, setting_value: { v }, created_by: user?.id ?? null } as any);
     toast.success("Template saved");
+    const label = WA_TEMPLATES.find(t => t.key === key)?.label ?? key;
+    logActivity({ module_key: MS, module_label: MSL, action_type: "whatsapp_template_updated", entity_type: "whatsapp_template", entity_label: label, new_values: { template: v }, summary: `WhatsApp template '${label}' updated.` });
   };
 
   if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
