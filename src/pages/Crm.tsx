@@ -8,6 +8,7 @@ import ImportLeadsModal from "@/components/ImportLeadsModal";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
+import { logActivity } from "@/lib/auditLog";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
@@ -132,7 +133,12 @@ export default function Crm() {
       const last: any = targetList[targetList.length - 1];
       newOrder = last ? Number(last.sort_order || 0) + 1000 : 0;
     }
+    const oldStageId = leads.find(l => l.id === id)?.stage_id;
     await supabase.from("leads").update({ stage_id: stageId, sort_order: newOrder }).eq("id", id);
+    const lead = leads.find(l => l.id === id);
+    const oldName = stages.find(s => s.id === oldStageId)?.name ?? "—";
+    const newName = stages.find(s => s.id === stageId)?.name ?? "—";
+    if (oldStageId !== stageId) logActivity({ module_key: "calling_crm", action_type: "crm_stage_changed", entity_type: "crm_lead", entity_id: id, entity_label: lead?.full_name ?? undefined, old_values: { stage: oldName }, new_values: { stage: newName }, summary: `${lead?.full_name ?? "Lead"} moved from ${oldName} to ${newName}.` });
     setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage_id: stageId, sort_order: newOrder } as any : l));
   };
 
@@ -246,6 +252,7 @@ export default function Crm() {
         toast.success(`Round-robin assigned ${target.length} leads to ${buckets.size} agents`);
       }
       setAssignOpen(false);
+      logActivity({ module_key: "calling_crm", action_type: assignMode === "unassign" ? "crm_bulk_unassigned" : "crm_bulk_assigned", entity_type: "crm_lead", metadata: { mode: assignMode, scope: assignScope, count: target.length, agent_id: assignAgentId || null }, summary: `${target.length} CRM leads ${assignMode === "unassign" ? "unassigned" : assignMode === "manual" ? `assigned to ${agents.find(a => a.id === assignAgentId)?.full_name ?? "agent"}` : "round-robin assigned"}.` });
       await load();
     } catch (e: any) { toast.error(e.message || "Assignment failed"); }
     finally { setAssignBusy(false); }

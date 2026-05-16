@@ -9,6 +9,7 @@ import PayrollFieldsSection, { emptyPayroll, dbToPayroll, payrollToDb, type Payr
 import QuickSaveInput from "@/components/QuickSaveInput";
 import { toast } from "sonner";
 import { Shield, X } from "lucide-react";
+import { logActivity } from "@/lib/auditLog";
 
 interface Member {
   id: string;
@@ -135,9 +136,24 @@ export default function Team() {
   const save = async () => {
     if (!editing) return;
     setSaving(true);
+    // Snapshot pre-save state for diffing
+    const oldProfile = {
+      full_name: editing.full_name, role: editing.role, department: editing.department,
+    };
+    const oldEligibility = { ...editEligibility };
+    const oldModules = new Set<string>();
+    const oldAdmin = editAdmin;
     try {
-      // Update profile fields (name, role/position, department, assignment eligibility)
-      const { error: pErr } = await supabase.from("profiles").update({
+      const [prevModsRes, prevElig, prevRoles] = await Promise.all([
+        supabase.from("user_module_access").select("module_key").eq("user_id", editing.id),
+        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, include_in_round_robin, active_for_assignment").eq("id", editing.id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", editing.id),
+      ]);
+      (prevModsRes.data ?? []).forEach((m: any) => oldModules.add(m.module_key));
+      const prevElig2: any = prevElig.data || {};
+      const prevAdmin = !!(prevRoles.data ?? []).find((r: any) => r.role === "admin");
+
+      const newProfile = {
         full_name: editName.trim() || editing.full_name,
         role: editRole.trim() || editing.role,
         department: editDepartment.trim() || null,
@@ -147,7 +163,9 @@ export default function Team() {
         can_receive_payment_recovery_leads: editEligibility.can_receive_payment_recovery_leads,
         include_in_round_robin: editEligibility.include_in_round_robin,
         active_for_assignment: editEligibility.active_for_assignment,
-      } as any).eq("id", editing.id);
+      };
+
+      const { error: pErr } = await supabase.from("profiles").update(newProfile as any).eq("id", editing.id);
       if (pErr) throw pErr;
 
       // Sync admin role
@@ -180,7 +198,39 @@ export default function Team() {
           .from("team_payroll_profiles")
           .upsert(payload, { onConflict: "team_member_id" });
         if (payErr) throw payErr;
+        logActivity({ module_key: "team_directory", action_type: "payroll_details_updated", entity_type: "team_member", entity_id: editing.id, entity_label: newProfile.full_name, target_user_id: editing.id, target_name: newProfile.full_name, summary: `Payroll details updated for ${newProfile.full_name}.` });
       }
+
+      // ─── Audit logging ───
+      const memberName = newProfile.full_name;
+      const t = { module_key: "team_directory", entity_type: "team_member", entity_id: editing.id, entity_label: memberName, target_user_id: editing.id, target_name: memberName };
+      if (oldProfile.full_name !== newProfile.full_name || oldProfile.role !== newProfile.role || (oldProfile.department ?? null) !== (newProfile.department ?? null)) {
+        logActivity({ ...t, action_type: "team_member_updated", old_values: oldProfile, new_values: { full_name: newProfile.full_name, role: newProfile.role, department: newProfile.department }, summary: `${memberName} profile updated.` });
+      }
+      if (oldProfile.role !== newProfile.role) {
+        logActivity({ ...t, action_type: "role_changed", old_values: { role: oldProfile.role }, new_values: { role: newProfile.role }, summary: `Role changed from ${oldProfile.role ?? "—"} to ${newProfile.role ?? "—"} for ${memberName}.` });
+      }
+      if ((oldProfile.department ?? null) !== (newProfile.department ?? null)) {
+        logActivity({ ...t, action_type: "department_changed", old_values: { department: oldProfile.department }, new_values: { department: newProfile.department }, summary: `Department changed for ${memberName}.` });
+      }
+      if (prevAdmin !== editAdmin) {
+        logActivity({ ...t, action_type: editAdmin ? "module_access_granted" : "module_access_removed", old_values: { admin: prevAdmin }, new_values: { admin: editAdmin }, summary: `Admin role ${editAdmin ? "granted to" : "removed from"} ${memberName}.`, severity: "warning" });
+      }
+      const newModSet = new Set(Array.from(editModules) as string[]);
+      const granted = [...newModSet].filter((k) => !oldModules.has(k));
+      const removed = [...oldModules].filter((k) => !newModSet.has(k));
+      granted.forEach((k) => logActivity({ ...t, action_type: "module_access_granted", entity_label: memberName, old_values: { [k]: false }, new_values: { [k]: true }, summary: `${k} access granted to ${memberName}.` }));
+      removed.forEach((k) => logActivity({ ...t, action_type: "module_access_removed", entity_label: memberName, old_values: { [k]: true }, new_values: { [k]: false }, summary: `${k} access removed from ${memberName}.`, severity: "warning" }));
+      const eligKeys: (keyof EligibilityFlags)[] = ["can_receive_calling_crm_leads","can_receive_paid_pipeline_leads","can_receive_follow_up_tasks","can_receive_payment_recovery_leads","include_in_round_robin","active_for_assignment"];
+      const eligDiff: any = { old: {}, new: {} }; let eligChanged = false;
+      eligKeys.forEach((k) => {
+        const ov = !!prevElig2[k]; const nv = !!editEligibility[k];
+        if (ov !== nv) { eligDiff.old[k] = ov; eligDiff.new[k] = nv; eligChanged = true; }
+      });
+      if (eligChanged) {
+        logActivity({ ...t, action_type: "assignment_eligibility_updated", old_values: eligDiff.old, new_values: eligDiff.new, summary: `Assignment eligibility updated for ${memberName}.` });
+      }
+
       toast.success(`Updated ${editName || editing.full_name}`);
       setEditing(null);
       await load();

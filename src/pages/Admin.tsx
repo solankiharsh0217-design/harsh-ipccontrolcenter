@@ -7,6 +7,7 @@ import { formatTime, formatDateShort } from "@/lib/format";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import PayrollFieldsSection, { emptyPayroll, PayrollFormState, payrollToDb } from "@/components/PayrollFieldsSection";
 import { MODULES, type ModuleKey } from "@/lib/modules";
+import { logActivity } from "@/lib/auditLog";
 
 const DEFAULT_ROLES = [
   "Admin","Media Buyer","Backend Operations","Community Manager","Content Creator",
@@ -136,6 +137,7 @@ export default function Admin() {
       toast.error("Member created, but access permissions could not be saved. Please retry from Team Directory.");
     } else {
       toast.success(`${mName} added and activated.`);
+      logActivity({ module_key: "team_directory", action_type: "team_member_created", entity_type: "team_member", entity_id: newId, entity_label: mName, target_user_id: newId, target_name: mName, new_values: { full_name: mName, role: mRole, department: mDept || null, is_admin: mIsAdmin, modules: Array.from(mModules) }, summary: `Team member '${mName}' created (${mRole}).` });
     }
     setMName(""); setMEmail(""); setMPass(""); setMDept(""); setMPayroll(emptyPayroll());
     setMIsAdmin(false); setMModules(new Set(["dashboard","announcements"]));
@@ -159,16 +161,20 @@ export default function Admin() {
   useEffect(() => { load(); }, []);
 
   const approve = async (id: string) => {
+    const target = pending.find((p: any) => p.id === id);
     const { error } = await supabase.from("profiles").update({ status: "active" }).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Member approved.");
+    logActivity({ module_key: "team_directory", action_type: "team_member_updated", entity_type: "team_member", entity_id: id, entity_label: target?.full_name, target_user_id: id, target_name: target?.full_name, old_values: { status: "pending" }, new_values: { status: "active" }, summary: `${target?.full_name ?? "Member"} approved and activated.` });
     load();
   };
 
   const reject = async (id: string) => {
+    const target = pending.find((p: any) => p.id === id);
     const { error } = await supabase.from("profiles").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Request rejected.");
+    logActivity({ module_key: "team_directory", action_type: "member_deactivated", entity_type: "team_member", entity_id: id, entity_label: target?.full_name, target_user_id: id, target_name: target?.full_name, summary: `Membership request rejected for ${target?.full_name ?? id}.`, severity: "warning" });
     load();
   };
 

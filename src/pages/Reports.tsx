@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import DailyHistoryView from "@/components/roas/daily/DailyHistoryView";
 import type { DailyReport } from "@/lib/dailyReports/helpers";
+import { logActivity } from "@/lib/auditLog";
 
 const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
 const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -410,26 +411,42 @@ function SeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }:
 
   const softDelete = async (id: string) => {
     if (!confirm("Move this report to trash? It will auto-delete after 14 days.")) return;
+    const target = rows.find(r => r.id === id);
     setBusyId(id);
     const { error } = await (supabase as any)
       .from("seminar_roas_reports")
       .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id })
       .eq("id", id);
     setBusyId(null);
-    if (error) toast.error(error.message); else { toast.success("Report moved to trash"); reload(); }
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Report moved to trash");
+      logActivity({ module_key: "reports_history", action_type: "report_soft_deleted", entity_type: "seminar_roas_report", entity_id: id, entity_label: target?.webinar_name, metadata: { report_type: "Seminar ROAS" }, summary: `Seminar ROAS Report '${target?.webinar_name ?? id}' moved to trash.`, severity: "warning" });
+      reload();
+    }
   };
   const restore = async (id: string) => {
+    const target = rows.find(r => r.id === id);
     setBusyId(id);
     const { error } = await (supabase as any)
       .from("seminar_roas_reports")
       .update({ is_deleted: false, deleted_at: null, deleted_by: null })
       .eq("id", id);
     setBusyId(null);
-    if (error) toast.error(error.message); else { toast.success("Report restored"); reload(); }
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Report restored");
+      logActivity({ module_key: "reports_history", action_type: "report_restored", entity_type: "seminar_roas_report", entity_id: id, entity_label: target?.webinar_name, summary: `Seminar ROAS Report '${target?.webinar_name ?? id}' restored.` });
+      reload();
+    }
   };
   const copyWa = async (r: SeminarRow) => {
     if (!r.whatsapp_summary_text) { toast.error("No WhatsApp summary saved"); return; }
-    try { await navigator.clipboard.writeText(r.whatsapp_summary_text); toast.success("WhatsApp summary copied"); } catch { toast.error("Copy failed"); }
+    try {
+      await navigator.clipboard.writeText(r.whatsapp_summary_text);
+      toast.success("WhatsApp summary copied");
+      logActivity({ module_key: "reports_history", action_type: "whatsapp_summary_copied", entity_type: "seminar_roas_report", entity_id: r.id, entity_label: r.webinar_name, summary: `WhatsApp summary copied for '${r.webinar_name}'.` });
+    } catch { toast.error("Copy failed"); }
   };
   const exportCsv = (r: SeminarRow) => {
     const rowsCsv = [
@@ -450,6 +467,7 @@ function SeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }:
     a.href = URL.createObjectURL(blob);
     a.download = `seminar-roas-${r.webinar_name.replace(/\W+/g, "-")}.csv`;
     a.click();
+    logActivity({ module_key: "reports_history", action_type: "report_exported", entity_type: "seminar_roas_report", entity_id: r.id, entity_label: r.webinar_name, metadata: { format: "csv", report_type: "Seminar ROAS" }, summary: `Seminar ROAS Report '${r.webinar_name}' exported as CSV.` });
   };
 
   const exportPdfRow = async (r: SeminarRow) => {
@@ -719,6 +737,7 @@ function AttributionSection({
 
   const confirmDelete = async (id: string) => {
     if (!confirm("Move this attribution report to Trash? It will be hidden from history and permanently deleted after 14 days unless restored.")) return;
+    const target = sessions.find((s: any) => s.id === id);
     setDeletingId(id);
     try {
       const { error } = await (supabase as any)
@@ -727,6 +746,7 @@ function AttributionSection({
         .eq("id", id);
       if (error) throw error;
       toast.success("Moved to Trash. Will auto-delete in 14 days.");
+      logActivity({ module_key: "reports_history", action_type: "report_soft_deleted", entity_type: "attribution_session", entity_id: id, entity_label: target?.webinar_name, metadata: { report_type: "Attribution", webinar_date: target?.webinar_date }, summary: `Attribution Report '${target?.webinar_name ?? id}' moved to trash.`, severity: "warning" });
       setOpenSession(null);
       reload();
     } catch (e: any) {
@@ -735,6 +755,7 @@ function AttributionSection({
   };
 
   const restoreSession = async (id: string) => {
+    const target = sessions.find((s: any) => s.id === id);
     try {
       const { error } = await (supabase as any)
         .from("attribution_sessions")
@@ -742,6 +763,7 @@ function AttributionSection({
         .eq("id", id);
       if (error) throw error;
       toast.success("Report restored.");
+      logActivity({ module_key: "reports_history", action_type: "report_restored", entity_type: "attribution_session", entity_id: id, entity_label: target?.webinar_name, summary: `Attribution Report '${target?.webinar_name ?? id}' restored.` });
       reload();
     } catch (e: any) {
       toast.error(e?.message || "Could not restore report.");
@@ -945,6 +967,7 @@ function AttributionSection({
                           if (!p) return;
                           if (kind === "pdf") downloadPDF(p);
                           else downloadCSV(p);
+                          logActivity({ module_key: "reports_history", action_type: "report_exported", entity_type: "attribution_session", entity_id: s.id, entity_label: s.webinar_name, metadata: { format: kind, report_type: "Attribution" }, summary: `Attribution Report '${s.webinar_name}' exported as ${kind.toUpperCase()}.` });
                         }}
                         onDelete={() => confirmDelete(s.id)}
                         disabled={!!s.is_deleted}
@@ -1563,6 +1586,8 @@ function ProfitStatementsSection({
         .eq("id", id);
       if (error) throw error;
       toast.success("Moved to Trash.");
+      const target = rows.find(r => r.id === id);
+      logActivity({ module_key: "reports_history", action_type: "report_soft_deleted", entity_type: "profit_statement", entity_id: id, entity_label: `${target?.business_unit ?? ""} ${target?.statement_month?.slice(0,7) ?? ""}`.trim(), metadata: { report_type: "Profit Statement" }, summary: `Profit Statement '${target?.business_unit ?? ""} ${target?.statement_month?.slice(0,7) ?? id}' moved to trash.`, severity: "warning" });
       reload();
     } catch (e: any) { toast.error(e?.message || "Could not delete."); }
     finally { setBusyId(null); }
@@ -1577,6 +1602,8 @@ function ProfitStatementsSection({
         .eq("id", id);
       if (error) throw error;
       toast.success("Restored.");
+      const target = rows.find(r => r.id === id);
+      logActivity({ module_key: "reports_history", action_type: "report_restored", entity_type: "profit_statement", entity_id: id, entity_label: `${target?.business_unit ?? ""} ${target?.statement_month?.slice(0,7) ?? ""}`.trim(), summary: `Profit Statement restored.` });
       reload();
     } catch (e: any) { toast.error(e?.message || "Could not restore."); }
     finally { setBusyId(null); }
@@ -1615,6 +1642,7 @@ function ProfitStatementsSection({
     a.download = `profit-statement-${s.business_unit}-${s.statement_month?.slice(0, 7)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    logActivity({ module_key: "reports_history", action_type: "report_exported", entity_type: "profit_statement", entity_id: s.id, entity_label: `${s.business_unit} ${s.statement_month?.slice(0,7)}`, metadata: { format: "csv", report_type: "Profit Statement" }, summary: `Profit Statement '${s.business_unit} ${s.statement_month?.slice(0,7)}' exported as CSV.` });
   };
 
   return (

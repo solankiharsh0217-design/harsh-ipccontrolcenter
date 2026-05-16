@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/auditLog";
+
+const MS = "master_settings";
+const MSL = "Master Settings";
 
 // ───────────────────────── Types ─────────────────────────
 type PPSetting = {
@@ -235,6 +239,7 @@ function BusinessProfileSection() {
       }
     }
     toast.success("Business profile saved");
+    logActivity({ module_key: MS, module_label: MSL, action_type: "business_profile_updated", entity_type: "business_profile", new_values: form, summary: "Business profile updated." });
   };
 
   if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
@@ -296,18 +301,28 @@ function ProductsSection() {
     const { data: { user } } = await supabase.auth.getUser();
     const payload: any = { ...editing };
     if (!editing.id) payload.created_by = user?.id ?? null;
+    const oldRow = editing.id ? rows.find(r => r.id === editing.id) : null;
     const op = editing.id
       ? supabase.from("program_products").update(payload).eq("id", editing.id)
       : supabase.from("program_products").insert(payload);
     const { error } = await op;
     if (error) { toast.error(error.message); return; }
     toast.success("Saved");
+    logActivity({
+      module_key: MS, module_label: MSL,
+      action_type: editing.id ? "product_updated" : "product_created",
+      entity_type: "program_product", entity_id: editing.id ?? null, entity_label: editing.product_name,
+      old_values: oldRow ?? null, new_values: payload,
+      summary: editing.id ? `Product '${editing.product_name}' updated.` : `Product '${editing.product_name}' created.`,
+    });
     setEditing(null); await load();
   };
 
   const deactivate = async (id: string) => {
+    const target = rows.find(r => r.id === id);
     const { error } = await supabase.from("program_products").update({ is_deleted: true, is_active: false }).eq("id", id);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: "product_deactivated", entity_type: "program_product", entity_id: id, entity_label: target?.product_name, summary: `Product '${target?.product_name ?? id}' deactivated.`, severity: "warning" });
     await load();
   };
 
@@ -405,25 +420,31 @@ function PPSettingsGroup({ title, subtitle, groups }:
       setting_type: tab, label: v, value: v, sort_order: filtered.length, created_by: user?.id ?? null,
     } as any);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: `${tab}_created`, entity_type: "paid_pipeline_setting", entity_label: v, new_values: { setting_type: tab, label: v }, summary: `${tab} option '${v}' created.` });
     setNewVal(""); await load();
   };
 
   const saveEdit = async () => {
     if (!editing) return;
+    const oldRow = rows.find(r => r.id === editing.id);
     const { error } = await supabase.from("paid_pipeline_settings").update({
       label: editing.label, value: editing.value, sort_order: editing.sort_order, is_active: editing.is_active,
     }).eq("id", editing.id);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: `${editing.setting_type}_updated`, entity_type: "paid_pipeline_setting", entity_id: editing.id, entity_label: editing.label, old_values: oldRow ? { label: oldRow.label, sort_order: oldRow.sort_order, is_active: oldRow.is_active } : null, new_values: { label: editing.label, sort_order: editing.sort_order, is_active: editing.is_active }, summary: `${editing.setting_type} option '${editing.label}' updated.` });
     setEditing(null); await load();
   };
 
   const del = async (id: string) => {
+    const target = rows.find(r => r.id === id);
     const { error } = await supabase.from("paid_pipeline_settings").update({ is_deleted: true, is_active: false }).eq("id", id);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: `${target?.setting_type ?? "setting"}_deactivated`, entity_type: "paid_pipeline_setting", entity_id: id, entity_label: target?.label, summary: `${target?.setting_type ?? "Setting"} '${target?.label ?? id}' deactivated.`, severity: "warning" });
     await load();
   };
   const toggleActive = async (r: PPSetting) => {
     await supabase.from("paid_pipeline_settings").update({ is_active: !r.is_active }).eq("id", r.id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: `${r.setting_type}_updated`, entity_type: "paid_pipeline_setting", entity_id: r.id, entity_label: r.label, old_values: { is_active: r.is_active }, new_values: { is_active: !r.is_active }, summary: `${r.setting_type} '${r.label}' ${!r.is_active ? "activated" : "deactivated"}.` });
     await load();
   };
 
@@ -510,11 +531,14 @@ function QSGroup({ title, subtitle, groups }:
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("quick_save_entries").insert({ field_key: tab, value: v, created_by: user?.id ?? null });
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: "dropdown_option_created", entity_type: "quick_save_entry", entity_label: v, new_values: { field_key: tab, value: v }, summary: `Dropdown option '${v}' added to ${tab}.` });
     setNewVal(""); await load();
   };
 
   const del = async (id: string) => {
+    const target = rows.find(r => r.id === id);
     await supabase.from("quick_save_entries").update({ is_active: false }).eq("id", id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "dropdown_option_deactivated", entity_type: "quick_save_entry", entity_id: id, entity_label: target?.value, summary: `Dropdown option '${target?.value ?? id}' deactivated from ${target?.field_key ?? "field"}.`, severity: "warning" });
     await load();
   };
 
@@ -573,15 +597,19 @@ function CrmPipelinesSection() {
 
   const addStage = async () => {
     if (!activePipeline || !newStage.trim()) return;
+    const name = newStage.trim();
     const { error } = await supabase.from("stages").insert({
-      pipeline_id: activePipeline, name: newStage.trim(), position: pStages.length,
+      pipeline_id: activePipeline, name, position: pStages.length,
     } as any);
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: "crm_stage_created", entity_type: "crm_stage", entity_label: name, new_values: { pipeline_id: activePipeline, name }, summary: `CRM stage '${name}' created.` });
     setNewStage(""); await load();
   };
 
   const delStage = async (id: string) => {
+    const target = stages.find(s => s.id === id);
     await supabase.from("stages").delete().eq("id", id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "crm_stage_deleted", entity_type: "crm_stage", entity_id: id, entity_label: target?.name, summary: `CRM stage '${target?.name ?? id}' deleted.`, severity: "warning" });
     await load();
   };
 
@@ -654,6 +682,7 @@ function RecoverySettingsSection() {
       else await supabase.from("app_settings" as any).insert({ setting_group: "payment_recovery", setting_key: k, setting_value: { v }, created_by: user?.id ?? null } as any);
     }
     toast.success("Recovery settings saved");
+    logActivity({ module_key: MS, module_label: MSL, action_type: "recovery_threshold_updated", entity_type: "payment_recovery_settings", new_values: s, summary: "Payment recovery thresholds updated." });
   };
 
   if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
@@ -735,6 +764,7 @@ function EligibilitySection() {
       .select("id").eq("setting_group", "eligibility_defaults").eq("setting_key", key).eq("is_deleted", false).maybeSingle();
     if (existing) await supabase.from("app_settings" as any).update({ setting_value: next }).eq("id", (existing as any).id);
     else await supabase.from("app_settings" as any).insert({ setting_group: "eligibility_defaults", setting_key: key, setting_value: next, created_by: user?.id ?? null } as any);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "eligibility_default_updated", entity_type: "eligibility_default", entity_label: role, old_values: { [flag]: cur[flag] ?? false }, new_values: { [flag]: val }, summary: `Eligibility default for ${role}: ${flag} ${val ? "enabled" : "disabled"}.` });
   };
 
   if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
@@ -801,6 +831,8 @@ function WhatsAppTemplatesSection() {
     if (existing) await supabase.from("app_settings" as any).update({ setting_value: { v } }).eq("id", (existing as any).id);
     else await supabase.from("app_settings" as any).insert({ setting_group: "whatsapp_template", setting_key: key, setting_value: { v }, created_by: user?.id ?? null } as any);
     toast.success("Template saved");
+    const label = WA_TEMPLATES.find(t => t.key === key)?.label ?? key;
+    logActivity({ module_key: MS, module_label: MSL, action_type: "whatsapp_template_updated", entity_type: "whatsapp_template", entity_label: label, new_values: { template: v }, summary: `WhatsApp template '${label}' updated.` });
   };
 
   if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
@@ -847,11 +879,18 @@ function GeneralDropdownsSection() {
   const add = async () => {
     if (!newField.trim() || !newVal.trim()) return;
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("quick_save_entries").insert({ field_key: newField.trim(), value: newVal.trim(), created_by: user?.id ?? null });
+    const fk = newField.trim(), v = newVal.trim();
+    const { error } = await supabase.from("quick_save_entries").insert({ field_key: fk, value: v, created_by: user?.id ?? null });
     if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: "dropdown_option_created", entity_type: "quick_save_entry", entity_label: v, new_values: { field_key: fk, value: v }, summary: `Dropdown option '${v}' added to ${fk}.` });
     setNewVal(""); await load();
   };
-  const del = async (id: string) => { await supabase.from("quick_save_entries").update({ is_active: false }).eq("id", id); await load(); };
+  const del = async (id: string) => {
+    const target = rows.find(r => r.id === id);
+    await supabase.from("quick_save_entries").update({ is_active: false }).eq("id", id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "dropdown_option_deactivated", entity_type: "quick_save_entry", entity_id: id, entity_label: target?.value, summary: `Dropdown option '${target?.value ?? id}' deactivated.`, severity: "warning" });
+    await load();
+  };
 
   return (
     <div className={cardCls + " p-6"}>
