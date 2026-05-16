@@ -26,6 +26,7 @@ import MasterSettings from "./pages/MasterSettings";
 import MasterData from "./pages/MasterData";
 import ProfitStatement from "./pages/ProfitStatement";
 import AuditLog from "./pages/AuditLog";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 import type { ModuleKey } from "@/lib/modules";
