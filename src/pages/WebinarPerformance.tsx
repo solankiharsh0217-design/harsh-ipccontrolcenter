@@ -58,8 +58,6 @@ export default function WebinarPerformance() {
   const nav = useNavigate();
   const [chip, setChip] = useState("this_month");
   const [range, setRange] = useState<Range>(presetRange("this_month"));
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
   const [search, setSearch] = useState("");
   const [fWebinar, setFWebinar] = useState("");
   const [fType, setFType] = useState("");
@@ -84,10 +82,10 @@ export default function WebinarPerformance() {
         .gte("webinar_date", range.start)
         .lte("webinar_date", range.end);
 
-      // 2) Daily lead reports (for ad spend / lead counts aggregated by webinar name if any)
-      const { data: dailyReports } = await supabase
+      // 2) Daily lead reports (reserved for future cross-link)
+      await supabase
         .from("daily_lead_reports")
-        .select("id, report_date, total_ad_spend, total_leads, is_deleted")
+        .select("id")
         .eq("is_deleted", false)
         .gte("report_date", range.start)
         .lte("report_date", range.end);
@@ -109,8 +107,7 @@ export default function WebinarPerformance() {
         mbRows = mb ?? [];
       }
 
-      const totalDailySpend = (dailyReports ?? []).reduce((a, b: any) => a + Number(b.total_ad_spend || 0), 0);
-      const totalDailyLeads = (dailyReports ?? []).reduce((a, b: any) => a + Number(b.total_leads || 0), 0);
+      // (reserved aggregates)
 
       // Build webinar rows from sessions
       const byKey = new Map<string, WebinarRow>();
