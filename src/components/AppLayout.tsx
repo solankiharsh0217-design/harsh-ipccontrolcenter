@@ -119,6 +119,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
             Follow-Up Command Center
           </NavItem>
+          <NavItem to="/payment-recovery" show={hasModule("payment_recovery")}>
+            <Icon><><path d="M2 5h12v6H2z"/><circle cx="8" cy="8" r="1.5"/></></Icon>
+            Payment Recovery
+          </NavItem>
           <NavItem to="/profit-statement" show={hasModule("profit-statement")}>
             <Icon d="M2 13l3-4 3 2 5-7" />
             Profit Statement
