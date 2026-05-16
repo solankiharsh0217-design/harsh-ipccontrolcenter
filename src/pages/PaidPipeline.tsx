@@ -13,6 +13,7 @@ import {
   inr, fmtDate, recomputePaidLead, downloadCsv,
   TEMPERATURES, TEMP_COLORS, FOLLOWUP_PRIORITIES,
 } from "@/lib/paidPipeline";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 type Lead = {
   id: string;
