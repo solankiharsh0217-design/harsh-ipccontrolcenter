@@ -221,8 +221,9 @@ export default function PaymentRecovery() {
       if (q && !((l.name||"").toLowerCase().includes(q) || (l.email||"").toLowerCase().includes(q) || (l.phone||"").toLowerCase().includes(q))) return false;
       if (fProduct && l.product_name_snapshot !== fProduct) return false;
       if (fPaidBatch && l.paid_batch_name !== fPaidBatch) return false;
-      if (fOwner && l.assigned_sales_executive !== fOwner) return false;
-      if (fOwner === "__unassigned__" && l.assigned_sales_executive) return false;
+      if (fOwner === "__unassigned__") {
+        if (l.assigned_sales_executive) return false;
+      } else if (fOwner && l.assigned_sales_executive !== fOwner) return false;
       if (fPriority && (l.lead_temperature || l.follow_up_priority) !== fPriority) return false;
       if (fStage && l.pipeline_stage !== fStage) return false;
       if (fBalCat && l.balance_category !== fBalCat) return false;
@@ -550,7 +551,7 @@ export default function PaymentRecovery() {
       <div className="flex flex-wrap items-center gap-2 mb-3 text-[12px]">
         <div className="text-muted-foreground">{selected.size > 0 ? `${selected.size} selected · ` : ""}{filteredRows.length} rows</div>
         <div className="flex-1" />
-        <button className="ipc-btn ipc-btn-ghost" onClick={() => setBulkFollowUp(true)}>Set Follow-Up</button>
+        <button className="ipc-btn ipc-btn-ghost" onClick={() => { if (selected.size === 0) { toast.error("Please select at least one lead."); return; } setBulkFollowUp(true); }}>Set Follow-Up</button>
         <button className="ipc-btn ipc-btn-ghost" onClick={bulkAssignOwner}>Assign Owner</button>
         <button className="ipc-btn ipc-btn-ghost" onClick={() => bulkUpdate("lead_temperature","Priority",["Urgent","Hot","Warm","Cold","Dropped Risk"])}>Update Priority</button>
         <button className="ipc-btn ipc-btn-ghost" onClick={() => bulkUpdate("balance_category","Balance Category",balCatOptions.length ? balCatOptions : ["Balance Payment Pending"])}>Update Balance Cat.</button>
