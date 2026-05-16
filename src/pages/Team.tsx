@@ -81,10 +81,21 @@ export default function Team() {
     await fetchMemberAccess(m);
   };
 
+  const hasModuleChecked = (k: ModuleKey) =>
+    moduleAliases(k as string).some((a) => editModules.has(a as ModuleKey));
+
   const toggleModule = (k: ModuleKey) => {
     setEditModules(prev => {
       const n = new Set(prev);
-      n.has(k) ? n.delete(k) : n.add(k);
+      const aliases = moduleAliases(k as string) as ModuleKey[];
+      const has = aliases.some((a) => n.has(a));
+      if (has) {
+        // remove all aliases
+        aliases.forEach((a) => n.delete(a));
+      } else {
+        // grant canonical key
+        n.add(k);
+      }
       return n;
     });
   };
