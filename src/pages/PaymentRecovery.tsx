@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { inr, fmtDate, downloadCsv, DEFAULT_FINANCE_PARTNERS } from "@/lib/paidPipeline";
+import { logActivity, logBulkPaidLeadDiff } from "@/lib/auditLog";
 import { getEligibleAssignees, type EligibleAssignee } from "@/lib/eligibleAssignees";
 import QuickFollowUpModal from "@/components/paid-pipeline/QuickFollowUpModal";
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
@@ -415,16 +416,28 @@ export default function PaymentRecovery() {
     if (!sel) return;
     const owner = assignees.find(a => a.full_name.toLowerCase() === sel.toLowerCase().trim());
     if (!owner) { toast.error("Owner not found in eligible list."); return; }
-    const { error } = await supabase.from("paid_pipeline_leads").update({ assigned_sales_executive: owner.id } as any).in("id", Array.from(selected));
-    if (error) toast.error(error.message); else { toast.success(`Assigned ${selected.size} leads to ${owner.full_name}`); setSelected(new Set()); load(); }
+    const ids = Array.from(selected);
+    const snaps = leads.filter((l: any) => selected.has(l.id));
+    const { error } = await supabase.from("paid_pipeline_leads").update({ assigned_sales_executive: owner.id } as any).in("id", ids);
+    if (error) toast.error(error.message); else {
+      toast.success(`Assigned ${selected.size} leads to ${owner.full_name}`);
+      logBulkPaidLeadDiff(snaps, { assigned_sales_executive: owner.id }, { ids, moduleKey: "payment_recovery", moduleLabel: "Payment Recovery" });
+      setSelected(new Set()); load();
+    }
   };
 
   const bulkUpdate = async (field: string, label: string, options: string[]) => {
     if (selected.size === 0) { toast.error("Please select at least one lead."); return; }
     const val = window.prompt(`${label} — options: ${options.join(", ")}`);
     if (!val) return;
-    const { error } = await supabase.from("paid_pipeline_leads").update({ [field]: val } as any).in("id", Array.from(selected));
-    if (error) toast.error(error.message); else { toast.success(`Updated ${selected.size} leads`); setSelected(new Set()); load(); }
+    const ids = Array.from(selected);
+    const snaps = leads.filter((l: any) => selected.has(l.id));
+    const { error } = await supabase.from("paid_pipeline_leads").update({ [field]: val } as any).in("id", ids);
+    if (error) toast.error(error.message); else {
+      toast.success(`Updated ${selected.size} leads`);
+      logBulkPaidLeadDiff(snaps, { [field]: val }, { ids, moduleKey: "payment_recovery", moduleLabel: "Payment Recovery" });
+      setSelected(new Set()); load();
+    }
   };
 
   const bulkCopyWA = () => {
@@ -886,6 +899,14 @@ function BulkFollowUpModal({ selectedIds, assignees, onClose, onSaved }: { selec
         ...(assignedOwner && assignees.find(a => a.full_name === assignedOwner) ? { assigned_sales_executive: assignees.find(a => a.full_name === assignedOwner)!.id } : {}),
       } as any).in("id", selectedIds);
       toast.success(`Created ${selectedIds.length} follow-ups`);
+      logActivity({
+        module_key: "payment_recovery", module_label: "Payment Recovery",
+        action_type: "recovery_follow_up_created", action_label: "Recovery follow-up created",
+        entity_type: "paid_pipeline_lead",
+        new_values: { date, time, reason, priority, assignee: assignedOwner, count: selectedIds.length },
+        metadata: { source_module: "payment_recovery", lead_ids: selectedIds },
+        summary: `Created ${selectedIds.length} recovery follow-up(s) on ${date} (${reason || "—"}).`,
+      });
       onSaved();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };

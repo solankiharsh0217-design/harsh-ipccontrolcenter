@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import type { SaleDetail, AttributionPayload } from "@/lib/roasExport";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
+import { logActivity } from "@/lib/auditLog";
 
 const inr = (n: number) => "₹" + (Math.round(n || 0)).toLocaleString("en-IN");
 
@@ -298,6 +299,19 @@ export default function SendToPaidPipelineDrawer({
           note: `Sent from attribution report: ${payload.webinarName}`,
           created_by: user?.id,
         } as any);
+
+        logActivity({
+          module_key: "paid_pipeline", module_label: "Paid Pipeline",
+          action_type: "paid_pipeline_lead_created", action_label: "Paid pipeline lead created",
+          entity_type: "paid_pipeline_lead", entity_id: leadRow!.id, entity_label: r.sale.name || r.sale.email || undefined,
+          new_values: {
+            name: r.sale.name, email: r.sale.email, phone: r.sale.phone,
+            product: productName, batch: batchId, source_webinar: payload.webinarName,
+            token: r.token, deal_value: r.deal_value || dealValue,
+          },
+          metadata: { source_module: "attribution", media_buyer: r.sale.attributedTo },
+          summary: `Lead ${r.sale.name || r.sale.email || "(unnamed)"} created from ${payload.webinarName}.`,
+        });
 
         created++;
       }
