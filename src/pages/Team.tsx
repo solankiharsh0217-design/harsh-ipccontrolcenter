@@ -66,10 +66,11 @@ export default function Team() {
     setAccessLoading(true);
     try {
       if (!m?.id) throw new Error("Missing team member id");
-      const [rolesRes, modsRes, payrollRes] = await Promise.all([
+      const [rolesRes, modsRes, payrollRes, eligRes] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", m.id),
         supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
         supabase.from("team_payroll_profiles").select("*").eq("team_member_id", m.id).maybeSingle(),
+        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, include_in_round_robin, active_for_assignment").eq("id", m.id).maybeSingle(),
       ]);
       if (rolesRes.error) throw rolesRes.error;
       if (modsRes.error) throw modsRes.error;
@@ -77,12 +78,21 @@ export default function Team() {
       setEditAdmin(!!rolesRes.data?.some((r: any) => r.role === "admin"));
       setEditModules(new Set((modsRes.data ?? []).map((x: any) => x.module_key as ModuleKey)));
       setEditPayroll(payrollRes.data ? dbToPayroll(payrollRes.data) : emptyPayroll());
+      setEditEligibility(eligRes.data ? {
+        can_receive_calling_crm_leads: !!(eligRes.data as any).can_receive_calling_crm_leads,
+        can_receive_paid_pipeline_leads: !!(eligRes.data as any).can_receive_paid_pipeline_leads,
+        can_receive_follow_up_tasks: !!(eligRes.data as any).can_receive_follow_up_tasks,
+        can_receive_payment_recovery_leads: !!(eligRes.data as any).can_receive_payment_recovery_leads,
+        include_in_round_robin: !!(eligRes.data as any).include_in_round_robin,
+        active_for_assignment: (eligRes.data as any).active_for_assignment !== false,
+      } : emptyEligibility());
     } catch (e: any) {
       console.error("access fetch failed", e);
       setAccessError("Could not load access settings. Please retry.");
       setEditAdmin(false);
       setEditModules(new Set());
       setEditPayroll(emptyPayroll());
+      setEditEligibility(emptyEligibility());
     } finally {
       setAccessLoading(false);
     }
@@ -96,8 +106,12 @@ export default function Team() {
     setEditPayroll(emptyPayroll());
     setEditAdmin(false);
     setEditModules(new Set());
+    setEditEligibility(emptyEligibility());
     await fetchMemberAccess(m);
   };
+
+  const toggleEligibility = (k: keyof EligibilityFlags) =>
+    setEditEligibility((p) => ({ ...p, [k]: !p[k] }));
 
   const hasModuleChecked = (k: ModuleKey) =>
     moduleAliases(k as string).some((a) => editModules.has(a as ModuleKey));
