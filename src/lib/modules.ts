@@ -42,6 +42,7 @@ export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "team", label: "Team Directory", group: "People" },
   { key: "admin", label: "Admin Panel", group: "People" },
   { key: "master-data", label: "Master Data", group: "People" },
+  { key: "master_settings", label: "Master Settings", group: "People" },
 ];
 
 
