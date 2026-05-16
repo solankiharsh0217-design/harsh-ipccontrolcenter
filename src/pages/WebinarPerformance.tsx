@@ -353,7 +353,13 @@ export default function WebinarPerformance() {
 
   return (
     <div className="max-w-[1380px]">
-      <PageHead title="Webinar Performance" sub="Compare webinar performance across registrations, attendance, offer show-up, ROAS, sales, payment recovery, and final revenue." />
+      <div className="flex items-start justify-between mb-6">
+        <PageHead title="Webinar Performance" sub="Analytics layer over existing ROAS, Attribution, Daily Lead, and Paid Pipeline reports. No new sheet import required." />
+        <div className="flex gap-2 shrink-0">
+          <button onClick={load} disabled={loading} className="ipc-btn ipc-btn-ghost text-[11px]">{loading ? "Refreshing…" : "Refresh Existing Data"}</button>
+          <button onClick={() => nav("/reports")} className="ipc-btn ipc-btn-ghost text-[11px]">View Source Reports</button>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="bg-off rounded-xl p-4 mb-5">
@@ -446,7 +452,17 @@ export default function WebinarPerformance() {
           </thead>
           <tbody>
             {loading && <tr><td colSpan={18} className="py-6 px-3 text-center text-muted-foreground">Loading…</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan={18} className="py-6 px-3 text-center text-muted-foreground">No webinar data in this range.</td></tr>}
+            {!loading && filtered.length === 0 && (
+              <tr><td colSpan={18} className="py-10 px-3 text-center">
+                <div className="font-serif text-[15px] text-black mb-1">No webinar reports found for this period.</div>
+                <div className="font-sans text-[12px] text-muted-foreground mb-3">This dashboard uses existing ROAS, Attribution, Daily Lead, and Paid Pipeline reports. Please create or sync those reports first.</div>
+                <div className="flex gap-2 justify-center">
+                  <button onClick={() => nav("/roas-calculator")} className="ipc-btn ipc-btn-ghost text-[11px]">Open ROAS Calculator</button>
+                  <button onClick={() => nav("/reports")} className="ipc-btn ipc-btn-ghost text-[11px]">Open Reports & History</button>
+                  <button onClick={() => nav("/daily-lead-reporting")} className="ipc-btn ipc-btn-ghost text-[11px]">Open Daily Lead Reporting</button>
+                </div>
+              </td></tr>
+            )}
             {filtered.map((r) => {
               const cpl = div(r.ad_spend, r.registrations);
               const roas = div(r.revenue_realized, r.ad_spend);
