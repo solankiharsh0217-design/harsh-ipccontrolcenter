@@ -144,6 +144,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><rect x="2" y="2" width="3" height="3" rx="0.5"/><rect x="6.5" y="2" width="3" height="3" rx="0.5"/><rect x="11" y="2" width="3" height="3" rx="0.5"/><rect x="2" y="6.5" width="3" height="3" rx="0.5"/><rect x="6.5" y="6.5" width="3" height="3" rx="0.5"/><rect x="11" y="6.5" width="3" height="3" rx="0.5"/><rect x="2" y="11" width="3" height="3" rx="0.5"/><rect x="6.5" y="11" width="3" height="3" rx="0.5"/><rect x="11" y="11" width="3" height="3" rx="0.5"/></></Icon>
             Master Data
           </NavItem>
+          <NavItem to="/master-settings" show={isAdmin || hasModule("master_settings")}>
+            <Icon><><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M3 13l1.5-1.5M11.5 4.5L13 3"/></></Icon>
+            Master Settings
+          </NavItem>
         </div>
 
         <div className="px-3 py-[14px] border-t border-line">
