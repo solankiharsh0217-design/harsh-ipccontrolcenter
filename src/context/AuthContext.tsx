@@ -74,7 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => { if (user) await loadProfile(user.id); };
 
-  const hasModule = (key: ModuleKey) => isAdmin || modules.has(key);
+  const hasModule = (key: ModuleKey) => {
+    if (isAdmin) return true;
+    const aliases = moduleAliases(key as string);
+    return aliases.some((a) => modules.has(a as ModuleKey));
+  };
 
   return (
     <Ctx.Provider value={{ user, session, profile, isAdmin, modules, hasModule, loginTime, loading, signOut, refreshProfile, setLoginTime }}>
