@@ -221,8 +221,9 @@ export default function PaymentRecovery() {
       if (q && !((l.name||"").toLowerCase().includes(q) || (l.email||"").toLowerCase().includes(q) || (l.phone||"").toLowerCase().includes(q))) return false;
       if (fProduct && l.product_name_snapshot !== fProduct) return false;
       if (fPaidBatch && l.paid_batch_name !== fPaidBatch) return false;
-      if (fOwner && l.assigned_sales_executive !== fOwner) return false;
-      if (fOwner === "__unassigned__" && l.assigned_sales_executive) return false;
+      if (fOwner === "__unassigned__") {
+        if (l.assigned_sales_executive) return false;
+      } else if (fOwner && l.assigned_sales_executive !== fOwner) return false;
       if (fPriority && (l.lead_temperature || l.follow_up_priority) !== fPriority) return false;
       if (fStage && l.pipeline_stage !== fStage) return false;
       if (fBalCat && l.balance_category !== fBalCat) return false;
