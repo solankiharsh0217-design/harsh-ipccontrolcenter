@@ -239,6 +239,7 @@ function BusinessProfileSection() {
       }
     }
     toast.success("Business profile saved");
+    logActivity({ module_key: MS, module_label: MSL, action_type: "business_profile_updated", entity_type: "business_profile", new_values: form, summary: "Business profile updated." });
   };
 
   if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
