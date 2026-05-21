@@ -140,10 +140,14 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   }, [showDeleted]);
 
   const allBuyers = useMemo(() => {
-    const s = new Set<string>();
-    rows.forEach((r) => (r._media_buyers || []).forEach((m) => s.add(m.name)));
-    return Array.from(s).sort();
+    const s = new Map<string, string>();
+    rows.forEach((r) => (r._media_buyers || []).forEach((m) => {
+      const canonical = normalizeMediaBuyerNameSync(m.name) || m.name;
+      s.set(canonical.toLowerCase(), canonical);
+    }));
+    return Array.from(s.values()).sort();
   }, [rows]);
+
 
   const allAccounts = useMemo(() => {
     const s = new Set<string>();
