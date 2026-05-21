@@ -185,6 +185,8 @@ export default function MasterSettings() {
           {activeSection === "eligibility" && <EligibilitySection />}
           {activeSection === "whatsapp" && <WhatsAppTemplatesSection />}
           {activeSection === "dropdowns" && <GeneralDropdownsSection />}
+          {activeSection === "media_buyer_cleanup" && <MediaBuyerAliasManager />}
+
         </div>
       </div>
     </div>
