@@ -186,31 +186,10 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filtered.length };
   }, [filtered]);
 
-  const applyFilters = () => {
-    let f = fromDraft, t = toDraft;
-    if (datePreset !== "custom" && datePreset !== "all") {
-      const p = computePreset(datePreset);
-      f = p.from; t = p.to;
-      setFromDraft(p.from); setToDraft(p.to);
-    } else if (datePreset === "all") {
-      f = ""; t = "";
-      setFromDraft(""); setToDraft("");
-    }
-    setSearch(searchDraft);
-    setFrom(f); setTo(t);
-    setBuyerFilter(buyerDraft);
-    setAccountFilter(accountDraft);
-    setTemplateFilter(templateDraft);
-    setAppliedPreset(datePreset);
-  };
-
   const reset = () => {
-    setSearchDraft(""); setFromDraft(""); setToDraft("");
-    setBuyerDraft(""); setAccountDraft(""); setTemplateDraft("");
-    setDatePreset("all");
     setSearch(""); setFrom(""); setTo("");
     setBuyerFilter(""); setAccountFilter(""); setTemplateFilter("");
-    setAppliedPreset("all");
+    setDatePreset("all");
   };
 
   const onRowExport = async (id: string, action: any) => {
