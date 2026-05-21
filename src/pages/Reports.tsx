@@ -260,6 +260,11 @@ export default function Reports() {
       reloadSeminar();
       reloadProfit();
     })();
+    // Auto-open comparison view via route
+    if (typeof window !== "undefined" && window.location.pathname.includes("media-buyer-comparison")) {
+      setSection("daily");
+      setCompareOpen(true);
+    }
   }, []);
 
   const visibleSessions = useMemo(() =>
