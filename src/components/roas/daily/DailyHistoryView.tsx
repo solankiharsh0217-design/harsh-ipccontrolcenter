@@ -8,6 +8,10 @@ import {
 import DailyReportDrawer from "./DailyReportDrawer";
 import { loadFullReport, runExportAction, softDeleteReport, restoreReport, permanentlyDeleteReport, daysRemaining } from "./sharedActions";
 import ExportMenu from "./ExportMenu";
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip as RTooltip, ResponsiveContainer,
+} from "recharts";
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
 
@@ -58,28 +62,21 @@ interface Props {
 export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics, onCompareMediaBuyers }: Props) {
   const [rows, setRows] = useState<RowExt[]>([]);
   const [loading, setLoading] = useState(true);
-  // Draft (UI) filter state
-  const [searchDraft, setSearchDraft] = useState("");
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
-  const [fromDraft, setFromDraft] = useState("");
-  const [toDraft, setToDraft] = useState("");
-  const [buyerDraft, setBuyerDraft] = useState("");
-  const [accountDraft, setAccountDraft] = useState("");
-  const [templateDraft, setTemplateDraft] = useState("");
-
-  // Applied filter state (what actually filters the table)
+  // Live filter state (changes apply immediately)
   const [search, setSearch] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [buyerFilter, setBuyerFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
   const [templateFilter, setTemplateFilter] = useState("");
-  const [appliedPreset, setAppliedPreset] = useState<DatePreset>("all");
+  const appliedPreset = datePreset;
 
   const [viewing, setViewing] = useState<DailyReport | null>(null);
   const [viewingStatus, setViewingStatus] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [showCharts, setShowCharts] = useState(true);
 
   const reload = async () => {
     setLoading(true);
@@ -189,31 +186,45 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filtered.length };
   }, [filtered]);
 
-  const applyFilters = () => {
-    let f = fromDraft, t = toDraft;
-    if (datePreset !== "custom" && datePreset !== "all") {
-      const p = computePreset(datePreset);
-      f = p.from; t = p.to;
-      setFromDraft(p.from); setToDraft(p.to);
-    } else if (datePreset === "all") {
-      f = ""; t = "";
-      setFromDraft(""); setToDraft("");
+  // Chart data — based on filtered rows
+  const trendData = useMemo(() => {
+    const map = new Map<string, { date: string; spend: number; leads: number }>();
+    for (const r of filtered) {
+      const date = r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "");
+      if (!date) continue;
+      let spend = Number(r.total_ad_spend) || 0;
+      let leads = Number(r.total_leads) || 0;
+      if (buyerFilter) {
+        const m = (r._media_buyers || []).find((x) => x.name.trim().toLowerCase() === buyerFilter.trim().toLowerCase());
+        spend = m ? m.spend : 0;
+        leads = m ? m.leads : 0;
+      }
+      const cur = map.get(date) || { date, spend: 0, leads: 0 };
+      cur.spend += spend; cur.leads += leads;
+      map.set(date, cur);
     }
-    setSearch(searchDraft);
-    setFrom(f); setTo(t);
-    setBuyerFilter(buyerDraft);
-    setAccountFilter(accountDraft);
-    setTemplateFilter(templateDraft);
-    setAppliedPreset(datePreset);
-  };
+    return Array.from(map.values())
+      .map((d) => ({ ...d, cpl: d.leads ? d.spend / d.leads : 0 }))
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+  }, [filtered, buyerFilter]);
+
+  const buyerComparison = useMemo(() => {
+    const acc: Record<string, { name: string; spend: number; leads: number }> = {};
+    for (const r of filtered) {
+      for (const m of r._media_buyers || []) {
+        if (buyerFilter && m.name.trim().toLowerCase() !== buyerFilter.trim().toLowerCase()) continue;
+        const cur = acc[m.name] || { name: m.name, spend: 0, leads: 0 };
+        cur.spend += m.spend; cur.leads += m.leads;
+        acc[m.name] = cur;
+      }
+    }
+    return Object.values(acc).map((x) => ({ ...x, cpl: x.leads ? x.spend / x.leads : 0 }));
+  }, [filtered, buyerFilter]);
 
   const reset = () => {
-    setSearchDraft(""); setFromDraft(""); setToDraft("");
-    setBuyerDraft(""); setAccountDraft(""); setTemplateDraft("");
-    setDatePreset("all");
     setSearch(""); setFrom(""); setTo("");
     setBuyerFilter(""); setAccountFilter(""); setTemplateFilter("");
-    setAppliedPreset("all");
+    setDatePreset("all");
   };
 
   const onRowExport = async (id: string, action: any) => {
@@ -295,7 +306,9 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             Show deleted (Trash)
           </label>
           <button className="btn btn-k btn-sm" onClick={onNew}>+ New Daily Report</button>
-          <button className="btn btn-g btn-sm" onClick={onShowAnalytics}>📊 Analytics</button>
+          <button className="btn btn-g btn-sm" onClick={() => setShowCharts((v) => !v)}>
+            {showCharts ? "Hide Charts" : "📊 Show Charts"}
+          </button>
           {onCompareMediaBuyers && (
             <button className="btn btn-g btn-sm" onClick={() => onCompareMediaBuyers({ from, to, preset: appliedPreset })}>⚖️ Compare Media Buyers</button>
           )}
@@ -322,10 +335,10 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
               onChange={(e) => {
                 const v = e.target.value as DatePreset;
                 setDatePreset(v);
-                if (v === "all") { setFromDraft(""); setToDraft(""); }
+                if (v === "all") { setFrom(""); setTo(""); }
                 else if (v !== "custom") {
                   const p = computePreset(v);
-                  setFromDraft(p.from); setToDraft(p.to);
+                  setFrom(p.from); setTo(p.to);
                 }
               }}
             >
@@ -343,8 +356,8 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <input
               type="date"
               className="fi-sm"
-              value={fromDraft}
-              onChange={(e) => { setFromDraft(e.target.value); setDatePreset("custom"); }}
+              value={from}
+              onChange={(e) => { setFrom(e.target.value); setDatePreset("custom"); }}
             />
           </div>
           <div>
@@ -352,27 +365,27 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <input
               type="date"
               className="fi-sm"
-              value={toDraft}
-              onChange={(e) => { setToDraft(e.target.value); setDatePreset("custom"); }}
+              value={to}
+              onChange={(e) => { setTo(e.target.value); setDatePreset("custom"); }}
             />
           </div>
           <div>
             <label className="fl-sm">Media Buyer</label>
-            <select className="fi-sm" value={buyerDraft} onChange={(e) => setBuyerDraft(e.target.value)}>
+            <select className="fi-sm" value={buyerFilter} onChange={(e) => setBuyerFilter(e.target.value)}>
               <option value="">All</option>
               {allBuyers.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="fl-sm">Ad Account</label>
-            <select className="fi-sm" value={accountDraft} onChange={(e) => setAccountDraft(e.target.value)}>
+            <select className="fi-sm" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
               <option value="">All</option>
               {allAccounts.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="fl-sm">Template</label>
-            <select className="fi-sm" value={templateDraft} onChange={(e) => setTemplateDraft(e.target.value)}>
+            <select className="fi-sm" value={templateFilter} onChange={(e) => setTemplateFilter(e.target.value)}>
               <option value="">All</option>
               {allTemplates.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
@@ -381,15 +394,13 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <label className="fl-sm">Search</label>
             <input
               className="fi-sm"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Report, buyer, account, template, notes…"
             />
           </div>
           <div style={{ display: "flex", alignItems: "end", gap: 6 }}>
-            <button className="btn btn-k btn-sm" onClick={applyFilters}>Apply Filters</button>
-            <button className="btn btn-g btn-sm" onClick={reset}>Reset</button>
+            <button className="btn btn-g btn-sm" onClick={reset}>Reset Filters</button>
           </div>
         </div>
 
@@ -482,6 +493,72 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
         </table>
       )}
 
+      {showCharts && filtered.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 500, marginBottom: 4 }}>Analytics</div>
+          <div style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
+            Charts reflect the {filtered.length} report(s) matching your current filters.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14 }}>
+            <ChartCard title="Daily Spend Trend">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Line type="monotone" dataKey="spend" stroke="#0a0a0a" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Daily Leads Trend">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Line type="monotone" dataKey="leads" stroke="#C8A84B" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Daily CPL Trend">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Line type="monotone" dataKey="cpl" stroke="#16A34A" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Media Buyer CPL">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={buyerComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Bar dataKey="cpl" fill="#C8A84B" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Media Buyer Spend">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={buyerComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Bar dataKey="spend" fill="#0a0a0a" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Media Buyer Leads">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={buyerComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Bar dataKey="leads" fill="#C8A84B" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+        </div>
+      )}
+
+
       {viewing && (
         <DailyReportDrawer
           report={viewing}
@@ -558,6 +635,17 @@ function RowActions({
           {item("🗑 Delete", onDelete, true)}
         </div>
       )}
+    </div>
+  );
+}
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E8E5DE", borderRadius: 12, padding: 14 }}>
+      <div style={{ fontFamily: "'Jost',sans-serif", fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: ".12em", color: "#888", marginBottom: 10 }}>
+        {title}
+      </div>
+      {children}
     </div>
   );
 }
