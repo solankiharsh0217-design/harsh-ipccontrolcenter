@@ -202,10 +202,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
       let spend = Number(r.total_ad_spend) || 0;
       let leads = Number(r.total_leads) || 0;
       if (buyerFilter) {
-        const m = (r._media_buyers || []).find((x) => x.name.trim().toLowerCase() === buyerFilter.trim().toLowerCase());
+        const m = (r._media_buyers || []).find((x) => (normalizeMediaBuyerNameSync(x.name) || x.name).toLowerCase() === buyerFilter.trim().toLowerCase());
         spend = m ? m.spend : 0;
         leads = m ? m.leads : 0;
       }
+
       const cur = map.get(date) || { date, spend: 0, leads: 0 };
       cur.spend += spend; cur.leads += leads;
       map.set(date, cur);
