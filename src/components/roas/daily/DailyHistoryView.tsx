@@ -220,14 +220,17 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     const acc: Record<string, { name: string; spend: number; leads: number }> = {};
     for (const r of filtered) {
       for (const m of r._media_buyers || []) {
-        if (buyerFilter && m.name.trim().toLowerCase() !== buyerFilter.trim().toLowerCase()) continue;
-        const cur = acc[m.name] || { name: m.name, spend: 0, leads: 0 };
+        const canonical = normalizeMediaBuyerNameSync(m.name) || m.name;
+        if (buyerFilter && canonical.toLowerCase() !== buyerFilter.trim().toLowerCase()) continue;
+        const key = canonical.toLowerCase();
+        const cur = acc[key] || { name: canonical, spend: 0, leads: 0 };
         cur.spend += m.spend; cur.leads += m.leads;
-        acc[m.name] = cur;
+        acc[key] = cur;
       }
     }
     return Object.values(acc).map((x) => ({ ...x, cpl: x.leads ? x.spend / x.leads : 0 }));
   }, [filtered, buyerFilter]);
+
 
   const reset = () => {
     setSearch(""); setFrom(""); setTo("");
