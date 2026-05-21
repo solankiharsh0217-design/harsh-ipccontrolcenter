@@ -1235,6 +1235,42 @@ export type Database = {
           },
         ]
       }
+      media_buyer_aliases: {
+        Row: {
+          alias_name: string
+          canonical_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          is_deleted: boolean
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          alias_name: string
+          canonical_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alias_name?: string
+          canonical_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       media_buyer_attribution: {
         Row: {
           ad_spend: number | null
