@@ -134,10 +134,16 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   useEffect(() => {
     (async () => {
       try { await (supabase as any).rpc("purge_old_deleted_reports"); } catch {}
+      await Promise.all([getCanonicalMediaBuyers(), getMediaBuyerAliasMap()]).catch(() => {});
       reload();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleted]);
+
+  // Re-render when alias cache updates
+  const [, setMbTick] = useState(0);
+  useEffect(() => subscribeMediaBuyers(() => setMbTick((t) => t + 1)), []);
+
 
   const allBuyers = useMemo(() => {
     const s = new Map<string, string>();
