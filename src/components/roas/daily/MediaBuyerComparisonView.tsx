@@ -69,10 +69,11 @@ function computePreset(p: DatePreset): { from: string; to: string } {
 }
 
 function splitBuyerName(raw: string): string[] {
-  if (!raw) return [];
-  return raw.split(/[,+\/&]| and /i).map((s) => s.trim()).filter(Boolean);
+  // Alias-aware split: returns canonical names, deduped.
+  return normalizeMediaBuyerListSync(raw);
 }
 function normKey(s: string) { return s.trim().toLowerCase(); }
+
 
 export default function MediaBuyerComparisonView({ onBack, initialFrom, initialTo, initialPreset, initialBuyers }: Props) {
   const [loading, setLoading] = useState(true);
