@@ -1071,11 +1071,17 @@ function Step2Connect(p: {
                     </div>
                     {role?.role === "media_buyer" && (
                       <div>
-                        <label className="fl">Media Buyer Name *</label>
-                        <input className="fi" value={mbName}
-                          onChange={(e) => p.setMBName(t.sheetId, e.target.value)} />
+                        <QuickSaveInput
+                          fieldKey="media_buyer_name"
+                          label="Media Buyer Name *"
+                          placeholder="Select or add media buyer"
+                          value={mbName}
+                          onChange={(v) => p.setMBName(t.sheetId, v)}
+                          height={38}
+                        />
                       </div>
                     )}
+
                   </div>
                   {t.detectedHeaders.length > 0 && (
                     <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>

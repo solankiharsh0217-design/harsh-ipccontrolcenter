@@ -7,6 +7,8 @@ import {
 } from "recharts";
 import { inr, fmtNum, downloadFile, copyToClipboard } from "@/lib/dailyReports/helpers";
 import { logActivity } from "@/lib/auditLog";
+import { normalizeMediaBuyerListSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap } from "@/lib/mediaBuyers";
+
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
 type ReportType = "daily" | "attribution" | "combined";
@@ -67,10 +69,11 @@ function computePreset(p: DatePreset): { from: string; to: string } {
 }
 
 function splitBuyerName(raw: string): string[] {
-  if (!raw) return [];
-  return raw.split(/[,+\/&]| and /i).map((s) => s.trim()).filter(Boolean);
+  // Alias-aware split: returns canonical names, deduped.
+  return normalizeMediaBuyerListSync(raw);
 }
 function normKey(s: string) { return s.trim().toLowerCase(); }
+
 
 export default function MediaBuyerComparisonView({ onBack, initialFrom, initialTo, initialPreset, initialBuyers }: Props) {
   const [loading, setLoading] = useState(true);
@@ -102,6 +105,9 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
     (async () => {
       setLoading(true);
       try {
+        // Warm canonical + alias cache so splitBuyerName normalizes correctly
+        await Promise.all([getCanonicalMediaBuyers(), getMediaBuyerAliasMap()]);
+
         // Daily
         const { data: reports } = await (supabase as any)
           .from("daily_lead_reports")

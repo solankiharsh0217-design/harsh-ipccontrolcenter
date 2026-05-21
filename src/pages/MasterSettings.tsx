@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/auditLog";
+import MediaBuyerAliasManager from "@/components/admin/MediaBuyerAliasManager";
+
 
 const MS = "master_settings";
 const MSL = "Master Settings";
@@ -50,7 +52,9 @@ const SECTIONS = [
   { key: "eligibility", label: "Assignment Eligibility" },
   { key: "whatsapp", label: "WhatsApp Templates" },
   { key: "dropdowns", label: "General Dropdowns" },
+  { key: "media_buyer_cleanup", label: "Media Buyer Name Cleanup" },
 ];
+
 
 // ───────────────────────── Helpers ─────────────────────────
 const cardCls = "border border-line rounded-lg bg-white";
@@ -183,6 +187,8 @@ export default function MasterSettings() {
           {activeSection === "eligibility" && <EligibilitySection />}
           {activeSection === "whatsapp" && <WhatsAppTemplatesSection />}
           {activeSection === "dropdowns" && <GeneralDropdownsSection />}
+          {activeSection === "media_buyer_cleanup" && <MediaBuyerAliasManager />}
+
         </div>
       </div>
     </div>

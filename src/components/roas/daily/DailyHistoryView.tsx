@@ -12,6 +12,8 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer,
 } from "recharts";
+import { normalizeMediaBuyerNameSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap, subscribeMediaBuyers } from "@/lib/mediaBuyers";
+
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
 
@@ -132,16 +134,30 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   useEffect(() => {
     (async () => {
       try { await (supabase as any).rpc("purge_old_deleted_reports"); } catch {}
+      await Promise.all([getCanonicalMediaBuyers(), getMediaBuyerAliasMap()]).catch(() => {});
       reload();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleted]);
 
+  // Re-render when alias cache updates
+  const [, setMbTick] = useState(0);
+  useEffect(() => {
+    const off = subscribeMediaBuyers(() => setMbTick((t) => t + 1));
+    return () => { off; };
+  }, []);
+
+
+
   const allBuyers = useMemo(() => {
-    const s = new Set<string>();
-    rows.forEach((r) => (r._media_buyers || []).forEach((m) => s.add(m.name)));
-    return Array.from(s).sort();
+    const s = new Map<string, string>();
+    rows.forEach((r) => (r._media_buyers || []).forEach((m) => {
+      const canonical = normalizeMediaBuyerNameSync(m.name) || m.name;
+      s.set(canonical.toLowerCase(), canonical);
+    }));
+    return Array.from(s.values()).sort();
   }, [rows]);
+
 
   const allAccounts = useMemo(() => {
     const s = new Set<string>();
@@ -160,10 +176,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     if (from && dateKey < from) return false;
     if (to && dateKey > to) return false;
     const buyerQ = buyerFilter.trim().toLowerCase();
-    if (buyerQ && !(r._media_buyers || []).some((m) => (m.name || "").trim().toLowerCase() === buyerQ)) return false;
+    if (buyerQ && !(r._media_buyers || []).some((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ)) return false;
     const accQ = accountFilter.trim().toLowerCase();
     if (accQ && !(r._ad_accounts || []).some((a) => (a || "").trim().toLowerCase() === accQ)) return false;
     if (templateFilter && r._template_name !== templateFilter) return false;
+
     if (search) {
       const q = search.toLowerCase();
       const inName = (r.report_name || "").toLowerCase().includes(q);
@@ -195,10 +212,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
       let spend = Number(r.total_ad_spend) || 0;
       let leads = Number(r.total_leads) || 0;
       if (buyerFilter) {
-        const m = (r._media_buyers || []).find((x) => x.name.trim().toLowerCase() === buyerFilter.trim().toLowerCase());
+        const m = (r._media_buyers || []).find((x) => (normalizeMediaBuyerNameSync(x.name) || x.name).toLowerCase() === buyerFilter.trim().toLowerCase());
         spend = m ? m.spend : 0;
         leads = m ? m.leads : 0;
       }
+
       const cur = map.get(date) || { date, spend: 0, leads: 0 };
       cur.spend += spend; cur.leads += leads;
       map.set(date, cur);
@@ -212,14 +230,17 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     const acc: Record<string, { name: string; spend: number; leads: number }> = {};
     for (const r of filtered) {
       for (const m of r._media_buyers || []) {
-        if (buyerFilter && m.name.trim().toLowerCase() !== buyerFilter.trim().toLowerCase()) continue;
-        const cur = acc[m.name] || { name: m.name, spend: 0, leads: 0 };
+        const canonical = normalizeMediaBuyerNameSync(m.name) || m.name;
+        if (buyerFilter && canonical.toLowerCase() !== buyerFilter.trim().toLowerCase()) continue;
+        const key = canonical.toLowerCase();
+        const cur = acc[key] || { name: canonical, spend: 0, leads: 0 };
         cur.spend += m.spend; cur.leads += m.leads;
-        acc[m.name] = cur;
+        acc[key] = cur;
       }
     }
     return Object.values(acc).map((x) => ({ ...x, cpl: x.leads ? x.spend / x.leads : 0 }));
   }, [filtered, buyerFilter]);
+
 
   const reset = () => {
     setSearch(""); setFrom(""); setTo("");

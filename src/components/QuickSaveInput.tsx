@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { findSimilarMediaBuyer, refreshMediaBuyerCache } from "@/lib/mediaBuyers";
+
 
 export interface QuickSaveEntry {
   id: string;
@@ -102,8 +104,19 @@ export default function QuickSaveInput({
     setOpenUp(window.innerHeight - r.bottom < 240 && r.top > 240);
   }, [open]);
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (opts?: { skipSimilarCheck?: boolean }) => {
     if (!trimmed || exists || !user) return;
+    // Similar-name protection for media buyer field
+    if (!opts?.skipSimilarCheck && fieldKey === "media_buyer_name") {
+      const similar = findSimilarMediaBuyer(trimmed);
+      if (similar) {
+        const useExisting = window.confirm(
+          `A similar media buyer already exists: "${similar}".\n\n` +
+          `Click OK to use "${similar}" instead, or Cancel to add "${trimmed}" as a new media buyer.`
+        );
+        if (useExisting) { onChange(similar); return; }
+      }
+    }
     setPulse(true);
     setTimeout(() => setPulse(false), 220);
     const { data, error } = await supabase
@@ -112,16 +125,17 @@ export default function QuickSaveInput({
       .select()
       .single();
     if (error) {
-      // likely a duplicate (case difference); reload
       await loadEntries(fieldKey);
       return;
     }
     const list = cache.get(fieldKey) || [];
     cache.set(fieldKey, [data as QuickSaveEntry, ...list]);
     notify(fieldKey);
+    if (fieldKey === "media_buyer_name") { refreshMediaBuyerCache().catch(() => {}); }
     setSavedMsg(label ? `✓ Saved to ${label} entries` : "✓ Saved");
     setTimeout(() => setSavedMsg(null), 1500);
-  }, [trimmed, exists, user, fieldKey, label]);
+  }, [trimmed, exists, user, fieldKey, label, onChange]);
+
 
   const remove = useCallback(async (id: string, val: string) => {
     // soft delete (own) or hard delete (admin) — try update first
@@ -192,7 +206,7 @@ export default function QuickSaveInput({
             className={"qsi-plus" + (pulse ? " qsi-pulse" : "")}
             title="Save this value to the list"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={save}
+            onClick={() => save()}
           >+</button>
         ) : (
           <button
