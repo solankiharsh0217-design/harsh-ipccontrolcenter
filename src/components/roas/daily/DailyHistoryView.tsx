@@ -57,12 +57,24 @@ interface Props {
 export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics }: Props) {
   const [rows, setRows] = useState<RowExt[]>([]);
   const [loading, setLoading] = useState(true);
+  // Draft (UI) filter state
+  const [searchDraft, setSearchDraft] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [fromDraft, setFromDraft] = useState("");
+  const [toDraft, setToDraft] = useState("");
+  const [buyerDraft, setBuyerDraft] = useState("");
+  const [accountDraft, setAccountDraft] = useState("");
+  const [templateDraft, setTemplateDraft] = useState("");
+
+  // Applied filter state (what actually filters the table)
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [buyerFilter, setBuyerFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
   const [templateFilter, setTemplateFilter] = useState("");
+  const [appliedPreset, setAppliedPreset] = useState<DatePreset>("all");
+
   const [viewing, setViewing] = useState<DailyReport | null>(null);
   const [viewingStatus, setViewingStatus] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
