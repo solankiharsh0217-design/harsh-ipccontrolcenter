@@ -254,20 +254,16 @@ export default function DailyLeadReportingModule({ onBack, initialEditReportId }
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button className={"btn btn-sm " + (view === "create" ? "btn-k" : "btn-g")} onClick={newReport}>+ New Daily Report</button>
-          <button className={"btn btn-sm " + (view === "history" ? "btn-k" : "btn-g")} onClick={() => setView("history")}>History</button>
-          <button className={"btn btn-sm " + (view === "analytics" ? "btn-k" : "btn-g")} onClick={() => setView("analytics")}>📊 Analytics</button>
+          <button className={"btn btn-sm " + (view === "history" ? "btn-k" : "btn-g")} onClick={() => setView("history")}>History & Analytics</button>
         </div>
       </div>
 
-      {view === "history" && (
+      {(view === "history" || view === "analytics") && (
         <DailyHistoryView
           onNew={newReport}
           onEditReport={editExisting}
-          onShowAnalytics={() => setView("analytics")}
+          onShowAnalytics={() => setView("history")}
         />
-      )}
-      {view === "analytics" && (
-        <DailyAnalyticsView onBack={() => setView("history")} />
       )}
       {view === "create" && (
         <>
