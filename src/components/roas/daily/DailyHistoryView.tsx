@@ -300,10 +300,10 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
               onChange={(e) => {
                 const v = e.target.value as DatePreset;
                 setDatePreset(v);
-                if (v === "all") { setFromDraft(""); setToDraft(""); }
+                if (v === "all") { setFrom(""); setTo(""); }
                 else if (v !== "custom") {
                   const p = computePreset(v);
-                  setFromDraft(p.from); setToDraft(p.to);
+                  setFrom(p.from); setTo(p.to);
                 }
               }}
             >
@@ -321,8 +321,8 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <input
               type="date"
               className="fi-sm"
-              value={fromDraft}
-              onChange={(e) => { setFromDraft(e.target.value); setDatePreset("custom"); }}
+              value={from}
+              onChange={(e) => { setFrom(e.target.value); setDatePreset("custom"); }}
             />
           </div>
           <div>
@@ -330,27 +330,27 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <input
               type="date"
               className="fi-sm"
-              value={toDraft}
-              onChange={(e) => { setToDraft(e.target.value); setDatePreset("custom"); }}
+              value={to}
+              onChange={(e) => { setTo(e.target.value); setDatePreset("custom"); }}
             />
           </div>
           <div>
             <label className="fl-sm">Media Buyer</label>
-            <select className="fi-sm" value={buyerDraft} onChange={(e) => setBuyerDraft(e.target.value)}>
+            <select className="fi-sm" value={buyerFilter} onChange={(e) => setBuyerFilter(e.target.value)}>
               <option value="">All</option>
               {allBuyers.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="fl-sm">Ad Account</label>
-            <select className="fi-sm" value={accountDraft} onChange={(e) => setAccountDraft(e.target.value)}>
+            <select className="fi-sm" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
               <option value="">All</option>
               {allAccounts.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="fl-sm">Template</label>
-            <select className="fi-sm" value={templateDraft} onChange={(e) => setTemplateDraft(e.target.value)}>
+            <select className="fi-sm" value={templateFilter} onChange={(e) => setTemplateFilter(e.target.value)}>
               <option value="">All</option>
               {allTemplates.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
@@ -359,15 +359,13 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <label className="fl-sm">Search</label>
             <input
               className="fi-sm"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Report, buyer, account, template, notes…"
             />
           </div>
           <div style={{ display: "flex", alignItems: "end", gap: 6 }}>
-            <button className="btn btn-k btn-sm" onClick={applyFilters}>Apply Filters</button>
-            <button className="btn btn-g btn-sm" onClick={reset}>Reset</button>
+            <button className="btn btn-g btn-sm" onClick={reset}>Reset Filters</button>
           </div>
         </div>
 
