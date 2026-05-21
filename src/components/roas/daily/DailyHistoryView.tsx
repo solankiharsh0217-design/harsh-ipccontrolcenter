@@ -52,6 +52,7 @@ interface Props {
   onNew: () => void;
   onEditReport: (report: DailyReport) => void;
   onShowAnalytics: () => void;
+  onCompareMediaBuyers?: (ctx: { from: string; to: string; preset: DatePreset }) => void;
 }
 
 export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics }: Props) {
