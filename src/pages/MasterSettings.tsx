@@ -50,7 +50,9 @@ const SECTIONS = [
   { key: "eligibility", label: "Assignment Eligibility" },
   { key: "whatsapp", label: "WhatsApp Templates" },
   { key: "dropdowns", label: "General Dropdowns" },
+  { key: "media_buyer_cleanup", label: "Media Buyer Name Cleanup" },
 ];
+
 
 // ───────────────────────── Helpers ─────────────────────────
 const cardCls = "border border-line rounded-lg bg-white";
