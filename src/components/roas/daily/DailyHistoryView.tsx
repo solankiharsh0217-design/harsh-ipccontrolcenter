@@ -296,6 +296,9 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
           </label>
           <button className="btn btn-k btn-sm" onClick={onNew}>+ New Daily Report</button>
           <button className="btn btn-g btn-sm" onClick={onShowAnalytics}>📊 Analytics</button>
+          {onCompareMediaBuyers && (
+            <button className="btn btn-g btn-sm" onClick={() => onCompareMediaBuyers({ from, to, preset: appliedPreset })}>⚖️ Compare Media Buyers</button>
+          )}
           <ExportMenu label="Export History" onSelect={(a) => exportHistory(a)} includeWhatsapp={false} />
         </div>
       </div>
