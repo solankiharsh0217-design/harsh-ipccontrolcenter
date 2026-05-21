@@ -166,10 +166,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     if (from && dateKey < from) return false;
     if (to && dateKey > to) return false;
     const buyerQ = buyerFilter.trim().toLowerCase();
-    if (buyerQ && !(r._media_buyers || []).some((m) => (m.name || "").trim().toLowerCase() === buyerQ)) return false;
+    if (buyerQ && !(r._media_buyers || []).some((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ)) return false;
     const accQ = accountFilter.trim().toLowerCase();
     if (accQ && !(r._ad_accounts || []).some((a) => (a || "").trim().toLowerCase() === accQ)) return false;
     if (templateFilter && r._template_name !== templateFilter) return false;
+
     if (search) {
       const q = search.toLowerCase();
       const inName = (r.report_name || "").toLowerCase().includes(q);
