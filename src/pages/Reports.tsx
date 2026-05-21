@@ -195,6 +195,8 @@ type SeminarRow = {
 export default function Reports() {
   const navigate = useNavigate();
   const [section, setSection] = useState<SectionKey>("attribution");
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareCtx, setCompareCtx] = useState<{ from: string; to: string; preset: any } | null>(null);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [showDeleted, setShowDeleted] = useState(false);
   const [loading, setLoading] = useState(true);
