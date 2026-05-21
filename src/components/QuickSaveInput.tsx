@@ -206,7 +206,7 @@ export default function QuickSaveInput({
             className={"qsi-plus" + (pulse ? " qsi-pulse" : "")}
             title="Save this value to the list"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={save}
+            onClick={() => save()}
           >+</button>
         ) : (
           <button
