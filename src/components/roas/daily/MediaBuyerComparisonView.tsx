@@ -136,7 +136,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         const reportById = new Map((reports || []).map((r: any) => [r.id, r]));
 
         const dRows: DailyMbRow[] = mbs.map((m) => {
-          const r = reportById.get(m.report_id);
+          const r = reportById.get(m.report_id) as any;
           const names = splitBuyerName(m.media_buyer_name || "");
           return {
             reportId: m.report_id,
