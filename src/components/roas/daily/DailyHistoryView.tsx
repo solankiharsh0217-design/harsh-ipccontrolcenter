@@ -186,6 +186,41 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filtered.length };
   }, [filtered]);
 
+  // Chart data — based on filtered rows
+  const trendData = useMemo(() => {
+    const map = new Map<string, { date: string; spend: number; leads: number }>();
+    for (const r of filtered) {
+      const date = r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "");
+      if (!date) continue;
+      let spend = Number(r.total_ad_spend) || 0;
+      let leads = Number(r.total_leads) || 0;
+      if (buyerFilter) {
+        const m = (r._media_buyers || []).find((x) => x.name.trim().toLowerCase() === buyerFilter.trim().toLowerCase());
+        spend = m ? m.spend : 0;
+        leads = m ? m.leads : 0;
+      }
+      const cur = map.get(date) || { date, spend: 0, leads: 0 };
+      cur.spend += spend; cur.leads += leads;
+      map.set(date, cur);
+    }
+    return Array.from(map.values())
+      .map((d) => ({ ...d, cpl: d.leads ? d.spend / d.leads : 0 }))
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+  }, [filtered, buyerFilter]);
+
+  const buyerComparison = useMemo(() => {
+    const acc: Record<string, { name: string; spend: number; leads: number }> = {};
+    for (const r of filtered) {
+      for (const m of r._media_buyers || []) {
+        if (buyerFilter && m.name.trim().toLowerCase() !== buyerFilter.trim().toLowerCase()) continue;
+        const cur = acc[m.name] || { name: m.name, spend: 0, leads: 0 };
+        cur.spend += m.spend; cur.leads += m.leads;
+        acc[m.name] = cur;
+      }
+    }
+    return Object.values(acc).map((x) => ({ ...x, cpl: x.leads ? x.spend / x.leads : 0 }));
+  }, [filtered, buyerFilter]);
+
   const reset = () => {
     setSearch(""); setFrom(""); setTo("");
     setBuyerFilter(""); setAccountFilter(""); setTemplateFilter("");
