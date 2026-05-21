@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/auditLog";
+import MediaBuyerAliasManager from "@/components/admin/MediaBuyerAliasManager";
+
 
 const MS = "master_settings";
 const MSL = "Master Settings";
