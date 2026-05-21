@@ -55,7 +55,7 @@ interface Props {
   onCompareMediaBuyers?: (ctx: { from: string; to: string; preset: DatePreset }) => void;
 }
 
-export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics }: Props) {
+export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics, onCompareMediaBuyers }: Props) {
   const [rows, setRows] = useState<RowExt[]>([]);
   const [loading, setLoading] = useState(true);
   // Draft (UI) filter state
