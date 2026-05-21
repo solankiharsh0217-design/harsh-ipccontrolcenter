@@ -493,6 +493,72 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
         </table>
       )}
 
+      {showCharts && filtered.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 500, marginBottom: 4 }}>Analytics</div>
+          <div style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
+            Charts reflect the {filtered.length} report(s) matching your current filters.
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 14 }}>
+            <ChartCard title="Daily Spend Trend">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Line type="monotone" dataKey="spend" stroke="#0a0a0a" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Daily Leads Trend">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Line type="monotone" dataKey="leads" stroke="#C8A84B" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Daily CPL Trend">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Line type="monotone" dataKey="cpl" stroke="#16A34A" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Media Buyer CPL">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={buyerComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Bar dataKey="cpl" fill="#C8A84B" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Media Buyer Spend">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={buyerComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Bar dataKey="spend" fill="#0a0a0a" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <ChartCard title="Media Buyer Leads">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={buyerComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E8E5DE" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} />
+                  <RTooltip /><Bar dataKey="leads" fill="#C8A84B" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          </div>
+        </div>
+      )}
+
+
       {viewing && (
         <DailyReportDrawer
           report={viewing}
