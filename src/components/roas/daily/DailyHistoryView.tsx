@@ -142,7 +142,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
 
   // Re-render when alias cache updates
   const [, setMbTick] = useState(0);
-  useEffect(() => subscribeMediaBuyers(() => setMbTick((t) => t + 1)), []);
+  useEffect(() => {
+    const off = subscribeMediaBuyers(() => setMbTick((t) => t + 1));
+    return () => { off; };
+  }, []);
+
 
 
   const allBuyers = useMemo(() => {
