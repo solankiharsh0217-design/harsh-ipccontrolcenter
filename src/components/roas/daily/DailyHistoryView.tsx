@@ -158,10 +158,13 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
   }, [rows]);
 
   const filtered = useMemo(() => rows.filter((r) => {
-    if (from && r.report_date < from) return false;
-    if (to && r.report_date > to) return false;
-    if (buyerFilter && !(r._media_buyers || []).some((m) => m.name === buyerFilter)) return false;
-    if (accountFilter && !(r._ad_accounts || []).some((a) => a === accountFilter)) return false;
+    const dateKey = (r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "")) as string;
+    if (from && dateKey < from) return false;
+    if (to && dateKey > to) return false;
+    const buyerQ = buyerFilter.trim().toLowerCase();
+    if (buyerQ && !(r._media_buyers || []).some((m) => (m.name || "").trim().toLowerCase() === buyerQ)) return false;
+    const accQ = accountFilter.trim().toLowerCase();
+    if (accQ && !(r._ad_accounts || []).some((a) => (a || "").trim().toLowerCase() === accQ)) return false;
     if (templateFilter && r._template_name !== templateFilter) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -169,7 +172,9 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
       const inNotes = (r.notes || "").toLowerCase().includes(q);
       const inBuyer = (r._media_buyers || []).some((m) => m.name.toLowerCase().includes(q));
       const inAcc = (r._ad_accounts || []).some((a) => (a || "").toLowerCase().includes(q));
-      if (!inName && !inNotes && !inBuyer && !inAcc) return false;
+      const inTpl = (r._template_name || "").toLowerCase().includes(q);
+      const inDate = (r.report_date || "").toLowerCase().includes(q);
+      if (!inName && !inNotes && !inBuyer && !inAcc && !inTpl && !inDate) return false;
     }
     return true;
   }), [rows, from, to, buyerFilter, accountFilter, templateFilter, search]);
