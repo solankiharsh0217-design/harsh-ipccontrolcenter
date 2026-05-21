@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine,
 } from "recharts";
 import { downloadCSV, downloadPDF, type AttributionPayload, type SaleDetail } from "@/lib/roasExport";
 import SendToPaidPipelineDrawer from "@/components/paid-pipeline/SendToPaidPipelineDrawer";
+import { normalizeMediaBuyerNameSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap } from "@/lib/mediaBuyers";
+
 
 const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
 const fmtDate = (d: string | Date) =>
