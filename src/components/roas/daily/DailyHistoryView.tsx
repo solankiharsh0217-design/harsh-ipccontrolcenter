@@ -52,9 +52,10 @@ interface Props {
   onNew: () => void;
   onEditReport: (report: DailyReport) => void;
   onShowAnalytics: () => void;
+  onCompareMediaBuyers?: (ctx: { from: string; to: string; preset: DatePreset }) => void;
 }
 
-export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics }: Props) {
+export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics, onCompareMediaBuyers }: Props) {
   const [rows, setRows] = useState<RowExt[]>([]);
   const [loading, setLoading] = useState(true);
   // Draft (UI) filter state
@@ -295,6 +296,9 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
           </label>
           <button className="btn btn-k btn-sm" onClick={onNew}>+ New Daily Report</button>
           <button className="btn btn-g btn-sm" onClick={onShowAnalytics}>📊 Analytics</button>
+          {onCompareMediaBuyers && (
+            <button className="btn btn-g btn-sm" onClick={() => onCompareMediaBuyers({ from, to, preset: appliedPreset })}>⚖️ Compare Media Buyers</button>
+          )}
           <ExportMenu label="Export History" onSelect={(a) => exportHistory(a)} includeWhatsapp={false} />
         </div>
       </div>

@@ -13,6 +13,7 @@ import {
   Tooltip as RTooltip, Legend,
 } from "recharts";
 import DailyHistoryView from "@/components/roas/daily/DailyHistoryView";
+import MediaBuyerComparisonView from "@/components/roas/daily/MediaBuyerComparisonView";
 import type { DailyReport } from "@/lib/dailyReports/helpers";
 import { logActivity } from "@/lib/auditLog";
 
@@ -194,6 +195,8 @@ type SeminarRow = {
 export default function Reports() {
   const navigate = useNavigate();
   const [section, setSection] = useState<SectionKey>("attribution");
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareCtx, setCompareCtx] = useState<{ from: string; to: string; preset: any } | null>(null);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [showDeleted, setShowDeleted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -257,6 +260,11 @@ export default function Reports() {
       reloadSeminar();
       reloadProfit();
     })();
+    // Auto-open comparison view via route
+    if (typeof window !== "undefined" && window.location.pathname.includes("media-buyer-comparison")) {
+      setSection("daily");
+      setCompareOpen(true);
+    }
   }, []);
 
   const visibleSessions = useMemo(() =>
@@ -380,13 +388,23 @@ export default function Reports() {
         />
       )}
 
-      {section === "daily" && (
+      {section === "daily" && !compareOpen && (
         <DailyHistoryView
           onNew={() => navigate("/daily-lead-reporting")}
           onEditReport={(report: DailyReport) => {
             if (report?.id) navigate(`/daily-lead-reporting?editReportId=${report.id}`);
           }}
           onShowAnalytics={() => setSection("overview")}
+          onCompareMediaBuyers={(ctx) => { setCompareCtx(ctx); setCompareOpen(true); }}
+        />
+      )}
+
+      {section === "daily" && compareOpen && (
+        <MediaBuyerComparisonView
+          onBack={() => setCompareOpen(false)}
+          initialFrom={compareCtx?.from}
+          initialTo={compareCtx?.to}
+          initialPreset={compareCtx?.preset}
         />
       )}
 

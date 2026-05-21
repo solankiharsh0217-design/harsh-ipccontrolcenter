@@ -60,6 +60,7 @@ const App = () => (
             <Route path="/daily-lead-flow" element={<Navigate to="/daily-lead-reporting" replace />} />
             <Route path="/daily-lead-reporting" element={<Shell moduleKey="daily-reporting"><DailyLeadReporting /></Shell>} />
             <Route path="/reports" element={<Shell moduleKey="reports"><Reports /></Shell>} />
+            <Route path="/report-history/media-buyer-comparison" element={<Shell moduleKey="reports"><Reports /></Shell>} />
             <Route path="/lead-qualifier" element={<Shell moduleKey="lead-qualifier"><LeadQualifier /></Shell>} />
             <Route path="/crm" element={<Shell moduleKey="crm"><Crm /></Shell>} />
             <Route path="/crm/overview" element={<Shell moduleKey="crm"><CrmOverview /></Shell>} />
