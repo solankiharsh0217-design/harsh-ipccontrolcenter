@@ -172,7 +172,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         }
         const sessById = new Map((sessions || []).map((s: any) => [s.id, s]));
         const aRows: AttrMbRow[] = attrMbs.map((m) => {
-          const s = sessById.get(m.session_id);
+          const s = sessById.get(m.session_id) as any;
           const names = splitBuyerName(m.media_buyer_name || "");
           return {
             sessionId: m.session_id,
