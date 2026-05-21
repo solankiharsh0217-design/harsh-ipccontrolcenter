@@ -32,7 +32,52 @@ export default function AttributionResultsView({
   sessionId?: string;
   sessionMeta?: { webinar_name?: string | null; webinar_date?: string | null; webinar_type?: string | null; webinar_operator?: string | null };
 }) {
-  const { rows, salesDetail, totals, webinarName, webinarDate, webinarType } = payload;
+  // Trigger cache warm (re-render once loaded) so normalization sees aliases.
+  const [, setCacheTick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    Promise.all([getCanonicalMediaBuyers(), getMediaBuyerAliasMap()])
+      .then(() => { if (alive) setCacheTick((t) => t + 1); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  // Normalize buyer identity into canonical names (merges Hemant → Hemanth, etc.)
+  const { rows, salesDetail, totals, webinarName, webinarDate, webinarType } = useMemo(() => {
+    const rawRows = payload.rows || [];
+    const merged = new Map<string, typeof rawRows[number]>();
+    for (const r of rawRows) {
+      const canonical = normalizeMediaBuyerNameSync(r.name) || r.name;
+      const key = canonical.toLowerCase();
+      const existing = merged.get(key);
+      if (!existing) {
+        merged.set(key, { ...r, name: canonical });
+      } else {
+        merged.set(key, {
+          ...existing,
+          leads: (existing.leads || 0) + (r.leads || 0),
+          matched: (existing.matched || 0) + (r.matched || 0),
+          spend: (existing.spend || 0) + (r.spend || 0),
+          revenue: (existing.revenue || 0) + (r.revenue || 0),
+        });
+      }
+    }
+    const mergedRows = Array.from(merged.values());
+    const mergedSales = (payload.salesDetail || []).map((s) => {
+      if (!s.attributedTo) return s;
+      const canonical = normalizeMediaBuyerNameSync(s.attributedTo) || s.attributedTo;
+      return canonical === s.attributedTo ? s : { ...s, attributedTo: canonical };
+    });
+    return {
+      rows: mergedRows,
+      salesDetail: mergedSales,
+      totals: payload.totals,
+      webinarName: payload.webinarName,
+      webinarDate: payload.webinarDate,
+      webinarType: payload.webinarType,
+    };
+  }, [payload]);
+
   const unmatched = salesDetail.filter((s) => s.matchMethod === "unmatched");
   const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
 
@@ -43,6 +88,7 @@ export default function AttributionResultsView({
   const saleKey = (s: SaleDetail, i: number) => `${i}_${s.email || s.phone || s.name || i}`;
   const sendableSales = salesDetail; // include unmatched too — user decides
   const hasAnySales = sendableSales.length > 0;
+
 
   const openSend = (which: "all" | "selected") => {
     if (which === "all") {
