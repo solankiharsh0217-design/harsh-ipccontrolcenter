@@ -62,28 +62,21 @@ interface Props {
 export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics, onCompareMediaBuyers }: Props) {
   const [rows, setRows] = useState<RowExt[]>([]);
   const [loading, setLoading] = useState(true);
-  // Draft (UI) filter state
-  const [searchDraft, setSearchDraft] = useState("");
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
-  const [fromDraft, setFromDraft] = useState("");
-  const [toDraft, setToDraft] = useState("");
-  const [buyerDraft, setBuyerDraft] = useState("");
-  const [accountDraft, setAccountDraft] = useState("");
-  const [templateDraft, setTemplateDraft] = useState("");
-
-  // Applied filter state (what actually filters the table)
+  // Live filter state (changes apply immediately)
   const [search, setSearch] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [buyerFilter, setBuyerFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
   const [templateFilter, setTemplateFilter] = useState("");
-  const [appliedPreset, setAppliedPreset] = useState<DatePreset>("all");
+  const appliedPreset = datePreset;
 
   const [viewing, setViewing] = useState<DailyReport | null>(null);
   const [viewingStatus, setViewingStatus] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [showCharts, setShowCharts] = useState(true);
 
   const reload = async () => {
     setLoading(true);
