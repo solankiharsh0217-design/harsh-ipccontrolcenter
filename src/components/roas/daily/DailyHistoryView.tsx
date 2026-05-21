@@ -8,7 +8,33 @@ import {
 import DailyReportDrawer from "./DailyReportDrawer";
 import { loadFullReport, runExportAction, softDeleteReport, restoreReport, permanentlyDeleteReport, daysRemaining } from "./sharedActions";
 import ExportMenu from "./ExportMenu";
-import DateRangePopover from "./DateRangePopover";
+
+type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
+
+function computePreset(preset: DatePreset): { from: string; to: string } {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = new Date();
+  if (preset === "today") { const s = iso(today); return { from: s, to: s }; }
+  if (preset === "yesterday") {
+    const y = new Date(today); y.setDate(today.getDate() - 1);
+    const s = iso(y); return { from: s, to: s };
+  }
+  if (preset === "last7") {
+    const f = new Date(today); f.setDate(today.getDate() - 6);
+    return { from: iso(f), to: iso(today) };
+  }
+  if (preset === "thisMonth") {
+    const f = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { from: iso(f), to: iso(today) };
+  }
+  if (preset === "lastMonth") {
+    const f = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const t = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { from: iso(f), to: iso(t) };
+  }
+  return { from: "", to: "" };
+}
 
 type RowExt = {
   id: string; created_at: string; report_date: string; report_name: string;
@@ -31,12 +57,24 @@ interface Props {
 export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics }: Props) {
   const [rows, setRows] = useState<RowExt[]>([]);
   const [loading, setLoading] = useState(true);
+  // Draft (UI) filter state
+  const [searchDraft, setSearchDraft] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("all");
+  const [fromDraft, setFromDraft] = useState("");
+  const [toDraft, setToDraft] = useState("");
+  const [buyerDraft, setBuyerDraft] = useState("");
+  const [accountDraft, setAccountDraft] = useState("");
+  const [templateDraft, setTemplateDraft] = useState("");
+
+  // Applied filter state (what actually filters the table)
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [buyerFilter, setBuyerFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
   const [templateFilter, setTemplateFilter] = useState("");
+  const [appliedPreset, setAppliedPreset] = useState<DatePreset>("all");
+
   const [viewing, setViewing] = useState<DailyReport | null>(null);
   const [viewingStatus, setViewingStatus] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -120,10 +158,13 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
   }, [rows]);
 
   const filtered = useMemo(() => rows.filter((r) => {
-    if (from && r.report_date < from) return false;
-    if (to && r.report_date > to) return false;
-    if (buyerFilter && !(r._media_buyers || []).some((m) => m.name === buyerFilter)) return false;
-    if (accountFilter && !(r._ad_accounts || []).some((a) => a === accountFilter)) return false;
+    const dateKey = (r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "")) as string;
+    if (from && dateKey < from) return false;
+    if (to && dateKey > to) return false;
+    const buyerQ = buyerFilter.trim().toLowerCase();
+    if (buyerQ && !(r._media_buyers || []).some((m) => (m.name || "").trim().toLowerCase() === buyerQ)) return false;
+    const accQ = accountFilter.trim().toLowerCase();
+    if (accQ && !(r._ad_accounts || []).some((a) => (a || "").trim().toLowerCase() === accQ)) return false;
     if (templateFilter && r._template_name !== templateFilter) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -131,7 +172,9 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
       const inNotes = (r.notes || "").toLowerCase().includes(q);
       const inBuyer = (r._media_buyers || []).some((m) => m.name.toLowerCase().includes(q));
       const inAcc = (r._ad_accounts || []).some((a) => (a || "").toLowerCase().includes(q));
-      if (!inName && !inNotes && !inBuyer && !inAcc) return false;
+      const inTpl = (r._template_name || "").toLowerCase().includes(q);
+      const inDate = (r.report_date || "").toLowerCase().includes(q);
+      if (!inName && !inNotes && !inBuyer && !inAcc && !inTpl && !inDate) return false;
     }
     return true;
   }), [rows, from, to, buyerFilter, accountFilter, templateFilter, search]);
@@ -145,9 +188,31 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
     return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filtered.length };
   }, [filtered]);
 
+  const applyFilters = () => {
+    let f = fromDraft, t = toDraft;
+    if (datePreset !== "custom" && datePreset !== "all") {
+      const p = computePreset(datePreset);
+      f = p.from; t = p.to;
+      setFromDraft(p.from); setToDraft(p.to);
+    } else if (datePreset === "all") {
+      f = ""; t = "";
+      setFromDraft(""); setToDraft("");
+    }
+    setSearch(searchDraft);
+    setFrom(f); setTo(t);
+    setBuyerFilter(buyerDraft);
+    setAccountFilter(accountDraft);
+    setTemplateFilter(templateDraft);
+    setAppliedPreset(datePreset);
+  };
+
   const reset = () => {
+    setSearchDraft(""); setFromDraft(""); setToDraft("");
+    setBuyerDraft(""); setAccountDraft(""); setTemplateDraft("");
+    setDatePreset("all");
     setSearch(""); setFrom(""); setTo("");
     setBuyerFilter(""); setAccountFilter(""); setTemplateFilter("");
+    setAppliedPreset("all");
   };
 
   const onRowExport = async (id: string, action: any) => {
@@ -243,37 +308,104 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
       </div>
 
       {/* Filters */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 14, padding: 12, background: "#F7F6F3", border: "1px solid #E8E5DE", borderRadius: 10 }}>
-        <div style={{ gridColumn: "span 2" }}>
-          <DateRangePopover from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+      <div style={{ marginBottom: 14, padding: 12, background: "#F7F6F3", border: "1px solid #E8E5DE", borderRadius: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+          <div>
+            <label className="fl-sm">Date Range</label>
+            <select
+              className="fi-sm"
+              value={datePreset}
+              onChange={(e) => {
+                const v = e.target.value as DatePreset;
+                setDatePreset(v);
+                if (v === "all") { setFromDraft(""); setToDraft(""); }
+                else if (v !== "custom") {
+                  const p = computePreset(v);
+                  setFromDraft(p.from); setToDraft(p.to);
+                }
+              }}
+            >
+              <option value="all">All Dates</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last7">Last 7 Days</option>
+              <option value="thisMonth">This Month</option>
+              <option value="lastMonth">Last Month</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+          <div>
+            <label className="fl-sm">From Date</label>
+            <input
+              type="date"
+              className="fi-sm"
+              value={fromDraft}
+              onChange={(e) => { setFromDraft(e.target.value); setDatePreset("custom"); }}
+            />
+          </div>
+          <div>
+            <label className="fl-sm">To Date</label>
+            <input
+              type="date"
+              className="fi-sm"
+              value={toDraft}
+              onChange={(e) => { setToDraft(e.target.value); setDatePreset("custom"); }}
+            />
+          </div>
+          <div>
+            <label className="fl-sm">Media Buyer</label>
+            <select className="fi-sm" value={buyerDraft} onChange={(e) => setBuyerDraft(e.target.value)}>
+              <option value="">All</option>
+              {allBuyers.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="fl-sm">Ad Account</label>
+            <select className="fi-sm" value={accountDraft} onChange={(e) => setAccountDraft(e.target.value)}>
+              <option value="">All</option>
+              {allAccounts.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="fl-sm">Template</label>
+            <select className="fi-sm" value={templateDraft} onChange={(e) => setTemplateDraft(e.target.value)}>
+              <option value="">All</option>
+              {allTemplates.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <div style={{ gridColumn: "span 2" }}>
+            <label className="fl-sm">Search</label>
+            <input
+              className="fi-sm"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }}
+              placeholder="Report, buyer, account, template, notes…"
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "end", gap: 6 }}>
+            <button className="btn btn-k btn-sm" onClick={applyFilters}>Apply Filters</button>
+            <button className="btn btn-g btn-sm" onClick={reset}>Reset</button>
+          </div>
         </div>
-        <div>
-          <label className="fl-sm">Media Buyer</label>
-          <select className="fi-sm" value={buyerFilter} onChange={(e) => setBuyerFilter(e.target.value)}>
-            <option value="">All</option>
-            {allBuyers.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="fl-sm">Ad Account</label>
-          <select className="fi-sm" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
-            <option value="">All</option>
-            {allAccounts.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="fl-sm">Template</label>
-          <select className="fi-sm" value={templateFilter} onChange={(e) => setTemplateFilter(e.target.value)}>
-            <option value="">All</option>
-            {allTemplates.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="fl-sm">Search</label>
-          <input className="fi-sm" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Report, buyer, account, notes…" />
-        </div>
-        <div style={{ display: "flex", alignItems: "end" }}>
-          <button className="btn btn-g btn-sm" onClick={reset}>Reset filters</button>
+
+        {(from || to || buyerFilter || accountFilter || templateFilter || search) && (
+          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11, color: "#555" }}>
+            <span style={{ color: "#888" }}>Active:</span>
+            {(from || to) && (
+              <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>
+                Date: {from || "…"} → {to || "…"}
+              </span>
+            )}
+            {buyerFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Buyer: {buyerFilter}</span>}
+            {accountFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Account: {accountFilter}</span>}
+            {templateFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Template: {templateFilter}</span>}
+            {search && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Search: "{search}"</span>}
+          </div>
+        )}
+
+        <div style={{ marginTop: 8, fontSize: 11, color: "#888" }}>
+          Showing {filtered.length} of {rows.length} reports
         </div>
       </div>
 
