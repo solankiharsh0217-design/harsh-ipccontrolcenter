@@ -8,7 +8,33 @@ import {
 import DailyReportDrawer from "./DailyReportDrawer";
 import { loadFullReport, runExportAction, softDeleteReport, restoreReport, permanentlyDeleteReport, daysRemaining } from "./sharedActions";
 import ExportMenu from "./ExportMenu";
-import DateRangePopover from "./DateRangePopover";
+
+type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
+
+function computePreset(preset: DatePreset): { from: string; to: string } {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = new Date();
+  if (preset === "today") { const s = iso(today); return { from: s, to: s }; }
+  if (preset === "yesterday") {
+    const y = new Date(today); y.setDate(today.getDate() - 1);
+    const s = iso(y); return { from: s, to: s };
+  }
+  if (preset === "last7") {
+    const f = new Date(today); f.setDate(today.getDate() - 6);
+    return { from: iso(f), to: iso(today) };
+  }
+  if (preset === "thisMonth") {
+    const f = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { from: iso(f), to: iso(today) };
+  }
+  if (preset === "lastMonth") {
+    const f = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const t = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { from: iso(f), to: iso(t) };
+  }
+  return { from: "", to: "" };
+}
 
 type RowExt = {
   id: string; created_at: string; report_date: string; report_name: string;
