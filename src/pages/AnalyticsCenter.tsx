@@ -35,6 +35,13 @@ export default function AnalyticsCenter() {
       to: "/profit-statement",
       show: isAdmin || hasModule("profit-statement"),
     },
+    {
+      title: "Media Buyer Comparison",
+      desc: "Compare media buyers by spend, leads, CPL, attributed sales, and revenue quality.",
+      cta: "Open Comparison",
+      to: "/report-history/media-buyer-comparison",
+      show: isAdmin || hasModule("reports"),
+    },
   ].filter((c) => c.show);
 
   return (
