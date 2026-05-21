@@ -638,3 +638,14 @@ function RowActions({
     </div>
   );
 }
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E8E5DE", borderRadius: 12, padding: 14 }}>
+      <div style={{ fontFamily: "'Jost',sans-serif", fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: ".12em", color: "#888", marginBottom: 10 }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
