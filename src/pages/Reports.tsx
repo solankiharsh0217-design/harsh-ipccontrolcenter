@@ -388,13 +388,23 @@ export default function Reports() {
         />
       )}
 
-      {section === "daily" && (
+      {section === "daily" && !compareOpen && (
         <DailyHistoryView
           onNew={() => navigate("/daily-lead-reporting")}
           onEditReport={(report: DailyReport) => {
             if (report?.id) navigate(`/daily-lead-reporting?editReportId=${report.id}`);
           }}
           onShowAnalytics={() => setSection("overview")}
+          onCompareMediaBuyers={(ctx) => { setCompareCtx(ctx); setCompareOpen(true); }}
+        />
+      )}
+
+      {section === "daily" && compareOpen && (
+        <MediaBuyerComparisonView
+          onBack={() => setCompareOpen(false)}
+          initialFrom={compareCtx?.from}
+          initialTo={compareCtx?.to}
+          initialPreset={compareCtx?.preset}
         />
       )}
 
