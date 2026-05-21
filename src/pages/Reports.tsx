@@ -13,6 +13,7 @@ import {
   Tooltip as RTooltip, Legend,
 } from "recharts";
 import DailyHistoryView from "@/components/roas/daily/DailyHistoryView";
+import MediaBuyerComparisonView from "@/components/roas/daily/MediaBuyerComparisonView";
 import type { DailyReport } from "@/lib/dailyReports/helpers";
 import { logActivity } from "@/lib/auditLog";
 
