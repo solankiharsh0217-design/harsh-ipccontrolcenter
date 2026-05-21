@@ -105,6 +105,9 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
     (async () => {
       setLoading(true);
       try {
+        // Warm canonical + alias cache so splitBuyerName normalizes correctly
+        await Promise.all([getCanonicalMediaBuyers(), getMediaBuyerAliasMap()]);
+
         // Daily
         const { data: reports } = await (supabase as any)
           .from("daily_lead_reports")
