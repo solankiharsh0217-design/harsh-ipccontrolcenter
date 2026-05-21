@@ -308,37 +308,104 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics 
       </div>
 
       {/* Filters */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8, marginBottom: 14, padding: 12, background: "#F7F6F3", border: "1px solid #E8E5DE", borderRadius: 10 }}>
-        <div style={{ gridColumn: "span 2" }}>
-          <DateRangePopover from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+      <div style={{ marginBottom: 14, padding: 12, background: "#F7F6F3", border: "1px solid #E8E5DE", borderRadius: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }}>
+          <div>
+            <label className="fl-sm">Date Range</label>
+            <select
+              className="fi-sm"
+              value={datePreset}
+              onChange={(e) => {
+                const v = e.target.value as DatePreset;
+                setDatePreset(v);
+                if (v === "all") { setFromDraft(""); setToDraft(""); }
+                else if (v !== "custom") {
+                  const p = computePreset(v);
+                  setFromDraft(p.from); setToDraft(p.to);
+                }
+              }}
+            >
+              <option value="all">All Dates</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last7">Last 7 Days</option>
+              <option value="thisMonth">This Month</option>
+              <option value="lastMonth">Last Month</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+          <div>
+            <label className="fl-sm">From Date</label>
+            <input
+              type="date"
+              className="fi-sm"
+              value={fromDraft}
+              onChange={(e) => { setFromDraft(e.target.value); setDatePreset("custom"); }}
+            />
+          </div>
+          <div>
+            <label className="fl-sm">To Date</label>
+            <input
+              type="date"
+              className="fi-sm"
+              value={toDraft}
+              onChange={(e) => { setToDraft(e.target.value); setDatePreset("custom"); }}
+            />
+          </div>
+          <div>
+            <label className="fl-sm">Media Buyer</label>
+            <select className="fi-sm" value={buyerDraft} onChange={(e) => setBuyerDraft(e.target.value)}>
+              <option value="">All</option>
+              {allBuyers.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="fl-sm">Ad Account</label>
+            <select className="fi-sm" value={accountDraft} onChange={(e) => setAccountDraft(e.target.value)}>
+              <option value="">All</option>
+              {allAccounts.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="fl-sm">Template</label>
+            <select className="fi-sm" value={templateDraft} onChange={(e) => setTemplateDraft(e.target.value)}>
+              <option value="">All</option>
+              {allTemplates.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          <div style={{ gridColumn: "span 2" }}>
+            <label className="fl-sm">Search</label>
+            <input
+              className="fi-sm"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }}
+              placeholder="Report, buyer, account, template, notes…"
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "end", gap: 6 }}>
+            <button className="btn btn-k btn-sm" onClick={applyFilters}>Apply Filters</button>
+            <button className="btn btn-g btn-sm" onClick={reset}>Reset</button>
+          </div>
         </div>
-        <div>
-          <label className="fl-sm">Media Buyer</label>
-          <select className="fi-sm" value={buyerFilter} onChange={(e) => setBuyerFilter(e.target.value)}>
-            <option value="">All</option>
-            {allBuyers.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="fl-sm">Ad Account</label>
-          <select className="fi-sm" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
-            <option value="">All</option>
-            {allAccounts.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="fl-sm">Template</label>
-          <select className="fi-sm" value={templateFilter} onChange={(e) => setTemplateFilter(e.target.value)}>
-            <option value="">All</option>
-            {allTemplates.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="fl-sm">Search</label>
-          <input className="fi-sm" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Report, buyer, account, notes…" />
-        </div>
-        <div style={{ display: "flex", alignItems: "end" }}>
-          <button className="btn btn-g btn-sm" onClick={reset}>Reset filters</button>
+
+        {(from || to || buyerFilter || accountFilter || templateFilter || search) && (
+          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11, color: "#555" }}>
+            <span style={{ color: "#888" }}>Active:</span>
+            {(from || to) && (
+              <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>
+                Date: {from || "…"} → {to || "…"}
+              </span>
+            )}
+            {buyerFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Buyer: {buyerFilter}</span>}
+            {accountFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Account: {accountFilter}</span>}
+            {templateFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Template: {templateFilter}</span>}
+            {search && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Search: "{search}"</span>}
+          </div>
+        )}
+
+        <div style={{ marginTop: 8, fontSize: 11, color: "#888" }}>
+          Showing {filtered.length} of {rows.length} reports
         </div>
       </div>
 
