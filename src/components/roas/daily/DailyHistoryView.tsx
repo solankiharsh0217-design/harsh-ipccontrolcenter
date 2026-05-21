@@ -271,7 +271,9 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             Show deleted (Trash)
           </label>
           <button className="btn btn-k btn-sm" onClick={onNew}>+ New Daily Report</button>
-          <button className="btn btn-g btn-sm" onClick={onShowAnalytics}>📊 Analytics</button>
+          <button className="btn btn-g btn-sm" onClick={() => setShowCharts((v) => !v)}>
+            {showCharts ? "Hide Charts" : "📊 Show Charts"}
+          </button>
           {onCompareMediaBuyers && (
             <button className="btn btn-g btn-sm" onClick={() => onCompareMediaBuyers({ from, to, preset: appliedPreset })}>⚖️ Compare Media Buyers</button>
           )}
