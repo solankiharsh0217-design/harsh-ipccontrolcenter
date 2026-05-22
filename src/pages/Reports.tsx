@@ -992,17 +992,22 @@ function AttributionSection({
           <label className="filter-lbl">Search</label>
           <input className="fi" placeholder="Webinar, buyer, operator…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <div style={{ display: "flex", alignItems: "flex-end" }}>
-          <button className="btn btn-g btn-sm" onClick={reset}>Reset</button>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <button className="btn btn-g btn-sm" onClick={reset}>Reset Filters</button>
         </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, fontSize: 11.5, color: "#666" }}>
+        <div>Showing <strong style={{ color: "#0a0a0a" }}>{filtered.length}</strong> of <strong style={{ color: "#0a0a0a" }}>{sessions.length}</strong> attribution reports</div>
       </div>
 
       {loading ? (
         <div style={{ color: "#888", fontSize: 13, padding: 40, textAlign: "center" }}>Loading…</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#888" }}>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a", marginBottom: 8 }}>No attribution reports found</div>
-          <div style={{ fontSize: 13 }}>Saved ROAS attribution reports will appear here after you calculate and save them from the ROAS Calculator.</div>
+        <div style={{ textAlign: "center", padding: 60, color: "#888", border: "1px solid #E8E5DE", borderRadius: 12, background: "#FAFAF8" }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a", marginBottom: 8 }}>No attribution reports found for selected filters</div>
+          <div style={{ fontSize: 13, marginBottom: 14 }}>Try changing the created date range, webinar date range, media buyer, method, or search keyword.</div>
+          <button className="btn btn-g btn-sm" onClick={reset}>Reset Filters</button>
         </div>
       ) : (
         <table className="attr-table">
