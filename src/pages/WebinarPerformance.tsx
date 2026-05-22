@@ -125,7 +125,7 @@ export default function WebinarPerformance() {
           show_ups: 0,
           watch_point: 0,
           offer_show_up: 0,
-          ad_spend: Number(s.total_ad_spend || 0),
+          ad_spend: getGstAwareAdSpend(s as any).grossAdSpend,
           token_buyers: 0,
           final_sales: Number(s.total_sales || 0),
           revenue_realized: 0,
