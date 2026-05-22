@@ -292,6 +292,7 @@ export default function Reports() {
       loadDailyStats();
       reloadSeminar();
       reloadProfit();
+      reloadOffline();
     })();
     // Auto-open comparison view via route
     if (typeof window !== "undefined" && window.location.pathname.includes("media-buyer-comparison")) {
