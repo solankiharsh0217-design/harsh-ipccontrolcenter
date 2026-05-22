@@ -148,7 +148,7 @@ function periodMonth(s: SessionRow): string {
   return d ? String(d).slice(0, 7) : "";
 }
 
-type SectionKey = "attribution" | "daily" | "seminar" | "profit" | "overview";
+type SectionKey = "attribution" | "daily" | "seminar" | "offline" | "profit" | "overview";
 
 type ProfitStatementRow = {
   id: string;
