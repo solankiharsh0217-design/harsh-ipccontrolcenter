@@ -576,6 +576,8 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     const sid = (sess as any).id;
     const buyerRows = results.rows.map((r) => {
       const mb = selectedMBs.find((m) => (m.mediaBuyerName || "").trim() === r.name);
+      const entered = Number(adSpends[r.name] || 0);
+      const b = computeSpend(entered, taxMode, gstRate);
       return {
         session_id: sid, media_buyer_name: r.name,
         ad_spend: r.spend, total_leads: r.leads, matched_sales: r.matched, revenue: r.revenue,
@@ -585,6 +587,12 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         source_tab_name: mb?.tabName || null,
         source_sheet_id: mb?.sheetId || null,
         source_type: "google_sheet_auto_fetch",
+        entered_ad_spend: b.entered,
+        net_ad_spend: b.net,
+        gst_amount: b.gst,
+        gross_ad_spend: b.gross,
+        ad_spend_tax_mode: taxMode,
+        gst_rate: gstRate,
       };
     });
     const saleRows = results.salesDetail.map((s, i) => {
