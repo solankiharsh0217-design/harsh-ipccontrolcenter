@@ -16,6 +16,10 @@ import ColumnMappingDrawer, { type ColumnMapping } from "@/components/roas/auto/
 import Step4Attendees from "@/components/roas/auto/Step4Attendees";
 import { type AttendeeSlot, defaultSlotsForDates, persistAttendeeSlots, slotsAllReady } from "@/lib/roas/attendees";
 import { scheduleDraftSync, loadRemoteDraft, clearRemoteDraft, type DraftPayload } from "@/lib/roas/autoDraft";
+import {
+  computeSpend, effectiveSpendForBasis, loadGstDefaults, saveGstDefaults,
+  type AdSpendTaxMode, type RoasSpendBasis,
+} from "@/lib/roas/gst";
 
 // ---------- Types & storage ----------
 type DateMode = "single" | "range" | "multiple";
@@ -165,6 +169,10 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [detectedTabs, setDetectedTabs] = useState<DetectedTab[]>(initial.current.detectedTabs);
   const [tabRoles, setTabRoles] = useState<TabRoleAssignment[]>(initial.current.tabRoles);
   const [adSpends, setAdSpends] = useState<Record<string, string>>(initial.current.adSpends);
+  const gstInit = loadGstDefaults();
+  const [taxMode, setTaxMode] = useState<AdSpendTaxMode>(gstInit.taxMode);
+  const [gstRate, setGstRate] = useState<number>(gstInit.gstRate);
+  const [spendBasis, setSpendBasis] = useState<RoasSpendBasis>(gstInit.spendBasis);
   const [results, setResults] = useState<AutoAttribResult | null>(initial.current.results);
   const [resultsStatus, setResultsStatus] = useState<"fresh" | "outdated" | null>(initial.current.resultsStatus);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(initial.current.savedSessionId);
@@ -422,7 +430,16 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         columnOverride: (m.columnMapping || null) as ColumnOverride | null,
       }));
       const spendNumbers: Record<string, number> = {};
-      orderedMBs.forEach((m) => { spendNumbers[m.mediaBuyerName!] = Number(adSpends[m.mediaBuyerName!] || 0); });
+      const spendBreakdownByBuyer: Record<string, ReturnType<typeof computeSpend>> = {};
+      orderedMBs.forEach((m) => {
+        const entered = Number(adSpends[m.mediaBuyerName!] || 0);
+        const b = computeSpend(entered, taxMode, gstRate);
+        spendBreakdownByBuyer[m.mediaBuyerName!] = b;
+        spendNumbers[m.mediaBuyerName!] = effectiveSpendForBasis(b, spendBasis);
+      });
+      // Persist as defaults for next time
+      saveGstDefaults({ taxMode, gstRate, spendBasis });
+      (window as any).__ipcLastGstBreakdown = spendBreakdownByBuyer;
 
       const r = await runAutoAttribution({
         masterSheetUrl: masterUrl,
@@ -506,6 +523,13 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     }
     const totals = results.totals;
     const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
+    // Recompute GST totals from current ad spend inputs + tax settings
+    let totalNet = 0, totalGst = 0, totalGross = 0;
+    selectedMBs.forEach((m) => {
+      const entered = Number(adSpends[m.mediaBuyerName!] || 0);
+      const b = computeSpend(entered, taxMode, gstRate);
+      totalNet += b.net; totalGst += b.gst; totalGross += b.gross;
+    });
     const { data: sess, error } = await supabase.from("attribution_sessions").insert({
       webinar_name: webinar.name,
       webinar_date: effectiveDate(webinar),
@@ -540,12 +564,20 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       media_buyer_order: er ? er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) : null,
       duplicate_conflicts_count: er?.duplicateLeadConflicts.length || 0,
       column_mappings_used: tabRoles.filter((r) => r.columnMapping).map((r) => ({ tabName: r.tabName, role: r.role, columnMapping: r.columnMapping })) as any,
+      ad_spend_tax_mode: taxMode,
+      gst_rate: gstRate,
+      roas_spend_basis: spendBasis,
+      total_net_ad_spend: totalNet,
+      total_gst_amount: totalGst,
+      total_gross_ad_spend: totalGross,
     } as any).select().single();
     if (error || !sess) { toast.error("Save failed: " + (error?.message || "")); return; }
 
     const sid = (sess as any).id;
     const buyerRows = results.rows.map((r) => {
       const mb = selectedMBs.find((m) => (m.mediaBuyerName || "").trim() === r.name);
+      const entered = Number(adSpends[r.name] || 0);
+      const b = computeSpend(entered, taxMode, gstRate);
       return {
         session_id: sid, media_buyer_name: r.name,
         ad_spend: r.spend, total_leads: r.leads, matched_sales: r.matched, revenue: r.revenue,
@@ -555,6 +587,12 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         source_tab_name: mb?.tabName || null,
         source_sheet_id: mb?.sheetId || null,
         source_type: "google_sheet_auto_fetch",
+        entered_ad_spend: b.entered,
+        net_ad_spend: b.net,
+        gst_amount: b.gst,
+        gross_ad_spend: b.gross,
+        ad_spend_tax_mode: taxMode,
+        gst_rate: gstRate,
       };
     });
     const saleRows = results.salesDetail.map((s, i) => {
@@ -703,6 +741,9 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             mbs={selectedMBs} adSpends={adSpends} setAdSpends={setAdSpends}
             totalSpend={totalManualSpend}
             priorityOrder={priorityOrder} setPriorityOrder={setPriorityOrder}
+            taxMode={taxMode} setTaxMode={setTaxMode}
+            gstRate={gstRate} setGstRate={setGstRate}
+            spendBasis={spendBasis} setSpendBasis={setSpendBasis}
           />
         )}
         {step === 4 && results && (
@@ -719,6 +760,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             showDataUsed={showDataUsed} setShowDataUsed={setShowDataUsed}
             tabRoles={tabRoles} adSpends={adSpends}
             consistency={consistency}
+            taxMode={taxMode} gstRate={gstRate} spendBasis={spendBasis}
           />
         )}
       </div>
@@ -1136,8 +1178,14 @@ function Step3AdSpends(p: {
   totalSpend: number;
   priorityOrder: string[];
   setPriorityOrder: (ids: string[]) => void;
+  taxMode: AdSpendTaxMode;
+  setTaxMode: (m: AdSpendTaxMode) => void;
+  gstRate: number;
+  setGstRate: (n: number) => void;
+  spendBasis: RoasSpendBasis;
+  setSpendBasis: (b: RoasSpendBasis) => void;
 }) {
-  const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+  const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
   const ordered = p.priorityOrder.length === p.mbs.length
     ? p.priorityOrder.map((id) => p.mbs.find((m) => m.sheetId === id)!).filter(Boolean)
     : p.mbs;
@@ -1147,12 +1195,56 @@ function Step3AdSpends(p: {
     [next[idx], next[j]] = [next[j], next[idx]];
     p.setPriorityOrder(next);
   };
+  const breakdowns = p.mbs.map((m) => ({
+    m, b: computeSpend(Number(p.adSpends[m.mediaBuyerName!] || 0), p.taxMode, p.gstRate),
+  }));
+  const totals = breakdowns.reduce(
+    (a, x) => ({ entered: a.entered + x.b.entered, net: a.net + x.b.net, gst: a.gst + x.b.gst, gross: a.gross + x.b.gross }),
+    { entered: 0, net: 0, gst: 0, gross: 0 },
+  );
+  const helper =
+    p.taxMode === "exclusive" ? "Gross ad spend = entered + GST. ROAS is fairer when revenue is GST-inclusive."
+    : p.taxMode === "inclusive" ? "Net spend and GST are derived from the entered amount."
+    : "Entered ad spend is used as final ad spend.";
+
   return (
     <>
       <div className="wiz-h">Enter Ad Spends</div>
       <div className="wiz-sub">Enter the ad spend for each selected media buyer.</div>
+
+      <div style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: 16, marginBottom: 14, background: "#FAFAF8" }}>
+        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em", color: "#7A5E10", marginBottom: 10 }}>GST / Tax Settings</div>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.4fr", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>Ad Spend Tax Mode</div>
+            <select className="fsel" style={{ width: "100%", height: 36, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+              value={p.taxMode} onChange={(e) => p.setTaxMode(e.target.value as AdSpendTaxMode)}>
+              <option value="exclusive">Ad Spend Excludes GST</option>
+              <option value="inclusive">Ad Spend Includes GST</option>
+              <option value="none">No GST / Not Applicable</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>GST %</div>
+            <input type="number" min={0} step={0.5} disabled={p.taxMode === "none"}
+              value={p.gstRate}
+              onChange={(e) => p.setGstRate(Number(e.target.value || 0))}
+              style={{ width: "100%", height: 36, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>ROAS Spend Basis</div>
+            <select className="fsel" style={{ width: "100%", height: 36, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+              value={p.spendBasis} onChange={(e) => p.setSpendBasis(e.target.value as RoasSpendBasis)}>
+              <option value="gross">Gross Ad Spend (recommended)</option>
+              <option value="net">Net Ad Spend</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ fontSize: 11.5, color: "#7A5E10", marginTop: 8, lineHeight: 1.6 }}>{helper}</div>
+      </div>
+
       <div style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: "8px 18px" }}>
-        {p.mbs.map((m) => (
+        {breakdowns.map(({ m, b }) => (
           <div className="spend-row" key={m.sheetId}>
             <div className="left">
               <div className="spend-av">{(m.mediaBuyerName || "?")[0]?.toUpperCase()}</div>
@@ -1161,18 +1253,32 @@ function Step3AdSpends(p: {
                 <div style={{ fontSize: 11, color: "#888" }}>From tab: {m.tabName}</div>
               </div>
             </div>
-            <div className="spend-input-wrap">
-              <span className="pfx">₹</span>
-              <input className="spend-inp" type="number" min={0}
-                placeholder="0"
-                value={p.adSpends[m.mediaBuyerName!] || ""}
-                onChange={(e) => p.setAdSpends({ ...p.adSpends, [m.mediaBuyerName!]: e.target.value })} />
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              {p.taxMode !== "none" && (
+                <div style={{ display: "flex", gap: 10, fontSize: 11, color: "#555" }}>
+                  <span title="Net">Net <strong style={{ color: "#0a0a0a" }}>{inr(b.net)}</strong></span>
+                  <span title="GST">GST <strong style={{ color: "#0a0a0a" }}>{inr(b.gst)}</strong></span>
+                  <span title="Gross">Gross <strong style={{ color: "#0a0a0a" }}>{inr(b.gross)}</strong></span>
+                </div>
+              )}
+              <div className="spend-input-wrap">
+                <span className="pfx">₹</span>
+                <input className="spend-inp" type="number" min={0}
+                  placeholder="0"
+                  value={p.adSpends[m.mediaBuyerName!] || ""}
+                  onChange={(e) => p.setAdSpends({ ...p.adSpends, [m.mediaBuyerName!]: e.target.value })} />
+              </div>
             </div>
           </div>
         ))}
       </div>
-      <div className="spend-tot">
-        Total Ad Spend: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a" }}>{inr(p.totalSpend)}</strong>
+      <div className="spend-tot" style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <span>Total Net Ad Spend: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20 }}>{inr(totals.net)}</strong></span>
+        <span>Total GST: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20 }}>{inr(totals.gst)}</strong></span>
+        <span>Total Gross Ad Spend: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a" }}>{inr(totals.gross)}</strong></span>
+      </div>
+      <div style={{ fontSize: 11.5, color: "#7A5E10", marginTop: 6 }}>
+        ROAS will be calculated using {p.spendBasis === "gross" ? "Gross Ad Spend" : "Net Ad Spend"}.
       </div>
 
       {p.mbs.length > 0 && (
