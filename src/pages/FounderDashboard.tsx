@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { getGstAwareAdSpend } from "@/lib/roas/gst";
 import { inr } from "@/lib/paidPipeline";
 
 type RangeKey = "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
@@ -195,7 +196,7 @@ export default function FounderDashboard() {
         // Daily reports in selected range
         const rangeDR = (dailyReports as any[]).filter((r) => inRange(dayOnly(r.report_date)));
         const leadsInRange = rangeDR.reduce((a, r) => a + (r.total_leads || 0), 0);
-        const spendInRange = rangeDR.reduce((a, r) => a + Number(r.total_ad_spend || 0), 0);
+        const spendInRange = rangeDR.reduce((a, r) => a + getGstAwareAdSpend({ total_ad_spend: r.total_ad_spend }).grossAdSpend, 0);
 
         // Follow-ups in selected range
         const rangeFollowups = (followups as any[]).filter((f) => inRange(dayOnly(f.follow_up_date)));
@@ -543,7 +544,7 @@ export default function FounderDashboard() {
           <Section title={snapshotTitle}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               <MetricCard label={`Leads (${rangeLabel})`} value={data.hasDailyReports ? data.leadsToday : NA} sub={data.hasDailyReports ? "Daily Lead Reporting" : "No data available"} />
-              <MetricCard label={`Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.spendToday) : NA} />
+              <MetricCard label={`Gross Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.spendToday) : NA} />
               <MetricCard label={`CPL (${rangeLabel})`} value={data.leadsToday > 0 ? inr(cpl) : NA} sub="Spend / Leads" />
               <MetricCard label={`Token Collected (${rangeLabel})`} value={inr(data.tokenToday)} tone="gold" onClick={() => nav("/paid-pipeline")} />
               <MetricCard label={`Realized Revenue (${rangeLabel})`} value={inr(data.realizedToday)} onClick={() => nav("/paid-pipeline")} />
@@ -560,8 +561,8 @@ export default function FounderDashboard() {
               <MetricCard label="Revenue To Be Realized" value={inr(data.monthToBeRealized)} sub={`From leads created in ${rangeLabel}`} onClick={() => nav("/paid-pipeline")} />
               <MetricCard label={`Token Collected (${rangeLabel})`} value={inr(data.monthTokens)} />
               <MetricCard label="Balance Pending" value={inr(data.monthBalance)} sub={`Leads created in ${rangeLabel}`} />
-              <MetricCard label={`Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.monthSpend) : NA} />
-              <MetricCard label="Estimated Profit" value={data.hasDailyReports ? inr(profit) : NA} sub="Revenue − Ad Spend" onClick={() => nav("/profit-statement")} />
+              <MetricCard label={`Gross Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.monthSpend) : NA} />
+              <MetricCard label="Estimated Profit" value={data.hasDailyReports ? inr(profit) : NA} sub="Revenue − Gross Ad Spend (incl. GST)" onClick={() => nav("/profit-statement")} />
               <MetricCard label="Profit Margin" value={data.hasDailyReports && data.monthRevenue > 0 ? margin.toFixed(1) + "%" : NA} />
             </div>
           </Section>

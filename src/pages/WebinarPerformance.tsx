@@ -5,6 +5,7 @@ import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { inr, pct, num } from "@/lib/roas/format";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/auditLog";
+import { getGstAwareAdSpend } from "@/lib/roas/gst";
 
 // ---------- helpers ----------
 type Range = { start: string; end: string; label: string };
@@ -78,7 +79,7 @@ export default function WebinarPerformance() {
       // 1) Webinars from attribution_sessions
       const { data: sessions } = await supabase
         .from("attribution_sessions")
-        .select("id, webinar_name, webinar_date, webinar_type, total_leads, total_sales, total_ad_spend, total_revenue, overall_roas, is_deleted")
+        .select("id, webinar_name, webinar_date, webinar_type, total_leads, total_sales, total_ad_spend, total_revenue, overall_roas, is_deleted, total_gross_ad_spend, total_net_ad_spend, total_gst_amount, ad_spend_tax_mode, gst_rate")
         .eq("is_deleted", false)
         .gte("webinar_date", range.start)
         .lte("webinar_date", range.end);
@@ -125,7 +126,7 @@ export default function WebinarPerformance() {
           show_ups: 0,
           watch_point: 0,
           offer_show_up: 0,
-          ad_spend: Number(s.total_ad_spend || 0),
+          ad_spend: getGstAwareAdSpend(s as any).grossAdSpend,
           token_buyers: 0,
           final_sales: Number(s.total_sales || 0),
           revenue_realized: 0,
@@ -417,7 +418,7 @@ export default function WebinarPerformance() {
         <Card label="Final Sales" value={num(totals.final_sales)} sub={`${pct(pctV(totals.final_sales, totals.registrations))} conv`} />
         <Card label="Revenue Realized" value={inr(totals.revenue_realized, { compact: true })} />
         <Card label="Revenue To Be Realized" value={inr(totals.revenue_to_realize, { compact: true })} />
-        <Card label="Ad Spend" value={inr(totals.ad_spend, { compact: true })} sub={`CPL ${inr(cpl)}`} />
+        <Card label="Gross Ad Spend" value={inr(totals.ad_spend, { compact: true })} sub={`CPL ${inr(cpl)} · incl. GST`} />
         <Card label="Realized ROAS" value={`${roas.toFixed(2)}x`} />
       </div>
 
@@ -453,7 +454,7 @@ export default function WebinarPerformance() {
         <table className="w-full border-collapse font-sans text-[12px]">
           <thead>
             <tr>
-              {["Webinar", "Date", "Type", "Product", "Regs", "Show-Ups", "Show %", "Ad Spend", "CPL", "Token", "Tok %", "Finals", "Fin %", "Revenue", "Pending", "ROAS", "Status", "Actions"].map((h) => (
+              {["Webinar", "Date", "Type", "Product", "Regs", "Show-Ups", "Show %", "Gross Ad Spend", "CPL", "Token", "Tok %", "Finals", "Fin %", "Revenue", "Pending", "ROAS", "Status", "Actions"].map((h) => (
                 <th key={h} className="text-left text-[9px] font-medium uppercase tracking-[0.1em] text-muted-foreground py-2.5 px-3 border-b border-line whitespace-nowrap">{h}</th>
               ))}
             </tr>

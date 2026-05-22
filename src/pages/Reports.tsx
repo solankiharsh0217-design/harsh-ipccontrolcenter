@@ -16,6 +16,7 @@ import DailyHistoryView from "@/components/roas/daily/DailyHistoryView";
 import MediaBuyerComparisonView from "@/components/roas/daily/MediaBuyerComparisonView";
 import type { DailyReport } from "@/lib/dailyReports/helpers";
 import { logActivity } from "@/lib/auditLog";
+import { getGstAwareAdSpend, calculateRoas, GST_TRUST_NOTE } from "@/lib/roas/gst";
 
 const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
 const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -318,10 +319,15 @@ export default function Reports() {
 
   const attrStats = useMemo(() => {
     const live = visibleSessions;
-    const totalRev = live.reduce((a, s) => a + Number(s.total_revenue || 0), 0);
-    const avg = live.length ? live.reduce((a, s) => a + Number(s.overall_roas || 0), 0) / live.length : 0;
+    let totalRev = 0, totalGross = 0;
+    live.forEach((s) => {
+      totalRev += Number(s.total_revenue || 0);
+      totalGross += getGstAwareAdSpend(s as any).grossAdSpend;
+    });
+    const avg = totalGross > 0 ? totalRev / totalGross : 0;
     return { count: live.length, totalRev, avgRoas: avg };
   }, [visibleSessions]);
+
 
   const visibleProfit = useMemo(() =>
     profitRows.filter((s) => showDeleted ? true : !s.is_deleted),
@@ -870,15 +876,19 @@ function AttributionSection({
   }, [sessions, search, createdFrom, createdTo, webFrom, webTo, month, monthBasis, methodF, buyer]);
 
   const totals = useMemo(() => {
-    let leads = 0, sales = 0, spend = 0, rev = 0;
+    let leads = 0, sales = 0, spend = 0, netSpend = 0, gst = 0, rev = 0;
     filtered.forEach((s) => {
+      const g = getGstAwareAdSpend(s as any);
       leads += Number(s.total_leads) || 0;
       sales += Number(s.total_sales) || 0;
-      spend += Number(s.total_ad_spend) || 0;
+      spend += g.grossAdSpend;
+      netSpend += g.netAdSpend;
+      gst += g.gstAmount;
       rev += Number(s.total_revenue) || 0;
     });
-    return { leads, sales, spend, rev, roas: spend > 0 ? rev / spend : null, count: filtered.length };
+    return { leads, sales, spend, netSpend, gst, rev, roas: spend > 0 ? rev / spend : null, count: filtered.length };
   }, [filtered]);
+
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const display = filtered.slice((page - 1) * PAGE, page * PAGE);
@@ -943,22 +953,28 @@ function AttributionSection({
   const exportFiltered = async (kind: "csv" | "pdf" | "sheets") => {
     if (!filtered.length) { toast.error("No reports to export."); return; }
     if (kind === "csv" || kind === "sheets") {
-      const header = ["Created On", "Webinar", "Webinar Period", "Type", "Method", "Media Buyers", "Leads", "Sales", "Ad Spend", "Revenue", "ROAS"];
-      const rows = filtered.map((s) => [
-        s.created_at ? fmtDateTime(s.created_at) : "",
-        s.webinar_name,
-        webinarPeriod(s),
-        s.webinar_type || "",
-        methodLabel(s),
-        (s.buyers || []).map((b) => b.name).join(" | "),
-        s.total_leads, s.total_sales,
-        Number(s.total_ad_spend), Number(s.total_revenue),
-        Number(s.overall_roas).toFixed(2) + "×",
-      ]);
+      const header = ["Created On", "Webinar", "Webinar Period", "Type", "Method", "Media Buyers", "Leads", "Sales", "Net Ad Spend", "GST", "Gross Ad Spend", "Revenue", "ROAS (Gross)", "GST Status"];
+      const rows = filtered.map((s) => {
+        const g = getGstAwareAdSpend(s as any);
+        const r = calculateRoas(s.total_revenue, g.grossAdSpend);
+        return [
+          s.created_at ? fmtDateTime(s.created_at) : "",
+          s.webinar_name,
+          webinarPeriod(s),
+          s.webinar_type || "",
+          methodLabel(s),
+          (s.buyers || []).map((b) => b.name).join(" | "),
+          s.total_leads, s.total_sales,
+          g.netAdSpend, g.gstAmount, g.grossAdSpend, Number(s.total_revenue),
+          r !== null ? r.toFixed(2) + "×" : "—",
+          g.gstStatus,
+        ];
+      });
       rows.push([
         "FILTERED TOTAL", `${filtered.length} reports`, "", "", "", "",
-        totals.leads, totals.sales, totals.spend, totals.rev,
+        totals.leads, totals.sales, totals.netSpend, totals.gst, totals.spend, totals.rev,
         totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—",
+        "",
       ]);
       const csv = [header, ...rows].map((r) => r.map((c) => {
         const v = String(c ?? "");
@@ -980,16 +996,20 @@ function AttributionSection({
       doc.setTextColor(0);
       autoTable(doc, {
         startY: 75,
-        head: [["Created", "Webinar", "Period", "Method", "Leads", "Sales", "Spend", "Revenue", "ROAS"]],
-        body: filtered.map((s) => [
-          s.created_at ? fmtDate(s.created_at) : "",
-          s.webinar_name,
-          webinarPeriod(s),
-          methodLabel(s),
-          s.total_leads, s.total_sales,
-          inr(Number(s.total_ad_spend)), inr(Number(s.total_revenue)),
-          Number(s.overall_roas).toFixed(2) + "×",
-        ]),
+        head: [["Created", "Webinar", "Period", "Method", "Leads", "Sales", "Gross Spend", "Revenue", "ROAS"]],
+        body: filtered.map((s) => {
+          const g = getGstAwareAdSpend(s as any);
+          const r = calculateRoas(s.total_revenue, g.grossAdSpend);
+          return [
+            s.created_at ? fmtDate(s.created_at) : "",
+            s.webinar_name,
+            webinarPeriod(s),
+            methodLabel(s),
+            s.total_leads, s.total_sales,
+            inr(g.grossAdSpend), inr(Number(s.total_revenue)),
+            r !== null ? r.toFixed(2) + "×" : "—",
+          ];
+        }),
         foot: [[
           "FILTERED TOTAL", `${filtered.length} reports`, "", "",
           totals.leads, totals.sales,
@@ -1077,12 +1097,14 @@ function AttributionSection({
           <thead>
             <tr>
               <th>Created On</th><th>Webinar</th><th>Webinar Date / Period</th><th>Type</th><th>Method</th>
-              <th>Media Buyers</th><th>Leads</th><th>Sales</th><th>Ad Spend</th><th>Revenue</th><th>ROAS</th><th>Actions</th>
+              <th>Media Buyers</th><th>Leads</th><th>Sales</th><th title="Ad Spend including GST">Gross Ad Spend</th><th>Revenue</th><th title="ROAS = Revenue ÷ Gross Ad Spend">ROAS</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {display.map((s) => {
-              const roasN = Number(s.overall_roas);
+              const gst = getGstAwareAdSpend(s as any);
+              const roasN = calculateRoas(s.total_revenue, gst.grossAdSpend) ?? 0;
+              const isLegacy = gst.gstStatus === "estimated_legacy";
               return (
                 <tr key={s.id} onClick={() => setOpenSession(s)} style={s.is_deleted ? { opacity: 0.55 } : undefined}>
                   <td style={{ fontSize: 11.5, color: "#555" }}>{s.created_at ? fmtDateTime(s.created_at) : "—"}</td>
@@ -1118,9 +1140,12 @@ function AttributionSection({
                   </td>
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16 }}>{s.total_leads}</td>
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#16A34A" }}>{s.total_sales}</td>
-                  <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }}>{inr(Number(s.total_ad_spend))}</td>
+                  <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }} title={`Net ${inr(gst.netAdSpend)} + GST ${inr(gst.gstAmount)} @ ${gst.gstRate}%`}>
+                    {inr(gst.grossAdSpend)}
+                    {isLegacy && <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF9C3", border: "1px solid #FDE68A", color: "#92400E", textTransform: "uppercase", letterSpacing: ".06em", fontFamily: "inherit" }} title="GST estimated using default rate — legacy report">GST est</span>}
+                  </td>
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "#16A34A" }}>{inr(Number(s.total_revenue))}</td>
-                  <td><span className={"roas-val " + roasClass(roasN)}>{roasN.toFixed(2)}×</span></td>
+                  <td><span className={"roas-val " + roasClass(roasN)} title="Revenue ÷ Gross Ad Spend">{roasN.toFixed(2)}×</span></td>
                   <td onClick={(e) => e.stopPropagation()}>
                     {s.is_deleted ? (
                       <div style={{ display: "flex", gap: 4 }}>
@@ -1162,18 +1187,24 @@ function AttributionSection({
       )}
 
       {filtered.length > 0 && (
-        <div style={{ marginTop: 14, padding: "14px 18px", border: "1px solid #E8E5DE", borderRadius: 12, background: "#FAFAF8", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
-          <div>
-            <div className="sum-lbl">Filtered Attribution Totals</div>
-            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{totals.count} report{totals.count === 1 ? "" : "s"}</div>
+        <>
+          <div style={{ marginTop: 14, padding: "14px 18px", border: "1px solid #E8E5DE", borderRadius: 12, background: "#FAFAF8", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
+            <div>
+              <div className="sum-lbl">Filtered Attribution Totals</div>
+              <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{totals.count} report{totals.count === 1 ? "" : "s"}</div>
+            </div>
+            <div><div className="sum-lbl">Total Leads</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{totals.leads.toLocaleString("en-IN")}</div></div>
+            <div><div className="sum-lbl">Total Sales</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{totals.sales.toLocaleString("en-IN")}</div></div>
+            <div><div className="sum-lbl">Total Net Ad Spend</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 500 }}>{inr(totals.netSpend)}</div></div>
+            <div><div className="sum-lbl">Total GST</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 500 }}>{inr(totals.gst)}</div></div>
+            <div><div className="sum-lbl">Total Gross Ad Spend</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }} title="Net Ad Spend + GST">{inr(totals.spend)}</div></div>
+            <div><div className="sum-lbl">Total Revenue</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{inr(totals.rev)}</div></div>
+            <div><div className="sum-lbl">Overall ROAS</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: totals.roas !== null ? roasHex(totals.roas) : "#888" }} title="Revenue ÷ Gross Ad Spend">{totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—"}</div></div>
           </div>
-          <div><div className="sum-lbl">Total Leads</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{totals.leads.toLocaleString("en-IN")}</div></div>
-          <div><div className="sum-lbl">Total Sales</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{totals.sales.toLocaleString("en-IN")}</div></div>
-          <div><div className="sum-lbl">Total Ad Spend</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{inr(totals.spend)}</div></div>
-          <div><div className="sum-lbl">Total Revenue</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{inr(totals.rev)}</div></div>
-          <div><div className="sum-lbl">Overall ROAS</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: totals.roas !== null ? roasHex(totals.roas) : "#888" }}>{totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—"}</div></div>
-        </div>
+          <div style={{ marginTop: 8, fontSize: 11, color: "#888", fontStyle: "italic" }}>{GST_TRUST_NOTE}</div>
+        </>
       )}
+
 
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 14 }}>

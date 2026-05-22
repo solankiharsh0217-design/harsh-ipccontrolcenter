@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { inr, fmtNum, downloadFile, copyToClipboard } from "@/lib/dailyReports/helpers";
 import { logActivity } from "@/lib/auditLog";
+import { getGstAwareAdSpend } from "@/lib/roas/gst";
 import { normalizeMediaBuyerListSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap } from "@/lib/mediaBuyers";
 
 
@@ -144,6 +145,10 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         const dRows: DailyMbRow[] = mbs.map((m) => {
           const r = reportById.get(m.report_id) as any;
           const names = splitBuyerName(m.media_buyer_name || "");
+          // Daily reports predate GST capture — estimate gross from default GST rate.
+          const gst = getGstAwareAdSpend({ total_ad_spend: m.total_ad_spend });
+          const grossSpend = gst.grossAdSpend;
+          const leads = Number(m.total_leads) || 0;
           return {
             reportId: m.report_id,
             reportName: r?.report_name || "",
@@ -151,9 +156,9 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             buyerNameRaw: m.media_buyer_name || "",
             buyerNames: names,
             shared: names.length > 1,
-            spend: Number(m.total_ad_spend) || 0,
-            leads: Number(m.total_leads) || 0,
-            cpl: m.cpl != null ? Number(m.cpl) : (Number(m.total_leads) ? Number(m.total_ad_spend) / Number(m.total_leads) : null),
+            spend: grossSpend,
+            leads,
+            cpl: leads ? grossSpend / leads : null,
             adAccounts: aaByMb[m.id] || [],
             templateName: r?.metric_template_id ? (tplMap.get(r.metric_template_id) || null) : null,
           };
@@ -172,7 +177,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         if (sessIds.length) {
           const { data } = await (supabase as any)
             .from("attribution_media_buyers")
-            .select("session_id, media_buyer_name, ad_spend, total_leads, cpl, matched_sales, revenue, roas_value")
+            .select("session_id, media_buyer_name, ad_spend, total_leads, cpl, matched_sales, revenue, roas_value, gross_ad_spend, net_ad_spend, gst_amount, ad_spend_tax_mode, gst_rate")
             .in("session_id", sessIds);
           attrMbs = data || [];
         }
@@ -180,6 +185,10 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         const aRows: AttrMbRow[] = attrMbs.map((m) => {
           const s = sessById.get(m.session_id) as any;
           const names = splitBuyerName(m.media_buyer_name || "");
+          const gst = getGstAwareAdSpend(m);
+          const grossSpend = gst.grossAdSpend;
+          const leads = Number(m.total_leads) || 0;
+          const rev = Number(m.revenue) || 0;
           return {
             sessionId: m.session_id,
             sessionName: s?.webinar_name || "",
@@ -187,12 +196,12 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             buyerNameRaw: m.media_buyer_name || "",
             buyerNames: names,
             shared: names.length > 1,
-            spend: Number(m.ad_spend) || 0,
-            leads: Number(m.total_leads) || 0,
-            cpl: Number(m.cpl) || 0,
+            spend: grossSpend,
+            leads,
+            cpl: leads ? grossSpend / leads : 0,
             matchedSales: Number(m.matched_sales) || 0,
-            revenue: Number(m.revenue) || 0,
-            roas: Number(m.roas_value) || 0,
+            revenue: rev,
+            roas: grossSpend > 0 ? rev / grossSpend : 0,
           };
         });
         setAttrRows(aRows);
