@@ -290,14 +290,21 @@ export default function RoasCalculator() {
   const { user } = useAuth();
   const [tool, setTool] = useState<ToolKey>("home");
   const [seminarLoadId, setSeminarLoadId] = useState<string | null>(null);
+  const [offlineLoadId, setOfflineLoadId] = useState<string | null>(null);
 
-  // Read ?seminarId=… or ?tool=seminar from URL on mount and when it changes
+  // Read URL params on mount
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const sid = sp.get("seminarId");
+    const oid = sp.get("offlineId");
     const t = sp.get("tool");
     if (sid) { setSeminarLoadId(sid); setTool("seminar"); }
+    else if (oid) { setOfflineLoadId(oid); setTool("offline"); }
     else if (t === "seminar") { setSeminarLoadId(null); setTool("seminar"); }
+    else if (t === "offline") { setOfflineLoadId(null); setTool("offline"); }
+    else if (t === "sources") { setTool("sources"); }
+    // Also support landing path /roas/offline-seminar
+    if (window.location.pathname.includes("offline-seminar")) setTool("offline");
   }, []);
 
   return (
