@@ -1172,18 +1172,24 @@ function AttributionSection({
       )}
 
       {filtered.length > 0 && (
-        <div style={{ marginTop: 14, padding: "14px 18px", border: "1px solid #E8E5DE", borderRadius: 12, background: "#FAFAF8", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
-          <div>
-            <div className="sum-lbl">Filtered Attribution Totals</div>
-            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{totals.count} report{totals.count === 1 ? "" : "s"}</div>
+        <>
+          <div style={{ marginTop: 14, padding: "14px 18px", border: "1px solid #E8E5DE", borderRadius: 12, background: "#FAFAF8", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
+            <div>
+              <div className="sum-lbl">Filtered Attribution Totals</div>
+              <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{totals.count} report{totals.count === 1 ? "" : "s"}</div>
+            </div>
+            <div><div className="sum-lbl">Total Leads</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{totals.leads.toLocaleString("en-IN")}</div></div>
+            <div><div className="sum-lbl">Total Sales</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{totals.sales.toLocaleString("en-IN")}</div></div>
+            <div><div className="sum-lbl">Total Net Ad Spend</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 500 }}>{inr(totals.netSpend)}</div></div>
+            <div><div className="sum-lbl">Total GST</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 500 }}>{inr(totals.gst)}</div></div>
+            <div><div className="sum-lbl">Total Gross Ad Spend</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }} title="Net Ad Spend + GST">{inr(totals.spend)}</div></div>
+            <div><div className="sum-lbl">Total Revenue</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{inr(totals.rev)}</div></div>
+            <div><div className="sum-lbl">Overall ROAS</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: totals.roas !== null ? roasHex(totals.roas) : "#888" }} title="Revenue ÷ Gross Ad Spend">{totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—"}</div></div>
           </div>
-          <div><div className="sum-lbl">Total Leads</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{totals.leads.toLocaleString("en-IN")}</div></div>
-          <div><div className="sum-lbl">Total Sales</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{totals.sales.toLocaleString("en-IN")}</div></div>
-          <div><div className="sum-lbl">Total Ad Spend</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{inr(totals.spend)}</div></div>
-          <div><div className="sum-lbl">Total Revenue</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{inr(totals.rev)}</div></div>
-          <div><div className="sum-lbl">Overall ROAS</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: totals.roas !== null ? roasHex(totals.roas) : "#888" }}>{totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—"}</div></div>
-        </div>
+          <div style={{ marginTop: 8, fontSize: 11, color: "#888", fontStyle: "italic" }}>{GST_TRUST_NOTE}</div>
+        </>
       )}
+
 
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 14 }}>
