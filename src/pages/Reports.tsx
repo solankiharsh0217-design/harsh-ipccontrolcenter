@@ -192,6 +192,29 @@ type SeminarRow = {
   output_snapshot_json: any;
 };
 
+type OfflineRow = {
+  id: string;
+  created_at: string;
+  is_deleted: boolean;
+  deleted_at: string | null;
+  event_name: string;
+  event_date: string | null;
+  event_month: string | null;
+  city: string | null;
+  venue_name: string | null;
+  program_name: string | null;
+  tickets_sold: number;
+  ticket_revenue: number;
+  program_sales_count: number;
+  total_ad_spend: number;
+  total_event_cost: number;
+  total_cost: number;
+  total_gross_revenue: number;
+  total_realized_revenue: number;
+  net_profit: number;
+  realized_roas: number | null;
+};
+
 export default function Reports() {
   const navigate = useNavigate();
   const [section, setSection] = useState<SectionKey>("attribution");
