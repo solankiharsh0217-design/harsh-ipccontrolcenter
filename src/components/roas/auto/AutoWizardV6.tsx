@@ -16,6 +16,10 @@ import ColumnMappingDrawer, { type ColumnMapping } from "@/components/roas/auto/
 import Step4Attendees from "@/components/roas/auto/Step4Attendees";
 import { type AttendeeSlot, defaultSlotsForDates, persistAttendeeSlots, slotsAllReady } from "@/lib/roas/attendees";
 import { scheduleDraftSync, loadRemoteDraft, clearRemoteDraft, type DraftPayload } from "@/lib/roas/autoDraft";
+import {
+  computeSpend, effectiveSpendForBasis, loadGstDefaults, saveGstDefaults,
+  type AdSpendTaxMode, type RoasSpendBasis,
+} from "@/lib/roas/gst";
 
 // ---------- Types & storage ----------
 type DateMode = "single" | "range" | "multiple";
