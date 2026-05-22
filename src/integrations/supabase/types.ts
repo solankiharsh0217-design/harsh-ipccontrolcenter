@@ -1325,6 +1325,333 @@ export type Database = {
         }
         Relationships: []
       }
+      media_buyer_case_emails: {
+        Row: {
+          body: string
+          case_id: string
+          created_at: string
+          created_by: string | null
+          email_type: string
+          error_message: string | null
+          id: string
+          is_deleted: boolean
+          provider_message_id: string | null
+          recipient_email: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          body: string
+          case_id: string
+          created_at?: string
+          created_by?: string | null
+          email_type: string
+          error_message?: string | null
+          id?: string
+          is_deleted?: boolean
+          provider_message_id?: string | null
+          recipient_email?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          body?: string
+          case_id?: string
+          created_at?: string
+          created_by?: string | null
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          is_deleted?: boolean
+          provider_message_id?: string | null
+          recipient_email?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_buyer_case_emails_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "media_buyer_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_buyer_case_events: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string | null
+          event_date: string
+          event_label: string | null
+          event_type: string
+          id: string
+          is_deleted: boolean
+          metadata: Json | null
+          new_status: string | null
+          notes: string | null
+          old_status: string | null
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by?: string | null
+          event_date?: string
+          event_label?: string | null
+          event_type: string
+          id?: string
+          is_deleted?: boolean
+          metadata?: Json | null
+          new_status?: string | null
+          notes?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string | null
+          event_date?: string
+          event_label?: string | null
+          event_type?: string
+          id?: string
+          is_deleted?: boolean
+          metadata?: Json | null
+          new_status?: string | null
+          notes?: string | null
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_buyer_case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "media_buyer_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_buyer_cases: {
+        Row: {
+          access_notes: string | null
+          active_days_remaining: number | null
+          active_days_used: number
+          ad_access_status: string
+          ad_account_access: boolean
+          ad_account_access_received_at: string | null
+          ad_account_name: string | null
+          ads_launch_date: string | null
+          ads_start_date: string | null
+          ads_status: string
+          ads_stop_date: string | null
+          assigned_at: string | null
+          assigned_by: string | null
+          assigned_media_buyer_email: string | null
+          assigned_media_buyer_id: string | null
+          assigned_media_buyer_name: string | null
+          assignment_method: string
+          business_manager_access: boolean
+          call_status: string
+          campaign_setup_status: string | null
+          case_stage: string
+          created_at: string
+          created_by: string | null
+          creative_status: string | null
+          current_pause_started_at: string | null
+          email_followup_sent_at: string | null
+          first_call_due_at: string | null
+          first_called_at: string | null
+          id: string
+          is_active: boolean
+          is_deleted: boolean
+          last_call_outcome: string | null
+          last_called_at: string | null
+          notes: string | null
+          page_access: boolean
+          pause_reason: string | null
+          pixel_domain_access: boolean
+          priority: string
+          program_name: string | null
+          projected_service_end_date: string | null
+          resume_reason: string | null
+          service_duration_days: number | null
+          service_duration_months: number | null
+          service_duration_type: string
+          source_crm_lead_id: string | null
+          source_lead_id: string | null
+          source_module: string | null
+          source_paid_pipeline_lead_id: string | null
+          stop_reason: string | null
+          student_email: string | null
+          student_name: string
+          student_phone: string | null
+          total_call_attempts: number
+          updated_at: string
+        }
+        Insert: {
+          access_notes?: string | null
+          active_days_remaining?: number | null
+          active_days_used?: number
+          ad_access_status?: string
+          ad_account_access?: boolean
+          ad_account_access_received_at?: string | null
+          ad_account_name?: string | null
+          ads_launch_date?: string | null
+          ads_start_date?: string | null
+          ads_status?: string
+          ads_stop_date?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_media_buyer_email?: string | null
+          assigned_media_buyer_id?: string | null
+          assigned_media_buyer_name?: string | null
+          assignment_method?: string
+          business_manager_access?: boolean
+          call_status?: string
+          campaign_setup_status?: string | null
+          case_stage?: string
+          created_at?: string
+          created_by?: string | null
+          creative_status?: string | null
+          current_pause_started_at?: string | null
+          email_followup_sent_at?: string | null
+          first_call_due_at?: string | null
+          first_called_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          last_call_outcome?: string | null
+          last_called_at?: string | null
+          notes?: string | null
+          page_access?: boolean
+          pause_reason?: string | null
+          pixel_domain_access?: boolean
+          priority?: string
+          program_name?: string | null
+          projected_service_end_date?: string | null
+          resume_reason?: string | null
+          service_duration_days?: number | null
+          service_duration_months?: number | null
+          service_duration_type?: string
+          source_crm_lead_id?: string | null
+          source_lead_id?: string | null
+          source_module?: string | null
+          source_paid_pipeline_lead_id?: string | null
+          stop_reason?: string | null
+          student_email?: string | null
+          student_name: string
+          student_phone?: string | null
+          total_call_attempts?: number
+          updated_at?: string
+        }
+        Update: {
+          access_notes?: string | null
+          active_days_remaining?: number | null
+          active_days_used?: number
+          ad_access_status?: string
+          ad_account_access?: boolean
+          ad_account_access_received_at?: string | null
+          ad_account_name?: string | null
+          ads_launch_date?: string | null
+          ads_start_date?: string | null
+          ads_status?: string
+          ads_stop_date?: string | null
+          assigned_at?: string | null
+          assigned_by?: string | null
+          assigned_media_buyer_email?: string | null
+          assigned_media_buyer_id?: string | null
+          assigned_media_buyer_name?: string | null
+          assignment_method?: string
+          business_manager_access?: boolean
+          call_status?: string
+          campaign_setup_status?: string | null
+          case_stage?: string
+          created_at?: string
+          created_by?: string | null
+          creative_status?: string | null
+          current_pause_started_at?: string | null
+          email_followup_sent_at?: string | null
+          first_call_due_at?: string | null
+          first_called_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          last_call_outcome?: string | null
+          last_called_at?: string | null
+          notes?: string | null
+          page_access?: boolean
+          pause_reason?: string | null
+          pixel_domain_access?: boolean
+          priority?: string
+          program_name?: string | null
+          projected_service_end_date?: string | null
+          resume_reason?: string | null
+          service_duration_days?: number | null
+          service_duration_months?: number | null
+          service_duration_type?: string
+          source_crm_lead_id?: string | null
+          source_lead_id?: string | null
+          source_module?: string | null
+          source_paid_pipeline_lead_id?: string | null
+          stop_reason?: string | null
+          student_email?: string | null
+          student_name?: string
+          student_phone?: string | null
+          total_call_attempts?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      media_buyer_service_periods: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string | null
+          ended_at: string | null
+          id: string
+          is_deleted: boolean
+          period_type: string
+          reason: string | null
+          started_at: string
+          total_days: number | null
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          period_type: string
+          reason?: string | null
+          started_at: string
+          total_days?: number | null
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          period_type?: string
+          reason?: string | null
+          started_at?: string
+          total_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_buyer_service_periods_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "media_buyer_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           created_at: string
@@ -2250,6 +2577,7 @@ export type Database = {
           active_for_assignment: boolean
           can_receive_calling_crm_leads: boolean
           can_receive_follow_up_tasks: boolean
+          can_receive_media_buyer_cases: boolean
           can_receive_paid_pipeline_leads: boolean
           can_receive_payment_recovery_leads: boolean
           created_at: string
@@ -2265,6 +2593,7 @@ export type Database = {
           active_for_assignment?: boolean
           can_receive_calling_crm_leads?: boolean
           can_receive_follow_up_tasks?: boolean
+          can_receive_media_buyer_cases?: boolean
           can_receive_paid_pipeline_leads?: boolean
           can_receive_payment_recovery_leads?: boolean
           created_at?: string
@@ -2280,6 +2609,7 @@ export type Database = {
           active_for_assignment?: boolean
           can_receive_calling_crm_leads?: boolean
           can_receive_follow_up_tasks?: boolean
+          can_receive_media_buyer_cases?: boolean
           can_receive_paid_pipeline_leads?: boolean
           can_receive_payment_recovery_leads?: boolean
           created_at?: string

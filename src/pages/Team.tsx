@@ -24,6 +24,7 @@ type EligibilityFlags = {
   can_receive_paid_pipeline_leads: boolean;
   can_receive_follow_up_tasks: boolean;
   can_receive_payment_recovery_leads: boolean;
+  can_receive_media_buyer_cases: boolean;
   include_in_round_robin: boolean;
   active_for_assignment: boolean;
 };
@@ -32,9 +33,11 @@ const emptyEligibility = (): EligibilityFlags => ({
   can_receive_paid_pipeline_leads: false,
   can_receive_follow_up_tasks: false,
   can_receive_payment_recovery_leads: false,
+  can_receive_media_buyer_cases: false,
   include_in_round_robin: false,
   active_for_assignment: true,
 });
+
 
 export default function Team() {
   const { isAdmin, user, refreshProfile } = useAuth();
@@ -71,7 +74,7 @@ export default function Team() {
         supabase.from("user_roles").select("role").eq("user_id", m.id),
         supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
         supabase.from("team_payroll_profiles").select("*").eq("team_member_id", m.id).maybeSingle(),
-        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, include_in_round_robin, active_for_assignment").eq("id", m.id).maybeSingle(),
+        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, can_receive_media_buyer_cases, include_in_round_robin, active_for_assignment").eq("id", m.id).maybeSingle(),
       ]);
       if (rolesRes.error) throw rolesRes.error;
       if (modsRes.error) throw modsRes.error;
@@ -84,6 +87,7 @@ export default function Team() {
         can_receive_paid_pipeline_leads: !!(eligRes.data as any).can_receive_paid_pipeline_leads,
         can_receive_follow_up_tasks: !!(eligRes.data as any).can_receive_follow_up_tasks,
         can_receive_payment_recovery_leads: !!(eligRes.data as any).can_receive_payment_recovery_leads,
+        can_receive_media_buyer_cases: !!(eligRes.data as any).can_receive_media_buyer_cases,
         include_in_round_robin: !!(eligRes.data as any).include_in_round_robin,
         active_for_assignment: (eligRes.data as any).active_for_assignment !== false,
       } : emptyEligibility());
@@ -146,7 +150,7 @@ export default function Team() {
     try {
       const [prevModsRes, prevElig, prevRoles] = await Promise.all([
         supabase.from("user_module_access").select("module_key").eq("user_id", editing.id),
-        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, include_in_round_robin, active_for_assignment").eq("id", editing.id).maybeSingle(),
+        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, can_receive_media_buyer_cases, include_in_round_robin, active_for_assignment").eq("id", editing.id).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", editing.id),
       ]);
       (prevModsRes.data ?? []).forEach((m: any) => oldModules.add(m.module_key));
@@ -161,6 +165,7 @@ export default function Team() {
         can_receive_paid_pipeline_leads: editEligibility.can_receive_paid_pipeline_leads,
         can_receive_follow_up_tasks: editEligibility.can_receive_follow_up_tasks,
         can_receive_payment_recovery_leads: editEligibility.can_receive_payment_recovery_leads,
+        can_receive_media_buyer_cases: editEligibility.can_receive_media_buyer_cases,
         include_in_round_robin: editEligibility.include_in_round_robin,
         active_for_assignment: editEligibility.active_for_assignment,
       };
@@ -221,7 +226,7 @@ export default function Team() {
       const removed = [...oldModules].filter((k) => !newModSet.has(k));
       granted.forEach((k) => logActivity({ ...t, action_type: "module_access_granted", entity_label: memberName, old_values: { [k]: false }, new_values: { [k]: true }, summary: `${k} access granted to ${memberName}.` }));
       removed.forEach((k) => logActivity({ ...t, action_type: "module_access_removed", entity_label: memberName, old_values: { [k]: true }, new_values: { [k]: false }, summary: `${k} access removed from ${memberName}.`, severity: "warning" }));
-      const eligKeys: (keyof EligibilityFlags)[] = ["can_receive_calling_crm_leads","can_receive_paid_pipeline_leads","can_receive_follow_up_tasks","can_receive_payment_recovery_leads","include_in_round_robin","active_for_assignment"];
+      const eligKeys: (keyof EligibilityFlags)[] = ["can_receive_calling_crm_leads","can_receive_paid_pipeline_leads","can_receive_follow_up_tasks","can_receive_payment_recovery_leads","can_receive_media_buyer_cases","include_in_round_robin","active_for_assignment"];
       const eligDiff: any = { old: {}, new: {} }; let eligChanged = false;
       eligKeys.forEach((k) => {
         const ov = !!prevElig2[k]; const nv = !!editEligibility[k];
@@ -340,6 +345,7 @@ export default function Team() {
                   ["can_receive_paid_pipeline_leads", "Can receive Paid Pipeline leads"],
                   ["can_receive_follow_up_tasks", "Can receive Follow-Up tasks"],
                   ["can_receive_payment_recovery_leads", "Can receive Payment Recovery leads"],
+                  ["can_receive_media_buyer_cases", "Can receive Media Buyer cases"],
                   ["include_in_round_robin", "Include in Round Robin"],
                 ] as [keyof EligibilityFlags, string][]).map(([key, label]) => (
                   <label key={key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editEligibility[key] ? "bg-off border-line" : "border-line hover:bg-off"}`}>

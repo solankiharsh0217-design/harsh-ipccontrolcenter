@@ -36,6 +36,13 @@ export default function RevenueCommandCenter() {
       to: "/payment-recovery",
       show: isAdmin || hasModule("payment_recovery"),
     },
+    {
+      title: "Media Buyer Operations Desk",
+      desc: "Assign students to media buyers, track calls, collect ad access, launch ads, pause/resume service days, and monitor media buyer execution.",
+      cta: "Open Media Buyer Desk",
+      to: "/media-buyer-operations",
+      show: isAdmin || hasModule("media_buyer_operations"),
+    },
   ];
 
   const visible = cards.filter((c) => c.show);
