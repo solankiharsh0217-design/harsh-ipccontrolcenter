@@ -226,6 +226,16 @@ export default function Reports() {
   const [dailyStats, setDailyStats] = useState({ count: 0, spend: 0, leadsTotal: 0, avgCpl: null as number | null });
   const [seminarRows, setSeminarRows] = useState<SeminarRow[]>([]);
   const [profitRows, setProfitRows] = useState<ProfitStatementRow[]>([]);
+  const [offlineRows, setOfflineRows] = useState<OfflineRow[]>([]);
+
+  const reloadOffline = async () => {
+    const { data } = await (supabase as any)
+      .from("offline_seminar_reports")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setOfflineRows((data || []) as OfflineRow[]);
+  };
 
   const reloadProfit = async () => {
     const { data } = await (supabase as any)
