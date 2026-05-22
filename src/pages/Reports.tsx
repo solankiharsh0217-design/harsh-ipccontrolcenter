@@ -948,18 +948,23 @@ function AttributionSection({
   const exportFiltered = async (kind: "csv" | "pdf" | "sheets") => {
     if (!filtered.length) { toast.error("No reports to export."); return; }
     if (kind === "csv" || kind === "sheets") {
-      const header = ["Created On", "Webinar", "Webinar Period", "Type", "Method", "Media Buyers", "Leads", "Sales", "Ad Spend", "Revenue", "ROAS"];
-      const rows = filtered.map((s) => [
-        s.created_at ? fmtDateTime(s.created_at) : "",
-        s.webinar_name,
-        webinarPeriod(s),
-        s.webinar_type || "",
-        methodLabel(s),
-        (s.buyers || []).map((b) => b.name).join(" | "),
-        s.total_leads, s.total_sales,
-        Number(s.total_ad_spend), Number(s.total_revenue),
-        Number(s.overall_roas).toFixed(2) + "×",
-      ]);
+      const header = ["Created On", "Webinar", "Webinar Period", "Type", "Method", "Media Buyers", "Leads", "Sales", "Net Ad Spend", "GST", "Gross Ad Spend", "Revenue", "ROAS (Gross)", "GST Status"];
+      const rows = filtered.map((s) => {
+        const g = getGstAwareAdSpend(s as any);
+        const r = calculateRoas(s.total_revenue, g.grossAdSpend);
+        return [
+          s.created_at ? fmtDateTime(s.created_at) : "",
+          s.webinar_name,
+          webinarPeriod(s),
+          s.webinar_type || "",
+          methodLabel(s),
+          (s.buyers || []).map((b) => b.name).join(" | "),
+          s.total_leads, s.total_sales,
+          g.netAdSpend, g.gstAmount, g.grossAdSpend, Number(s.total_revenue),
+          r !== null ? r.toFixed(2) + "×" : "—",
+          g.gstStatus,
+        ];
+      });
       rows.push([
         "FILTERED TOTAL", `${filtered.length} reports`, "", "", "", "",
         totals.leads, totals.sales, totals.spend, totals.rev,
