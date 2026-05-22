@@ -34,7 +34,7 @@ export default function MediaBuyerOperations() {
 
   async function load() {
     setLoading(true);
-    let q: any = supabase.from("media_buyer_cases").select("*").eq("is_deleted", false).order("created_at", { ascending: false });
+    let q: any = (supabase as any).from("media_buyer_cases").select("*").eq("is_deleted", false).order("created_at", { ascending: false });
     if (viewMode === "buyer" && user?.id) q = q.eq("assigned_media_buyer_id", user.id);
     const { data, error } = await q;
     if (error) {
