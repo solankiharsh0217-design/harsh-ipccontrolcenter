@@ -399,6 +399,18 @@ export default function Reports() {
           onClick={() => setSection("seminar")}
         />
         <CategoryCard
+          on={section === "offline"}
+          title="Offline Seminar Reports"
+          badge={`${offlineStats.count} reports`}
+          desc="Saved offline seminar/event profitability reports including ticket revenue, event costs, program sales, and net profit."
+          stats={[
+            { lbl: "Reports", val: String(offlineStats.count) },
+            { lbl: "Total Revenue", val: inr(offlineStats.totalRev) },
+            { lbl: "Net Profit", val: inr(offlineStats.totalNet) },
+          ]}
+          onClick={() => setSection("offline")}
+        />
+        <CategoryCard
           on={section === "profit"}
           title="Profit Statements"
           badge={`${profitStats.count} statements`}
