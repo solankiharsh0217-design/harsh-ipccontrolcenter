@@ -1320,6 +1320,9 @@ function Step4Results(p: {
   tabRoles: TabRoleAssignment[];
   adSpends: Record<string, string>;
   consistency: { sameInputSameOutput: boolean | null; sameInputDifferentOutput: boolean };
+  taxMode: AdSpendTaxMode;
+  gstRate: number;
+  spendBasis: RoasSpendBasis;
 }) {
   const w = p.webinar;
   const fmtD = (d: string) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
