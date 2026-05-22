@@ -180,6 +180,10 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         const aRows: AttrMbRow[] = attrMbs.map((m) => {
           const s = sessById.get(m.session_id) as any;
           const names = splitBuyerName(m.media_buyer_name || "");
+          const gst = getGstAwareAdSpend(m);
+          const grossSpend = gst.grossAdSpend;
+          const leads = Number(m.total_leads) || 0;
+          const rev = Number(m.revenue) || 0;
           return {
             sessionId: m.session_id,
             sessionName: s?.webinar_name || "",
@@ -187,12 +191,12 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             buyerNameRaw: m.media_buyer_name || "",
             buyerNames: names,
             shared: names.length > 1,
-            spend: Number(m.ad_spend) || 0,
-            leads: Number(m.total_leads) || 0,
-            cpl: Number(m.cpl) || 0,
+            spend: grossSpend,
+            leads,
+            cpl: leads ? grossSpend / leads : 0,
             matchedSales: Number(m.matched_sales) || 0,
-            revenue: Number(m.revenue) || 0,
-            roas: Number(m.roas_value) || 0,
+            revenue: rev,
+            roas: grossSpend > 0 ? rev / grossSpend : 0,
           };
         });
         setAttrRows(aRows);
