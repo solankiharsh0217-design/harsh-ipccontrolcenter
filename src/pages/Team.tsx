@@ -150,7 +150,7 @@ export default function Team() {
     try {
       const [prevModsRes, prevElig, prevRoles] = await Promise.all([
         supabase.from("user_module_access").select("module_key").eq("user_id", editing.id),
-        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, include_in_round_robin, active_for_assignment").eq("id", editing.id).maybeSingle(),
+        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, can_receive_media_buyer_cases, include_in_round_robin, active_for_assignment").eq("id", editing.id).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", editing.id),
       ]);
       (prevModsRes.data ?? []).forEach((m: any) => oldModules.add(m.module_key));
@@ -165,6 +165,7 @@ export default function Team() {
         can_receive_paid_pipeline_leads: editEligibility.can_receive_paid_pipeline_leads,
         can_receive_follow_up_tasks: editEligibility.can_receive_follow_up_tasks,
         can_receive_payment_recovery_leads: editEligibility.can_receive_payment_recovery_leads,
+        can_receive_media_buyer_cases: editEligibility.can_receive_media_buyer_cases,
         include_in_round_robin: editEligibility.include_in_round_robin,
         active_for_assignment: editEligibility.active_for_assignment,
       };
