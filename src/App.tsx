@@ -82,6 +82,7 @@ const App = () => (
             <Route path="/analytics-center" element={<Shell><AnalyticsCenter /></Shell>} />
             <Route path="/admin-center" element={<Shell><AdminCenter /></Shell>} />
             <Route path="/admin-center/system-refinement" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
+            <Route path="/media-buyer-operations" element={<Shell moduleKey="media_buyer_operations"><MediaBuyerOperations /></Shell>} />
             <Route path="/system-refinement-checklist" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
