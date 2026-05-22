@@ -78,7 +78,7 @@ export default function WebinarPerformance() {
       // 1) Webinars from attribution_sessions
       const { data: sessions } = await supabase
         .from("attribution_sessions")
-        .select("id, webinar_name, webinar_date, webinar_type, total_leads, total_sales, total_ad_spend, total_revenue, overall_roas, is_deleted")
+        .select("id, webinar_name, webinar_date, webinar_type, total_leads, total_sales, total_ad_spend, total_revenue, overall_roas, is_deleted, total_gross_ad_spend, total_net_ad_spend, total_gst_amount, ad_spend_tax_mode, gst_rate")
         .eq("is_deleted", false)
         .gte("webinar_date", range.start)
         .lte("webinar_date", range.end);
