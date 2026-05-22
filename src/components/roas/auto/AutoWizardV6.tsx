@@ -523,6 +523,13 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     }
     const totals = results.totals;
     const overall = totals.spend > 0 ? totals.revenue / totals.spend : 0;
+    // Recompute GST totals from current ad spend inputs + tax settings
+    let totalNet = 0, totalGst = 0, totalGross = 0;
+    selectedMBs.forEach((m) => {
+      const entered = Number(adSpends[m.mediaBuyerName!] || 0);
+      const b = computeSpend(entered, taxMode, gstRate);
+      totalNet += b.net; totalGst += b.gst; totalGross += b.gross;
+    });
     const { data: sess, error } = await supabase.from("attribution_sessions").insert({
       webinar_name: webinar.name,
       webinar_date: effectiveDate(webinar),
@@ -557,6 +564,12 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       media_buyer_order: er ? er.mediaBuyerBreakdown.map((b) => ({ id: b.mediaBuyerId, name: b.mediaBuyerName })) : null,
       duplicate_conflicts_count: er?.duplicateLeadConflicts.length || 0,
       column_mappings_used: tabRoles.filter((r) => r.columnMapping).map((r) => ({ tabName: r.tabName, role: r.role, columnMapping: r.columnMapping })) as any,
+      ad_spend_tax_mode: taxMode,
+      gst_rate: gstRate,
+      roas_spend_basis: spendBasis,
+      total_net_ad_spend: totalNet,
+      total_gst_amount: totalGst,
+      total_gross_ad_spend: totalGross,
     } as any).select().single();
     if (error || !sess) { toast.error("Save failed: " + (error?.message || "")); return; }
 
