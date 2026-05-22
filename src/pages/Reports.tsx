@@ -470,6 +470,11 @@ export default function Reports() {
         <SeminarSection rows={visibleSeminar} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadSeminar} navigate={navigate} />
       )}
 
+      {section === "offline" && (
+        <OfflineSeminarSection rows={visibleOffline} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadOffline} navigate={navigate} />
+      )}
+
+
       {section === "profit" && (
         <ProfitStatementsSection rows={visibleProfit} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadProfit} navigate={navigate} />
       )}
