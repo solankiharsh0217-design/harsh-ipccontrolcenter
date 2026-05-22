@@ -145,6 +145,10 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         const dRows: DailyMbRow[] = mbs.map((m) => {
           const r = reportById.get(m.report_id) as any;
           const names = splitBuyerName(m.media_buyer_name || "");
+          // Daily reports predate GST capture — estimate gross from default GST rate.
+          const gst = getGstAwareAdSpend({ total_ad_spend: m.total_ad_spend });
+          const grossSpend = gst.grossAdSpend;
+          const leads = Number(m.total_leads) || 0;
           return {
             reportId: m.report_id,
             reportName: r?.report_name || "",
@@ -152,9 +156,9 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             buyerNameRaw: m.media_buyer_name || "",
             buyerNames: names,
             shared: names.length > 1,
-            spend: Number(m.total_ad_spend) || 0,
-            leads: Number(m.total_leads) || 0,
-            cpl: m.cpl != null ? Number(m.cpl) : (Number(m.total_leads) ? Number(m.total_ad_spend) / Number(m.total_leads) : null),
+            spend: grossSpend,
+            leads,
+            cpl: leads ? grossSpend / leads : null,
             adAccounts: aaByMb[m.id] || [],
             templateName: r?.metric_template_id ? (tplMap.get(r.metric_template_id) || null) : null,
           };
