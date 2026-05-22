@@ -148,7 +148,7 @@ function periodMonth(s: SessionRow): string {
   return d ? String(d).slice(0, 7) : "";
 }
 
-type SectionKey = "attribution" | "daily" | "seminar" | "profit" | "overview";
+type SectionKey = "attribution" | "daily" | "seminar" | "offline" | "profit" | "overview";
 
 type ProfitStatementRow = {
   id: string;
@@ -192,6 +192,29 @@ type SeminarRow = {
   output_snapshot_json: any;
 };
 
+type OfflineRow = {
+  id: string;
+  created_at: string;
+  is_deleted: boolean;
+  deleted_at: string | null;
+  event_name: string;
+  event_date: string | null;
+  event_month: string | null;
+  city: string | null;
+  venue_name: string | null;
+  program_name: string | null;
+  tickets_sold: number;
+  ticket_revenue: number;
+  program_sales_count: number;
+  total_ad_spend: number;
+  total_event_cost: number;
+  total_cost: number;
+  total_gross_revenue: number;
+  total_realized_revenue: number;
+  net_profit: number;
+  realized_roas: number | null;
+};
+
 export default function Reports() {
   const navigate = useNavigate();
   const [section, setSection] = useState<SectionKey>("attribution");
@@ -203,6 +226,16 @@ export default function Reports() {
   const [dailyStats, setDailyStats] = useState({ count: 0, spend: 0, leadsTotal: 0, avgCpl: null as number | null });
   const [seminarRows, setSeminarRows] = useState<SeminarRow[]>([]);
   const [profitRows, setProfitRows] = useState<ProfitStatementRow[]>([]);
+  const [offlineRows, setOfflineRows] = useState<OfflineRow[]>([]);
+
+  const reloadOffline = async () => {
+    const { data } = await (supabase as any)
+      .from("offline_seminar_reports")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    setOfflineRows((data || []) as OfflineRow[]);
+  };
 
   const reloadProfit = async () => {
     const { data } = await (supabase as any)
@@ -259,6 +292,7 @@ export default function Reports() {
       loadDailyStats();
       reloadSeminar();
       reloadProfit();
+      reloadOffline();
     })();
     // Auto-open comparison view via route
     if (typeof window !== "undefined" && window.location.pathname.includes("media-buyer-comparison")) {
@@ -299,6 +333,18 @@ export default function Reports() {
     const totalNet = live.reduce((a, s) => a + Number(s.net_profit || 0), 0);
     return { count: live.length, totalRev, totalNet };
   }, [visibleProfit]);
+
+  const visibleOffline = useMemo(() =>
+    offlineRows.filter((s) => showDeleted ? true : !s.is_deleted),
+  [offlineRows, showDeleted]);
+
+  const offlineStats = useMemo(() => {
+    const live = visibleOffline;
+    const totalRev = live.reduce((a, s) => a + Number(s.total_realized_revenue || 0), 0);
+    const totalCost = live.reduce((a, s) => a + Number(s.total_cost || 0), 0);
+    const totalNet = live.reduce((a, s) => a + Number(s.net_profit || 0), 0);
+    return { count: live.length, totalRev, totalCost, totalNet };
+  }, [visibleOffline]);
 
   const latestReportDate = useMemo(() => {
     const dates: string[] = [];
@@ -351,6 +397,18 @@ export default function Reports() {
             { lbl: "Total Revenue", val: inr(seminarStats.totalRev) },
           ]}
           onClick={() => setSection("seminar")}
+        />
+        <CategoryCard
+          on={section === "offline"}
+          title="Offline Seminar Reports"
+          badge={`${offlineStats.count} reports`}
+          desc="Saved offline seminar/event profitability reports including ticket revenue, event costs, program sales, and net profit."
+          stats={[
+            { lbl: "Reports", val: String(offlineStats.count) },
+            { lbl: "Total Revenue", val: inr(offlineStats.totalRev) },
+            { lbl: "Net Profit", val: inr(offlineStats.totalNet) },
+          ]}
+          onClick={() => setSection("offline")}
         />
         <CategoryCard
           on={section === "profit"}
@@ -411,6 +469,11 @@ export default function Reports() {
       {section === "seminar" && (
         <SeminarSection rows={visibleSeminar} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadSeminar} navigate={navigate} />
       )}
+
+      {section === "offline" && (
+        <OfflineSeminarSection rows={visibleOffline} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadOffline} navigate={navigate} />
+      )}
+
 
       {section === "profit" && (
         <ProfitStatementsSection rows={visibleProfit} showDeleted={showDeleted} setShowDeleted={setShowDeleted} reload={reloadProfit} navigate={navigate} />
@@ -1848,3 +1911,123 @@ function ProfitStatementsSection({
     </div>
   );
 }
+
+function OfflineSeminarSection({ rows, showDeleted, setShowDeleted, reload, navigate }: { rows: OfflineRow[]; showDeleted: boolean; setShowDeleted: (b: boolean) => void; reload: () => void; navigate: (p: string) => void; }) {
+  const { user } = useAuth();
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const softDelete = async (id: string) => {
+    if (!confirm("Move this report to trash?")) return;
+    const target = rows.find(r => r.id === id);
+    setBusyId(id);
+    const { error } = await (supabase as any)
+      .from("offline_seminar_reports")
+      .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: user?.id })
+      .eq("id", id);
+    setBusyId(null);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Report moved to trash");
+      logActivity({ module_key: "offline_seminar_roas", action_type: "offline_seminar_report_deleted", entity_type: "offline_seminar_report", entity_id: id, entity_label: target?.event_name, summary: `Offline Seminar Report '${target?.event_name ?? id}' moved to trash.`, severity: "warning" });
+      reload();
+    }
+  };
+  const restore = async (id: string) => {
+    const target = rows.find(r => r.id === id);
+    setBusyId(id);
+    const { error } = await (supabase as any)
+      .from("offline_seminar_reports")
+      .update({ is_deleted: false, deleted_at: null, deleted_by: null })
+      .eq("id", id);
+    setBusyId(null);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Report restored");
+      logActivity({ module_key: "offline_seminar_roas", action_type: "offline_seminar_report_restored", entity_type: "offline_seminar_report", entity_id: id, entity_label: target?.event_name, summary: `Offline Seminar Report '${target?.event_name ?? id}' restored.` });
+      reload();
+    }
+  };
+  const exportCsv = (r: OfflineRow) => {
+    const csv = [
+      ["Event", r.event_name],
+      ["Event Date", r.event_date || ""],
+      ["City", r.city || ""],
+      ["Venue", r.venue_name || ""],
+      ["Program", r.program_name || ""],
+      ["Tickets Sold", String(r.tickets_sold)],
+      ["Ticket Revenue", String(r.ticket_revenue)],
+      ["Program Sales", String(r.program_sales_count)],
+      ["Total Ad Spend", String(r.total_ad_spend)],
+      ["Total Event Cost", String(r.total_event_cost)],
+      ["Total Cost", String(r.total_cost)],
+      ["Total Revenue (Realized)", String(r.total_realized_revenue)],
+      ["Net Profit", String(r.net_profit)],
+      ["Realized ROAS", r.realized_roas == null ? "" : String(r.realized_roas)],
+    ].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = `offline-seminar-${r.event_name.replace(/\W+/g, "-")}.csv`;
+    a.click();
+    logActivity({ module_key: "offline_seminar_roas", action_type: "offline_seminar_report_exported", entity_type: "offline_seminar_report", entity_id: r.id, entity_label: r.event_name, metadata: { format: "csv" }, summary: `Offline Seminar Report '${r.event_name}' exported as CSV.` });
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div className="step-title">Offline Seminar Reports</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button className={"pill" + (showDeleted ? " on" : "")} onClick={() => setShowDeleted(!showDeleted)}>
+            {showDeleted ? "Showing trash" : "Show trash"}
+          </button>
+          <button className="btn btn-k" onClick={() => navigate("/roas-calculator?tool=offline")}>+ New Offline Report</button>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div style={{ padding: 40, textAlign: "center", color: "#888", border: "1px solid var(--bd)", borderRadius: 12, background: "var(--ww)" }}>
+          No offline seminar reports yet. Create one from the ROAS Calculator → Offline Seminar ROAS.
+        </div>
+      ) : (
+        <div style={{ border: "1px solid var(--bd)", borderRadius: 12, background: "var(--ww)", overflow: "hidden" }}>
+          <table className="attr-table">
+            <thead>
+              <tr>
+                <th>Created</th><th>Event Date</th><th>Event</th><th>City</th>
+                <th>Tickets</th><th>Sales</th><th>Total Cost</th><th>Revenue</th>
+                <th>Net Profit</th><th>ROAS</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td style={{ fontSize: 11, color: "#888" }}>{fmtDateTime(r.created_at)}</td>
+                  <td>{r.event_date ? fmtDate(r.event_date) : "—"}</td>
+                  <td className="mb-name-cell">{r.event_name}{r.is_deleted && <span style={{ marginLeft: 8, fontSize: 10, color: "var(--rd)" }}>· trash ({daysRemaining(r.deleted_at)}d)</span>}</td>
+                  <td>{r.city || "—"}</td>
+                  <td>{r.tickets_sold}</td>
+                  <td>{r.program_sales_count}</td>
+                  <td>{inr(Number(r.total_cost))}</td>
+                  <td>{inr(Number(r.total_realized_revenue))}</td>
+                  <td style={{ color: Number(r.net_profit) >= 0 ? "#16A34A" : "#DC2626" }}>{inr(Number(r.net_profit))}</td>
+                  <td><span className={"roas-val " + roasClass(Number(r.realized_roas || 0))}>{r.realized_roas == null ? "—" : Number(r.realized_roas).toFixed(2) + "×"}</span></td>
+                  <td>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button className="btn btn-g btn-sm" onClick={() => navigate(`/roas-calculator?offlineId=${r.id}`)}>👁 View</button>
+                      <button className="btn btn-g btn-sm" onClick={() => exportCsv(r)} disabled={busyId === r.id}>CSV</button>
+                      {r.is_deleted ? (
+                        <button className="btn btn-g btn-sm" onClick={() => restore(r.id)} disabled={busyId === r.id}>♻️</button>
+                      ) : (
+                        <button className="btn btn-g btn-sm" onClick={() => softDelete(r.id)} disabled={busyId === r.id}>🗑</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+

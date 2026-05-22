@@ -22,7 +22,8 @@ export type ModuleKey =
   | "audit_log"
   | "notifications"
   | "profit-statement"
-  | "media_buyer_operations";
+  | "media_buyer_operations"
+  | "offline_seminar_roas";
 
 
 // Canonical module key for Founder Dashboard. We keep "founder-dashboard"
@@ -44,6 +45,7 @@ export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "follow_up_command_center", label: "Follow-Up Command Center", group: "Tools" },
   { key: "payment_recovery", label: "Payment Recovery", group: "Tools" },
   { key: "media_buyer_operations", label: "Media Buyer Operations", group: "Tools" },
+  { key: "offline_seminar_roas", label: "Offline Seminar ROAS", group: "Tools" },
   { key: "webinar_performance", label: "Webinar Performance", group: "Tools" },
   { key: "profit-statement", label: "Profit Statement", group: "Tools" },
   { key: "team", label: "Team Directory", group: "People" },

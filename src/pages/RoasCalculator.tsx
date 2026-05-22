@@ -9,6 +9,7 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import AttributionMethodSelect from "@/components/roas/AttributionMethodSelect";
 import AutoWizardV6 from "@/components/roas/auto/AutoWizardV6";
 import SeminarRoasCalculator from "@/components/roas/seminar/SeminarRoasCalculator";
+import OfflineSeminarRoas from "@/components/roas/offline/OfflineSeminarRoas";
 
 import { calculateAttribution, toLegacyPayload, DEAL_VALUE as ENGINE_DEAL, type AttributionResult, type AttributionSnapshot } from "@/lib/roas/attributionEngine";
 
@@ -283,20 +284,27 @@ type DataSource = { id?: string; name: string; type: string; url: string; descri
 const DEAL_VALUE = 118000;
 
 // ───────────── component ─────────────
-type ToolKey = "home" | "attr" | "total" | "seminar" | "sources";
+type ToolKey = "home" | "attr" | "total" | "seminar" | "offline" | "sources";
 
 export default function RoasCalculator() {
   const { user } = useAuth();
   const [tool, setTool] = useState<ToolKey>("home");
   const [seminarLoadId, setSeminarLoadId] = useState<string | null>(null);
+  const [offlineLoadId, setOfflineLoadId] = useState<string | null>(null);
 
-  // Read ?seminarId=… or ?tool=seminar from URL on mount and when it changes
+  // Read URL params on mount
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const sid = sp.get("seminarId");
+    const oid = sp.get("offlineId");
     const t = sp.get("tool");
     if (sid) { setSeminarLoadId(sid); setTool("seminar"); }
+    else if (oid) { setOfflineLoadId(oid); setTool("offline"); }
     else if (t === "seminar") { setSeminarLoadId(null); setTool("seminar"); }
+    else if (t === "offline") { setOfflineLoadId(null); setTool("offline"); }
+    else if (t === "sources") { setTool("sources"); }
+    // Also support landing path /roas/offline-seminar
+    if (window.location.pathname.includes("offline-seminar")) setTool("offline");
   }, []);
 
   return (
@@ -306,7 +314,7 @@ export default function RoasCalculator() {
         {tool === "home" && <RoasLauncher onPick={(t) => setTool(t)} />}
         {tool !== "home" && (
           <button
-            onClick={() => { setTool("home"); setSeminarLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }}
+            onClick={() => { setTool("home"); setSeminarLoadId(null); setOfflineLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }}
             style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif", marginBottom: 8 }}
           >
             ← Back to ROAS Tools
@@ -321,6 +329,13 @@ export default function RoasCalculator() {
           </div>
         )}
         {tool === "seminar" && <SeminarRoasCalculator key={seminarLoadId || "new"} loadReportId={seminarLoadId} onBack={() => { setTool("home"); setSeminarLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }} />}
+        {tool === "offline" && (
+          <OfflineSeminarRoas
+            key={offlineLoadId || "new"}
+            loadReportId={offlineLoadId}
+            onBack={() => { setTool("home"); setOfflineLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }}
+          />
+        )}
         {tool === "sources" && <SourcesTab userId={user?.id} />}
       </div>
     </div>
@@ -330,14 +345,14 @@ export default function RoasCalculator() {
 function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
   const cards: { key: ToolKey; tag: string; title: string; desc: string; btn: string; primary?: boolean }[] = [
     { key: "attr", tag: "Sales Attribution", title: "Media Buyer Attribution",
-      desc: "Attribute sales to media buyers using manual uploads or automatic attribution from a master Google Sheet.",
+      desc: "Attribute sales and revenue to media buyers using existing Google Sheet/report data.",
       btn: "Open Attribution" },
-    { key: "seminar", tag: "Seminar / Webinar", title: "Seminar ROAS Calculator",
-      desc: "Step-by-step calculator for any seminar, webinar or multi-day challenge — registrations, drop rate, ad spend, GST, profit and ROAS.",
+    { key: "seminar", tag: "Online", title: "Seminar / Webinar ROAS Calculator",
+      desc: "Calculate online webinar/seminar ROAS using registrations, attendance, ad spend, GST, sales, and revenue.",
       btn: "Open Seminar ROAS", primary: true },
-    { key: "sources", tag: "Settings", title: "Data Sources",
-      desc: "Manage saved Google Sheet links, reusable names, data sources, and reporting templates.",
-      btn: "Open Data Sources" },
+    { key: "offline", tag: "Offline", title: "Offline Seminar ROAS",
+      desc: "Calculate complete offline event profitability including ad spend, venue, production, team, shooting, travel, ticket revenue, and program sales.",
+      btn: "Open Offline Seminar ROAS" },
   ];
   return (
     <div style={{ maxWidth: 980, padding: "32px 4px" }}>
@@ -357,6 +372,12 @@ function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
             >{c.btn}</button>
           </div>
         ))}
+      </div>
+      <div style={{ marginTop: 18, fontSize: 12, color: "#888" }}>
+        <button
+          onClick={() => onPick("sources")}
+          style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "'Jost',sans-serif" }}
+        >Manage Data Sources →</button>
       </div>
     </div>
   );
