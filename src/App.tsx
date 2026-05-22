@@ -56,6 +56,8 @@ const App = () => (
             <Route path="/founder-dashboard" element={<Shell><FounderDashboard /></Shell>} />
             <Route path="/roas-calculator" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
             <Route path="/roas" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
+            <Route path="/roas/offline-seminar" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
+            <Route path="/offline-seminar-roas" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
             <Route path="/search" element={<Shell moduleKey="search"><StudentSearch /></Shell>} />
             <Route path="/leadflow" element={<Navigate to="/daily-lead-reporting" replace />} />
             <Route path="/daily-lead-flow" element={<Navigate to="/daily-lead-reporting" replace />} />
