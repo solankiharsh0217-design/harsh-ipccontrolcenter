@@ -64,6 +64,9 @@ export const roasColor = (n: number) => (n >= 10 ? "#16A34A" : n >= 5 ? "#CA8A04
 export function downloadCSV(p: AttributionPayload) {
   const overall = p.totals.spend > 0 ? (p.totals.revenue / p.totals.spend).toFixed(2) : "0";
   const m = p.meta || {};
+  const taxLabel = m.adSpendTaxMode === "exclusive" ? "Ad Spend Excludes GST"
+    : m.adSpendTaxMode === "inclusive" ? "Ad Spend Includes GST"
+    : m.adSpendTaxMode === "none" ? "No GST / Not Applicable" : "";
   const sec0 = [
     "SECTION 0 — REPORT METADATA",
     "Field,Value",
@@ -77,10 +80,17 @@ export function downloadCSV(p: AttributionPayload) {
       ["Platform", m.webinarPlatform || ""],
       ["Zoom Account", m.zoomAccount || ""],
       ["Ad Spend Source", m.adSpendSource || ""],
+      ["Ad Spend Tax Mode", taxLabel],
+      ["GST Rate", m.gstRate != null ? `${m.gstRate}%` : ""],
+      ["ROAS Spend Basis", m.roasSpendBasis ? (m.roasSpendBasis === "gross" ? "Gross Ad Spend" : "Net Ad Spend") : ""],
+      ["Total Net Ad Spend", m.totalNetAdSpend != null ? String(m.totalNetAdSpend) : ""],
+      ["Total GST Amount", m.totalGstAmount != null ? String(m.totalGstAmount) : ""],
+      ["Total Gross Ad Spend", m.totalGrossAdSpend != null ? String(m.totalGrossAdSpend) : ""],
       ["Calculation ID", m.calculationId || ""],
       ["Engine Version", m.engineVersion || ""],
       ["Input Hash", m.inputSnapshotHash || ""],
       ["Output Hash", m.outputHash || ""],
+      ["Legacy Report (GST not captured)", m.legacy ? "Yes" : ""],
     ].filter(([, v]) => v).map(([k, v]) => [q(k), q(String(v))].join(",")),
     "",
   ];
@@ -96,12 +106,15 @@ export function downloadCSV(p: AttributionPayload) {
   const sec2 = [
     "",
     "SECTION 2 — PER MEDIA BUYER BREAKDOWN",
-    "Media Buyer,Total Leads,Sales Attributed,Revenue,Ad Spend,CPL,Conversion Rate,ROAS",
+    "Media Buyer,Total Leads,Sales Attributed,Revenue,Entered Ad Spend,Net Ad Spend,GST Amount,Gross Ad Spend,CPL,Conversion Rate,ROAS",
     ...p.rows.map((r) => {
       const cpl = r.leads ? Math.round(r.spend / r.leads) : 0;
       const cvr = r.leads ? ((r.matched / r.leads) * 100).toFixed(1) : "0";
       const roas = r.spend ? (r.revenue / r.spend).toFixed(2) : "0";
-      return [q(r.name), r.leads, r.matched, r.revenue, r.spend, cpl, cvr + "%", roas + "x"].join(",");
+      const g = r.gst || {};
+      return [q(r.name), r.leads, r.matched, r.revenue,
+        g.entered ?? r.spend, g.net ?? r.spend, g.gst ?? 0, g.gross ?? r.spend,
+        cpl, cvr + "%", roas + "x"].join(",");
     }),
   ];
   const matched = p.salesDetail.filter((s) => s.matchMethod !== "unmatched");
