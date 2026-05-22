@@ -345,14 +345,14 @@ export default function RoasCalculator() {
 function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
   const cards: { key: ToolKey; tag: string; title: string; desc: string; btn: string; primary?: boolean }[] = [
     { key: "attr", tag: "Sales Attribution", title: "Media Buyer Attribution",
-      desc: "Attribute sales to media buyers using manual uploads or automatic attribution from a master Google Sheet.",
+      desc: "Attribute sales and revenue to media buyers using existing Google Sheet/report data.",
       btn: "Open Attribution" },
-    { key: "seminar", tag: "Seminar / Webinar", title: "Seminar ROAS Calculator",
-      desc: "Step-by-step calculator for any seminar, webinar or multi-day challenge — registrations, drop rate, ad spend, GST, profit and ROAS.",
+    { key: "seminar", tag: "Online", title: "Seminar / Webinar ROAS Calculator",
+      desc: "Calculate online webinar/seminar ROAS using registrations, attendance, ad spend, GST, sales, and revenue.",
       btn: "Open Seminar ROAS", primary: true },
-    { key: "sources", tag: "Settings", title: "Data Sources",
-      desc: "Manage saved Google Sheet links, reusable names, data sources, and reporting templates.",
-      btn: "Open Data Sources" },
+    { key: "offline", tag: "Offline", title: "Offline Seminar ROAS",
+      desc: "Calculate complete offline event profitability including ad spend, venue, production, team, shooting, travel, ticket revenue, and program sales.",
+      btn: "Open Offline Seminar ROAS" },
   ];
   return (
     <div style={{ maxWidth: 980, padding: "32px 4px" }}>
@@ -372,6 +372,12 @@ function RoasLauncher({ onPick }: { onPick: (t: ToolKey) => void }) {
             >{c.btn}</button>
           </div>
         ))}
+      </div>
+      <div style={{ marginTop: 18, fontSize: 12, color: "#888" }}>
+        <button
+          onClick={() => onPick("sources")}
+          style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "'Jost',sans-serif" }}
+        >Manage Data Sources →</button>
       </div>
     </div>
   );
