@@ -1178,8 +1178,14 @@ function Step3AdSpends(p: {
   totalSpend: number;
   priorityOrder: string[];
   setPriorityOrder: (ids: string[]) => void;
+  taxMode: AdSpendTaxMode;
+  setTaxMode: (m: AdSpendTaxMode) => void;
+  gstRate: number;
+  setGstRate: (n: number) => void;
+  spendBasis: RoasSpendBasis;
+  setSpendBasis: (b: RoasSpendBasis) => void;
 }) {
-  const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+  const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
   const ordered = p.priorityOrder.length === p.mbs.length
     ? p.priorityOrder.map((id) => p.mbs.find((m) => m.sheetId === id)!).filter(Boolean)
     : p.mbs;
@@ -1189,12 +1195,56 @@ function Step3AdSpends(p: {
     [next[idx], next[j]] = [next[j], next[idx]];
     p.setPriorityOrder(next);
   };
+  const breakdowns = p.mbs.map((m) => ({
+    m, b: computeSpend(Number(p.adSpends[m.mediaBuyerName!] || 0), p.taxMode, p.gstRate),
+  }));
+  const totals = breakdowns.reduce(
+    (a, x) => ({ entered: a.entered + x.b.entered, net: a.net + x.b.net, gst: a.gst + x.b.gst, gross: a.gross + x.b.gross }),
+    { entered: 0, net: 0, gst: 0, gross: 0 },
+  );
+  const helper =
+    p.taxMode === "exclusive" ? "Gross ad spend = entered + GST. ROAS is fairer when revenue is GST-inclusive."
+    : p.taxMode === "inclusive" ? "Net spend and GST are derived from the entered amount."
+    : "Entered ad spend is used as final ad spend.";
+
   return (
     <>
       <div className="wiz-h">Enter Ad Spends</div>
       <div className="wiz-sub">Enter the ad spend for each selected media buyer.</div>
+
+      <div style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: 16, marginBottom: 14, background: "#FAFAF8" }}>
+        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em", color: "#7A5E10", marginBottom: 10 }}>GST / Tax Settings</div>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1.4fr", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>Ad Spend Tax Mode</div>
+            <select className="fsel" style={{ width: "100%", height: 36, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+              value={p.taxMode} onChange={(e) => p.setTaxMode(e.target.value as AdSpendTaxMode)}>
+              <option value="exclusive">Ad Spend Excludes GST</option>
+              <option value="inclusive">Ad Spend Includes GST</option>
+              <option value="none">No GST / Not Applicable</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>GST %</div>
+            <input type="number" min={0} step={0.5} disabled={p.taxMode === "none"}
+              value={p.gstRate}
+              onChange={(e) => p.setGstRate(Number(e.target.value || 0))}
+              style={{ width: "100%", height: 36, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>ROAS Spend Basis</div>
+            <select className="fsel" style={{ width: "100%", height: 36, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+              value={p.spendBasis} onChange={(e) => p.setSpendBasis(e.target.value as RoasSpendBasis)}>
+              <option value="gross">Gross Ad Spend (recommended)</option>
+              <option value="net">Net Ad Spend</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ fontSize: 11.5, color: "#7A5E10", marginTop: 8, lineHeight: 1.6 }}>{helper}</div>
+      </div>
+
       <div style={{ border: "1px solid #E8E5DE", borderRadius: 12, padding: "8px 18px" }}>
-        {p.mbs.map((m) => (
+        {breakdowns.map(({ m, b }) => (
           <div className="spend-row" key={m.sheetId}>
             <div className="left">
               <div className="spend-av">{(m.mediaBuyerName || "?")[0]?.toUpperCase()}</div>
@@ -1203,18 +1253,32 @@ function Step3AdSpends(p: {
                 <div style={{ fontSize: 11, color: "#888" }}>From tab: {m.tabName}</div>
               </div>
             </div>
-            <div className="spend-input-wrap">
-              <span className="pfx">₹</span>
-              <input className="spend-inp" type="number" min={0}
-                placeholder="0"
-                value={p.adSpends[m.mediaBuyerName!] || ""}
-                onChange={(e) => p.setAdSpends({ ...p.adSpends, [m.mediaBuyerName!]: e.target.value })} />
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              {p.taxMode !== "none" && (
+                <div style={{ display: "flex", gap: 10, fontSize: 11, color: "#555" }}>
+                  <span title="Net">Net <strong style={{ color: "#0a0a0a" }}>{inr(b.net)}</strong></span>
+                  <span title="GST">GST <strong style={{ color: "#0a0a0a" }}>{inr(b.gst)}</strong></span>
+                  <span title="Gross">Gross <strong style={{ color: "#0a0a0a" }}>{inr(b.gross)}</strong></span>
+                </div>
+              )}
+              <div className="spend-input-wrap">
+                <span className="pfx">₹</span>
+                <input className="spend-inp" type="number" min={0}
+                  placeholder="0"
+                  value={p.adSpends[m.mediaBuyerName!] || ""}
+                  onChange={(e) => p.setAdSpends({ ...p.adSpends, [m.mediaBuyerName!]: e.target.value })} />
+              </div>
             </div>
           </div>
         ))}
       </div>
-      <div className="spend-tot">
-        Total Ad Spend: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a" }}>{inr(p.totalSpend)}</strong>
+      <div className="spend-tot" style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <span>Total Net Ad Spend: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20 }}>{inr(totals.net)}</strong></span>
+        <span>Total GST: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20 }}>{inr(totals.gst)}</strong></span>
+        <span>Total Gross Ad Spend: <strong style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a" }}>{inr(totals.gross)}</strong></span>
+      </div>
+      <div style={{ fontSize: 11.5, color: "#7A5E10", marginTop: 6 }}>
+        ROAS will be calculated using {p.spendBasis === "gross" ? "Gross Ad Spend" : "Net Ad Spend"}.
       </div>
 
       {p.mbs.length > 0 && (
