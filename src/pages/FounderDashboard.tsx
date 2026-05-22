@@ -561,8 +561,8 @@ export default function FounderDashboard() {
               <MetricCard label="Revenue To Be Realized" value={inr(data.monthToBeRealized)} sub={`From leads created in ${rangeLabel}`} onClick={() => nav("/paid-pipeline")} />
               <MetricCard label={`Token Collected (${rangeLabel})`} value={inr(data.monthTokens)} />
               <MetricCard label="Balance Pending" value={inr(data.monthBalance)} sub={`Leads created in ${rangeLabel}`} />
-              <MetricCard label={`Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.monthSpend) : NA} />
-              <MetricCard label="Estimated Profit" value={data.hasDailyReports ? inr(profit) : NA} sub="Revenue − Ad Spend" onClick={() => nav("/profit-statement")} />
+              <MetricCard label={`Gross Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.monthSpend) : NA} />
+              <MetricCard label="Estimated Profit" value={data.hasDailyReports ? inr(profit) : NA} sub="Revenue − Gross Ad Spend (incl. GST)" onClick={() => nav("/profit-statement")} />
               <MetricCard label="Profit Margin" value={data.hasDailyReports && data.monthRevenue > 0 ? margin.toFixed(1) + "%" : NA} />
             </div>
           </Section>
