@@ -454,7 +454,7 @@ export default function WebinarPerformance() {
         <table className="w-full border-collapse font-sans text-[12px]">
           <thead>
             <tr>
-              {["Webinar", "Date", "Type", "Product", "Regs", "Show-Ups", "Show %", "Ad Spend", "CPL", "Token", "Tok %", "Finals", "Fin %", "Revenue", "Pending", "ROAS", "Status", "Actions"].map((h) => (
+              {["Webinar", "Date", "Type", "Product", "Regs", "Show-Ups", "Show %", "Gross Ad Spend", "CPL", "Token", "Tok %", "Finals", "Fin %", "Revenue", "Pending", "ROAS", "Status", "Actions"].map((h) => (
                 <th key={h} className="text-left text-[9px] font-medium uppercase tracking-[0.1em] text-muted-foreground py-2.5 px-3 border-b border-line whitespace-nowrap">{h}</th>
               ))}
             </tr>
