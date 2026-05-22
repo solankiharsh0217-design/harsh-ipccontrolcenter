@@ -9,6 +9,7 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import AttributionMethodSelect from "@/components/roas/AttributionMethodSelect";
 import AutoWizardV6 from "@/components/roas/auto/AutoWizardV6";
 import SeminarRoasCalculator from "@/components/roas/seminar/SeminarRoasCalculator";
+import OfflineSeminarRoas from "@/components/roas/offline/OfflineSeminarRoas";
 
 import { calculateAttribution, toLegacyPayload, DEAL_VALUE as ENGINE_DEAL, type AttributionResult, type AttributionSnapshot } from "@/lib/roas/attributionEngine";
 
