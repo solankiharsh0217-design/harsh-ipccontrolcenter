@@ -22,7 +22,8 @@ export type ModuleKey =
   | "audit_log"
   | "notifications"
   | "profit-statement"
-  | "media_buyer_operations";
+  | "media_buyer_operations"
+  | "offline_seminar_roas";
 
 
 // Canonical module key for Founder Dashboard. We keep "founder-dashboard"
