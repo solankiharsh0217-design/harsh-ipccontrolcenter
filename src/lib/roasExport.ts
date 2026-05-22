@@ -31,13 +31,27 @@ export type AttributionMeta = {
   inputSnapshotHash?: string;
   outputHash?: string;
   engineVersion?: string;
+  // GST / tax handling (optional — absent on legacy reports)
+  adSpendTaxMode?: "exclusive" | "inclusive" | "none";
+  gstRate?: number;
+  roasSpendBasis?: "gross" | "net";
+  totalNetAdSpend?: number;
+  totalGstAmount?: number;
+  totalGrossAdSpend?: number;
+  legacy?: boolean; // true when GST fields were not captured
+};
+export type AttrRowGst = {
+  entered?: number;
+  net?: number;
+  gst?: number;
+  gross?: number;
 };
 export type AttributionPayload = {
   webinarName: string;
   webinarDate: string;
   webinarType: string;
   totals: { spend: number; revenue: number; sales: number; leads: number };
-  rows: AttrRow[];
+  rows: (AttrRow & { gst?: AttrRowGst })[];
   salesDetail: SaleDetail[];
   meta?: AttributionMeta;
 };
