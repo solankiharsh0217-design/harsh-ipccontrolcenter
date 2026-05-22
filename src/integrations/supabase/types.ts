@@ -220,12 +220,18 @@ export type Database = {
       attribution_media_buyers: {
         Row: {
           ad_spend: number
+          ad_spend_tax_mode: string | null
           conversion_rate: number
           cpl: number
           created_at: string
+          entered_ad_spend: number | null
+          gross_ad_spend: number | null
+          gst_amount: number | null
+          gst_rate: number | null
           id: string
           matched_sales: number
           media_buyer_name: string
+          net_ad_spend: number | null
           revenue: number
           roas_value: number
           session_id: string
@@ -237,12 +243,18 @@ export type Database = {
         }
         Insert: {
           ad_spend?: number
+          ad_spend_tax_mode?: string | null
           conversion_rate?: number
           cpl?: number
           created_at?: string
+          entered_ad_spend?: number | null
+          gross_ad_spend?: number | null
+          gst_amount?: number | null
+          gst_rate?: number | null
           id?: string
           matched_sales?: number
           media_buyer_name: string
+          net_ad_spend?: number | null
           revenue?: number
           roas_value?: number
           session_id: string
@@ -254,12 +266,18 @@ export type Database = {
         }
         Update: {
           ad_spend?: number
+          ad_spend_tax_mode?: string | null
           conversion_rate?: number
           cpl?: number
           created_at?: string
+          entered_ad_spend?: number | null
+          gross_ad_spend?: number | null
+          gst_amount?: number | null
+          gst_rate?: number | null
           id?: string
           matched_sales?: number
           media_buyer_name?: string
+          net_ad_spend?: number | null
           revenue?: number
           roas_value?: number
           session_id?: string
@@ -373,6 +391,7 @@ export type Database = {
       }
       attribution_sessions: {
         Row: {
+          ad_spend_tax_mode: string | null
           attribution_engine_version: string | null
           calculation_display_method: string | null
           calculation_id: string | null
@@ -385,6 +404,7 @@ export type Database = {
           deleted_by: string | null
           duplicate_conflicts_count: number | null
           fetch_log_id: string | null
+          gst_rate: number | null
           id: string
           input_snapshot_hash: string | null
           is_deleted: boolean
@@ -395,11 +415,15 @@ export type Database = {
           output_hash: string | null
           overall_roas: number
           result_status: string | null
+          roas_spend_basis: string | null
           saved_from_draft_id: string | null
           session_slot: string | null
           tab_role_mapping: Json | null
           total_ad_spend: number
+          total_gross_ad_spend: number | null
+          total_gst_amount: number | null
           total_leads: number
+          total_net_ad_spend: number | null
           total_revenue: number
           total_sales: number
           unmatched_count: number
@@ -420,6 +444,7 @@ export type Database = {
           zoom_account_used: string | null
         }
         Insert: {
+          ad_spend_tax_mode?: string | null
           attribution_engine_version?: string | null
           calculation_display_method?: string | null
           calculation_id?: string | null
@@ -432,6 +457,7 @@ export type Database = {
           deleted_by?: string | null
           duplicate_conflicts_count?: number | null
           fetch_log_id?: string | null
+          gst_rate?: number | null
           id?: string
           input_snapshot_hash?: string | null
           is_deleted?: boolean
@@ -442,11 +468,15 @@ export type Database = {
           output_hash?: string | null
           overall_roas?: number
           result_status?: string | null
+          roas_spend_basis?: string | null
           saved_from_draft_id?: string | null
           session_slot?: string | null
           tab_role_mapping?: Json | null
           total_ad_spend?: number
+          total_gross_ad_spend?: number | null
+          total_gst_amount?: number | null
           total_leads?: number
+          total_net_ad_spend?: number | null
           total_revenue?: number
           total_sales?: number
           unmatched_count?: number
@@ -467,6 +497,7 @@ export type Database = {
           zoom_account_used?: string | null
         }
         Update: {
+          ad_spend_tax_mode?: string | null
           attribution_engine_version?: string | null
           calculation_display_method?: string | null
           calculation_id?: string | null
@@ -479,6 +510,7 @@ export type Database = {
           deleted_by?: string | null
           duplicate_conflicts_count?: number | null
           fetch_log_id?: string | null
+          gst_rate?: number | null
           id?: string
           input_snapshot_hash?: string | null
           is_deleted?: boolean
@@ -489,11 +521,15 @@ export type Database = {
           output_hash?: string | null
           overall_roas?: number
           result_status?: string | null
+          roas_spend_basis?: string | null
           saved_from_draft_id?: string | null
           session_slot?: string | null
           tab_role_mapping?: Json | null
           total_ad_spend?: number
+          total_gross_ad_spend?: number | null
+          total_gst_amount?: number | null
           total_leads?: number
+          total_net_ad_spend?: number | null
           total_revenue?: number
           total_sales?: number
           unmatched_count?: number
