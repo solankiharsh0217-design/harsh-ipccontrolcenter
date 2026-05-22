@@ -967,8 +967,9 @@ function AttributionSection({
       });
       rows.push([
         "FILTERED TOTAL", `${filtered.length} reports`, "", "", "", "",
-        totals.leads, totals.sales, totals.spend, totals.rev,
+        totals.leads, totals.sales, totals.netSpend, totals.gst, totals.spend, totals.rev,
         totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—",
+        "",
       ]);
       const csv = [header, ...rows].map((r) => r.map((c) => {
         const v = String(c ?? "");
