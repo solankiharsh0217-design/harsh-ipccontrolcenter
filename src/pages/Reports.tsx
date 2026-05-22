@@ -1087,7 +1087,9 @@ function AttributionSection({
           </thead>
           <tbody>
             {display.map((s) => {
-              const roasN = Number(s.overall_roas);
+              const gst = getGstAwareAdSpend(s as any);
+              const roasN = calculateRoas(s.total_revenue, gst.grossAdSpend) ?? 0;
+              const isLegacy = gst.gstStatus === "estimated_legacy";
               return (
                 <tr key={s.id} onClick={() => setOpenSession(s)} style={s.is_deleted ? { opacity: 0.55 } : undefined}>
                   <td style={{ fontSize: 11.5, color: "#555" }}>{s.created_at ? fmtDateTime(s.created_at) : "—"}</td>
@@ -1123,9 +1125,12 @@ function AttributionSection({
                   </td>
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16 }}>{s.total_leads}</td>
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#16A34A" }}>{s.total_sales}</td>
-                  <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }}>{inr(Number(s.total_ad_spend))}</td>
+                  <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }} title={`Net ${inr(gst.netAdSpend)} + GST ${inr(gst.gstAmount)} @ ${gst.gstRate}%`}>
+                    {inr(gst.grossAdSpend)}
+                    {isLegacy && <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF9C3", border: "1px solid #FDE68A", color: "#92400E", textTransform: "uppercase", letterSpacing: ".06em", fontFamily: "inherit" }} title="GST estimated using default rate — legacy report">GST est</span>}
+                  </td>
                   <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "#16A34A" }}>{inr(Number(s.total_revenue))}</td>
-                  <td><span className={"roas-val " + roasClass(roasN)}>{roasN.toFixed(2)}×</span></td>
+                  <td><span className={"roas-val " + roasClass(roasN)} title="Revenue ÷ Gross Ad Spend">{roasN.toFixed(2)}×</span></td>
                   <td onClick={(e) => e.stopPropagation()}>
                     {s.is_deleted ? (
                       <div style={{ display: "flex", gap: 4 }}>
