@@ -314,7 +314,7 @@ export default function RoasCalculator() {
         {tool === "home" && <RoasLauncher onPick={(t) => setTool(t)} />}
         {tool !== "home" && (
           <button
-            onClick={() => { setTool("home"); setSeminarLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }}
+            onClick={() => { setTool("home"); setSeminarLoadId(null); setOfflineLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }}
             style={{ background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "'Jost',sans-serif", marginBottom: 8 }}
           >
             ← Back to ROAS Tools
@@ -329,6 +329,13 @@ export default function RoasCalculator() {
           </div>
         )}
         {tool === "seminar" && <SeminarRoasCalculator key={seminarLoadId || "new"} loadReportId={seminarLoadId} onBack={() => { setTool("home"); setSeminarLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }} />}
+        {tool === "offline" && (
+          <OfflineSeminarRoas
+            key={offlineLoadId || "new"}
+            loadReportId={offlineLoadId}
+            onBack={() => { setTool("home"); setOfflineLoadId(null); if (window.location.search) window.history.replaceState(null, "", window.location.pathname); }}
+          />
+        )}
         {tool === "sources" && <SourcesTab userId={user?.id} />}
       </div>
     </div>
