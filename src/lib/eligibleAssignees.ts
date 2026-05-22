@@ -36,11 +36,13 @@ export type AssignmentContext =
   | "paid_pipeline"
   | "follow_up_command_center"
   | "payment_recovery"
+  | "media_buyer_operations"
   | "send_to_crm"
   | "round_robin_calling_crm"
   | "round_robin_paid_pipeline"
   | "round_robin_follow_up"
-  | "round_robin_payment_recovery";
+  | "round_robin_payment_recovery"
+  | "round_robin_media_buyer_operations";
 
 interface ContextSpec {
   flag: string;            // profiles.<col> that must be true
@@ -48,16 +50,19 @@ interface ContextSpec {
 }
 
 const CONTEXT_MAP: Record<AssignmentContext, ContextSpec> = {
-  calling_crm:                  { flag: "can_receive_calling_crm_leads",       requireRoundRobin: false },
-  send_to_crm:                  { flag: "can_receive_calling_crm_leads",       requireRoundRobin: false },
-  paid_pipeline:                { flag: "can_receive_paid_pipeline_leads",     requireRoundRobin: false },
-  follow_up_command_center:     { flag: "can_receive_follow_up_tasks",         requireRoundRobin: false },
-  payment_recovery:             { flag: "can_receive_payment_recovery_leads",  requireRoundRobin: false },
-  round_robin_calling_crm:      { flag: "can_receive_calling_crm_leads",       requireRoundRobin: true },
-  round_robin_paid_pipeline:    { flag: "can_receive_paid_pipeline_leads",     requireRoundRobin: true },
-  round_robin_follow_up:        { flag: "can_receive_follow_up_tasks",         requireRoundRobin: true },
-  round_robin_payment_recovery: { flag: "can_receive_payment_recovery_leads",  requireRoundRobin: true },
+  calling_crm:                          { flag: "can_receive_calling_crm_leads",       requireRoundRobin: false },
+  send_to_crm:                          { flag: "can_receive_calling_crm_leads",       requireRoundRobin: false },
+  paid_pipeline:                        { flag: "can_receive_paid_pipeline_leads",     requireRoundRobin: false },
+  follow_up_command_center:             { flag: "can_receive_follow_up_tasks",         requireRoundRobin: false },
+  payment_recovery:                     { flag: "can_receive_payment_recovery_leads",  requireRoundRobin: false },
+  media_buyer_operations:               { flag: "can_receive_media_buyer_cases",       requireRoundRobin: false },
+  round_robin_calling_crm:              { flag: "can_receive_calling_crm_leads",       requireRoundRobin: true },
+  round_robin_paid_pipeline:            { flag: "can_receive_paid_pipeline_leads",     requireRoundRobin: true },
+  round_robin_follow_up:                { flag: "can_receive_follow_up_tasks",         requireRoundRobin: true },
+  round_robin_payment_recovery:         { flag: "can_receive_payment_recovery_leads",  requireRoundRobin: true },
+  round_robin_media_buyer_operations:   { flag: "can_receive_media_buyer_cases",       requireRoundRobin: true },
 };
+
 
 /**
  * Returns active team members who are eligible to RECEIVE assignments for the
