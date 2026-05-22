@@ -892,6 +892,11 @@ function AttributionSection({
         Number(s.total_ad_spend), Number(s.total_revenue),
         Number(s.overall_roas).toFixed(2) + "×",
       ]);
+      rows.push([
+        "FILTERED TOTAL", `${filtered.length} reports`, "", "", "", "",
+        totals.leads, totals.sales, totals.spend, totals.rev,
+        totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—",
+      ]);
       const csv = [header, ...rows].map((r) => r.map((c) => {
         const v = String(c ?? "");
         return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
