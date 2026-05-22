@@ -684,12 +684,73 @@ function CategoryCard({
 /* ============================================================
    ATTRIBUTION SECTION
    ============================================================ */
+type DatePreset = "all" | "today" | "yesterday" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "custom";
+
+function getDateRangeFromPreset(preset: DatePreset): { from: string; to: string } {
+  const today = new Date();
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const t = iso(today);
+  if (preset === "today") return { from: t, to: t };
+  if (preset === "yesterday") { const y = new Date(today); y.setDate(y.getDate() - 1); return { from: iso(y), to: iso(y) }; }
+  if (preset === "last_7_days") { const f = new Date(today); f.setDate(f.getDate() - 6); return { from: iso(f), to: t }; }
+  if (preset === "last_30_days") { const f = new Date(today); f.setDate(f.getDate() - 29); return { from: iso(f), to: t }; }
+  if (preset === "this_month") { const f = new Date(today.getFullYear(), today.getMonth(), 1); return { from: iso(f), to: t }; }
+  if (preset === "last_month") {
+    const f = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const l = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { from: iso(f), to: iso(l) };
+  }
+  return { from: "", to: "" };
+}
+
+function DateRangeControl({
+  label, preset, setPreset, from, to, setFrom, setTo, allLabel = "All Dates",
+}: {
+  label: string; preset: DatePreset; setPreset: (p: DatePreset) => void;
+  from: string; to: string; setFrom: (v: string) => void; setTo: (v: string) => void; allLabel?: string;
+}) {
+  const onPresetChange = (p: DatePreset) => {
+    setPreset(p);
+    if (p === "custom") return;
+    const r = getDateRangeFromPreset(p);
+    setFrom(r.from); setTo(r.to);
+  };
+  return (
+    <div>
+      <label className="filter-lbl">{label}</label>
+      <select className="fsel" value={preset} onChange={(e) => onPresetChange(e.target.value as DatePreset)}>
+        <option value="all">{allLabel}</option>
+        <option value="today">Today</option>
+        <option value="yesterday">Yesterday</option>
+        <option value="last_7_days">Last 7 Days</option>
+        <option value="last_30_days">Last 30 Days</option>
+        <option value="this_month">This Month</option>
+        <option value="last_month">Last Month</option>
+        <option value="custom">Custom Range</option>
+      </select>
+      {preset === "custom" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 6 }}>
+          <input className="fi" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <input className="fi" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </div>
+      )}
+      {preset !== "all" && preset !== "custom" && (from || to) && (
+        <div style={{ fontSize: 10, color: "#888", marginTop: 4 }}>
+          {from ? fmtDate(from) : "…"} – {to ? fmtDate(to) : "…"}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AttributionSection({
   sessions, loading, showDeleted, setShowDeleted, reload,
 }: { sessions: SessionRow[]; loading: boolean; showDeleted: boolean; setShowDeleted: (b: boolean) => void; reload: () => void; }) {
   const { user } = useAuth();
+  const [createdPreset, setCreatedPreset] = useState<DatePreset>("all");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
+  const [webPreset, setWebPreset] = useState<DatePreset>("all");
   const [webFrom, setWebFrom] = useState("");
   const [webTo, setWebTo] = useState("");
   const [month, setMonth] = useState("all");
@@ -726,8 +787,8 @@ function AttributionSection({
           .filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
-      if (createdFrom && s.created_at < createdFrom) return false;
-      if (createdTo && s.created_at > createdTo + "T23:59:59") return false;
+      if (createdFrom && (s.created_at || "") < createdFrom) return false;
+      if (createdTo && (s.created_at || "") > createdTo + "T23:59:59") return false;
       const wd = (s.webinar_date_mode === "range" ? s.webinar_start_date : s.webinar_single_date) || s.webinar_date;
       if (webFrom && (!wd || wd < webFrom)) return false;
       if (webTo && (!wd || wd > webTo)) return false;
@@ -745,11 +806,23 @@ function AttributionSection({
     });
   }, [sessions, search, createdFrom, createdTo, webFrom, webTo, month, monthBasis, methodF, buyer]);
 
+  const totals = useMemo(() => {
+    let leads = 0, sales = 0, spend = 0, rev = 0;
+    filtered.forEach((s) => {
+      leads += Number(s.total_leads) || 0;
+      sales += Number(s.total_sales) || 0;
+      spend += Number(s.total_ad_spend) || 0;
+      rev += Number(s.total_revenue) || 0;
+    });
+    return { leads, sales, spend, rev, roas: spend > 0 ? rev / spend : null, count: filtered.length };
+  }, [filtered]);
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const display = filtered.slice((page - 1) * PAGE, page * PAGE);
 
   const reset = () => {
-    setCreatedFrom(""); setCreatedTo(""); setWebFrom(""); setWebTo("");
+    setCreatedPreset("all"); setCreatedFrom(""); setCreatedTo("");
+    setWebPreset("all"); setWebFrom(""); setWebTo("");
     setMonth("all"); setMethodF("all"); setBuyer("all"); setSearch(""); setPage(1);
   };
 
@@ -819,6 +892,11 @@ function AttributionSection({
         Number(s.total_ad_spend), Number(s.total_revenue),
         Number(s.overall_roas).toFixed(2) + "×",
       ]);
+      rows.push([
+        "FILTERED TOTAL", `${filtered.length} reports`, "", "", "", "",
+        totals.leads, totals.sales, totals.spend, totals.rev,
+        totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—",
+      ]);
       const csv = [header, ...rows].map((r) => r.map((c) => {
         const v = String(c ?? "");
         return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
@@ -849,8 +927,15 @@ function AttributionSection({
           inr(Number(s.total_ad_spend)), inr(Number(s.total_revenue)),
           Number(s.overall_roas).toFixed(2) + "×",
         ]),
+        foot: [[
+          "FILTERED TOTAL", `${filtered.length} reports`, "", "",
+          totals.leads, totals.sales,
+          inr(totals.spend), inr(totals.rev),
+          totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—",
+        ]],
         theme: "grid", styles: { fontSize: 8 },
         headStyles: { fillColor: [247, 246, 243], textColor: 0 },
+        footStyles: { fillColor: [247, 246, 243], textColor: 0, fontStyle: "bold" },
       });
       doc.save(`attribution-reports-${new Date().toISOString().slice(0,10)}.pdf`);
     }
@@ -872,11 +957,9 @@ function AttributionSection({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 14, padding: 14, background: "#FAFAF8", border: "1px solid #E8E5DE", borderRadius: 12 }}>
-        <div><label className="filter-lbl">Created — From</label><input className="fi" type="date" value={createdFrom} onChange={(e) => { setCreatedFrom(e.target.value); setPage(1); }} /></div>
-        <div><label className="filter-lbl">Created — To</label><input className="fi" type="date" value={createdTo} onChange={(e) => { setCreatedTo(e.target.value); setPage(1); }} /></div>
-        <div><label className="filter-lbl">Webinar — From</label><input className="fi" type="date" value={webFrom} onChange={(e) => { setWebFrom(e.target.value); setPage(1); }} /></div>
-        <div><label className="filter-lbl">Webinar — To</label><input className="fi" type="date" value={webTo} onChange={(e) => { setWebTo(e.target.value); setPage(1); }} /></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginBottom: 10, padding: 14, background: "#FAFAF8", border: "1px solid #E8E5DE", borderRadius: 12 }}>
+        <DateRangeControl label="Created Date Range" preset={createdPreset} setPreset={(p) => { setCreatedPreset(p); setPage(1); }} from={createdFrom} to={createdTo} setFrom={(v) => { setCreatedFrom(v); setPage(1); }} setTo={(v) => { setCreatedTo(v); setPage(1); }} allLabel="All Dates" />
+        <DateRangeControl label="Webinar Date Range" preset={webPreset} setPreset={(p) => { setWebPreset(p); setPage(1); }} from={webFrom} to={webTo} setFrom={(v) => { setWebFrom(v); setPage(1); }} setTo={(v) => { setWebTo(v); setPage(1); }} allLabel="All Webinar Dates" />
         <div>
           <label className="filter-lbl">Month ({monthBasis === "webinar" ? "Webinar" : "Created"})</label>
           <div style={{ display: "flex", gap: 6 }}>
@@ -909,17 +992,22 @@ function AttributionSection({
           <label className="filter-lbl">Search</label>
           <input className="fi" placeholder="Webinar, buyer, operator…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <div style={{ display: "flex", alignItems: "flex-end" }}>
-          <button className="btn btn-g btn-sm" onClick={reset}>Reset</button>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <button className="btn btn-g btn-sm" onClick={reset}>Reset Filters</button>
         </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, fontSize: 11.5, color: "#666" }}>
+        <div>Showing <strong style={{ color: "#0a0a0a" }}>{filtered.length}</strong> of <strong style={{ color: "#0a0a0a" }}>{sessions.length}</strong> attribution reports</div>
       </div>
 
       {loading ? (
         <div style={{ color: "#888", fontSize: 13, padding: 40, textAlign: "center" }}>Loading…</div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#888" }}>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a", marginBottom: 8 }}>No attribution reports found</div>
-          <div style={{ fontSize: 13 }}>Saved ROAS attribution reports will appear here after you calculate and save them from the ROAS Calculator.</div>
+        <div style={{ textAlign: "center", padding: 60, color: "#888", border: "1px solid #E8E5DE", borderRadius: 12, background: "#FAFAF8" }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#0a0a0a", marginBottom: 8 }}>No attribution reports found for selected filters</div>
+          <div style={{ fontSize: 13, marginBottom: 14 }}>Try changing the created date range, webinar date range, media buyer, method, or search keyword.</div>
+          <button className="btn btn-g btn-sm" onClick={reset}>Reset Filters</button>
         </div>
       ) : (
         <table className="attr-table">
@@ -996,7 +1084,32 @@ function AttributionSection({
               );
             })}
           </tbody>
+          <tfoot>
+            <tr style={{ background: "#F7F6F3", borderTop: "2px solid #E8E5DE", fontWeight: 500 }}>
+              <td colSpan={6} style={{ padding: 14, fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", color: "#555" }}>Filtered Total · {totals.count} reports</td>
+              <td style={{ padding: 14, fontFamily: "'Cormorant Garamond',serif", fontSize: 16 }}>{totals.leads.toLocaleString("en-IN")}</td>
+              <td style={{ padding: 14, fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#16A34A" }}>{totals.sales.toLocaleString("en-IN")}</td>
+              <td style={{ padding: 14, fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }}>{inr(totals.spend)}</td>
+              <td style={{ padding: 14, fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "#16A34A" }}>{inr(totals.rev)}</td>
+              <td style={{ padding: 14 }}><span className={"roas-val " + (totals.roas !== null ? roasClass(totals.roas) : "")}>{totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—"}</span></td>
+              <td />
+            </tr>
+          </tfoot>
         </table>
+      )}
+
+      {filtered.length > 0 && (
+        <div style={{ marginTop: 14, padding: "14px 18px", border: "1px solid #E8E5DE", borderRadius: 12, background: "#FAFAF8", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
+          <div>
+            <div className="sum-lbl">Filtered Attribution Totals</div>
+            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{totals.count} report{totals.count === 1 ? "" : "s"}</div>
+          </div>
+          <div><div className="sum-lbl">Total Leads</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{totals.leads.toLocaleString("en-IN")}</div></div>
+          <div><div className="sum-lbl">Total Sales</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{totals.sales.toLocaleString("en-IN")}</div></div>
+          <div><div className="sum-lbl">Total Ad Spend</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{inr(totals.spend)}</div></div>
+          <div><div className="sum-lbl">Total Revenue</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{inr(totals.rev)}</div></div>
+          <div><div className="sum-lbl">Overall ROAS</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: totals.roas !== null ? roasHex(totals.roas) : "#888" }}>{totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—"}</div></div>
+        </div>
       )}
 
       {totalPages > 1 && (
