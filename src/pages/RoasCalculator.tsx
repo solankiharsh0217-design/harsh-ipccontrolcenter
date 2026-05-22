@@ -284,7 +284,7 @@ type DataSource = { id?: string; name: string; type: string; url: string; descri
 const DEAL_VALUE = 118000;
 
 // ───────────── component ─────────────
-type ToolKey = "home" | "attr" | "total" | "seminar" | "sources";
+type ToolKey = "home" | "attr" | "total" | "seminar" | "offline" | "sources";
 
 export default function RoasCalculator() {
   const { user } = useAuth();
