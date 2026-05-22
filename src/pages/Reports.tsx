@@ -991,16 +991,20 @@ function AttributionSection({
       doc.setTextColor(0);
       autoTable(doc, {
         startY: 75,
-        head: [["Created", "Webinar", "Period", "Method", "Leads", "Sales", "Spend", "Revenue", "ROAS"]],
-        body: filtered.map((s) => [
-          s.created_at ? fmtDate(s.created_at) : "",
-          s.webinar_name,
-          webinarPeriod(s),
-          methodLabel(s),
-          s.total_leads, s.total_sales,
-          inr(Number(s.total_ad_spend)), inr(Number(s.total_revenue)),
-          Number(s.overall_roas).toFixed(2) + "×",
-        ]),
+        head: [["Created", "Webinar", "Period", "Method", "Leads", "Sales", "Gross Spend", "Revenue", "ROAS"]],
+        body: filtered.map((s) => {
+          const g = getGstAwareAdSpend(s as any);
+          const r = calculateRoas(s.total_revenue, g.grossAdSpend);
+          return [
+            s.created_at ? fmtDate(s.created_at) : "",
+            s.webinar_name,
+            webinarPeriod(s),
+            methodLabel(s),
+            s.total_leads, s.total_sales,
+            inr(g.grossAdSpend), inr(Number(s.total_revenue)),
+            r !== null ? r.toFixed(2) + "×" : "—",
+          ];
+        }),
         foot: [[
           "FILTERED TOTAL", `${filtered.length} reports`, "", "",
           totals.leads, totals.sales,
