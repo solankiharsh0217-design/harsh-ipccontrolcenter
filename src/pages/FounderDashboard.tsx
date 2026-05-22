@@ -195,7 +195,7 @@ export default function FounderDashboard() {
         // Daily reports in selected range
         const rangeDR = (dailyReports as any[]).filter((r) => inRange(dayOnly(r.report_date)));
         const leadsInRange = rangeDR.reduce((a, r) => a + (r.total_leads || 0), 0);
-        const spendInRange = rangeDR.reduce((a, r) => a + Number(r.total_ad_spend || 0), 0);
+        const spendInRange = rangeDR.reduce((a, r) => a + getGstAwareAdSpend({ total_ad_spend: r.total_ad_spend }).grossAdSpend, 0);
 
         // Follow-ups in selected range
         const rangeFollowups = (followups as any[]).filter((f) => inRange(dayOnly(f.follow_up_date)));
