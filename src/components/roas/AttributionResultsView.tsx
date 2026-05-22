@@ -130,11 +130,29 @@ export default function AttributionResultsView({
       </div>
 
       <div className="sum-row">
-        <SumCard kind="gold" label="Overall ROAS" value={totals.spend > 0 ? overall.toFixed(2) + "×" : "—"} note="Total revenue ÷ total ad spend" />
+        <SumCard kind="gold" label="Overall ROAS" value={totals.spend > 0 ? overall.toFixed(2) + "×" : "—"} note={(payload.meta?.roasSpendBasis === "net" ? "Total revenue ÷ net ad spend" : "Total revenue ÷ gross ad spend")} />
         <SumCard kind="plain" label="Total leads" value={totals.leads.toLocaleString("en-IN")} note="Across all media buyers" />
         <SumCard kind="grn" label="Total sales" value={String(totals.sales)} note={inr(totals.revenue)} />
-        <SumCard kind="plain" label="Total ad spend" value={inr(totals.spend)} note="All media buyers combined" />
+        <SumCard
+          kind="plain"
+          label={payload.meta?.legacy ? "Total Ad Spend" : (payload.meta?.roasSpendBasis === "net" ? "Total Net Ad Spend" : "Total Gross Ad Spend")}
+          value={inr(totals.spend)}
+          note={
+            payload.meta?.legacy
+              ? "Legacy report — GST not captured"
+              : payload.meta?.adSpendTaxMode === "none"
+                ? "No GST applied"
+                : payload.meta?.gstRate != null
+                  ? `Includes GST @ ${payload.meta.gstRate}% · Net ${inr(payload.meta.totalNetAdSpend || 0)} · GST ${inr(payload.meta.totalGstAmount || 0)}`
+                  : "All media buyers combined"
+          }
+        />
       </div>
+      {payload.meta?.legacy && (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", color: "#7A5E10", borderRadius: 8, padding: "8px 12px", fontSize: 11.5, marginBottom: 10 }}>
+          Legacy report — GST not captured. Ad spend shown as entered.
+        </div>
+      )}
 
       {unmatched.length > 0 && (
         <div className="unmatched-box">
