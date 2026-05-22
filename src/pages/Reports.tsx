@@ -1084,7 +1084,32 @@ function AttributionSection({
               );
             })}
           </tbody>
+          <tfoot>
+            <tr style={{ background: "#F7F6F3", borderTop: "2px solid #E8E5DE", fontWeight: 500 }}>
+              <td colSpan={6} style={{ padding: 14, fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em", color: "#555" }}>Filtered Total · {totals.count} reports</td>
+              <td style={{ padding: 14, fontFamily: "'Cormorant Garamond',serif", fontSize: 16 }}>{totals.leads.toLocaleString("en-IN")}</td>
+              <td style={{ padding: 14, fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: "#16A34A" }}>{totals.sales.toLocaleString("en-IN")}</td>
+              <td style={{ padding: 14, fontFamily: "'Cormorant Garamond',serif", fontSize: 15 }}>{inr(totals.spend)}</td>
+              <td style={{ padding: 14, fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: "#16A34A" }}>{inr(totals.rev)}</td>
+              <td style={{ padding: 14 }}><span className={"roas-val " + (totals.roas !== null ? roasClass(totals.roas) : "")}>{totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—"}</span></td>
+              <td />
+            </tr>
+          </tfoot>
         </table>
+      )}
+
+      {filtered.length > 0 && (
+        <div style={{ marginTop: 14, padding: "14px 18px", border: "1px solid #E8E5DE", borderRadius: 12, background: "#FAFAF8", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
+          <div>
+            <div className="sum-lbl">Filtered Attribution Totals</div>
+            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{totals.count} report{totals.count === 1 ? "" : "s"}</div>
+          </div>
+          <div><div className="sum-lbl">Total Leads</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{totals.leads.toLocaleString("en-IN")}</div></div>
+          <div><div className="sum-lbl">Total Sales</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{totals.sales.toLocaleString("en-IN")}</div></div>
+          <div><div className="sum-lbl">Total Ad Spend</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500 }}>{inr(totals.spend)}</div></div>
+          <div><div className="sum-lbl">Total Revenue</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: "#16A34A" }}>{inr(totals.rev)}</div></div>
+          <div><div className="sum-lbl">Overall ROAS</div><div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 500, color: totals.roas !== null ? roasHex(totals.roas) : "#888" }}>{totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—"}</div></div>
+        </div>
       )}
 
       {totalPages > 1 && (
