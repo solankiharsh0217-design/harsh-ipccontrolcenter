@@ -684,12 +684,73 @@ function CategoryCard({
 /* ============================================================
    ATTRIBUTION SECTION
    ============================================================ */
+type DatePreset = "all" | "today" | "yesterday" | "last_7_days" | "last_30_days" | "this_month" | "last_month" | "custom";
+
+function getDateRangeFromPreset(preset: DatePreset): { from: string; to: string } {
+  const today = new Date();
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const t = iso(today);
+  if (preset === "today") return { from: t, to: t };
+  if (preset === "yesterday") { const y = new Date(today); y.setDate(y.getDate() - 1); return { from: iso(y), to: iso(y) }; }
+  if (preset === "last_7_days") { const f = new Date(today); f.setDate(f.getDate() - 6); return { from: iso(f), to: t }; }
+  if (preset === "last_30_days") { const f = new Date(today); f.setDate(f.getDate() - 29); return { from: iso(f), to: t }; }
+  if (preset === "this_month") { const f = new Date(today.getFullYear(), today.getMonth(), 1); return { from: iso(f), to: t }; }
+  if (preset === "last_month") {
+    const f = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const l = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { from: iso(f), to: iso(l) };
+  }
+  return { from: "", to: "" };
+}
+
+function DateRangeControl({
+  label, preset, setPreset, from, to, setFrom, setTo, allLabel = "All Dates",
+}: {
+  label: string; preset: DatePreset; setPreset: (p: DatePreset) => void;
+  from: string; to: string; setFrom: (v: string) => void; setTo: (v: string) => void; allLabel?: string;
+}) {
+  const onPresetChange = (p: DatePreset) => {
+    setPreset(p);
+    if (p === "custom") return;
+    const r = getDateRangeFromPreset(p);
+    setFrom(r.from); setTo(r.to);
+  };
+  return (
+    <div>
+      <label className="filter-lbl">{label}</label>
+      <select className="fsel" value={preset} onChange={(e) => onPresetChange(e.target.value as DatePreset)}>
+        <option value="all">{allLabel}</option>
+        <option value="today">Today</option>
+        <option value="yesterday">Yesterday</option>
+        <option value="last_7_days">Last 7 Days</option>
+        <option value="last_30_days">Last 30 Days</option>
+        <option value="this_month">This Month</option>
+        <option value="last_month">Last Month</option>
+        <option value="custom">Custom Range</option>
+      </select>
+      {preset === "custom" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 6 }}>
+          <input className="fi" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <input className="fi" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </div>
+      )}
+      {preset !== "all" && preset !== "custom" && (from || to) && (
+        <div style={{ fontSize: 10, color: "#888", marginTop: 4 }}>
+          {from ? fmtDate(from) : "…"} – {to ? fmtDate(to) : "…"}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AttributionSection({
   sessions, loading, showDeleted, setShowDeleted, reload,
 }: { sessions: SessionRow[]; loading: boolean; showDeleted: boolean; setShowDeleted: (b: boolean) => void; reload: () => void; }) {
   const { user } = useAuth();
+  const [createdPreset, setCreatedPreset] = useState<DatePreset>("all");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
+  const [webPreset, setWebPreset] = useState<DatePreset>("all");
   const [webFrom, setWebFrom] = useState("");
   const [webTo, setWebTo] = useState("");
   const [month, setMonth] = useState("all");
@@ -726,8 +787,8 @@ function AttributionSection({
           .filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
-      if (createdFrom && s.created_at < createdFrom) return false;
-      if (createdTo && s.created_at > createdTo + "T23:59:59") return false;
+      if (createdFrom && (s.created_at || "") < createdFrom) return false;
+      if (createdTo && (s.created_at || "") > createdTo + "T23:59:59") return false;
       const wd = (s.webinar_date_mode === "range" ? s.webinar_start_date : s.webinar_single_date) || s.webinar_date;
       if (webFrom && (!wd || wd < webFrom)) return false;
       if (webTo && (!wd || wd > webTo)) return false;
@@ -745,11 +806,23 @@ function AttributionSection({
     });
   }, [sessions, search, createdFrom, createdTo, webFrom, webTo, month, monthBasis, methodF, buyer]);
 
+  const totals = useMemo(() => {
+    let leads = 0, sales = 0, spend = 0, rev = 0;
+    filtered.forEach((s) => {
+      leads += Number(s.total_leads) || 0;
+      sales += Number(s.total_sales) || 0;
+      spend += Number(s.total_ad_spend) || 0;
+      rev += Number(s.total_revenue) || 0;
+    });
+    return { leads, sales, spend, rev, roas: spend > 0 ? rev / spend : null, count: filtered.length };
+  }, [filtered]);
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const display = filtered.slice((page - 1) * PAGE, page * PAGE);
 
   const reset = () => {
-    setCreatedFrom(""); setCreatedTo(""); setWebFrom(""); setWebTo("");
+    setCreatedPreset("all"); setCreatedFrom(""); setCreatedTo("");
+    setWebPreset("all"); setWebFrom(""); setWebTo("");
     setMonth("all"); setMethodF("all"); setBuyer("all"); setSearch(""); setPage(1);
   };
 
