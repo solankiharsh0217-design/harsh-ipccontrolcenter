@@ -1820,6 +1820,153 @@ export type Database = {
         }
         Relationships: []
       }
+      offline_seminar_reports: {
+        Row: {
+          break_even_sales_required: number | null
+          business_unit: string | null
+          city: string | null
+          complimentary_passes: number
+          cost_breakdown: Json | null
+          cost_per_attendee: number | null
+          cost_per_sale: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          event_date: string | null
+          event_month: string | null
+          event_name: string
+          event_roas: number | null
+          event_type: string | null
+          id: string
+          is_deleted: boolean
+          media_buyer_breakdown: Json | null
+          net_profit: number
+          net_profit_margin: number | null
+          no_show_count: number
+          notes: string | null
+          profit_roi: number | null
+          program_booked_revenue: number
+          program_name: string | null
+          program_price: number
+          program_revenue_collected: number
+          program_revenue_pending: number
+          program_sales_count: number
+          realized_roas: number | null
+          refunds_adjustments: number
+          sales_source_metadata: Json | null
+          ticket_price: number
+          ticket_revenue: number
+          ticket_source_metadata: Json | null
+          tickets_sold: number
+          total_ad_spend: number
+          total_attendees: number
+          total_cost: number
+          total_event_cost: number
+          total_gross_revenue: number
+          total_pending_revenue: number
+          total_realized_revenue: number
+          updated_at: string
+          venue_name: string | null
+        }
+        Insert: {
+          break_even_sales_required?: number | null
+          business_unit?: string | null
+          city?: string | null
+          complimentary_passes?: number
+          cost_breakdown?: Json | null
+          cost_per_attendee?: number | null
+          cost_per_sale?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          event_date?: string | null
+          event_month?: string | null
+          event_name: string
+          event_roas?: number | null
+          event_type?: string | null
+          id?: string
+          is_deleted?: boolean
+          media_buyer_breakdown?: Json | null
+          net_profit?: number
+          net_profit_margin?: number | null
+          no_show_count?: number
+          notes?: string | null
+          profit_roi?: number | null
+          program_booked_revenue?: number
+          program_name?: string | null
+          program_price?: number
+          program_revenue_collected?: number
+          program_revenue_pending?: number
+          program_sales_count?: number
+          realized_roas?: number | null
+          refunds_adjustments?: number
+          sales_source_metadata?: Json | null
+          ticket_price?: number
+          ticket_revenue?: number
+          ticket_source_metadata?: Json | null
+          tickets_sold?: number
+          total_ad_spend?: number
+          total_attendees?: number
+          total_cost?: number
+          total_event_cost?: number
+          total_gross_revenue?: number
+          total_pending_revenue?: number
+          total_realized_revenue?: number
+          updated_at?: string
+          venue_name?: string | null
+        }
+        Update: {
+          break_even_sales_required?: number | null
+          business_unit?: string | null
+          city?: string | null
+          complimentary_passes?: number
+          cost_breakdown?: Json | null
+          cost_per_attendee?: number | null
+          cost_per_sale?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          event_date?: string | null
+          event_month?: string | null
+          event_name?: string
+          event_roas?: number | null
+          event_type?: string | null
+          id?: string
+          is_deleted?: boolean
+          media_buyer_breakdown?: Json | null
+          net_profit?: number
+          net_profit_margin?: number | null
+          no_show_count?: number
+          notes?: string | null
+          profit_roi?: number | null
+          program_booked_revenue?: number
+          program_name?: string | null
+          program_price?: number
+          program_revenue_collected?: number
+          program_revenue_pending?: number
+          program_sales_count?: number
+          realized_roas?: number | null
+          refunds_adjustments?: number
+          sales_source_metadata?: Json | null
+          ticket_price?: number
+          ticket_revenue?: number
+          ticket_source_metadata?: Json | null
+          tickets_sold?: number
+          total_ad_spend?: number
+          total_attendees?: number
+          total_cost?: number
+          total_event_cost?: number
+          total_gross_revenue?: number
+          total_pending_revenue?: number
+          total_realized_revenue?: number
+          updated_at?: string
+          venue_name?: string | null
+        }
+        Relationships: []
+      }
       paid_pipeline_activity_logs: {
         Row: {
           activity_type: string
