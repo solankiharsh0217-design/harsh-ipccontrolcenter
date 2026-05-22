@@ -870,15 +870,19 @@ function AttributionSection({
   }, [sessions, search, createdFrom, createdTo, webFrom, webTo, month, monthBasis, methodF, buyer]);
 
   const totals = useMemo(() => {
-    let leads = 0, sales = 0, spend = 0, rev = 0;
+    let leads = 0, sales = 0, spend = 0, netSpend = 0, gst = 0, rev = 0;
     filtered.forEach((s) => {
+      const g = getGstAwareAdSpend(s as any);
       leads += Number(s.total_leads) || 0;
       sales += Number(s.total_sales) || 0;
-      spend += Number(s.total_ad_spend) || 0;
+      spend += g.grossAdSpend;
+      netSpend += g.netAdSpend;
+      gst += g.gstAmount;
       rev += Number(s.total_revenue) || 0;
     });
-    return { leads, sales, spend, rev, roas: spend > 0 ? rev / spend : null, count: filtered.length };
+    return { leads, sales, spend, netSpend, gst, rev, roas: spend > 0 ? rev / spend : null, count: filtered.length };
   }, [filtered]);
+
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const display = filtered.slice((page - 1) * PAGE, page * PAGE);
