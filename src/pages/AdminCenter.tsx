@@ -49,6 +49,13 @@ export default function AdminCenter() {
       to: "/admin-center/system-refinement",
       show: isAdmin,
     },
+    {
+      title: "Media Buyer Dashboard Preview",
+      desc: "View each media buyer's work dashboard, pending calls, active ad clients, and overdue tasks.",
+      cta: "Open Media Buyer Desk",
+      to: "/media-buyer-operations",
+      show: isAdmin || hasModule("media_buyer_operations"),
+    },
   ].filter((c) => c.show);
 
   return (
