@@ -418,7 +418,7 @@ export default function WebinarPerformance() {
         <Card label="Final Sales" value={num(totals.final_sales)} sub={`${pct(pctV(totals.final_sales, totals.registrations))} conv`} />
         <Card label="Revenue Realized" value={inr(totals.revenue_realized, { compact: true })} />
         <Card label="Revenue To Be Realized" value={inr(totals.revenue_to_realize, { compact: true })} />
-        <Card label="Ad Spend" value={inr(totals.ad_spend, { compact: true })} sub={`CPL ${inr(cpl)}`} />
+        <Card label="Gross Ad Spend" value={inr(totals.ad_spend, { compact: true })} sub={`CPL ${inr(cpl)} · incl. GST`} />
         <Card label="Realized ROAS" value={`${roas.toFixed(2)}x`} />
       </div>
 
