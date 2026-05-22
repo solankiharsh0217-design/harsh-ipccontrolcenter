@@ -927,8 +927,15 @@ function AttributionSection({
           inr(Number(s.total_ad_spend)), inr(Number(s.total_revenue)),
           Number(s.overall_roas).toFixed(2) + "×",
         ]),
+        foot: [[
+          "FILTERED TOTAL", `${filtered.length} reports`, "", "",
+          totals.leads, totals.sales,
+          inr(totals.spend), inr(totals.rev),
+          totals.roas !== null ? totals.roas.toFixed(2) + "×" : "—",
+        ]],
         theme: "grid", styles: { fontSize: 8 },
         headStyles: { fillColor: [247, 246, 243], textColor: 0 },
+        footStyles: { fillColor: [247, 246, 243], textColor: 0, fontStyle: "bold" },
       });
       doc.save(`attribution-reports-${new Date().toISOString().slice(0,10)}.pdf`);
     }
