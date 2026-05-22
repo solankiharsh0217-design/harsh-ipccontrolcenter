@@ -957,11 +957,9 @@ function AttributionSection({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 14, padding: 14, background: "#FAFAF8", border: "1px solid #E8E5DE", borderRadius: 12 }}>
-        <div><label className="filter-lbl">Created — From</label><input className="fi" type="date" value={createdFrom} onChange={(e) => { setCreatedFrom(e.target.value); setPage(1); }} /></div>
-        <div><label className="filter-lbl">Created — To</label><input className="fi" type="date" value={createdTo} onChange={(e) => { setCreatedTo(e.target.value); setPage(1); }} /></div>
-        <div><label className="filter-lbl">Webinar — From</label><input className="fi" type="date" value={webFrom} onChange={(e) => { setWebFrom(e.target.value); setPage(1); }} /></div>
-        <div><label className="filter-lbl">Webinar — To</label><input className="fi" type="date" value={webTo} onChange={(e) => { setWebTo(e.target.value); setPage(1); }} /></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginBottom: 10, padding: 14, background: "#FAFAF8", border: "1px solid #E8E5DE", borderRadius: 12 }}>
+        <DateRangeControl label="Created Date Range" preset={createdPreset} setPreset={(p) => { setCreatedPreset(p); setPage(1); }} from={createdFrom} to={createdTo} setFrom={(v) => { setCreatedFrom(v); setPage(1); }} setTo={(v) => { setCreatedTo(v); setPage(1); }} allLabel="All Dates" />
+        <DateRangeControl label="Webinar Date Range" preset={webPreset} setPreset={(p) => { setWebPreset(p); setPage(1); }} from={webFrom} to={webTo} setFrom={(v) => { setWebFrom(v); setPage(1); }} setTo={(v) => { setWebTo(v); setPage(1); }} allLabel="All Webinar Dates" />
         <div>
           <label className="filter-lbl">Month ({monthBasis === "webinar" ? "Webinar" : "Created"})</label>
           <div style={{ display: "flex", gap: 6 }}>
