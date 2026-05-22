@@ -24,6 +24,7 @@ type EligibilityFlags = {
   can_receive_paid_pipeline_leads: boolean;
   can_receive_follow_up_tasks: boolean;
   can_receive_payment_recovery_leads: boolean;
+  can_receive_media_buyer_cases: boolean;
   include_in_round_robin: boolean;
   active_for_assignment: boolean;
 };
@@ -32,9 +33,11 @@ const emptyEligibility = (): EligibilityFlags => ({
   can_receive_paid_pipeline_leads: false,
   can_receive_follow_up_tasks: false,
   can_receive_payment_recovery_leads: false,
+  can_receive_media_buyer_cases: false,
   include_in_round_robin: false,
   active_for_assignment: true,
 });
+
 
 export default function Team() {
   const { isAdmin, user, refreshProfile } = useAuth();
