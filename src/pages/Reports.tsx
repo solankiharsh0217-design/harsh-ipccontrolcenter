@@ -1082,7 +1082,7 @@ function AttributionSection({
           <thead>
             <tr>
               <th>Created On</th><th>Webinar</th><th>Webinar Date / Period</th><th>Type</th><th>Method</th>
-              <th>Media Buyers</th><th>Leads</th><th>Sales</th><th>Ad Spend</th><th>Revenue</th><th>ROAS</th><th>Actions</th>
+              <th>Media Buyers</th><th>Leads</th><th>Sales</th><th title="Ad Spend including GST">Gross Ad Spend</th><th>Revenue</th><th title="ROAS = Revenue ÷ Gross Ad Spend">ROAS</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
