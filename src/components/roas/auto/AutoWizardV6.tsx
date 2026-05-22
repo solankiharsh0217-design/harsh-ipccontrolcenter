@@ -741,6 +741,9 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             mbs={selectedMBs} adSpends={adSpends} setAdSpends={setAdSpends}
             totalSpend={totalManualSpend}
             priorityOrder={priorityOrder} setPriorityOrder={setPriorityOrder}
+            taxMode={taxMode} setTaxMode={setTaxMode}
+            gstRate={gstRate} setGstRate={setGstRate}
+            spendBasis={spendBasis} setSpendBasis={setSpendBasis}
           />
         )}
         {step === 4 && results && (
@@ -757,6 +760,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             showDataUsed={showDataUsed} setShowDataUsed={setShowDataUsed}
             tabRoles={tabRoles} adSpends={adSpends}
             consistency={consistency}
+            taxMode={taxMode} gstRate={gstRate} spendBasis={spendBasis}
           />
         )}
       </div>
