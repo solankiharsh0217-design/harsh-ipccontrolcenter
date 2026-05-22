@@ -319,10 +319,15 @@ export default function Reports() {
 
   const attrStats = useMemo(() => {
     const live = visibleSessions;
-    const totalRev = live.reduce((a, s) => a + Number(s.total_revenue || 0), 0);
-    const avg = live.length ? live.reduce((a, s) => a + Number(s.overall_roas || 0), 0) / live.length : 0;
+    let totalRev = 0, totalGross = 0;
+    live.forEach((s) => {
+      totalRev += Number(s.total_revenue || 0);
+      totalGross += getGstAwareAdSpend(s as any).grossAdSpend;
+    });
+    const avg = totalGross > 0 ? totalRev / totalGross : 0;
     return { count: live.length, totalRev, avgRoas: avg };
   }, [visibleSessions]);
+
 
   const visibleProfit = useMemo(() =>
     profitRows.filter((s) => showDeleted ? true : !s.is_deleted),
