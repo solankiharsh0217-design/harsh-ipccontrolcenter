@@ -544,7 +544,7 @@ export default function FounderDashboard() {
           <Section title={snapshotTitle}>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               <MetricCard label={`Leads (${rangeLabel})`} value={data.hasDailyReports ? data.leadsToday : NA} sub={data.hasDailyReports ? "Daily Lead Reporting" : "No data available"} />
-              <MetricCard label={`Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.spendToday) : NA} />
+              <MetricCard label={`Gross Ad Spend (${rangeLabel})`} value={data.hasDailyReports ? inr(data.spendToday) : NA} />
               <MetricCard label={`CPL (${rangeLabel})`} value={data.leadsToday > 0 ? inr(cpl) : NA} sub="Spend / Leads" />
               <MetricCard label={`Token Collected (${rangeLabel})`} value={inr(data.tokenToday)} tone="gold" onClick={() => nav("/paid-pipeline")} />
               <MetricCard label={`Realized Revenue (${rangeLabel})`} value={inr(data.realizedToday)} onClick={() => nav("/paid-pipeline")} />
