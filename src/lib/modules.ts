@@ -21,7 +21,9 @@ export type ModuleKey =
   | "master_settings"
   | "audit_log"
   | "notifications"
-  | "profit-statement";
+  | "profit-statement"
+  | "media_buyer_operations";
+
 
 // Canonical module key for Founder Dashboard. We keep "founder-dashboard"
 // in the ModuleKey union as a backward-compatible alias for any prior grants.
