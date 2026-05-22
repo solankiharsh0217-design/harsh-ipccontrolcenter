@@ -430,7 +430,16 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         columnOverride: (m.columnMapping || null) as ColumnOverride | null,
       }));
       const spendNumbers: Record<string, number> = {};
-      orderedMBs.forEach((m) => { spendNumbers[m.mediaBuyerName!] = Number(adSpends[m.mediaBuyerName!] || 0); });
+      const spendBreakdownByBuyer: Record<string, ReturnType<typeof computeSpend>> = {};
+      orderedMBs.forEach((m) => {
+        const entered = Number(adSpends[m.mediaBuyerName!] || 0);
+        const b = computeSpend(entered, taxMode, gstRate);
+        spendBreakdownByBuyer[m.mediaBuyerName!] = b;
+        spendNumbers[m.mediaBuyerName!] = effectiveSpendForBasis(b, spendBasis);
+      });
+      // Persist as defaults for next time
+      saveGstDefaults({ taxMode, gstRate, spendBasis });
+      (window as any).__ipcLastGstBreakdown = spendBreakdownByBuyer;
 
       const r = await runAutoAttribution({
         masterSheetUrl: masterUrl,
