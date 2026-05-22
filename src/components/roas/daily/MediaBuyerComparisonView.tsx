@@ -172,7 +172,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         if (sessIds.length) {
           const { data } = await (supabase as any)
             .from("attribution_media_buyers")
-            .select("session_id, media_buyer_name, ad_spend, total_leads, cpl, matched_sales, revenue, roas_value")
+            .select("session_id, media_buyer_name, ad_spend, total_leads, cpl, matched_sales, revenue, roas_value, gross_ad_spend, net_ad_spend, gst_amount, ad_spend_tax_mode, gst_rate")
             .in("session_id", sessIds);
           attrMbs = data || [];
         }
