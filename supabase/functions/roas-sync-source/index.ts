@@ -190,9 +190,32 @@ async function tagDuplicateLeads(supabase: any) {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
+    // AuthN/AuthZ: allow either a valid user JWT (active member) OR an internal cron secret
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    const providedCron = req.headers.get("x-cron-secret");
+    const isCron = !!cronSecret && providedCron === cronSecret;
+
+    if (!isCron) {
+      if (!authHeader.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const userClient = createClient(SUPABASE_URL, anonKey, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user } } = await userClient.auth.getUser();
+      if (!user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const adminCheck = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { data: prof } = await adminCheck.from("profiles").select("status").eq("id", user.id).maybeSingle();
+      if (!prof || prof.status !== "active") {
+        return new Response(JSON.stringify({ error: "Active members only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
     const { sourceId, allActive } = await req.json().catch(() => ({}));
-    const triggeredBy = req.headers.get("x-triggered-by") || "manual";
+    const triggeredBy = isCron ? "cron" : (req.headers.get("x-triggered-by") || "manual");
     if (allActive) {
       const { data: sources } = await supabase.from("roas_data_sources").select("id").eq("status", "active");
       const results: any[] = [];
