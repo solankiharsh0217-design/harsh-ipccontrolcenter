@@ -81,6 +81,10 @@ export default function PaidPipeline() {
   const [stages, setStages] = useState<string[]>([]);
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
   const [view, setView] = useState<"leads"|"batches">("leads");
+  const [showBatches, setShowBatches] = useState(false);
+  const [tagFilter, setTagFilter] = useState("all");
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
   const [batchFilter, setBatchFilter] = useState("all"); // source webinar batch
   const [paidBatchFilter, setPaidBatchFilter] = useState("all");
   const [onboardingBatchFilter, setOnboardingBatchFilter] = useState("all");
