@@ -163,6 +163,7 @@ export default function PaidBatchesView({
               <Stat label="Dropped" value={String(a.dropped)} />
               <Stat label="Finance pending" value={String(a.financePending)} />
               <Stat label="Hot/Urgent pending" value={String(a.hotPending)} accent="red" />
+              <Stat label="Follow-ups due" value={String(a.followUpsDue)} accent={a.followUpsDue > 0 ? "gold" : undefined} />
             </div>
 
             <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-line">
