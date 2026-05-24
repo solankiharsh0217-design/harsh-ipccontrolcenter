@@ -4348,6 +4348,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_active: boolean
           is_deleted: boolean
           module_scope: string
           name: string
@@ -4358,6 +4359,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean
           is_deleted?: boolean
           module_scope?: string
           name: string
@@ -4368,6 +4370,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean
           is_deleted?: boolean
           module_scope?: string
           name?: string
