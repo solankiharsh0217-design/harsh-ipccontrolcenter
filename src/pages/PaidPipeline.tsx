@@ -125,6 +125,27 @@ export default function PaidPipeline() {
   };
   useEffect(() => { load(); }, []);
 
+  // Load tag catalog + per-lead tag map (batched)
+  useEffect(() => {
+    (async () => {
+      const tags = await listAllTags().catch(() => [] as Tag[]);
+      setAllTags(tags);
+      const ids = leads.map((l) => l.id);
+      const crmIds = leads.map((l) => l.crm_lead_id).filter(Boolean) as string[];
+      if (ids.length === 0) { setLeadTagsMap({}); return; }
+      const map = await getTagsForLeads({ paidLeadIds: ids, crmLeadIds: crmIds }).catch(() => ({}));
+      // merge: a paid lead inherits tags assigned to its linked crm lead too
+      const merged: Record<string, Tag[]> = {};
+      leads.forEach((l) => {
+        const a = (map as any)[l.id] || [];
+        const b = l.crm_lead_id ? ((map as any)[l.crm_lead_id] || []) : [];
+        const seen = new Set<string>();
+        merged[l.id] = [...a, ...b].filter((t) => seen.has(t.id) ? false : (seen.add(t.id), true));
+      });
+      setLeadTagsMap(merged);
+    })();
+  }, [leads]);
+
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const leadParam = searchParams.get("lead");
