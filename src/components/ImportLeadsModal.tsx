@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { X, Plus, Upload } from "lucide-react";
 import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type LeadGrade } from "@/lib/crmTypes";
+import { logActivity } from "@/lib/auditLog";
 
 export interface ImportResult {
   pipelineId: string;
