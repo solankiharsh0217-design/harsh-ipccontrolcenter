@@ -267,6 +267,7 @@ export default function AssignModal(props: Props) {
               ) : rolesList.length === 0 ? (
                 <div className="p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs">
                   No active team members found. Add members from Admin Center / Team Directory first.
+                  <DebugBox />
                 </div>
               ) : (
                 <select className="ipc-input" value={role} onChange={(e) => setRole(e.target.value)}>
