@@ -69,7 +69,13 @@ export default function QuickFollowUpModal({
               <label className="qsi-label">Time</label>
               <input type="time" className="qsi-input" value={time} onChange={(e) => setTime(e.target.value)} />
             </div>
-            <QuickSaveInput fieldKey="follow_up_reason" label="Reason" value={reason} onChange={setReason} placeholder="Collect Down Payment" />
+            <div>
+              <label className="qsi-label">Follow-up Type</label>
+              <select className="qsi-input" value={reason} onChange={(e) => setReason(e.target.value)}>
+                <option value="">— Select —</option>
+                {["Call","WhatsApp","Email","SMS","Payment Follow-Up","Balance Follow-Up","Finance Follow-Up","Document Follow-Up","Other"].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
             <QuickSaveInput fieldKey="follow_up_priority" label="Priority" value={priority} onChange={setPriority} placeholder="Hot" />
             <div>
               <label className="qsi-label">Status</label>
