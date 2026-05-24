@@ -698,7 +698,8 @@ function FinanceCell({ lead, onClick }: { lead: any; onClick: () => void }) {
       {line2 && <div className="text-[10px] text-muted-foreground pl-3">{line2}</div>}
     </button>
   );
-}
+
+function BulkStageMenu({ onPick, stages }: { onPick: (s: string) => void; stages: string[] }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
