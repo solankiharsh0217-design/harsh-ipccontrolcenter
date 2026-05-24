@@ -154,11 +154,14 @@ export default function PaidPipeline() {
   const totals = useMemo(() => {
     const td = today();
     const t = {
+      dealTotal: 0, collectedTotal: 0,
       realized: 0, toBeRealized: 0, token: 0, balance: 0,
       finalSales: 0, dropped: 0, financePending: 0, emiDisbursed: 0,
       hotPending: 0, dueToday: 0,
     };
     filtered.forEach(l => {
+      t.dealTotal += Number(l.deal_value_including_gst || 0);
+      t.collectedTotal += Number(l.total_collected || 0);
       t.realized += Number(l.final_revenue_realized || 0);
       t.toBeRealized += l.is_dropped ? 0 : Number(l.balance_pending || 0);
       t.token += Number(l.token_amount_collected || 0);
