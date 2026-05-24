@@ -108,6 +108,14 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               </Link>
             </div>
           )}
+          <div className="mt-3">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Tags</div>
+            <TagPicker
+              crmLeadId={lead.id}
+              paidLeadId={(lead as any).paid_pipeline_lead_id || null}
+              leadName={lead.full_name || undefined}
+            />
+          </div>
         </div>
 
         {/* Score + signals */}
