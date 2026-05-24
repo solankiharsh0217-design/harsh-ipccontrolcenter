@@ -461,6 +461,7 @@ export default function PaidPipeline() {
       {openLead && <LeadDrawer lead={openLead} agents={agents} onClose={() => { setOpenId(null); load(); }} stages={stages} onChanged={load} />}
       {quickPayId && <QuickAddPaymentModal leadId={quickPayId} leadName={leads.find(l => l.id === quickPayId)?.name || undefined} onClose={() => setQuickPayId(null)} onSaved={load} />}
       {quickFuId && <QuickFollowUpModal leadId={quickFuId} leadName={leads.find(l => l.id === quickFuId)?.name || undefined}
+        crmLeadId={leads.find(l => l.id === quickFuId)?.crm_lead_id || null}
         defaults={{ priority: leads.find(l => l.id === quickFuId)?.lead_temperature || "Normal" }}
         onClose={() => setQuickFuId(null)} onSaved={load} />}
       {bulkSend && <SendToCrmBulkModal
