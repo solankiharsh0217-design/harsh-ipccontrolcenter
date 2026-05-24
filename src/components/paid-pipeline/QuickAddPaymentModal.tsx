@@ -2,9 +2,15 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import QuickSaveInput from "@/components/QuickSaveInput";
-import { recomputePaidLead } from "@/lib/paidPipeline";
+import { recomputePaidLead, DEFAULT_FINANCE_PARTNERS } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
+
+const PAYMENT_TYPES = [
+  "First Token","Second Token","Additional Token","Balance Payment",
+  "Full Payment","Finance Disbursement","Bajaj Finance","EZMI Finance",
+  "Refund","Adjustment","Other",
+];
+const PAYMENT_MODES = ["UPI","Bank Transfer","Cash","Card","Razorpay","Finance Partner","Other"];
 
 export default function QuickAddPaymentModal({
   leadId, leadName, onClose, onSaved,
