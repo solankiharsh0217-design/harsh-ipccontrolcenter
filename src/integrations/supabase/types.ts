@@ -4261,6 +4261,7 @@ export type Database = {
           color: string
           created_at: string
           id: string
+          is_active: boolean
           is_lost: boolean
           is_protected: boolean
           is_won: boolean
@@ -4272,6 +4273,7 @@ export type Database = {
           color?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           is_lost?: boolean
           is_protected?: boolean
           is_won?: boolean
@@ -4283,6 +4285,7 @@ export type Database = {
           color?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           is_lost?: boolean
           is_protected?: boolean
           is_won?: boolean
