@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { PageHead } from "@/components/ui-bits";
+
 import { supabase } from "@/integrations/supabase/client";
 import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
 import LeadDrawer from "@/components/LeadDrawer";
