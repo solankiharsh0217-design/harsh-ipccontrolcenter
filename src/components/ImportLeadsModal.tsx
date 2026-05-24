@@ -6,9 +6,18 @@ import { toast } from "sonner";
 import { X, Plus, Upload } from "lucide-react";
 import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type LeadGrade } from "@/lib/crmTypes";
 
+export interface ImportResult {
+  pipelineId: string;
+  pipelineName: string;
+  leadType: "unpaid" | "paid";
+  batchName: string;
+  imported: number;
+  skipped: number;
+}
+
 interface Props {
   onClose: () => void;
-  onDone: () => void;
+  onDone: (result?: ImportResult) => void;
 }
 
 type Row = Record<string, string>;
