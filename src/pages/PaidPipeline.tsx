@@ -257,8 +257,8 @@ export default function PaidPipeline() {
       </div>
 
       <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white inline-flex mb-4">
-        <button onClick={() => setView("leads")} className={`px-3 py-1.5 rounded-md text-xs ${view === "leads" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Leads</button>
         <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Paid Batches</button>
+        <button onClick={() => setView("leads")} className={`px-3 py-1.5 rounded-md text-xs ${view === "leads" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>All Paid Leads</button>
       </div>
 
       {view === "batches" && (
@@ -270,15 +270,17 @@ export default function PaidPipeline() {
       {view === "leads" && (<>
 
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
-        <SumCard label="Realized Revenue" value={inr(totals.realized)} accent="green" />
-        <SumCard label="Revenue To Be Realized" value={inr(totals.toBeRealized)} accent="gold" />
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5">
+        <SumCard label="Total Deal Value" value={inr(totals.dealTotal)} />
         <SumCard label="Token Collected" value={inr(totals.token)} />
-        <SumCard label="Balance Pending" value={inr(totals.balance)} />
+        <SumCard label="Total Collected" value={inr(totals.collectedTotal)} accent="green" />
+        <SumCard label="Balance Pending" value={inr(totals.balance)} accent="gold" />
+        <SumCard label="Revenue Realized" value={inr(totals.realized)} accent="green" />
+        <SumCard label="Revenue To Be Realized" value={inr(totals.toBeRealized)} />
+        <SumCard label="Finance Pending" value={String(totals.financePending)} />
         <SumCard label="EMI / Finance Disbursed" value={inr(totals.emiDisbursed)} />
         <SumCard label="Final Sales" value={String(totals.finalSales)} />
         <SumCard label="Dropped After Token" value={String(totals.dropped)} />
-        <SumCard label="Finance Pending" value={String(totals.financePending)} />
         <SumCard label="Hot/Urgent Bal Pending" value={String(totals.hotPending)} accent="red" />
         <SumCard label="Follow-Ups Due Today" value={String(totals.dueToday)} accent="blue" />
       </div>
