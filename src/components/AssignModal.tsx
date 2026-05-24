@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { X, Users, ArrowRight } from "lucide-react";
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
+import { moduleAliases } from "@/lib/eligibleAssignees";
 
 type EligibilityFlag =
   | "can_receive_calling_crm_leads"
@@ -63,6 +64,8 @@ export default function AssignModal(props: Props) {
 
   const [step, setStep] = useState<Step>(1);
   const [users, setUsers] = useState<EligibleUser[]>([]);
+  const [moduleAccessIds, setModuleAccessIds] = useState<Set<string>>(new Set());
+  const [allActiveCount, setAllActiveCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<string>("");
   const [pickedUserIds, setPickedUserIds] = useState<Set<string>>(new Set());
@@ -83,11 +86,14 @@ export default function AssignModal(props: Props) {
     setLoading(true);
     try {
       const cols = `id, full_name, email, role, department, status, active_for_assignment, include_in_round_robin, ${eligibilityFlag}`;
-      const [{ data: profs }, { data: roles }] = await Promise.all([
+      const aliases = moduleAliases(moduleKey);
+      const [{ data: profs }, { data: roles }, { data: access }] = await Promise.all([
         supabase.from("profiles").select(cols).eq("status", "active"),
         supabase.from("user_roles").select("user_id, role").eq("role", "admin"),
+        supabase.from("user_module_access").select("user_id, module_key").in("module_key", aliases),
       ]);
       const admins = new Set((roles ?? []).map((r: any) => r.user_id));
+      const accessSet = new Set((access ?? []).map((a: any) => a.user_id));
       const mapped: EligibleUser[] = ((profs ?? []) as any[]).map((p) => ({
         id: p.id,
         full_name: p.full_name,
@@ -100,6 +106,8 @@ export default function AssignModal(props: Props) {
         flagValue: p[eligibilityFlag] === true,
       }));
       setUsers(mapped);
+      setModuleAccessIds(accessSet);
+      setAllActiveCount(mapped.length);
     } catch (e: any) {
       toast.error(e.message || "Failed to load users");
     } finally {
@@ -217,6 +225,27 @@ export default function AssignModal(props: Props) {
 
   const stepLabel = ["Role", "Users", "Method", "Scope", "Confirm"][step - 1];
 
+  // Eligibility debug counts — exposed in empty states to diagnose read/write mismatches.
+  const dbg = {
+    active: allActiveCount,
+    roleMatch: role ? users.filter(u => (u.role || "") === role).length : 0,
+    moduleAccess: role
+      ? users.filter(u => (u.role || "") === role && moduleAccessIds.has(u.id)).length
+      : users.filter(u => moduleAccessIds.has(u.id)).length,
+    eligible: role
+      ? users.filter(u => (u.role || "") === role && u.active_for_assignment && u.flagValue).length
+      : users.filter(u => u.active_for_assignment && u.flagValue).length,
+  };
+  const DebugBox = () => (
+    <div className="mt-2 p-2.5 rounded-md bg-off border border-line text-[11px] font-mono space-y-0.5">
+      <div className="font-sans font-medium text-[11px] mb-1 text-muted-foreground uppercase tracking-wider">Eligibility debug</div>
+      <div>Active users found: <strong>{dbg.active}</strong></div>
+      <div>Matching role users found: <strong>{dbg.roleMatch}</strong>{role ? ` (role: ${role})` : " (no role picked)"}</div>
+      <div>Users with module access ({moduleKey}): <strong>{dbg.moduleAccess}</strong></div>
+      <div>Users with assignment eligibility ({eligibilityFlag}): <strong>{dbg.eligible}</strong></div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={onClose}>
       <div className="bg-white rounded-xl border border-line w-full max-w-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -238,6 +267,7 @@ export default function AssignModal(props: Props) {
               ) : rolesList.length === 0 ? (
                 <div className="p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs">
                   No active team members found. Add members from Admin Center / Team Directory first.
+                  <DebugBox />
                 </div>
               ) : (
                 <select className="ipc-input" value={role} onChange={(e) => setRole(e.target.value)}>
@@ -266,6 +296,7 @@ export default function AssignModal(props: Props) {
                   <li>Enable <strong>{eligibilityFlag.replace(/_/g, " ")}</strong></li>
                   <li>Confirm module access if required</li>
                 </ol>
+                <DebugBox />
               </div>
             ) : (
               <div className="border border-line rounded-lg max-h-72 overflow-y-auto divide-y">
