@@ -634,13 +634,17 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           <button onClick={onClose} className="text-[20px] leading-none">×</button>
         </div>
 
-        <div className="px-6 pt-3">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Tags</div>
-          <TagPicker
-            paidLeadId={lead.id}
-            crmLeadId={lead.crm_lead_id || null}
-            leadName={lead.name || undefined}
-          />
+        <div className="px-6 pt-4">
+          <div className="rounded-lg border border-line bg-off/40 px-3 py-2.5">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground">Lead Tags</div>
+            </div>
+            <TagPicker
+              paidLeadId={lead.id}
+              crmLeadId={lead.crm_lead_id || null}
+              leadName={lead.name || undefined}
+            />
+          </div>
         </div>
 
         <div className="p-6 space-y-5">
