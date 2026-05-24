@@ -30,6 +30,7 @@ import Notifications from "./pages/Notifications";
 import RevenueCommandCenter from "./pages/RevenueCommandCenter";
 import AnalyticsCenter from "./pages/AnalyticsCenter";
 import AdminCenter from "./pages/AdminCenter";
+import BulkEligibility from "./pages/BulkEligibility";
 import SystemRefinementChecklist from "./pages/SystemRefinementChecklist";
 import MediaBuyerOperations from "./pages/MediaBuyerOperations";
 import NotFound from "./pages/NotFound";
@@ -84,6 +85,7 @@ const App = () => (
             <Route path="/analytics-center" element={<Shell><AnalyticsCenter /></Shell>} />
             <Route path="/admin-center" element={<Shell><AdminCenter /></Shell>} />
             <Route path="/admin-center/system-refinement" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
+            <Route path="/admin-center/eligibility" element={<Shell admin><BulkEligibility /></Shell>} />
             <Route path="/media-buyer-operations" element={<Shell moduleKey="media_buyer_operations"><MediaBuyerOperations /></Shell>} />
             <Route path="/system-refinement-checklist" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="*" element={<NotFound />} />
