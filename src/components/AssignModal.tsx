@@ -296,6 +296,7 @@ export default function AssignModal(props: Props) {
                   <li>Enable <strong>{eligibilityFlag.replace(/_/g, " ")}</strong></li>
                   <li>Confirm module access if required</li>
                 </ol>
+                <DebugBox />
               </div>
             ) : (
               <div className="border border-line rounded-lg max-h-72 overflow-y-auto divide-y">
