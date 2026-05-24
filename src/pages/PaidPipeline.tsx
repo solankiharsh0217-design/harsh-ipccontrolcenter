@@ -116,6 +116,23 @@ export default function PaidPipeline() {
   };
   useEffect(() => { load(); }, []);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const leadParam = searchParams.get("lead");
+    if (leadParam) { setOpenId(leadParam); setView("leads"); }
+  }, [searchParams]);
+
+  const resetFilters = () => {
+    setSearch(""); setSearchInput("");
+    setBatchFilter("all"); setPaidBatchFilter("all"); setOnboardingBatchFilter("all");
+    setStageFilter("all"); setTempFilter("all");
+    setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
+    setFollowUpFilter("all"); setRevenueStatusFilter("all");
+  };
+  const anyFilterActive = !!search || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter].some(v => v !== "all");
+
+
+
   const filtered = useMemo(() => {
     const td = today();
     return leads.filter(l => {
