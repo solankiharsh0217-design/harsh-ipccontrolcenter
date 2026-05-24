@@ -17,10 +17,11 @@ export default function QuickAddPaymentModal({
 }: { leadId: string; leadName?: string; onClose: () => void; onSaved: () => void }) {
   const { user } = useAuth();
   const [category, setCategory] = useState("Token Amount");
-  const [type, setType] = useState("Token");
+  const [type, setType] = useState("First Token");
   const [amount, setAmount] = useState<number>(0);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [mode, setMode] = useState("UPI");
+  const [financePartner, setFinancePartner] = useState("");
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
   const [nextDate, setNextDate] = useState("");
