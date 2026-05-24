@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { X, Users, ArrowRight } from "lucide-react";
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
+import { moduleAliases } from "@/lib/eligibleAssignees";
 
 type EligibilityFlag =
   | "can_receive_calling_crm_leads"
