@@ -377,12 +377,34 @@ export default function Crm() {
             <option value="all">All tags</option>
             {allTags.map((t) => <option key={t.id} value={t.id}>🏷 {t.name}</option>)}
           </select>
+          {(view === "kanban" || view === "list") && (
+            <select className="ipc-input !h-10 !text-xs max-w-[180px]" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} title="Filter by stage">
+              <option value="all">All stages</option>
+              {pipelineStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          )}
+          {(filter !== "all" || batchFilter !== "all" || tagFilter !== "all" || stageFilter !== "all" || dateFrom || dateTo) && (
+            <button
+              onClick={() => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); }}
+              className="ipc-btn ipc-btn-ghost !h-10"
+              title="Clear all filters"
+            >
+              <XIcon className="w-3.5 h-3.5" /> Reset
+            </button>
+          )}
           <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>
           <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
           <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-10">+ Add Stage</button>
           <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-10"><Download className="w-3.5 h-3.5" /> Export</button>
+          <button onClick={() => navigate("/paid-pipeline")} className="ipc-btn ipc-btn-ghost !h-10" title="Open Paid Pipeline"><ExternalLink className="w-3.5 h-3.5" /> Paid Pipeline</button>
         </div>
       </div>
+
+      {(view === "kanban" || view === "list") && (
+        <div className="text-[12px] text-muted-foreground mb-3">
+          Showing <span className="font-medium text-foreground">{pipelineLeads.length}</span> of <span className="font-medium text-foreground">{leads.filter((l) => l.pipeline_id === activePipeline).length}</span> leads
+        </div>
+      )}
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
       {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
