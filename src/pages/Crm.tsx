@@ -306,14 +306,65 @@ export default function Crm() {
     if (!swap) return;
     await supabase.from("stages").update({ position: swap.position }).eq("id", s.id);
     await supabase.from("stages").update({ position: s.position }).eq("id", swap.id);
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_reordered", entity_type: "crm_stage", entity_id: s.id, entity_label: s.name, old_values: { position: s.position }, new_values: { position: swap.position }, summary: `Stage "${s.name}" moved ${dir < 0 ? "left" : "right"}` });
+    await load();
+  };
+
+  const reorderStageDrop = async (target: Stage) => {
+    const drag = stages.find((x) => x.id === stageDragId);
+    setStageDragId(null); setStageHoverId(null);
+    if (!drag || drag.id === target.id || drag.pipeline_id !== target.pipeline_id) return;
+    const ordered = pipelineStages.filter((s) => s.id !== drag.id);
+    const targetIdx = ordered.findIndex((s) => s.id === target.id);
+    const insertIdx = (pipelineStages.findIndex((s) => s.id === drag.id) < targetIdx) ? targetIdx + 1 : targetIdx;
+    ordered.splice(insertIdx, 0, drag);
+    // Rewrite positions sequentially for the active pipeline
+    for (let i = 0; i < ordered.length; i++) {
+      if (ordered[i].position !== i) {
+        await supabase.from("stages").update({ position: i }).eq("id", ordered[i].id);
+      }
+    }
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_reordered", entity_type: "crm_stage", entity_id: drag.id, entity_label: drag.name, summary: `Stage "${drag.name}" reordered` });
+    await load();
+  };
+
+  const renameStage = async (s: Stage, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) { toast.error("Name required"); return; }
+    if (trimmed.toLowerCase() === s.name.toLowerCase()) { setRenameStageTarget(null); return; }
+    const duplicate = pipelineStages.some((x) => x.id !== s.id && x.name.toLowerCase() === trimmed.toLowerCase());
+    if (duplicate) { toast.error("Another stage in this pipeline already uses that name"); return; }
+    const { error } = await supabase.from("stages").update({ name: trimmed }).eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Stage renamed to "${trimmed}"`);
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_renamed", entity_type: "crm_stage", entity_id: s.id, entity_label: trimmed, old_values: { name: s.name }, new_values: { name: trimmed }, summary: `Stage "${s.name}" renamed to "${trimmed}"` });
+    setRenameStageTarget(null);
+    await load();
+  };
+
+  const deactivateStage = async (s: Stage) => {
+    const count = leads.filter((l) => l.stage_id === s.id).length;
+    if (count > 0) {
+      if (!confirm(`"${s.name}" still holds ${count} lead${count === 1 ? "" : "s"}. Deactivate? It stays visible until those leads move out, but it won't show in new selections.`)) return;
+    } else {
+      if (!confirm(`Deactivate "${s.name}"? It will be hidden from selections.`)) return;
+    }
+    const { error } = await supabase.from("stages").update({ is_active: false } as any).eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Stage "${s.name}" deactivated`);
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_deactivated", entity_type: "crm_stage", entity_id: s.id, entity_label: s.name, summary: `Stage "${s.name}" deactivated`, severity: "warning" });
     await load();
   };
 
   const deleteStage = async (s: Stage) => {
-    if (s.is_protected) { toast.error("Protected stage — untoggle Protected first"); return; }
+    if (s.is_protected) { toast.error("Protected stage — cannot delete"); return; }
     const count = leads.filter((l) => l.stage_id === s.id).length;
-    if (count > 0) { toast.error(`${count} leads in this stage`); return; }
-    await supabase.from("stages").delete().eq("id", s.id);
+    if (count > 0) { toast.error(`${count} lead(s) still in "${s.name}". Move them first, or deactivate instead.`); return; }
+    if (!confirm(`Delete stage "${s.name}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from("stages").delete().eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Stage "${s.name}" deleted`);
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_deleted", entity_type: "crm_stage", entity_id: s.id, entity_label: s.name, summary: `Stage "${s.name}" deleted`, severity: "warning" });
     await load();
   };
 
