@@ -773,7 +773,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(3)} className="ipc-btn ipc-btn-ghost">Back</button>
-              <button onClick={importNow} disabled={importing || preflightLoading} className="ipc-btn ipc-btn-black disabled:opacity-50">
+              <button onClick={importNow} disabled={importing || preflightLoading || targetMismatch || (resolvedTarget.isNew && !newPipeName.trim())} className="ipc-btn ipc-btn-black disabled:opacity-50">
                 {importing ? "Importing…" : `Import ${validRows} rows`}
               </button>
             </div>
