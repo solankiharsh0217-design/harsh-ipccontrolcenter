@@ -84,7 +84,14 @@ export async function assignTag(tagId: string, ids: { crmLeadId?: string | null;
   if (ids.crmLeadId) rows.push({ tag_id: tagId, crm_lead_id: ids.crmLeadId, assigned_by: userId });
   if (ids.paidLeadId) rows.push({ tag_id: tagId, paid_pipeline_lead_id: ids.paidLeadId, assigned_by: userId });
   for (const row of rows) {
-    await supabase.from("lead_tag_assignments" as any).upsert(row, { onConflict: row.crm_lead_id ? "tag_id,crm_lead_id" : "tag_id,paid_pipeline_lead_id", ignoreDuplicates: true } as any);
+    // Check existence first (partial unique indexes don't play well with PostgREST upsert)
+    let q = supabase.from("lead_tag_assignments" as any).select("id").eq("tag_id", tagId);
+    if (row.crm_lead_id) q = q.eq("crm_lead_id", row.crm_lead_id);
+    else q = q.eq("paid_pipeline_lead_id", row.paid_pipeline_lead_id);
+    const { data: existing } = await q.limit(1);
+    if (existing && existing.length > 0) continue;
+    const { error } = await supabase.from("lead_tag_assignments" as any).insert(row);
+    if (error && !/duplicate|unique/i.test(error.message || "")) throw error;
   }
 }
 
