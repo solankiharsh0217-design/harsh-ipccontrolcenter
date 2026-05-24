@@ -210,6 +210,12 @@ export default function Crm() {
     const id = e.dataTransfer.getData("text/plain") || dragId;
     setDragId(null); setHoverStage(null); setHoverBefore(null);
     if (!id) return;
+    if (beforeLeadId === id) return; // dropped on self, no-op
+    const current = leads.find(l => l.id === id);
+    if (current && current.stage_id === stageId && !beforeLeadId) {
+      // dropped on same stage's empty area — no-op
+      return;
+    }
     // Compute new sort_order based on neighbors in target stage
     const targetList = leads.filter((l) => l.pipeline_id === activePipeline && l.stage_id === stageId && l.id !== id)
       .slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -472,7 +478,7 @@ export default function Crm() {
                 <div
                   key={s.id}
                   className={`w-[270px] flex-shrink-0 rounded-xl border flex flex-col transition-colors ${hoverStage === s.id ? "bg-gold-pale border-gold" : "bg-off border-line"}`}
-                  onDragOver={(e) => { e.preventDefault(); if (hoverStage !== s.id) setHoverStage(s.id); }}
+                  onDragOver={(e) => { e.preventDefault(); if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== null) setHoverBefore(null); }}
                   onDragLeave={(e) => { if (e.currentTarget === e.target) { setHoverStage((h) => h === s.id ? null : h); } }}
                   onDrop={(e) => onDrop(e, s.id)}
                 >
@@ -503,7 +509,7 @@ export default function Crm() {
                             draggable
                             onDragStart={(e) => { e.dataTransfer.setData("text/plain", l.id); e.dataTransfer.effectAllowed = "move"; setDragId(l.id); }}
                             onDragEnd={() => { setDragId(null); setHoverStage(null); setHoverBefore(null); }}
-                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== l.id) setHoverBefore(l.id); }}
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (dragId === l.id) return; if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== l.id) setHoverBefore(l.id); }}
                             onDrop={(e) => onDrop(e, s.id, l.id)}
                             onClick={() => setOpenLead(l.id)}
                             className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-all ${isDragging ? "opacity-40 scale-95 shadow-lg rotate-1" : ""}`}
