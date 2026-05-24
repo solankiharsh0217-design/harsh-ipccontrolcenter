@@ -581,25 +581,55 @@ export default function Crm() {
       {view === "kanban" && (
         <div className="overflow-x-auto pb-4">
           <div className="flex gap-3" style={{ minWidth: (stageFilter !== "all" ? 1 : pipelineStages.length) * 280 }}>
-            {pipelineStages.filter((s) => stageFilter === "all" || s.id === stageFilter).map((s) => {
+            {pipelineStages.filter((s) => stageFilter === "all" || s.id === stageFilter).map((s, idx, arr) => {
               const items = pipelineLeads.filter((l) => l.stage_id === s.id);
               const total = items.reduce((sum, l) => sum + Number(l.deal_value || 0), 0);
               const color = STAGE_COLORS[s.color] || "#888";
+              const isInactive = (s as any).is_active === false;
+              const isStageDragTarget = stageDragId && stageDragId !== s.id && stageHoverId === s.id;
+              const isStageBeingDragged = stageDragId === s.id;
               return (
                 <div
                   key={s.id}
-                  className={`w-[270px] flex-shrink-0 rounded-xl border flex flex-col transition-colors ${hoverStage === s.id ? "bg-gold-pale border-gold" : "bg-off border-line"}`}
-                  onDragOver={(e) => { e.preventDefault(); if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== null) setHoverBefore(null); }}
-                  onDragLeave={(e) => { if (e.currentTarget === e.target) { setHoverStage((h) => h === s.id ? null : h); } }}
-                  onDrop={(e) => onDrop(e, s.id)}
+                  className={`w-[270px] flex-shrink-0 rounded-xl border flex flex-col transition-all ${hoverStage === s.id ? "bg-gold-pale border-gold" : "bg-off border-line"} ${isStageDragTarget ? "ring-2 ring-gold ring-offset-2" : ""} ${isStageBeingDragged ? "opacity-50" : ""} ${isInactive ? "opacity-70" : ""}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (stageDragId) { if (stageHoverId !== s.id) setStageHoverId(s.id); return; }
+                    if (hoverStage !== s.id) setHoverStage(s.id);
+                    if (hoverBefore !== null) setHoverBefore(null);
+                  }}
+                  onDragLeave={(e) => { if (e.currentTarget === e.target) { setHoverStage((h) => h === s.id ? null : h); setStageHoverId((h) => h === s.id ? null : h); } }}
+                  onDrop={(e) => { if (stageDragId) { e.preventDefault(); e.stopPropagation(); reorderStageDrop(s); return; } onDrop(e, s.id); }}
                 >
                   <div className="px-3 pt-3 pb-2 border-b-2" style={{ borderBottomColor: color }}>
-                    <div className="flex items-center justify-between">
-                      <div className="font-sans text-[11px] uppercase tracking-wider font-medium flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-                        {s.name}
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                        <span
+                          draggable
+                          onDragStart={(e) => { e.dataTransfer.setData("text/plain", `stage:${s.id}`); e.dataTransfer.effectAllowed = "move"; setStageDragId(s.id); }}
+                          onDragEnd={() => { setStageDragId(null); setStageHoverId(null); }}
+                          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-black text-[10px] select-none"
+                          title="Drag to reorder stage"
+                        >⋮⋮</span>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                        <div className="font-sans text-[11px] uppercase tracking-wider font-medium truncate" title={s.name}>
+                          {s.name}{isInactive && <span className="ml-1 text-[9px] text-muted-foreground normal-case tracking-normal">(inactive)</span>}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">{items.length}</div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="text-xs text-muted-foreground">{items.length}</div>
+                        <StageHeaderMenu
+                          stage={s}
+                          idx={idx}
+                          total={arr.length}
+                          isInactive={isInactive}
+                          onRename={() => { setRenameStageTarget(s); setRenameStageValue(s.name); }}
+                          onMoveLeft={() => moveStage(s, -1)}
+                          onMoveRight={() => moveStage(s, 1)}
+                          onDeactivate={() => deactivateStage(s)}
+                          onDelete={() => deleteStage(s)}
+                        />
+                      </div>
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">₹{total.toLocaleString("en-IN")}</div>
                   </div>
