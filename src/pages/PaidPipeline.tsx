@@ -564,35 +564,40 @@ export default function PaidPipeline() {
                   <td className="px-3 py-2.5 whitespace-nowrap">{inr(l.total_collected)}</td>
                   <td className="px-3 py-2.5 whitespace-nowrap text-[#CA8A04]">{inr(l.balance_pending)}</td>
                   <td className="px-3 py-2.5">
-                    <select className="h-7 border border-line rounded px-1 text-[11px] max-w-[140px]"
+                    <InlineManagedSelect
+                      settingType="pipeline_stage"
                       value={l.pipeline_stage || ""}
-                      onChange={async (e) => { await updateLead(l.id, { pipeline_stage: e.target.value }); recomputePaidLead(l.id); }}>
-                      <option value="">—</option>
-                      {stages.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                      onChange={async (v) => { await updateLead(l.id, { pipeline_stage: v }); recomputePaidLead(l.id); }}
+                      width={150}
+                      onListChanged={load}
+                    />
                   </td>
                   <td className="px-3 py-2.5">
-                    <select className="h-7 border border-line rounded px-1 text-[11px]"
-                      style={{ color: TEMP_COLORS[l.lead_temperature || ""] || undefined }}
+                    <InlineManagedSelect
+                      settingType="lead_priority"
                       value={l.lead_temperature || ""}
-                      onChange={(e) => updateLead(l.id, { lead_temperature: e.target.value })}>
-                      <option value="">—</option>
-                      {TEMPERATURES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                      onChange={(v) => updateLead(l.id, { lead_temperature: v })}
+                      width={130}
+                      colorize
+                      onListChanged={load}
+                    />
                   </td>
                   <td className="px-3 py-2.5 text-[11.5px]" style={{ color: fuColor }}>
                     {fu ? fmtDate(fu) : "—"}
                     {l.follow_up_reason && <div className="text-[10px] text-muted-foreground">{l.follow_up_reason}</div>}
                   </td>
-                  <td className="px-3 py-2.5 text-[11px]">{l.finance_required ? `${l.finance_partner || "—"} · ${l.finance_status || "—"}` : "—"}</td>
+                  <td className="px-3 py-2.5">
+                    <FinanceCell lead={l} onClick={() => setQuickFinanceId(l.id)} />
+                  </td>
                   <td className="px-3 py-2.5 text-[11.5px] max-w-[120px] truncate" title={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || ""}>
                     {agents.find(a => a.id === l.assigned_sales_executive)?.full_name || "—"}
                   </td>
                   <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-1 justify-end">
-                      <button onClick={() => setQuickPayId(l.id)} className="text-[10.5px] px-1.5 py-1 rounded border border-line hover:bg-off" title="Add payment">+ ₹</button>
-                      <button onClick={() => setQuickFuId(l.id)} className="text-[10.5px] px-1.5 py-1 rounded border border-line hover:bg-off" title="Set follow-up">Follow</button>
-                      <button onClick={() => setOpenId(l.id)} className="text-[10.5px] px-1.5 py-1 rounded bg-black text-white">Open</button>
+                    <div className="flex items-center gap-1 justify-end flex-wrap">
+                      <button onClick={() => setQuickPayId(l.id)} className="text-[11px] px-2 py-1 rounded bg-[#15803D] text-white hover:opacity-90 font-medium" title="Add payment">+ Payment</button>
+                      <button onClick={() => setQuickFinanceId(l.id)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off" title="Update finance">Finance</button>
+                      <button onClick={() => setQuickFuId(l.id)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off" title="Set follow-up">Follow-up</button>
+                      <button onClick={() => setOpenId(l.id)} className="text-[11px] px-2 py-1 rounded bg-black text-white">Open</button>
                     </div>
                   </td>
                 </tr>
