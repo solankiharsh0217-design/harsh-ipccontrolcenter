@@ -74,7 +74,7 @@ export default function PaidPipeline() {
   const [onboardingBatches, setOnboardingBatches] = useState<string[]>([]);
   const [stages, setStages] = useState<string[]>([]);
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
-  const [view, setView] = useState<"leads"|"batches">("leads");
+  const [view, setView] = useState<"leads"|"batches">("batches");
   const [batchFilter, setBatchFilter] = useState("all"); // source webinar batch
   const [paidBatchFilter, setPaidBatchFilter] = useState("all");
   const [onboardingBatchFilter, setOnboardingBatchFilter] = useState("all");
@@ -154,11 +154,14 @@ export default function PaidPipeline() {
   const totals = useMemo(() => {
     const td = today();
     const t = {
+      dealTotal: 0, collectedTotal: 0,
       realized: 0, toBeRealized: 0, token: 0, balance: 0,
       finalSales: 0, dropped: 0, financePending: 0, emiDisbursed: 0,
       hotPending: 0, dueToday: 0,
     };
     filtered.forEach(l => {
+      t.dealTotal += Number(l.deal_value_including_gst || 0);
+      t.collectedTotal += Number(l.total_collected || 0);
       t.realized += Number(l.final_revenue_realized || 0);
       t.toBeRealized += l.is_dropped ? 0 : Number(l.balance_pending || 0);
       t.token += Number(l.token_amount_collected || 0);
@@ -254,8 +257,8 @@ export default function PaidPipeline() {
       </div>
 
       <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white inline-flex mb-4">
-        <button onClick={() => setView("leads")} className={`px-3 py-1.5 rounded-md text-xs ${view === "leads" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Leads</button>
         <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Paid Batches</button>
+        <button onClick={() => setView("leads")} className={`px-3 py-1.5 rounded-md text-xs ${view === "leads" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>All Paid Leads</button>
       </div>
 
       {view === "batches" && (
@@ -267,15 +270,17 @@ export default function PaidPipeline() {
       {view === "leads" && (<>
 
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
-        <SumCard label="Realized Revenue" value={inr(totals.realized)} accent="green" />
-        <SumCard label="Revenue To Be Realized" value={inr(totals.toBeRealized)} accent="gold" />
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5">
+        <SumCard label="Total Deal Value" value={inr(totals.dealTotal)} />
         <SumCard label="Token Collected" value={inr(totals.token)} />
-        <SumCard label="Balance Pending" value={inr(totals.balance)} />
+        <SumCard label="Total Collected" value={inr(totals.collectedTotal)} accent="green" />
+        <SumCard label="Balance Pending" value={inr(totals.balance)} accent="gold" />
+        <SumCard label="Revenue Realized" value={inr(totals.realized)} accent="green" />
+        <SumCard label="Revenue To Be Realized" value={inr(totals.toBeRealized)} />
+        <SumCard label="Finance Pending" value={String(totals.financePending)} />
         <SumCard label="EMI / Finance Disbursed" value={inr(totals.emiDisbursed)} />
         <SumCard label="Final Sales" value={String(totals.finalSales)} />
         <SumCard label="Dropped After Token" value={String(totals.dropped)} />
-        <SumCard label="Finance Pending" value={String(totals.financePending)} />
         <SumCard label="Hot/Urgent Bal Pending" value={String(totals.hotPending)} accent="red" />
         <SumCard label="Follow-Ups Due Today" value={String(totals.dueToday)} accent="blue" />
       </div>
@@ -323,6 +328,8 @@ export default function PaidPipeline() {
             <tr className="text-left">
               <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
               <th className="px-3 py-2.5">Buyer</th>
+              <th className="px-3 py-2.5">Phone</th>
+              <th className="px-3 py-2.5">Email</th>
               <th className="px-3 py-2.5">Batch / Product</th>
               <th className="px-3 py-2.5">Deal</th>
               <th className="px-3 py-2.5">Token</th>
@@ -332,12 +339,13 @@ export default function PaidPipeline() {
               <th className="px-3 py-2.5">Lead Priority</th>
               <th className="px-3 py-2.5">Follow-up</th>
               <th className="px-3 py-2.5">Finance</th>
+              <th className="px-3 py-2.5">Owner</th>
               <th className="px-3 py-2.5"></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={12} className="px-3 py-10 text-center text-muted-foreground">
+              <tr><td colSpan={15} className="px-3 py-10 text-center text-muted-foreground">
                 No buyers match these filters.
               </td></tr>
             )}
@@ -354,8 +362,9 @@ export default function PaidPipeline() {
                       {l.name || "—"}
                       {l.sent_to_crm && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0]">CRM</span>}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">{l.email || l.phone || "—"}</div>
                   </td>
+                  <td className="px-3 py-2.5 text-[11.5px] whitespace-nowrap">{l.phone || "—"}</td>
+                  <td className="px-3 py-2.5 text-[11.5px] max-w-[180px] truncate" title={l.email || ""}>{l.email || "—"}</td>
                   <td className="px-3 py-2.5 cursor-pointer" onClick={() => setOpenId(l.id)}>
                     <div>{batch?.batch_name || l.source_webinar || "—"}</div>
                     <div className="text-[11px] text-muted-foreground">{l.product_name_snapshot || "—"}</div>
@@ -386,6 +395,9 @@ export default function PaidPipeline() {
                     {l.follow_up_reason && <div className="text-[10px] text-muted-foreground">{l.follow_up_reason}</div>}
                   </td>
                   <td className="px-3 py-2.5 text-[11px]">{l.finance_required ? `${l.finance_partner || "—"} · ${l.finance_status || "—"}` : "—"}</td>
+                  <td className="px-3 py-2.5 text-[11.5px] max-w-[120px] truncate" title={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || ""}>
+                    {agents.find(a => a.id === l.assigned_sales_executive)?.full_name || "—"}
+                  </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1 justify-end">
                       <button onClick={() => setQuickPayId(l.id)} className="text-[10.5px] px-1.5 py-1 rounded border border-line hover:bg-off" title="Add payment">+ ₹</button>
