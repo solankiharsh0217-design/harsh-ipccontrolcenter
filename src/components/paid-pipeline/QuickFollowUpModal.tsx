@@ -28,8 +28,11 @@ export default function QuickFollowUpModal({
     try {
       await supabase.from("paid_pipeline_followups").insert({
         paid_pipeline_lead_id: leadId, follow_up_date: date, follow_up_time: time,
-        follow_up_reason: reason || null, priority, status, assigned_to: assignee || null,
+        follow_up_reason: reason || null, follow_up_type: reason || null,
+        priority, status, assigned_to: assignee || null,
         notes: notes || null, created_by: user?.id,
+        related_crm_lead_id: crmLeadId || null,
+        source_module: "paid_pipeline",
       } as any);
       await supabase.from("paid_pipeline_leads").update({
         next_follow_up_date: date, next_follow_up_time: time,
