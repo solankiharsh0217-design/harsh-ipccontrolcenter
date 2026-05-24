@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
+import SuggestedNextActions from "@/components/SuggestedNextActions";
 
 interface Props {
   leadId: string;
