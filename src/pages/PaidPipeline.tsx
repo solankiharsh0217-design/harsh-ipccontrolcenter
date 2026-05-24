@@ -44,6 +44,10 @@ type Lead = {
   finance_status: string | null;
   finance_notes: string | null;
   finance_follow_up_date: string | null;
+  finance_amount_approved: number | null;
+  finance_amount_disbursed: number | null;
+  finance_disbursement_date: string | null;
+  finance_count_as_collected: boolean | null;
   attributed_media_buyer: string | null;
   follow_up_date: string | null;
   next_follow_up_date: string | null;
