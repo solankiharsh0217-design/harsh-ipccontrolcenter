@@ -127,11 +127,15 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     try {
       // Resolve pipeline (existing or create)
       let pipelineId = targetPipelineId;
+      let pipelineName = "";
+      let pipelineType: "unpaid" | "paid" | "custom" = leadType;
       if (creatingPipeline || pipelineId === "__new__") {
         if (!newPipeName.trim()) { toast.error("Pipeline name required"); setImporting(false); return; }
         const { data: ins, error } = await supabase.from("pipelines").insert({ name: newPipeName.trim(), type: newPipeType, position: pipelines.length }).select().maybeSingle();
         if (error || !ins) { toast.error(error?.message || "Pipeline create failed"); setImporting(false); return; }
         pipelineId = ins.id;
+        pipelineName = ins.name;
+        pipelineType = (ins.type as any) ?? newPipeType;
         if (newPipeSeed) {
           const tmpl = DEFAULT_PIPELINE_TEMPLATES[newPipeType];
           await supabase.from("stages").insert(tmpl.map((s, i) => ({
@@ -139,9 +143,20 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             is_won: !!s.is_won, is_lost: !!s.is_lost, is_protected: !!s.is_protected,
           })));
         }
+      } else {
+        const sel = pipelines.find((p) => p.id === pipelineId);
+        pipelineName = sel?.name || "";
+        pipelineType = (sel?.type as any) || leadType;
       }
 
-      // Load stages for chosen pipeline
+      // Safety: paid leads must never silently land in an unpaid pipeline (and vice-versa for non-custom).
+      if (pipelineType !== "custom" && pipelineType !== leadType) {
+        toast.error(`Selected pipeline is "${pipelineType}" but you chose "${leadType}" leads. Pick a matching pipeline or create a new one.`);
+        setImporting(false);
+        return;
+      }
+
+      // Load stages for chosen pipeline; auto-seed if empty
       const { data: pStages } = await supabase.from("stages").select("*").eq("pipeline_id", pipelineId).order("position");
       let stageList = pStages || [];
       if (stageList.length === 0) {
@@ -149,6 +164,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         pipelineId = ensured.pipelineId;
         const reload = await supabase.from("stages").select("*").eq("pipeline_id", pipelineId).order("position");
         stageList = reload.data || [];
+        const reloadP = await supabase.from("pipelines").select("name,type").eq("id", pipelineId).maybeSingle();
+        pipelineName = reloadP.data?.name || pipelineName;
+        pipelineType = (reloadP.data?.type as any) || pipelineType;
       }
       const firstStageId = stageList[0]?.id ?? null;
 
@@ -196,21 +214,57 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       });
 
       let imported = 0, skipped = 0;
+      const errors: string[] = [];
       for (let i = 0; i < payloads.length; i += 200) {
         const chunk = payloads.slice(i, i + 200);
         const { data, error } = await supabase.from("leads").insert(chunk).select("id");
-        if (error) skipped += chunk.length;
-        else imported += data?.length || chunk.length;
+        if (error) {
+          console.error("[ImportLeadsModal] insert error", error);
+          if (!errors.includes(error.message)) errors.push(error.message);
+          skipped += chunk.length;
+        } else {
+          imported += data?.length || chunk.length;
+        }
       }
 
-      if (notes.trim() && profile?.id) {
-        // best-effort: log a single import-summary activity (no lead_id) — silently ignore if not allowed
-        // skipping to avoid schema mismatch; notes can be added per-lead later
+      if (imported === 0) {
+        toast.error(errors[0] ? `Import failed: ${errors[0]}` : "No leads were imported.");
+        setImporting(false);
+        return;
       }
 
-      toast.success(`Imported ${imported} leads · Segment "${segmentName}"${skipped ? ` · ${skipped} skipped` : ""}`);
-      onDone();
+      logActivity({
+        module_key: "calling_crm",
+        action_type: "crm_leads_imported",
+        entity_type: "crm_batch",
+        entity_label: segmentName,
+        metadata: {
+          batch_name: segmentName,
+          pipeline_id: pipelineId,
+          pipeline_name: pipelineName,
+          pipeline_type: pipelineType,
+          lead_type: leadType,
+          imported_count: imported,
+          skipped_count: skipped,
+          default_grade: defaultGrade,
+          product_name: productName,
+          deal_value: dealValue,
+          webinar_name: webinarName || segmentName,
+          webinar_date: webinarDate,
+        },
+        summary: `Imported ${imported} ${leadType} leads into "${pipelineName}" — batch "${segmentName}"${skipped ? ` (${skipped} skipped)` : ""}.`,
+      });
+
+      onDone({
+        pipelineId: pipelineId as string,
+        pipelineName,
+        leadType,
+        batchName: segmentName,
+        imported,
+        skipped,
+      });
     } catch (e: any) {
+      console.error("[ImportLeadsModal] importNow failed", e);
       toast.error(e.message || "Import failed");
     } finally { setImporting(false); }
   };
