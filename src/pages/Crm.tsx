@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
+import { listAllTags, getTagsForLeads, type Tag } from "@/lib/leadTags";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
@@ -24,6 +25,9 @@ export default function Crm() {
   const [openLead, setOpenLead] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
   const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
+  const [tagFilter, setTagFilter] = useState<string>("all");
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [dateField, setDateField] = useState<"webinar_date"|"created_at">("webinar_date");
@@ -89,15 +93,28 @@ export default function Crm() {
     if (leadParam) setOpenLead(leadParam);
   }, [searchParams]);
 
+  // Load all tags + per-lead tag assignments whenever the lead list changes
+  useEffect(() => {
+    (async () => {
+      const tags = await listAllTags().catch(() => [] as Tag[]);
+      setAllTags(tags);
+      const ids = leads.map((l) => l.id);
+      if (ids.length === 0) { setLeadTagsMap({}); return; }
+      const map = await getTagsForLeads({ crmLeadIds: ids }).catch(() => ({}));
+      setLeadTagsMap(map);
+    })();
+  }, [leads]);
+
   const pipelineStages = useMemo(() => stages.filter((s) => s.pipeline_id === activePipeline).sort((a, b) => a.position - b.position), [stages, activePipeline]);
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
     if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
+    if (tagFilter !== "all") list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => t.id === tagFilter));
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter, dateFrom, dateTo, dateField]);
+  }, [leads, activePipeline, filter, batchFilter, tagFilter, leadTagsMap, dateFrom, dateTo, dateField]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
@@ -352,6 +369,10 @@ export default function Crm() {
             <option value="hot">Hot</option>
             <option value="warm">Warm</option>
             <option value="cold">Cold</option>
+          </select>
+          <select className="ipc-input !h-10 !text-xs max-w-[180px]" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} title="Filter by tag">
+            <option value="all">All tags</option>
+            {allTags.map((t) => <option key={t.id} value={t.id}>🏷 {t.name}</option>)}
           </select>
           <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>
           <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
