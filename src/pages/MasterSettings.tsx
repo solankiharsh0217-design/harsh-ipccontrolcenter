@@ -187,6 +187,8 @@ export default function MasterSettings() {
             />
           )}
           {activeSection === "eligibility" && <EligibilitySection />}
+          {activeSection === "tags" && <TagsSection />}
+          {activeSection === "stage_sync" && <StageSyncRulesSection />}
           {activeSection === "whatsapp" && <WhatsAppTemplatesSection />}
           {activeSection === "dropdowns" && <GeneralDropdownsSection />}
           {activeSection === "media_buyer_cleanup" && <MediaBuyerAliasManager />}
