@@ -17,6 +17,8 @@ import {
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
+import TagPicker from "@/components/TagPicker";
+import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 
 type Lead = {
   id: string;
