@@ -656,6 +656,16 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               <Field label="Follow-up Type" value={lead.follow_up_reason || "—"} />
               <Field label="Assigned Owner" value={agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"} />
             </div>
+            <div className="mt-3">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Fast Follow-up</div>
+              <FastFollowUpComposer
+                paidLeadId={lead.id}
+                crmLeadId={lead.crm_lead_id || null}
+                leadName={lead.name || undefined}
+                defaultPriority={temperature || "Normal"}
+                onSaved={() => { loadInner(); onChanged(); }}
+              />
+            </div>
           </Section>
 
           {/* Payment Summary */}
