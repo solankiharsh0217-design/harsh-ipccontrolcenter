@@ -59,6 +59,7 @@ type Lead = {
   revenue_recognition_rule: string | null;
   notes: string | null;
   created_at: string;
+  crm_lead_id?: string | null;
 };
 type Batch = { id: string; batch_name: string; webinar_name: string; webinar_date: string | null };
 type PaidBatch = { id: string; batch_name: string; batch_status: string };
