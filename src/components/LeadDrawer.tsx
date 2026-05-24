@@ -110,6 +110,11 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               leadName={lead.full_name || undefined}
             />
           </div>
+          <SuggestedNextActions
+            crmLeadId={lead.id}
+            paidLeadId={(lead as any).paid_pipeline_lead_id || null}
+            onApplied={() => { load(); onChanged(); }}
+          />
         </div>
 
         {/* Score + signals */}
