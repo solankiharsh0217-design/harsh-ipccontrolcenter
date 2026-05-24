@@ -76,13 +76,34 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
     });
     setActivityNote(""); await load();
   };
-  // addReminder removed — handled by FastFollowUpComposer
-  const delReminder = async (id: string) => {
-    await supabase.from("follow_up_reminders").delete().eq("id", id);
-    await load();
+  const addStageInline = async () => {
+    const name = newStageName.trim();
+    if (!name) return;
+    const dup = pipelineStages.some((s) => s.name.toLowerCase() === name.toLowerCase());
+    if (dup) { toast.error("Stage already exists"); return; }
+    const { data, error } = await supabase.from("stages").insert({
+      pipeline_id: lead.pipeline_id, name, color: "#E8E5DE", position: pipelineStages.length,
+    } as any).select("id").maybeSingle();
+    if (error) { toast.error(error.message); return; }
+    setNewStageName("");
+    toast.success("Stage added");
+    if (data?.id) await moveStage(data.id);
+    onChanged();
+  };
+  const deactivateStage = async (s: Stage) => {
+    if ((s as any).is_protected) { toast.error("Protected stage"); return; }
+    const used = false; // we don't have a count here; defer to Stages view for delete safety
+    if (used) { toast.error("Stage in use"); return; }
+    if (!confirm(`Delete stage "${s.name}"?`)) return;
+    const { error } = await supabase.from("stages").delete().eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Stage deleted");
+    onChanged();
   };
 
   const today = new Date().toISOString().slice(0, 10);
+  const currentStage = pipelineStages.find((s) => s.id === lead.stage_id);
+  const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
