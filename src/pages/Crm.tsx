@@ -403,15 +403,21 @@ export default function Crm() {
             <option value="warm">Warm</option>
             <option value="cold">Cold</option>
           </select>
-          <select className="ipc-input !h-10 !text-xs max-w-[180px]" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} title="Filter by tag">
-            <option value="all">All tags</option>
-            {allTags.map((t) => <option key={t.id} value={t.id}>🏷 {t.name}</option>)}
-          </select>
+          <ManagedTagFilter
+            value={tagFilter}
+            onChange={setTagFilter}
+            tags={allTags}
+            onChanged={async () => { const tags = await listAllTags().catch(() => [] as Tag[]); setAllTags(tags); }}
+          />
           {(view === "kanban" || view === "list") && (
-            <select className="ipc-input !h-10 !text-xs max-w-[180px]" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} title="Filter by stage">
-              <option value="all">All stages</option>
-              {pipelineStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <ManagedStageFilter
+              value={stageFilter}
+              onChange={setStageFilter}
+              stages={pipelineStages}
+              pipelineId={activePipeline}
+              leadsCountByStage={pipelineLeads.reduce((acc: Record<string, number>, l) => { if (l.stage_id) acc[l.stage_id] = (acc[l.stage_id] || 0) + 1; return acc; }, {})}
+              onChanged={load}
+            />
           )}
           {(filter !== "all" || batchFilter !== "all" || tagFilter !== "all" || stageFilter !== "all" || dateFrom || dateTo || searchQuery) && (
             <button
