@@ -122,8 +122,13 @@ export default function Crm() {
     if (stageFilter !== "all") list = list.filter((l) => l.stage_id === stageFilter);
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
+    const q = searchQuery.trim().toLowerCase();
+    if (q) list = list.filter((l: any) => {
+      const hay = [l.full_name, l.phone, l.email, l.program_name, l.webinar_source].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField]);
+  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
