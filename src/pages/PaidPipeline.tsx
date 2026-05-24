@@ -601,11 +601,36 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           <div>
             <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
             <div className="text-[12px] text-muted-foreground">{lead.email || "—"} · {lead.phone || "—"}</div>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {lead.crm_lead_id && (
+                <Link to={`/crm?lead=${lead.crm_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+                  Open in Calling CRM
+                </Link>
+              )}
+              <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
+                Set Follow-up
+              </button>
+            </div>
           </div>
           <button onClick={onClose} className="text-[20px] leading-none">×</button>
         </div>
 
         <div className="p-6 space-y-5">
+          {/* Timeline & Follow-up */}
+          <Section title="Timeline & Follow-up">
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="Created / Imported" value={lead.created_at ? fmtDate(lead.created_at) : "—"} />
+              <Field label="Paid Batch" value={lead.paid_batch_name || "—"} />
+              <Field label="Onboarding Batch" value={lead.onboarding_batch_name || "—"} />
+              <Field label="Last Payment Date" value={payments[0]?.payment_date ? fmtDate(payments[0].payment_date) : "—"} />
+              <Field label="Last Contacted" value={activity[0]?.created_at ? fmtDate(activity[0].created_at) : "—"} />
+              <Field label="Next Follow-up Date" value={lead.next_follow_up_date ? fmtDate(lead.next_follow_up_date) : "—"} />
+              <Field label="Next Follow-up Time" value={lead.next_follow_up_time ? String(lead.next_follow_up_time).slice(0,5) : "—"} />
+              <Field label="Follow-up Type" value={lead.follow_up_reason || "—"} />
+              <Field label="Assigned Owner" value={agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"} />
+            </div>
+          </Section>
+
           {/* Payment Summary */}
           <Section title="Payment summary">
             <div className="grid grid-cols-3 gap-2">
