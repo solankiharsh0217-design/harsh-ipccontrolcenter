@@ -1169,6 +1169,41 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_tag_assignments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          crm_lead_id: string | null
+          id: string
+          paid_pipeline_lead_id: string | null
+          tag_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          crm_lead_id?: string | null
+          id?: string
+          paid_pipeline_lead_id?: string | null
+          tag_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          crm_lead_id?: string | null
+          id?: string
+          paid_pipeline_lead_id?: string | null
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_agent_id: string | null
@@ -1184,6 +1219,7 @@ export type Database = {
           is_super_hot: boolean
           lead_source_type: string | null
           lead_type: Database["public"]["Enums"]["lead_type"]
+          paid_pipeline_lead_id: string | null
           phone: string | null
           pipeline_id: string | null
           program_name: string
@@ -1212,6 +1248,7 @@ export type Database = {
           is_super_hot?: boolean
           lead_source_type?: string | null
           lead_type?: Database["public"]["Enums"]["lead_type"]
+          paid_pipeline_lead_id?: string | null
           phone?: string | null
           pipeline_id?: string | null
           program_name?: string
@@ -1240,6 +1277,7 @@ export type Database = {
           is_super_hot?: boolean
           lead_source_type?: string | null
           lead_type?: Database["public"]["Enums"]["lead_type"]
+          paid_pipeline_lead_id?: string | null
           phone?: string | null
           pipeline_id?: string | null
           program_name?: string
@@ -4300,6 +4338,39 @@ export type Database = {
           section?: string
           severity?: string | null
           status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_deleted: boolean
+          module_scope: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_deleted?: boolean
+          module_scope?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_deleted?: boolean
+          module_scope?: string
+          name?: string
           updated_at?: string
         }
         Relationships: []
