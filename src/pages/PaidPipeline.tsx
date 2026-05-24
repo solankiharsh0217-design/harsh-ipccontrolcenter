@@ -395,6 +395,9 @@ export default function PaidPipeline() {
                     {l.follow_up_reason && <div className="text-[10px] text-muted-foreground">{l.follow_up_reason}</div>}
                   </td>
                   <td className="px-3 py-2.5 text-[11px]">{l.finance_required ? `${l.finance_partner || "—"} · ${l.finance_status || "—"}` : "—"}</td>
+                  <td className="px-3 py-2.5 text-[11.5px] max-w-[120px] truncate" title={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || ""}>
+                    {agents.find(a => a.id === l.assigned_sales_executive)?.full_name || "—"}
+                  </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1 justify-end">
                       <button onClick={() => setQuickPayId(l.id)} className="text-[10.5px] px-1.5 py-1 rounded border border-line hover:bg-off" title="Add payment">+ ₹</button>
