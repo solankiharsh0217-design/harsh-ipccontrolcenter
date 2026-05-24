@@ -4193,6 +4193,57 @@ export type Database = {
         }
         Relationships: []
       }
+      stage_sync_rules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          notes: string | null
+          rule_name: string
+          sort_order: number
+          suggested_field: string
+          suggested_module: string
+          suggested_value: string
+          trigger_field: string
+          trigger_module: string
+          trigger_value: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          rule_name: string
+          sort_order?: number
+          suggested_field: string
+          suggested_module: string
+          suggested_value: string
+          trigger_field: string
+          trigger_module: string
+          trigger_value: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          rule_name?: string
+          sort_order?: number
+          suggested_field?: string
+          suggested_module?: string
+          suggested_value?: string
+          trigger_field?: string
+          trigger_module?: string
+          trigger_value?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stages: {
         Row: {
           color: string
