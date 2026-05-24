@@ -5,6 +5,8 @@ import { GRADE_STYLES, type Lead, type Stage, type ActivityLog, type Reminder } 
 import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import TagPicker from "@/components/TagPicker";
+import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 
 interface Props {
   leadId: string;
@@ -25,10 +27,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [activityNote, setActivityNote] = useState("");
   const [activityChannel, setActivityChannel] = useState<ActivityLog["channel"]>("call");
-  const [rDate, setRDate] = useState(new Date().toISOString().slice(0, 10));
-  const [rTime, setRTime] = useState("10:00");
-  const [rChannel, setRChannel] = useState<Reminder["channel"]>("call");
-  const [rNote, setRNote] = useState("");
+  // Legacy reminder inputs removed in favour of FastFollowUpComposer
 
   const load = async () => {
     const [{ data: l }, { data: a }, { data: r }] = await Promise.all([
@@ -67,13 +66,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
     });
     setActivityNote(""); await load();
   };
-  const addReminder = async () => {
-    await supabase.from("follow_up_reminders").insert({
-      lead_id: lead.id, agent_id: profile?.id,
-      reminder_date: rDate, reminder_time: rTime, channel: rChannel, note: rNote || null,
-    });
-    setRNote(""); await load();
-  };
+  // addReminder removed — handled by FastFollowUpComposer
   const delReminder = async (id: string) => {
     await supabase.from("follow_up_reminders").delete().eq("id", id);
     await load();
@@ -106,6 +99,14 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               </Link>
             </div>
           )}
+          <div className="mt-3">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Tags</div>
+            <TagPicker
+              crmLeadId={lead.id}
+              paidLeadId={(lead as any).paid_pipeline_lead_id || null}
+              leadName={lead.full_name || undefined}
+            />
+          </div>
         </div>
 
         {/* Score + signals */}
@@ -179,17 +180,12 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               );
             })}
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            <input type="date" className="ipc-input !h-10 !text-xs" value={rDate} onChange={(e) => setRDate(e.target.value)} />
-            <input type="time" className="ipc-input !h-10 !text-xs" value={rTime} onChange={(e) => setRTime(e.target.value)} />
-            <select className="ipc-input !h-10 !text-xs" value={rChannel} onChange={(e) => setRChannel(e.target.value as any)}>
-              <option value="call">Call</option><option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="sms">SMS</option>
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <input type="text" className="ipc-input !h-10 !text-xs flex-1" placeholder="Optional note…" value={rNote} onChange={(e) => setRNote(e.target.value)} />
-            <button onClick={addReminder} className="ipc-btn ipc-btn-black !h-10">Add</button>
-          </div>
+          <FastFollowUpComposer
+            crmLeadId={lead.id}
+            paidLeadId={(lead as any).paid_pipeline_lead_id || null}
+            leadName={lead.full_name || undefined}
+            onSaved={load}
+          />
         </div>
 
         {/* Activity */}

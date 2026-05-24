@@ -17,6 +17,8 @@ import {
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
+import TagPicker from "@/components/TagPicker";
+import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 
 type Lead = {
   id: string;
@@ -459,6 +461,7 @@ export default function PaidPipeline() {
       {openLead && <LeadDrawer lead={openLead} agents={agents} onClose={() => { setOpenId(null); load(); }} stages={stages} onChanged={load} />}
       {quickPayId && <QuickAddPaymentModal leadId={quickPayId} leadName={leads.find(l => l.id === quickPayId)?.name || undefined} onClose={() => setQuickPayId(null)} onSaved={load} />}
       {quickFuId && <QuickFollowUpModal leadId={quickFuId} leadName={leads.find(l => l.id === quickFuId)?.name || undefined}
+        crmLeadId={leads.find(l => l.id === quickFuId)?.crm_lead_id || null}
         defaults={{ priority: leads.find(l => l.id === quickFuId)?.lead_temperature || "Normal" }}
         onClose={() => setQuickFuId(null)} onSaved={load} />}
       {bulkSend && <SendToCrmBulkModal
@@ -631,6 +634,15 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           <button onClick={onClose} className="text-[20px] leading-none">×</button>
         </div>
 
+        <div className="px-6 pt-3">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Tags</div>
+          <TagPicker
+            paidLeadId={lead.id}
+            crmLeadId={lead.crm_lead_id || null}
+            leadName={lead.name || undefined}
+          />
+        </div>
+
         <div className="p-6 space-y-5">
           {/* Timeline & Follow-up */}
           <Section title="Timeline & Follow-up">
@@ -644,6 +656,16 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               <Field label="Next Follow-up Time" value={lead.next_follow_up_time ? String(lead.next_follow_up_time).slice(0,5) : "—"} />
               <Field label="Follow-up Type" value={lead.follow_up_reason || "—"} />
               <Field label="Assigned Owner" value={agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"} />
+            </div>
+            <div className="mt-3">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Fast Follow-up</div>
+              <FastFollowUpComposer
+                paidLeadId={lead.id}
+                crmLeadId={lead.crm_lead_id || null}
+                leadName={lead.name || undefined}
+                defaultPriority={temperature || "Normal"}
+                onSaved={() => { loadInner(); onChanged(); }}
+              />
             </div>
           </Section>
 
@@ -765,7 +787,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
       </div>
 
       {openPay && <QuickAddPaymentModal leadId={lead.id} leadName={lead.name || undefined} onClose={() => setOpenPay(false)} onSaved={() => { loadInner(); onChanged(); }} />}
-      {openFu && <QuickFollowUpModal leadId={lead.id} leadName={lead.name || undefined} defaults={{ priority: temperature || "Normal" }} onClose={() => setOpenFu(false)} onSaved={() => { loadInner(); onChanged(); }} />}
+      {openFu && <QuickFollowUpModal leadId={lead.id} leadName={lead.name || undefined} crmLeadId={lead.crm_lead_id || null} defaults={{ priority: temperature || "Normal" }} onClose={() => setOpenFu(false)} onSaved={() => { loadInner(); onChanged(); }} />}
     </div>
   );
 }
