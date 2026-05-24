@@ -99,8 +99,10 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               </Link>
             </div>
           )}
-          <div className="mt-3">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Tags</div>
+          <div className="mt-4 rounded-lg border border-line bg-off/40 px-3 py-2.5">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground">Lead Tags</div>
+            </div>
             <TagPicker
               crmLeadId={lead.id}
               paidLeadId={(lead as any).paid_pipeline_lead_id || null}

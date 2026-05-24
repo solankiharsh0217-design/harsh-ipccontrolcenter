@@ -100,42 +100,53 @@ export default function TagPicker({ crmLeadId, paidLeadId, leadName, compact, on
 
   return (
     <div ref={wrapRef} className="relative">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {assignedTags.map((t) => (
-          <span
-            key={t.id}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] border"
-            style={{ background: (t.color || pickTagColor(t.name)) + "1A", color: t.color || pickTagColor(t.name), borderColor: (t.color || pickTagColor(t.name)) + "55" }}
-          >
-            {t.name}
-            <button onClick={() => toggle(t)} className="opacity-60 hover:opacity-100" title="Remove tag">
-              <X className="w-2.5 h-2.5" />
-            </button>
+      <div className="flex flex-wrap items-center gap-2">
+        {assignedTags.length === 0 && (
+          <span className="text-[12px] text-muted-foreground italic">
+            No tags yet. Add tags to segment this lead.
           </span>
-        ))}
+        )}
+        {assignedTags.map((t) => {
+          const c = t.color || pickTagColor(t.name);
+          return (
+            <span
+              key={t.id}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border"
+              style={{ background: c + "1A", color: c, borderColor: c + "55" }}
+            >
+              {t.name}
+              <button
+                onClick={() => toggle(t)}
+                className="opacity-60 hover:opacity-100 -mr-0.5"
+                title="Remove tag"
+                aria-label={`Remove ${t.name}`}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          );
+        })}
         <button
           onClick={() => setOpen((o) => !o)}
-          className={"inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] border border-dashed border-line text-muted-foreground hover:bg-off " + (compact ? "" : "")}
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium border border-dashed border-line text-foreground hover:bg-off hover:border-foreground/40 transition-colors"
         >
-          <Plus className="w-3 h-3" /> Tag
+          <Plus className="w-3.5 h-3.5" /> Add Tag
         </button>
       </div>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-[260px] bg-white border border-line rounded-md shadow-lg p-2">
+        <div className="absolute z-50 mt-2 w-[280px] bg-white border border-line rounded-md shadow-lg p-2">
           <input
             autoFocus
             className="qsi-input !h-8 !text-[12px] mb-2"
-            placeholder="Search or create…"
+            placeholder="Search or create a tag…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); quickCreate(); } }}
           />
-          <div className="max-h-[200px] overflow-y-auto">
-            {filtered.length === 0 && (
-              <button onClick={quickCreate} className="w-full text-left px-2 py-1.5 text-[12px] hover:bg-off rounded">
-                + Create "{query.trim()}"
-              </button>
+          <div className="max-h-[240px] overflow-y-auto">
+            {filtered.length === 0 && !query.trim() && (
+              <div className="px-2 py-3 text-[11px] text-muted-foreground text-center">No tags available</div>
             )}
             {filtered.map((t) => {
               const sel = assigned.has(t.id);
@@ -150,7 +161,7 @@ export default function TagPicker({ crmLeadId, paidLeadId, leadName, compact, on
                     <span className="w-2 h-2 rounded-full" style={{ background: c }} />
                     {t.name}
                   </span>
-                  {sel && <span className="text-[10px] text-muted-foreground">✓</span>}
+                  {sel && <span className="text-[10px] text-muted-foreground">✓ Added</span>}
                 </button>
               );
             })}
