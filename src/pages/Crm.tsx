@@ -411,13 +411,13 @@ export default function Crm() {
               {pipelineStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           )}
-          {(filter !== "all" || batchFilter !== "all" || tagFilter !== "all" || stageFilter !== "all" || dateFrom || dateTo) && (
+          {(filter !== "all" || batchFilter !== "all" || tagFilter !== "all" || stageFilter !== "all" || dateFrom || dateTo || searchQuery) && (
             <button
-              onClick={() => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); }}
+              onClick={() => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); setSearchQuery(""); }}
               className="ipc-btn ipc-btn-ghost !h-10"
-              title="Clear all filters"
+              title="Clear search and filters"
             >
-              <XIcon className="w-3.5 h-3.5" /> Reset
+              <XIcon className="w-3.5 h-3.5" /> Reset Filters
             </button>
           )}
           <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>
