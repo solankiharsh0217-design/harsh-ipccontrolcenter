@@ -93,15 +93,28 @@ export default function Crm() {
     if (leadParam) setOpenLead(leadParam);
   }, [searchParams]);
 
+  // Load all tags + per-lead tag assignments whenever the lead list changes
+  useEffect(() => {
+    (async () => {
+      const tags = await listAllTags().catch(() => [] as Tag[]);
+      setAllTags(tags);
+      const ids = leads.map((l) => l.id);
+      if (ids.length === 0) { setLeadTagsMap({}); return; }
+      const map = await getTagsForLeads({ crmLeadIds: ids }).catch(() => ({}));
+      setLeadTagsMap(map);
+    })();
+  }, [leads]);
+
   const pipelineStages = useMemo(() => stages.filter((s) => s.pipeline_id === activePipeline).sort((a, b) => a.position - b.position), [stages, activePipeline]);
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
     if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
+    if (tagFilter !== "all") list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => t.id === tagFilter));
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter, dateFrom, dateTo, dateField]);
+  }, [leads, activePipeline, filter, batchFilter, tagFilter, leadTagsMap, dateFrom, dateTo, dateField]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
