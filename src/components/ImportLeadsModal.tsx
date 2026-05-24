@@ -136,14 +136,81 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       setPipelines(pl || []);
       setStages(st || []);
       setAgents(((ag || []) as any).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")));
-      const def = (pl || []).find((p: any) => p.type === leadType) || (pl || [])[0];
-      setTargetPipelineId(def?.id || "__new__");
+      const list = pl || [];
+      const def = resolveDefaultPipelineId(leadType, list);
+      setTargetPipelineId(def);
       setNewPipeType(leadType);
+      if (def === "__new__") {
+        setCreatingPipeline(true);
+        setNewPipeName(leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)");
+      } else {
+        setCreatingPipeline(false);
+      }
       setStep(3);
     } finally { setLoading(false); }
   };
 
-  const filteredPipelines = useMemo(() => pipelines.filter((p) => p.type === leadType || p.type === "custom"), [pipelines, leadType]);
+  // Only show pipelines whose type matches the chosen lead type. Paid leads must never
+  // land in an unpaid pipeline (and vice versa). Custom pipelines are excluded from the
+  // auto-flow to keep paid/unpaid routing unambiguous.
+  const filteredPipelines = useMemo(
+    () => pipelines.filter((p) => p.type === leadType),
+    [pipelines, leadType],
+  );
+
+  // Find a sensible default target pipeline for a given lead type.
+  // For paid: prefer name containing "Paid — Onboarding" / "Onboarding" / "Paid",
+  // otherwise the first type==='paid' pipeline.
+  const resolveDefaultPipelineId = (type: "paid" | "unpaid", list: any[]): string => {
+    const ofType = list.filter((p) => p.type === type);
+    if (type === "paid") {
+      const named = ofType.find((p) => /paid.*onboarding|onboarding/i.test(p.name || ""))
+        || ofType.find((p) => /paid/i.test(p.name || ""));
+      if (named) return named.id;
+    } else {
+      const named = ofType.find((p) => /sales.*pipeline|unpaid/i.test(p.name || ""));
+      if (named) return named.id;
+    }
+    return ofType[0]?.id || "__new__";
+  };
+
+  // When user toggles lead type inside step 3, re-resolve the target pipeline
+  // so Step 4 never shows "Pipeline: —" or a stale mismatched pipeline.
+  useEffect(() => {
+    if (step < 3 || pipelines.length === 0) return;
+    if (creatingPipeline) { setNewPipeType(leadType); return; }
+    const current = pipelines.find((p) => p.id === targetPipelineId);
+    if (!current || current.type !== leadType) {
+      const next = resolveDefaultPipelineId(leadType, pipelines);
+      setTargetPipelineId(next);
+      if (next === "__new__") {
+        setCreatingPipeline(true);
+        setNewPipeType(leadType);
+        setNewPipeName(leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)");
+      }
+    }
+    setNewPipeType(leadType);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadType, pipelines, step]);
+
+  // Resolved target pipeline (used by Step 4 review + guard).
+  const resolvedTarget = useMemo(() => {
+    if (creatingPipeline || targetPipelineId === "__new__") {
+      return {
+        id: "__new__",
+        name: newPipeName.trim() || (leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)"),
+        type: newPipeType,
+        isNew: true,
+      };
+    }
+    const p = pipelines.find((x) => x.id === targetPipelineId);
+    return p
+      ? { id: p.id, name: p.name, type: p.type as "paid" | "unpaid" | "custom", isNew: false }
+      : { id: "", name: "", type: undefined as any, isNew: false };
+  }, [creatingPipeline, targetPipelineId, newPipeName, newPipeType, pipelines, leadType]);
+
+  const targetMismatch = !resolvedTarget.type
+    || (resolvedTarget.type !== "custom" && resolvedTarget.type !== leadType);
 
   // Run pre-flight when entering step 4
   useEffect(() => {
@@ -643,9 +710,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               <div><span className="text-muted-foreground">Rows:</span> <b>{validRows}</b></div>
               <div><span className="text-muted-foreground">Segment:</span> <b>{segmentName}</b></div>
               <div><span className="text-muted-foreground">Webinar:</span> <b>{webinarName || "—"}</b> · {webinarDate}</div>
-              <div><span className="text-muted-foreground">Pipeline:</span> <b>{creatingPipeline ? `${newPipeName} (new · ${newPipeType})` : (filteredPipelines.find((p) => p.id === targetPipelineId)?.name || "—")}</b></div>
+              <div>
+                <span className="text-muted-foreground">Pipeline:</span>{" "}
+                <b>
+                  {resolvedTarget.name
+                    ? `${resolvedTarget.name}${resolvedTarget.isNew ? ` (new · ${resolvedTarget.type})` : ` · ${resolvedTarget.type}`}`
+                    : "—"}
+                </b>
+              </div>
               <div><span className="text-muted-foreground">Lead type:</span> <b>{leadType}</b> · default grade <b style={{ color: GRADE_STYLES[defaultGrade].fg }}>{GRADE_STYLES[defaultGrade].label}</b></div>
             </div>
+
+            {targetMismatch && (
+              <div className="p-3 rounded-lg border border-amber-300 bg-amber-50 text-xs text-amber-800">
+                {leadType === "paid"
+                  ? "Paid pipeline missing. Please go back to Step 3 and select or create the Paid — Onboarding pipeline before importing paid leads."
+                  : "Please select an unpaid pipeline before importing unpaid leads."}
+              </div>
+            )}
 
             <div className="p-4 rounded-lg border border-line space-y-1.5 text-sm">
               <div className="uppercase-label mb-1">Pre-flight check</div>
@@ -691,7 +773,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(3)} className="ipc-btn ipc-btn-ghost">Back</button>
-              <button onClick={importNow} disabled={importing || preflightLoading} className="ipc-btn ipc-btn-black disabled:opacity-50">
+              <button onClick={importNow} disabled={importing || preflightLoading || targetMismatch || (resolvedTarget.isNew && !newPipeName.trim())} className="ipc-btn ipc-btn-black disabled:opacity-50">
                 {importing ? "Importing…" : `Import ${validRows} rows`}
               </button>
             </div>
