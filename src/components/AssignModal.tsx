@@ -263,7 +263,7 @@ export default function AssignModal(props: Props) {
                   <li>Go to Admin Center / Team Directory</li>
                   <li>Open the team member</li>
                   <li>Enable <strong>Active for assignments</strong></li>
-                  <li>Enable <strong>{eligibilityFlag.replaceAll("_", " ")}</strong></li>
+                  <li>Enable <strong>{eligibilityFlag.replace(/_/g, " ")}</strong></li>
                   <li>Confirm module access if required</li>
                 </ol>
               </div>
@@ -327,7 +327,7 @@ export default function AssignModal(props: Props) {
               {method !== "unassign" && (
                 <div>to <strong>{pickedUsers.length}</strong> user(s): {pickedUsers.map(u => u.full_name).join(", ")}</div>
               )}
-              <div>Method: <strong>{method.replaceAll("_", " ")}</strong></div>
+              <div>Method: <strong>{method.replace(/_/g, " ")}</strong></div>
               <div>Scope: <strong>{scope === "selected" ? "Selected leads" : scope === "batch" ? `Batch — ${currentBatchName || ""}` : scope === "unassigned_filtered" ? "Unassigned in view" : "All in view"}</strong></div>
               <div>Role filter: <strong>{role}</strong></div>
             </div>
