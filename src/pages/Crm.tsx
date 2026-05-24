@@ -113,10 +113,11 @@ export default function Crm() {
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
     if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
     if (tagFilter !== "all") list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => t.id === tagFilter));
+    if (stageFilter !== "all") list = list.filter((l) => l.stage_id === stageFilter);
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter, tagFilter, leadTagsMap, dateFrom, dateTo, dateField]);
+  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
