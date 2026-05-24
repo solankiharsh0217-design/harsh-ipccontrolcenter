@@ -143,7 +143,67 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     } finally { setLoading(false); }
   };
 
-  const filteredPipelines = useMemo(() => pipelines.filter((p) => p.type === leadType || p.type === "custom"), [pipelines, leadType]);
+  // Only show pipelines whose type matches the chosen lead type. Paid leads must never
+  // land in an unpaid pipeline (and vice versa). Custom pipelines are excluded from the
+  // auto-flow to keep paid/unpaid routing unambiguous.
+  const filteredPipelines = useMemo(
+    () => pipelines.filter((p) => p.type === leadType),
+    [pipelines, leadType],
+  );
+
+  // Find a sensible default target pipeline for a given lead type.
+  // For paid: prefer name containing "Paid — Onboarding" / "Onboarding" / "Paid",
+  // otherwise the first type==='paid' pipeline.
+  const resolveDefaultPipelineId = (type: "paid" | "unpaid", list: any[]): string => {
+    const ofType = list.filter((p) => p.type === type);
+    if (type === "paid") {
+      const named = ofType.find((p) => /paid.*onboarding|onboarding/i.test(p.name || ""))
+        || ofType.find((p) => /paid/i.test(p.name || ""));
+      if (named) return named.id;
+    } else {
+      const named = ofType.find((p) => /sales.*pipeline|unpaid/i.test(p.name || ""));
+      if (named) return named.id;
+    }
+    return ofType[0]?.id || "__new__";
+  };
+
+  // When user toggles lead type inside step 3, re-resolve the target pipeline
+  // so Step 4 never shows "Pipeline: —" or a stale mismatched pipeline.
+  useEffect(() => {
+    if (step < 3 || pipelines.length === 0) return;
+    if (creatingPipeline) { setNewPipeType(leadType); return; }
+    const current = pipelines.find((p) => p.id === targetPipelineId);
+    if (!current || current.type !== leadType) {
+      const next = resolveDefaultPipelineId(leadType, pipelines);
+      setTargetPipelineId(next);
+      if (next === "__new__") {
+        setCreatingPipeline(true);
+        setNewPipeType(leadType);
+        setNewPipeName(leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)");
+      }
+    }
+    setNewPipeType(leadType);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadType, pipelines, step]);
+
+  // Resolved target pipeline (used by Step 4 review + guard).
+  const resolvedTarget = useMemo(() => {
+    if (creatingPipeline || targetPipelineId === "__new__") {
+      return {
+        id: "__new__",
+        name: newPipeName.trim() || (leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)"),
+        type: newPipeType,
+        isNew: true,
+      };
+    }
+    const p = pipelines.find((x) => x.id === targetPipelineId);
+    return p
+      ? { id: p.id, name: p.name, type: p.type as "paid" | "unpaid" | "custom", isNew: false }
+      : { id: "", name: "", type: undefined as any, isNew: false };
+  }, [creatingPipeline, targetPipelineId, newPipeName, newPipeType, pipelines, leadType]);
+
+  const targetMismatch = !resolvedTarget.type
+    || (resolvedTarget.type !== "custom" && resolvedTarget.type !== leadType);
 
   // Run pre-flight when entering step 4
   useEffect(() => {
