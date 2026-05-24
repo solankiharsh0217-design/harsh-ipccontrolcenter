@@ -103,6 +103,31 @@ export default function Crm() {
     return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
   }, [leads]);
 
+  // Tag each batch with the pipeline type for the Batches view tabs and apply the active tab filter.
+  const pipelineTypeById = useMemo(() => {
+    const m = new Map<string, "unpaid" | "paid" | "custom">();
+    pipelines.forEach((p) => m.set(p.id, p.type as any));
+    return m;
+  }, [pipelines]);
+  const batchesWithType = useMemo(
+    () => batches.map((b) => ({ ...b, pipelineType: (b.pipelineId && pipelineTypeById.get(b.pipelineId)) || "custom" as const })),
+    [batches, pipelineTypeById]
+  );
+  const batchCounts = useMemo(() => {
+    let unpaid = 0, paid = 0, custom = 0;
+    for (const b of batchesWithType) {
+      if (b.pipelineType === "unpaid") unpaid++;
+      else if (b.pipelineType === "paid") paid++;
+      else custom++;
+    }
+    return { all: batchesWithType.length, unpaid, paid, custom };
+  }, [batchesWithType]);
+  const visibleBatches = useMemo(
+    () => batchPipelineFilter === "all" ? batchesWithType : batchesWithType.filter((b) => b.pipelineType === batchPipelineFilter),
+    [batchesWithType, batchPipelineFilter]
+  );
+
+
   type BatchCategory = "all" | "super-hot" | "hot" | "warm" | "cold" | "absentees";
   const downloadBatchCsv = (batch: { name: string; date: string | null }, category: BatchCategory) => {
     const inBatch = leads.filter((l) => (l.webinar_source || "Unsourced") === batch.name && (l.webinar_date || null) === batch.date);
