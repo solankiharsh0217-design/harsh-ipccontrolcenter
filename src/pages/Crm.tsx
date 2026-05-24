@@ -1040,7 +1040,7 @@ function MoreFiltersMenu({ tagFilter, stageFilter, count }: { tagFilter: React.R
 }
 
 
-function OverflowActionsMenu({ onAddStage, onExport }: { onAddStage: () => void; onExport: () => void }) {
+function OverflowActionsMenu({ onExport }: { onExport: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1054,10 +1054,45 @@ function OverflowActionsMenu({ onAddStage, onExport }: { onAddStage: () => void;
       <button onClick={() => setOpen(o => !o)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs !px-2" title="More actions" aria-label="More actions">⋯</button>
       {open && (
         <div className="absolute right-0 mt-1 w-44 bg-white border border-line rounded-md shadow-lg z-[1050] py-1">
-          <button onClick={() => { setOpen(false); onAddStage(); }} className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-off">+ Add Stage</button>
           <button onClick={() => { setOpen(false); onExport(); }} className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-off"><Download className="w-3 h-3 inline mr-1" /> Export CSV</button>
         </div>
       )}
     </div>
   );
 }
+
+function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight, onDeactivate, onDelete, isInactive }: {
+  stage: Stage; idx: number; total: number;
+  onRename: () => void; onMoveLeft: () => void; onMoveRight: () => void;
+  onDeactivate: () => void; onDelete: () => void;
+  isInactive: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const item = (label: string, fn: () => void, disabled?: boolean, accent?: string) => (
+    <button disabled={disabled} onClick={() => { setOpen(false); if (!disabled) fn(); }} className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-off disabled:opacity-40 disabled:hover:bg-transparent ${accent || ""}`}>{label}</button>
+  );
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)} className="text-muted-foreground hover:text-black text-[14px] leading-none px-1" title="Stage actions" aria-label="Stage actions">⋯</button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-44 bg-white border border-line rounded-md shadow-lg z-[1050] py-1">
+          {item("Rename stage", onRename)}
+          {item("Move left", onMoveLeft, idx === 0)}
+          {item("Move right", onMoveRight, idx >= total - 1)}
+          <div className="h-px bg-line my-1" />
+          {!isInactive && !stage.is_protected && item("Deactivate stage", onDeactivate, false, "text-[#B45309]")}
+          {!stage.is_protected && item("Delete stage", onDelete, false, "text-[#DC2626]")}
+          {stage.is_protected && <div className="px-3 py-1.5 text-[10px] text-muted-foreground italic">Protected stage</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
