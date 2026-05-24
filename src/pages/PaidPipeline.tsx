@@ -328,6 +328,8 @@ export default function PaidPipeline() {
             <tr className="text-left">
               <th className="px-3 py-2.5 w-8"><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
               <th className="px-3 py-2.5">Buyer</th>
+              <th className="px-3 py-2.5">Phone</th>
+              <th className="px-3 py-2.5">Email</th>
               <th className="px-3 py-2.5">Batch / Product</th>
               <th className="px-3 py-2.5">Deal</th>
               <th className="px-3 py-2.5">Token</th>
@@ -337,12 +339,13 @@ export default function PaidPipeline() {
               <th className="px-3 py-2.5">Lead Priority</th>
               <th className="px-3 py-2.5">Follow-up</th>
               <th className="px-3 py-2.5">Finance</th>
+              <th className="px-3 py-2.5">Owner</th>
               <th className="px-3 py-2.5"></th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={12} className="px-3 py-10 text-center text-muted-foreground">
+              <tr><td colSpan={15} className="px-3 py-10 text-center text-muted-foreground">
                 No buyers match these filters.
               </td></tr>
             )}
