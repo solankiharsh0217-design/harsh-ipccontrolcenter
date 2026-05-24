@@ -207,7 +207,8 @@ export default function Crm() {
   const onDrop = async (e: React.DragEvent, stageId: string, beforeLeadId?: string) => {
     e.preventDefault();
     e.stopPropagation();
-    const id = e.dataTransfer.getData("text/plain");
+    const id = e.dataTransfer.getData("text/plain") || dragId;
+    setDragId(null); setHoverStage(null); setHoverBefore(null);
     if (!id) return;
     // Compute new sort_order based on neighbors in target stage
     const targetList = leads.filter((l) => l.pipeline_id === activePipeline && l.stage_id === stageId && l.id !== id)
