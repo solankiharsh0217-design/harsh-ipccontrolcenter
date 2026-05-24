@@ -478,7 +478,7 @@ export default function Crm() {
                 <div
                   key={s.id}
                   className={`w-[270px] flex-shrink-0 rounded-xl border flex flex-col transition-colors ${hoverStage === s.id ? "bg-gold-pale border-gold" : "bg-off border-line"}`}
-                  onDragOver={(e) => { e.preventDefault(); if (hoverStage !== s.id) setHoverStage(s.id); }}
+                  onDragOver={(e) => { e.preventDefault(); if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== null) setHoverBefore(null); }}
                   onDragLeave={(e) => { if (e.currentTarget === e.target) { setHoverStage((h) => h === s.id ? null : h); } }}
                   onDrop={(e) => onDrop(e, s.id)}
                 >
