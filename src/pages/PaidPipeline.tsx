@@ -169,11 +169,15 @@ export default function PaidPipeline() {
     setStageFilter("all"); setTempFilter("all");
     setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
     setFollowUpFilter("all"); setRevenueStatusFilter("all");
-    setTagFilter("all");
+    setTagFilter("all"); setOwnerFilter("all"); setInsightFilter(null);
   };
-  const anyFilterActive = !!search || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter].some(v => v !== "all");
+  const anyFilterActive = !!search || !!insightFilter || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter, ownerFilter].some(v => v !== "all");
 
-
+  const financePartnerOptions = useMemo(() => {
+    const set = new Set<string>(DEFAULT_FINANCE_PARTNERS);
+    leads.forEach(l => { if (l.finance_partner) set.add(l.finance_partner); });
+    return Array.from(set);
+  }, [leads]);
 
   const filtered = useMemo(() => {
     const td = today();
@@ -185,6 +189,9 @@ export default function PaidPipeline() {
       if (tempFilter !== "all" && (l.lead_temperature || "") !== tempFilter) return false;
       if (financePartnerFilter !== "all" && (l.finance_partner || "") !== financePartnerFilter) return false;
       if (financeStatusFilter !== "all" && (l.finance_status || "") !== financeStatusFilter) return false;
+      if (ownerFilter !== "all") {
+        if (ownerFilter === "unassigned" ? !!l.assigned_sales_executive : l.assigned_sales_executive !== ownerFilter) return false;
+      }
       const fu = l.next_follow_up_date || l.follow_up_date;
       if (followUpFilter === "today" && fu !== td) return false;
       if (followUpFilter === "overdue" && !(fu && fu < td)) return false;
@@ -205,6 +212,19 @@ export default function PaidPipeline() {
         };
         if (!map[revenueStatusFilter]) return false;
       }
+      if (insightFilter) {
+        const bal = Number(l.balance_pending || 0);
+        const fu2 = l.next_follow_up_date || l.follow_up_date;
+        if (insightFilter === "high_balance" && !(bal >= HIGH_BAL_THRESHOLD)) return false;
+        if (insightFilter === "approved_not_disbursed" && !(l.finance_status === "Approved" && Number(l.finance_amount_disbursed || 0) <= 0)) return false;
+        if (insightFilter === "no_followup" && fu2) return false;
+        if (insightFilter === "urgent_balance" && !(["Hot","Urgent"].includes(l.lead_temperature || "") && bal > 0)) return false;
+        if (insightFilter === "token_no_second") {
+          const total = Number(l.total_collected || 0);
+          const tok = Number(l.token_amount_collected || 0);
+          if (!(tok > 0 && total <= tok && bal > 0)) return false;
+        }
+      }
       if (search) {
         const q = search.toLowerCase();
         if (!(`${l.name || ""} ${l.email || ""} ${l.phone || ""}`.toLowerCase().includes(q))) return false;
@@ -212,7 +232,29 @@ export default function PaidPipeline() {
       if (tagFilter !== "all" && !(leadTagsMap[l.id] || []).some((t) => t.id === tagFilter)) return false;
       return true;
     });
-  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap]);
+  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter]);
+
+  const insights = useMemo(() => {
+    let highBalCount = 0, highBalAmt = 0;
+    let approvedNotDisbCount = 0, approvedNotDisbAmt = 0;
+    let noFu = 0;
+    let urgentBalCount = 0, urgentBalAmt = 0;
+    let tokenNoSecond = 0;
+    leads.forEach(l => {
+      const bal = Number(l.balance_pending || 0);
+      const fu = l.next_follow_up_date || l.follow_up_date;
+      if (bal >= HIGH_BAL_THRESHOLD) { highBalCount++; highBalAmt += bal; }
+      if (l.finance_status === "Approved" && Number(l.finance_amount_disbursed || 0) <= 0) {
+        approvedNotDisbCount++; approvedNotDisbAmt += Number(l.finance_amount_approved || 0);
+      }
+      if (!fu && !l.is_dropped) noFu++;
+      if (["Hot","Urgent"].includes(l.lead_temperature || "") && bal > 0) { urgentBalCount++; urgentBalAmt += bal; }
+      const total = Number(l.total_collected || 0);
+      const tok = Number(l.token_amount_collected || 0);
+      if (tok > 0 && total <= tok && bal > 0) tokenNoSecond++;
+    });
+    return { highBalCount, highBalAmt, approvedNotDisbCount, approvedNotDisbAmt, noFu, urgentBalCount, urgentBalAmt, tokenNoSecond };
+  }, [leads]);
 
   const totals = useMemo(() => {
     const td = today();
