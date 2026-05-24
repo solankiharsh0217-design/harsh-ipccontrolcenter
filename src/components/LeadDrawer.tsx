@@ -76,6 +76,10 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
     });
     setActivityNote(""); await load();
   };
+  const delReminder = async (id: string) => {
+    await supabase.from("follow_up_reminders").delete().eq("id", id);
+    await load();
+  };
   const addStageInline = async () => {
     const name = newStageName.trim();
     if (!name) return;
