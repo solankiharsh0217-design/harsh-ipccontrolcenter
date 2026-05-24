@@ -158,8 +158,9 @@ export default function PaidPipeline() {
     setStageFilter("all"); setTempFilter("all");
     setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
     setFollowUpFilter("all"); setRevenueStatusFilter("all");
+    setTagFilter("all");
   };
-  const anyFilterActive = !!search || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter].some(v => v !== "all");
+  const anyFilterActive = !!search || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter].some(v => v !== "all");
 
 
 
