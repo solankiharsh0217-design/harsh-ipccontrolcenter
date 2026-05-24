@@ -30,6 +30,7 @@ import Notifications from "./pages/Notifications";
 import RevenueCommandCenter from "./pages/RevenueCommandCenter";
 import AnalyticsCenter from "./pages/AnalyticsCenter";
 import AdminCenter from "./pages/AdminCenter";
+import BulkEligibility from "./pages/BulkEligibility";
 import SystemRefinementChecklist from "./pages/SystemRefinementChecklist";
 import MediaBuyerOperations from "./pages/MediaBuyerOperations";
 import NotFound from "./pages/NotFound";
