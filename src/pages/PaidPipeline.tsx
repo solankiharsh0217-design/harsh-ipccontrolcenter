@@ -107,11 +107,15 @@ export default function PaidPipeline() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quickPayId, setQuickPayId] = useState<string | null>(null);
   const [quickFuId, setQuickFuId] = useState<string | null>(null);
+  const [quickFinanceId, setQuickFinanceId] = useState<string | null>(null);
   const [bulkSend, setBulkSend] = useState(false);
   const [bulkSendIdsOverride, setBulkSendIdsOverride] = useState<string[] | null>(null);
   const [newBatchOpen, setNewBatchOpen] = useState(false);
   const [addStageOpen, setAddStageOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [insightFilter, setInsightFilter] = useState<string | null>(null);
+  const HIGH_BAL_THRESHOLD = 50000;
 
   const load = async () => {
     const [{ data: l }, { data: b }, { data: pb }, { data: s }, elig] = await Promise.all([
