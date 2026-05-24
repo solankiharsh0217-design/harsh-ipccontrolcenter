@@ -59,7 +59,7 @@ async function setCrmStage(ctx: SuggestionContext, stageId: string, stageName: s
 }
 
 async function setPaidField(ctx: SuggestionContext, patch: Record<string, any>, label: string) {
-  await supabase.from("paid_pipeline_leads").update(patch).eq("id", ctx.paid.id);
+  await supabase.from("paid_pipeline_leads").update(patch as any).eq("id", ctx.paid.id);
   await logActivity({
     module_key: "stage_sync", module_label: "Stage Sync",
     action_type: "stage_sync_suggestion_applied",
