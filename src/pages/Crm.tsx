@@ -34,6 +34,22 @@ export default function Crm() {
   const [importOpen, setImportOpen] = useState(false);
   const [addStageOpen, setAddStageOpen] = useState(false);
   const [editBatch, setEditBatch] = useState<{ origName: string; origDate: string | null; name: string; date: string } | null>(null);
+  const [batchPipelineFilter, setBatchPipelineFilter] = useState<"all" | "unpaid" | "paid" | "custom">("all");
+
+  const handleImportDone = async (result?: ImportResult) => {
+    setImportOpen(false);
+    await load();
+    if (!result) return;
+    setActivePipeline(result.pipelineId);
+    setBatchFilter(result.batchName);
+    setBatchPipelineFilter(result.leadType);
+    setView("batches");
+    const pipelineLabel = result.leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)";
+    toast.success(
+      `Imported ${result.imported} leads into ${pipelineLabel} · Batch "${result.batchName}"${result.skipped ? ` · ${result.skipped} skipped` : ""}`,
+      { duration: 6000 }
+    );
+  };
 
   const load = async () => {
     let { data: p } = await supabase.from("pipelines").select("*").order("position");
