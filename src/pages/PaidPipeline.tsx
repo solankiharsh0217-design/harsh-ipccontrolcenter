@@ -442,6 +442,19 @@ export default function PaidPipeline() {
                       {l.name || "—"}
                       {l.sent_to_crm && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0]">CRM</span>}
                     </div>
+                    {(leadTagsMap[l.id] || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(leadTagsMap[l.id] || []).slice(0, 2).map((tg) => {
+                          const tc = tg.color || pickTagColor(tg.name);
+                          return (
+                            <span key={tg.id} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium border" style={{ background: tc + "1A", color: tc, borderColor: tc + "55" }}>{tg.name}</span>
+                          );
+                        })}
+                        {(leadTagsMap[l.id] || []).length > 2 && (
+                          <span className="text-[9px] text-muted-foreground">+{(leadTagsMap[l.id] || []).length - 2}</span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-[11.5px] whitespace-nowrap">{l.phone || "—"}</td>
                   <td className="px-3 py-2.5 text-[11.5px] max-w-[180px] truncate" title={l.email || ""}>{l.email || "—"}</td>
