@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { X, Users, ArrowRight } from "lucide-react";
 import { logActivity } from "@/lib/auditLog";
-import { notifyUser } from "@/lib/notifications";
+import { createNotification } from "@/lib/notifications";
 
 type EligibilityFlag =
   | "can_receive_calling_crm_leads"
