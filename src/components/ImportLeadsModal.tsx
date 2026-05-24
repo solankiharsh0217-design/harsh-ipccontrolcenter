@@ -7,13 +7,22 @@ import { X, Plus, Upload } from "lucide-react";
 import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type LeadGrade } from "@/lib/crmTypes";
 import { logActivity } from "@/lib/auditLog";
 
+export type DuplicatePolicy = "skip" | "update" | "move" | "new_only";
+
 export interface ImportResult {
   pipelineId: string;
   pipelineName: string;
+  pipelineType: "unpaid" | "paid" | "custom";
   leadType: "unpaid" | "paid";
   batchName: string;
-  imported: number;
-  skipped: number;
+  imported: number;          // total successful (new + updated + moved) — back-compat
+  newImported: number;
+  updated: number;
+  moved: number;
+  skippedDuplicates: number;
+  failed: number;
+  skipped: number;           // back-compat alias = skippedDuplicates + failed
+  duplicatePolicy: DuplicatePolicy;
 }
 
 interface Props {
@@ -40,6 +49,8 @@ function autoMap(headers: string[]): Record<FieldKey, string> {
   }
   return out;
 }
+
+const normEmail = (v: any) => String(v || "").trim().toLowerCase();
 
 export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const { profile } = useAuth();
@@ -75,8 +86,20 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   // Step 4
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
   const [assignment, setAssignment] = useState<"unassigned" | "round_robin" | "hot_to_top">("unassigned");
+  const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>("move");
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Preflight summary
+  const [preflightLoading, setPreflightLoading] = useState(false);
+  const [preflight, setPreflight] = useState<{
+    total: number;
+    newCount: number;
+    dupCount: number;
+    missingEmail: number;
+    invalid: number;
+    existingByEmail: Map<string, any>;
+  } | null>(null);
 
   useEffect(() => {
     supabase.from("webinars").select("id, name").order("name").then(({ data }) => setWebinars((data || []) as any));
@@ -121,6 +144,57 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   };
 
   const filteredPipelines = useMemo(() => pipelines.filter((p) => p.type === leadType || p.type === "custom"), [pipelines, leadType]);
+
+  // Run pre-flight when entering step 4
+  useEffect(() => {
+    if (step !== 4) return;
+    let cancelled = false;
+    (async () => {
+      setPreflightLoading(true);
+      try {
+        const get = (r: Row, k: FieldKey) => (mapping[k] ? String(r[mapping[k]] || "").trim() : "");
+        let missingEmail = 0;
+        let invalid = 0;
+        const emailSet = new Set<string>();
+        for (const r of rows) {
+          const fn = get(r, "full_name");
+          const em = normEmail(get(r, "email"));
+          const ph = get(r, "phone");
+          if (!fn && !em && !ph) { invalid++; continue; }
+          if (!em) { missingEmail++; continue; }
+          emailSet.add(em);
+        }
+        const emails = Array.from(emailSet);
+        const existingByEmail = new Map<string, any>();
+        for (let i = 0; i < emails.length; i += 300) {
+          const chunk = emails.slice(i, i + 300);
+          const { data } = await supabase
+            .from("leads")
+            .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type")
+            .in("email", chunk);
+          (data || []).forEach((l: any) => {
+            const k = normEmail(l.email);
+            if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
+          });
+        }
+        const dupCount = emails.filter((e) => existingByEmail.has(e)).length;
+        const newCount = emails.length - dupCount;
+        if (!cancelled) {
+          setPreflight({
+            total: rows.length,
+            newCount,
+            dupCount,
+            missingEmail,
+            invalid,
+            existingByEmail,
+          });
+        }
+      } finally {
+        if (!cancelled) setPreflightLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [step, rows, mapping]);
 
   const importNow = async () => {
     setImporting(true);
@@ -170,65 +244,168 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
       const firstStageId = stageList[0]?.id ?? null;
 
-      // Build records
+      // Build normalized rows
       const get = (r: Row, k: FieldKey) => (mapping[k] ? String(r[mapping[k]] || "").trim() : "");
-      const records = rows.map((r) => ({
+      type N = { full_name: string | null; email: string | null; phone: string | null; country: string | null };
+      const records: N[] = rows.map((r) => ({
         full_name: get(r, "full_name") || null,
-        email: get(r, "email").toLowerCase() || null,
+        email: normEmail(get(r, "email")) || null,
         phone: get(r, "phone") || null,
         country: get(r, "country") || null,
       })).filter((r) => r.full_name || r.email || r.phone);
 
-      // Dedup detection (by email)
-      const emails = records.map((r) => r.email).filter(Boolean) as string[];
-      const existingEmails = new Set<string>();
-      for (let i = 0; i < emails.length; i += 500) {
-        const chunk = emails.slice(i, i + 500);
-        const { data: ex } = await supabase.from("leads").select("email").in("email", chunk);
-        (ex || []).forEach((e: any) => existingEmails.add((e.email || "").toLowerCase()));
+      // Fresh duplicate map (in case preflight is stale)
+      const emails = Array.from(new Set(records.map((r) => r.email).filter(Boolean) as string[]));
+      const existingByEmail = new Map<string, any>();
+      for (let i = 0; i < emails.length; i += 300) {
+        const chunk = emails.slice(i, i + 300);
+        const { data } = await supabase
+          .from("leads")
+          .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type")
+          .in("email", chunk);
+        (data || []).forEach((l: any) => {
+          const k = normEmail(l.email);
+          if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
+        });
       }
 
-      // Assignment
+      // Bucket: new vs existing. Dedup within CSV by email (keep first).
+      const seenEmails = new Set<string>();
+      const newRows: N[] = [];
+      const dupRows: { row: N; existing: any }[] = [];
+      for (const r of records) {
+        if (r.email) {
+          if (seenEmails.has(r.email)) continue;
+          seenEmails.add(r.email);
+          const ex = existingByEmail.get(r.email);
+          if (ex) { dupRows.push({ row: r, existing: ex }); continue; }
+        }
+        newRows.push(r);
+      }
+
+      // Assignment helper
       const activeAgents = agents;
       let rr = 0;
-
-      const payloads = records.map((r) => {
-        const isSH = !!(r.email && existingEmails.has(r.email));
-        const grade = (isSH ? "super-hot" : defaultGrade) as LeadGrade;
-        let agentId: string | null = null;
+      const assign = (grade: LeadGrade, isSH: boolean): string | null => {
         if (assignment === "round_robin" && activeAgents.length) {
-          agentId = activeAgents[rr % activeAgents.length].id; rr++;
-        } else if (assignment === "hot_to_top" && (grade === "hot" || isSH) && activeAgents.length) {
-          agentId = activeAgents[rr % Math.min(2, activeAgents.length)].id; rr++;
+          const id = activeAgents[rr % activeAgents.length].id; rr++; return id;
         }
+        if (assignment === "hot_to_top" && (grade === "hot" || isSH) && activeAgents.length) {
+          const id = activeAgents[rr % Math.min(2, activeAgents.length)].id; rr++; return id;
+        }
+        return null;
+      };
+
+      let newImported = 0;
+      let updated = 0;
+      let moved = 0;
+      let skippedDuplicates = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      // --- Handle duplicates per policy ---
+      if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") {
+        skippedDuplicates += dupRows.length;
+      } else {
+        // update / move
+        for (const { row, existing } of dupRows) {
+          const isSH = true; // existing email match → super-hot per original logic
+          const grade = (isSH ? "super-hot" : defaultGrade) as LeadGrade;
+          const base: any = {
+            pipeline_id: pipelineId,
+            stage_id: firstStageId,
+            lead_type: leadType,
+            webinar_source: segmentName,
+            webinar_date: webinarDate,
+            webinar_name: webinarName || segmentName,
+            grade,
+            is_super_hot: true,
+            program_name: productName,
+            deal_value: dealValue,
+            lead_source_type: "direct_import",
+          };
+          if (duplicatePolicy === "update") {
+            // Fill missing name/phone/country only
+            if (!existing.full_name && row.full_name) base.full_name = row.full_name;
+            if (!existing.phone && row.phone) base.phone = row.phone;
+            if (row.country) base.country = row.country;
+          } else {
+            // move — only fill missing name/phone, never overwrite
+            if (!existing.full_name && row.full_name) base.full_name = row.full_name;
+            if (!existing.phone && row.phone) base.phone = row.phone;
+          }
+          const { error } = await supabase.from("leads").update(base).eq("id", existing.id);
+          if (error) {
+            console.error("[ImportLeadsModal] update existing failed", error, existing.id);
+            failed++;
+            if (!errors.includes(error.message)) errors.push(error.message);
+          } else {
+            if (duplicatePolicy === "update") updated++;
+            else moved++;
+          }
+        }
+      }
+
+      // --- Insert new rows in chunks ---
+      const newPayloads = newRows.map((r) => {
+        const grade = defaultGrade;
+        const agentId = assign(grade, false);
         return {
-          full_name: r.full_name, email: r.email, phone: r.phone, country: r.country,
-          score: 0, grade,
-          webinar_source: segmentName, webinar_date: webinarDate, webinar_name: webinarName || segmentName,
-          pipeline_id: pipelineId, stage_id: firstStageId,
-          assigned_agent_id: agentId, lead_type: leadType,
-          program_name: productName, deal_value: dealValue,
-          total_minutes: 0, attendance_pct: 0, sessions_count: 0,
-          is_super_hot: isSH, lead_source_type: "direct_import",
+          full_name: r.full_name,
+          email: r.email,
+          phone: r.phone,
+          country: r.country,
+          score: 0,
+          grade,
+          webinar_source: segmentName,
+          webinar_date: webinarDate,
+          webinar_name: webinarName || segmentName,
+          pipeline_id: pipelineId,
+          stage_id: firstStageId,
+          assigned_agent_id: agentId,
+          lead_type: leadType,
+          program_name: productName,
+          deal_value: dealValue,
+          total_minutes: 0,
+          attendance_pct: 0,
+          sessions_count: 0,
+          is_super_hot: false,
+          lead_source_type: "direct_import",
         };
       });
 
-      let imported = 0, skipped = 0;
-      const errors: string[] = [];
-      for (let i = 0; i < payloads.length; i += 200) {
-        const chunk = payloads.slice(i, i + 200);
+      for (let i = 0; i < newPayloads.length; i += 200) {
+        const chunk = newPayloads.slice(i, i + 200);
         const { data, error } = await supabase.from("leads").insert(chunk).select("id");
         if (error) {
-          console.error("[ImportLeadsModal] insert error", error);
-          if (!errors.includes(error.message)) errors.push(error.message);
-          skipped += chunk.length;
+          // Fallback: race condition / unseen duplicate — retry one-by-one
+          console.error("[ImportLeadsModal] insert chunk error, retrying per-row", error);
+          for (const row of chunk) {
+            const { data: d2, error: e2 } = await supabase.from("leads").insert(row).select("id").maybeSingle();
+            if (e2) {
+              if (e2.code === "23505" || /duplicate key/i.test(e2.message)) {
+                skippedDuplicates++;
+              } else {
+                failed++;
+                if (!errors.includes(e2.message)) errors.push(e2.message);
+              }
+            } else if (d2) {
+              newImported++;
+            }
+          }
         } else {
-          imported += data?.length || chunk.length;
+          newImported += data?.length || chunk.length;
         }
       }
 
-      if (imported === 0) {
-        toast.error(errors[0] ? `Import failed: ${errors[0]}` : "No leads were imported.");
+      const totalSuccess = newImported + updated + moved;
+      if (totalSuccess === 0 && failed === 0 && skippedDuplicates === 0) {
+        toast.error("No leads were imported.");
+        setImporting(false);
+        return;
+      }
+      if (totalSuccess === 0 && failed > 0) {
+        toast.error(errors[0] ? `Import failed: ${errors[0]}` : "Import failed.");
         setImporting(false);
         return;
       }
@@ -244,24 +421,36 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           pipeline_name: pipelineName,
           pipeline_type: pipelineType,
           lead_type: leadType,
-          imported_count: imported,
-          skipped_count: skipped,
+          total_rows: rows.length,
+          new_imported_count: newImported,
+          updated_existing_count: updated,
+          moved_existing_count: moved,
+          skipped_duplicate_count: skippedDuplicates,
+          failed_count: failed,
+          duplicate_policy: duplicatePolicy,
           default_grade: defaultGrade,
           product_name: productName,
           deal_value: dealValue,
           webinar_name: webinarName || segmentName,
           webinar_date: webinarDate,
         },
-        summary: `Imported ${imported} ${leadType} leads into "${pipelineName}" — batch "${segmentName}"${skipped ? ` (${skipped} skipped)` : ""}.`,
+        summary: `Imported ${newImported} new · ${moved} moved · ${updated} updated · ${skippedDuplicates} skipped · ${failed} failed into "${pipelineName}" — batch "${segmentName}".`,
       });
 
       onDone({
         pipelineId: pipelineId as string,
         pipelineName,
+        pipelineType,
         leadType,
         batchName: segmentName,
-        imported,
-        skipped,
+        imported: totalSuccess,
+        newImported,
+        updated,
+        moved,
+        skippedDuplicates,
+        failed,
+        skipped: skippedDuplicates + failed,
+        duplicatePolicy,
       });
     } catch (e: any) {
       console.error("[ImportLeadsModal] importNow failed", e);
@@ -271,6 +460,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
   const validRows = rows.length;
   const mappedOk = !!(mapping.full_name || mapping.email || mapping.phone);
+
+  const policyLabel: Record<DuplicatePolicy, string> = {
+    skip: "Skip duplicates",
+    update: "Update existing lead",
+    move: `Move existing lead to ${leadType === "paid" ? "Paid — Onboarding" : "selected pipeline"}`,
+    new_only: "Import new only",
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={onClose}>
@@ -451,8 +647,41 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               <div><span className="text-muted-foreground">Lead type:</span> <b>{leadType}</b> · default grade <b style={{ color: GRADE_STYLES[defaultGrade].fg }}>{GRADE_STYLES[defaultGrade].label}</b></div>
             </div>
 
+            <div className="p-4 rounded-lg border border-line space-y-1.5 text-sm">
+              <div className="uppercase-label mb-1">Pre-flight check</div>
+              {preflightLoading || !preflight ? (
+                <div className="text-xs text-muted-foreground">Checking for duplicate emails…</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <div><span className="text-muted-foreground">Total rows:</span> <b>{preflight.total}</b></div>
+                    <div><span className="text-muted-foreground">New leads:</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
+                    <div><span className="text-muted-foreground">Duplicate emails:</span> <b className="text-amber-700">{preflight.dupCount}</b></div>
+                    <div><span className="text-muted-foreground">Missing email:</span> <b>{preflight.missingEmail}</b></div>
+                    <div><span className="text-muted-foreground">Invalid rows:</span> <b>{preflight.invalid}</b></div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div>
-              <label className="form-label">Assignment</label>
+              <label className="form-label">If duplicate email is found</label>
+              <select className="ipc-input" value={duplicatePolicy} onChange={(e) => setDuplicatePolicy(e.target.value as DuplicatePolicy)}>
+                <option value="move">Move existing lead to selected pipeline (recommended)</option>
+                <option value="update">Update existing lead (batch, grade, product, deal, fill missing fields)</option>
+                <option value="skip">Skip duplicates</option>
+                <option value="new_only">Import new only (report duplicates as skipped)</option>
+              </select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {duplicatePolicy === "move" && `Existing leads will be moved into "${creatingPipeline ? newPipeName : (filteredPipelines.find((p) => p.id === targetPipelineId)?.name || "selected pipeline")}" and attached to this batch.`}
+                {duplicatePolicy === "update" && "Existing leads will be updated with this batch, grade, product and deal value. Name/phone filled only if missing."}
+                {duplicatePolicy === "skip" && "Rows whose email already exists will be skipped — no changes made."}
+                {duplicatePolicy === "new_only" && "Only brand-new emails will be inserted. Duplicates reported as skipped."}
+              </p>
+            </div>
+
+            <div>
+              <label className="form-label">Assignment (applies to new leads only)</label>
               <select className="ipc-input" value={assignment} onChange={(e) => setAssignment(e.target.value as any)}>
                 <option value="unassigned">Leave unassigned</option>
                 <option value="round_robin">Round-robin to all agents ({agents.length})</option>
@@ -462,7 +691,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(3)} className="ipc-btn ipc-btn-ghost">Back</button>
-              <button onClick={importNow} disabled={importing} className="ipc-btn ipc-btn-black disabled:opacity-50">{importing ? "Importing…" : `Import ${validRows} leads`}</button>
+              <button onClick={importNow} disabled={importing || preflightLoading} className="ipc-btn ipc-btn-black disabled:opacity-50">
+                {importing ? "Importing…" : `Import ${validRows} rows`}
+              </button>
             </div>
           </div>
         )}
