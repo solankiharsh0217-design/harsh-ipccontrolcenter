@@ -82,6 +82,11 @@ export default function Crm() {
     if (!activePipeline && p && p.length) setActivePipeline(p[0].id);
   };
   useEffect(() => { load(); }, []);
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const leadParam = searchParams.get("lead");
+    if (leadParam) setOpenLead(leadParam);
+  }, [searchParams]);
 
   const pipelineStages = useMemo(() => stages.filter((s) => s.pipeline_id === activePipeline).sort((a, b) => a.position - b.position), [stages, activePipeline]);
   const pipelineLeads = useMemo(() => {
