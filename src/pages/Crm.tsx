@@ -358,6 +358,23 @@ export default function Crm() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {(view === "kanban" || view === "list") && (
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search student by name, phone, or email…"
+                className="ipc-input !h-10 !text-xs !pl-8 w-[280px]"
+              />
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">⌕</span>
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black" title="Clear search">
+                  <XIcon className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
+          {(view === "kanban" || view === "list") && (
             <select className="ipc-input !h-10 !text-xs max-w-[220px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
               <option value="all">All webinar batches</option>
               {Array.from(new Set(leads.filter((l) => l.pipeline_id === activePipeline).map((l) => l.webinar_source || "—"))).map((b) => (
