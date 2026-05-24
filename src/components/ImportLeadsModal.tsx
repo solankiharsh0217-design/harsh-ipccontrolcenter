@@ -710,9 +710,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               <div><span className="text-muted-foreground">Rows:</span> <b>{validRows}</b></div>
               <div><span className="text-muted-foreground">Segment:</span> <b>{segmentName}</b></div>
               <div><span className="text-muted-foreground">Webinar:</span> <b>{webinarName || "—"}</b> · {webinarDate}</div>
-              <div><span className="text-muted-foreground">Pipeline:</span> <b>{creatingPipeline ? `${newPipeName} (new · ${newPipeType})` : (filteredPipelines.find((p) => p.id === targetPipelineId)?.name || "—")}</b></div>
+              <div>
+                <span className="text-muted-foreground">Pipeline:</span>{" "}
+                <b>
+                  {resolvedTarget.name
+                    ? `${resolvedTarget.name}${resolvedTarget.isNew ? ` (new · ${resolvedTarget.type})` : ` · ${resolvedTarget.type}`}`
+                    : "—"}
+                </b>
+              </div>
               <div><span className="text-muted-foreground">Lead type:</span> <b>{leadType}</b> · default grade <b style={{ color: GRADE_STYLES[defaultGrade].fg }}>{GRADE_STYLES[defaultGrade].label}</b></div>
             </div>
+
+            {targetMismatch && (
+              <div className="p-3 rounded-lg border border-amber-300 bg-amber-50 text-xs text-amber-800">
+                {leadType === "paid"
+                  ? "Paid pipeline missing. Please go back to Step 3 and select or create the Paid — Onboarding pipeline before importing paid leads."
+                  : "Please select an unpaid pipeline before importing unpaid leads."}
+              </div>
+            )}
 
             <div className="p-4 rounded-lg border border-line space-y-1.5 text-sm">
               <div className="uppercase-label mb-1">Pre-flight check</div>
