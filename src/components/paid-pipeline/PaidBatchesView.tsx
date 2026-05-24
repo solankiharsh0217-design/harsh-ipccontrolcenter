@@ -51,13 +51,14 @@ export default function PaidBatchesView({
 
     const { data: l } = await supabase
       .from("paid_pipeline_leads")
-      .select("id, paid_batch_id, deal_value_including_gst, token_amount_collected, total_collected, balance_pending, revenue_to_be_realized, is_final_sale, is_dropped, finance_required, finance_status, lead_temperature")
+      .select("id, paid_batch_id, deal_value_including_gst, token_amount_collected, total_collected, balance_pending, revenue_to_be_realized, is_final_sale, is_dropped, finance_required, finance_status, lead_temperature, next_follow_up_date, follow_up_date")
       .eq("is_deleted", false);
+    const td = new Date().toISOString().slice(0, 10);
     const map: Record<string, LeadAgg> = {};
     for (const row of (l as any[]) || []) {
       const k = (row as any).paid_batch_id as string | null;
       if (!k) continue;
-      const a = map[k] || { paid_batch_id: k, total: 0, token: 0, collected: 0, deal: 0, balance: 0, toBeRealized: 0, finalSales: 0, dropped: 0, financePending: 0, hotPending: 0 };
+      const a = map[k] || { paid_batch_id: k, total: 0, token: 0, collected: 0, deal: 0, balance: 0, toBeRealized: 0, finalSales: 0, dropped: 0, financePending: 0, hotPending: 0, followUpsDue: 0 };
       a.total++;
       a.deal += Number(row.deal_value_including_gst || 0);
       a.token += Number(row.token_amount_collected || 0);
@@ -68,6 +69,8 @@ export default function PaidBatchesView({
       if (row.is_dropped) a.dropped++;
       if (row.finance_required && !["Disbursed","Rejected","Dropped"].includes(row.finance_status || "")) a.financePending++;
       if (["Hot","Urgent"].includes(row.lead_temperature || "") && Number(row.balance_pending || 0) > 0) a.hotPending++;
+      const fu = row.next_follow_up_date || row.follow_up_date;
+      if (fu && fu <= td) a.followUpsDue++;
       map[k] = a;
     }
     setAggMap(map);
