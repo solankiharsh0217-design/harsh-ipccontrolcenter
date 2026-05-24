@@ -87,6 +87,7 @@ export default function PaidPipeline() {
   const [followUpFilter, setFollowUpFilter] = useState("all");
   const [revenueStatusFilter, setRevenueStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quickPayId, setQuickPayId] = useState<string | null>(null);
