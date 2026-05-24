@@ -592,12 +592,15 @@ export default function PaidPipeline() {
                   <td className="px-3 py-2.5 text-[11.5px] max-w-[120px] truncate" title={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || ""}>
                     {agents.find(a => a.id === l.assigned_sales_executive)?.full_name || "—"}
                   </td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-1 justify-end flex-wrap">
-                      <button onClick={() => setQuickPayId(l.id)} className="text-[11px] px-2 py-1 rounded bg-[#15803D] text-white hover:opacity-90 font-medium" title="Add payment">+ Payment</button>
-                      <button onClick={() => setQuickFinanceId(l.id)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off" title="Update finance">Finance</button>
-                      <button onClick={() => setQuickFuId(l.id)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off" title="Set follow-up">Follow-up</button>
-                      <button onClick={() => setOpenId(l.id)} className="text-[11px] px-2 py-1 rounded bg-black text-white">Open</button>
+                  <td className="px-3 py-2.5 sticky right-0 bg-white">
+                    <div className="flex items-center gap-1 justify-end flex-nowrap">
+                      <button onClick={() => setOpenId(l.id)} className="text-[11px] px-2.5 py-1 rounded bg-black text-white hover:opacity-90">Open</button>
+                      <RowActionsMenu
+                        onAddPayment={() => setQuickPayId(l.id)}
+                        onUpdateFinance={() => setQuickFinanceId(l.id)}
+                        onSetFollowUp={() => setQuickFuId(l.id)}
+                        onOpen={() => setOpenId(l.id)}
+                      />
                     </div>
                   </td>
                 </tr>
