@@ -751,6 +751,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [financeFu, setFinanceFu] = useState(lead.finance_follow_up_date || "");
   const [openPay, setOpenPay] = useState(false);
   const [openFu, setOpenFu] = useState(false);
+  const [openFin, setOpenFin] = useState(false);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
