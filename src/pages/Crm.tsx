@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
+import { listAllTags, getTagsForLeads, type Tag } from "@/lib/leadTags";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
