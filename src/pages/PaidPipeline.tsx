@@ -309,6 +309,14 @@ export default function PaidPipeline() {
           <button onClick={() => setShowBatches((v) => !v)} className="ipc-btn ipc-btn-ghost !h-9" title="Toggle batch summary">
             {showBatches ? "Hide" : "View"} Batch Summary
           </button>
+          <div className="w-px h-6 bg-line mx-1" aria-hidden />
+          <Link
+            to="/crm?pipeline=paid_onboarding"
+            className="ipc-btn !h-9 bg-gold text-black hover:opacity-90 shadow-sm font-medium inline-flex"
+            title="Open Paid Onboarding in Calling CRM"
+          >
+            Open Paid Onboarding CRM
+          </Link>
         </div>
       </div>
 

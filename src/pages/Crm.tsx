@@ -86,7 +86,12 @@ export default function Crm() {
     setStages((s || []) as any);
     setLeads((l || []) as any);
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
-    if (!activePipeline && p && p.length) setActivePipeline(p[0].id);
+    if (!activePipeline && p && p.length) {
+      const want = new URLSearchParams(window.location.search).get("pipeline");
+      const paid = (p as any[]).find((x) => x.pipeline_type === "paid");
+      if (want === "paid_onboarding" && paid) setActivePipeline(paid.id);
+      else setActivePipeline(p[0].id);
+    }
   };
   useEffect(() => { load(); }, []);
   const [searchParams] = useSearchParams();
@@ -396,7 +401,18 @@ export default function Crm() {
           <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
           <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-10">+ Add Stage</button>
           <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-10"><Download className="w-3.5 h-3.5" /> Export</button>
-          <button onClick={() => navigate("/paid-pipeline")} className="ipc-btn ipc-btn-ghost !h-10" title="Open Paid Pipeline"><ExternalLink className="w-3.5 h-3.5" /> Paid Pipeline</button>
+          <div className="w-px h-6 bg-line mx-1" aria-hidden />
+          <button
+            onClick={() => {
+              const pipe = pipelines.find((p) => p.id === activePipeline);
+              const isPaid = pipe && (pipe as any).pipeline_type === "paid";
+              navigate(isPaid ? "/paid-pipeline?source=crm-paid-onboarding" : "/paid-pipeline");
+            }}
+            className="ipc-btn !h-10 bg-gold text-black hover:opacity-90 shadow-sm font-medium"
+            title="Track token, balance, finance, and revenue"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Open Paid Pipeline
+          </button>
         </div>
       </div>
 
