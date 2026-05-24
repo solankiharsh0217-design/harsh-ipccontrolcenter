@@ -27,6 +27,7 @@ export default function Crm() {
   const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
   const [tagFilter, setTagFilter] = useState<string>("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
   const navigate = useNavigate();
@@ -121,8 +122,13 @@ export default function Crm() {
     if (stageFilter !== "all") list = list.filter((l) => l.stage_id === stageFilter);
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
+    const q = searchQuery.trim().toLowerCase();
+    if (q) list = list.filter((l: any) => {
+      const hay = [l.full_name, l.phone, l.email, l.program_name, l.webinar_source].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField]);
+  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
@@ -352,6 +358,23 @@ export default function Crm() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {(view === "kanban" || view === "list") && (
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search student by name, phone, or email…"
+                className="ipc-input !h-10 !text-xs !pl-8 w-[280px]"
+              />
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">⌕</span>
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black" title="Clear search">
+                  <XIcon className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
+          {(view === "kanban" || view === "list") && (
             <select className="ipc-input !h-10 !text-xs max-w-[220px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
               <option value="all">All webinar batches</option>
               {Array.from(new Set(leads.filter((l) => l.pipeline_id === activePipeline).map((l) => l.webinar_source || "—"))).map((b) => (
@@ -388,13 +411,13 @@ export default function Crm() {
               {pipelineStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           )}
-          {(filter !== "all" || batchFilter !== "all" || tagFilter !== "all" || stageFilter !== "all" || dateFrom || dateTo) && (
+          {(filter !== "all" || batchFilter !== "all" || tagFilter !== "all" || stageFilter !== "all" || dateFrom || dateTo || searchQuery) && (
             <button
-              onClick={() => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); }}
+              onClick={() => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); setSearchQuery(""); }}
               className="ipc-btn ipc-btn-ghost !h-10"
-              title="Clear all filters"
+              title="Clear search and filters"
             >
-              <XIcon className="w-3.5 h-3.5" /> Reset
+              <XIcon className="w-3.5 h-3.5" /> Reset Filters
             </button>
           )}
           <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>

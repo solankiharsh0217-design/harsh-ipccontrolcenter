@@ -28,7 +28,9 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [activityNote, setActivityNote] = useState("");
   const [activityChannel, setActivityChannel] = useState<ActivityLog["channel"]>("call");
-  // Legacy reminder inputs removed in favour of FastFollowUpComposer
+  const [paidSnap, setPaidSnap] = useState<any | null>(null);
+  const [showStagePicker, setShowStagePicker] = useState(false);
+  const [newStageName, setNewStageName] = useState("");
 
   const load = async () => {
     const [{ data: l }, { data: a }, { data: r }] = await Promise.all([
@@ -37,6 +39,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
       supabase.from("follow_up_reminders").select("*").eq("lead_id", leadId).order("reminder_date"),
     ]);
     setLead(l as any); setActivities((a || []) as any); setReminders((r || []) as any);
+    const ppid = (l as any)?.paid_pipeline_lead_id;
+    if (ppid) {
+      const { data: pp } = await supabase.from("paid_pipeline_leads")
+        .select("id,deal_value,token_amount_collected,total_collected,balance_pending,token_paid_status")
+        .eq("id", ppid).maybeSingle();
+      setPaidSnap(pp || null);
+    } else setPaidSnap(null);
   };
   useEffect(() => { load(); }, [leadId]);
 
@@ -67,13 +76,38 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
     });
     setActivityNote(""); await load();
   };
-  // addReminder removed — handled by FastFollowUpComposer
   const delReminder = async (id: string) => {
     await supabase.from("follow_up_reminders").delete().eq("id", id);
     await load();
   };
+  const addStageInline = async () => {
+    const name = newStageName.trim();
+    if (!name) return;
+    const dup = pipelineStages.some((s) => s.name.toLowerCase() === name.toLowerCase());
+    if (dup) { toast.error("Stage already exists"); return; }
+    const { data, error } = await supabase.from("stages").insert({
+      pipeline_id: lead.pipeline_id, name, color: "#E8E5DE", position: pipelineStages.length,
+    } as any).select("id").maybeSingle();
+    if (error) { toast.error(error.message); return; }
+    setNewStageName("");
+    toast.success("Stage added");
+    if (data?.id) await moveStage(data.id);
+    onChanged();
+  };
+  const deactivateStage = async (s: Stage) => {
+    if ((s as any).is_protected) { toast.error("Protected stage"); return; }
+    const used = false; // we don't have a count here; defer to Stages view for delete safety
+    if (used) { toast.error("Stage in use"); return; }
+    if (!confirm(`Delete stage "${s.name}"?`)) return;
+    const { error } = await supabase.from("stages").delete().eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Stage deleted");
+    onChanged();
+  };
 
   const today = new Date().toISOString().slice(0, 10);
+  const currentStage = pipelineStages.find((s) => s.id === lead.stage_id);
+  const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
@@ -98,6 +132,29 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               <Link to={`/paid-pipeline?lead=${(lead as any).paid_pipeline_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
                 <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
               </Link>
+            </div>
+          )}
+          {/* Payment / Token snapshot */}
+          {(paidSnap || Number(lead.deal_value) > 0) && (
+            <div className="mt-4 rounded-lg border border-line bg-off/40 px-3 py-2.5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground">Payment Snapshot</div>
+                {paidSnap ? (
+                  Number(paidSnap.token_amount_collected || 0) > 0 ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#DCFCE7] text-[#15803D] border border-[#86EFAC]">Token Paid {inr(paidSnap.token_amount_collected)}</span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">Token Pending</span>
+                  )
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">No paid record</span>
+                )}
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="p-1.5 rounded bg-white border border-line"><div className="uppercase-label">Deal</div><div className="font-serif text-sm">{inr(paidSnap?.deal_value ?? lead.deal_value)}</div></div>
+                <div className="p-1.5 rounded bg-white border border-line"><div className="uppercase-label">Token</div><div className="font-serif text-sm">{paidSnap ? inr(paidSnap.token_amount_collected) : "—"}</div></div>
+                <div className="p-1.5 rounded bg-white border border-line"><div className="uppercase-label">Collected</div><div className="font-serif text-sm">{paidSnap ? inr(paidSnap.total_collected) : "—"}</div></div>
+                <div className="p-1.5 rounded bg-white border border-line"><div className="uppercase-label">Balance</div><div className="font-serif text-sm">{paidSnap ? inr(paidSnap.balance_pending) : "—"}</div></div>
+              </div>
             </div>
           )}
           <div className="mt-4 rounded-lg border border-line bg-off/40 px-3 py-2.5">
@@ -147,28 +204,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
           </div>
         </div>
 
-        {/* Move stage */}
-        <div className="px-6 py-5 border-b border-line">
-          <div className="section-divider">Move stage</div>
-          <div className="flex flex-wrap gap-1.5">
-            {pipelineStages.map((s) => (
-              <button key={s.id} onClick={() => moveStage(s.id)} className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${s.id === lead.stage_id ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"}`}>
-                {s.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Agent */}
-        <div className="px-6 py-5 border-b border-line">
-          <div className="section-divider">Assigned agent</div>
-          <select className="ipc-input" value={lead.assigned_agent_id || ""} onChange={(e) => setAgent(e.target.value || null)}>
-            <option value="">— Unassigned —</option>
-            {agents.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-          </select>
-        </div>
-
-        {/* Reminders */}
+        {/* Follow-up reminders (moved up — most-used action) */}
         <div className="px-6 py-5 border-b border-line">
           <div className="section-divider">Follow-up reminders</div>
           <div className="space-y-2 mb-3">
@@ -195,6 +231,57 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
             onSaved={load}
           />
         </div>
+
+        {/* Stage — compact dropdown with inline add/delete */}
+        <div className="px-6 py-5 border-b border-line">
+          <div className="flex items-center justify-between mb-2">
+            <div className="section-divider !mb-0">Stage</div>
+            <button onClick={() => setShowStagePicker((v) => !v)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off">
+              {showStagePicker ? "Close" : "Change stage"}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
+            <span className="px-2.5 py-1 rounded-full text-xs bg-black text-white">{currentStage?.name || "—"}</span>
+          </div>
+          {showStagePicker && (
+            <div className="mt-3 border border-line rounded-lg p-2 bg-white space-y-0.5 max-h-[280px] overflow-y-auto">
+              {pipelineStages.map((s) => (
+                <div key={s.id} className="group flex items-center gap-2">
+                  <button onClick={() => { moveStage(s.id); setShowStagePicker(false); }}
+                    className={`flex-1 text-left px-2.5 py-1.5 rounded text-xs ${s.id === lead.stage_id ? "bg-off font-medium" : "hover:bg-off"}`}>
+                    {s.name}
+                  </button>
+                  {!(s as any).is_protected && s.id !== lead.stage_id && (
+                    <button onClick={() => deactivateStage(s)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[#DC2626] p-1" title="Delete stage (only if unused)">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex items-center gap-1.5 pt-2 border-t border-line mt-2">
+                <input
+                  value={newStageName}
+                  onChange={(e) => setNewStageName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addStageInline(); }}
+                  placeholder="+ Add new stage…"
+                  className="ipc-input !h-8 !text-xs flex-1"
+                />
+                <button onClick={addStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">Add</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Agent */}
+        <div className="px-6 py-5 border-b border-line">
+          <div className="section-divider">Assigned agent</div>
+          <select className="ipc-input" value={lead.assigned_agent_id || ""} onChange={(e) => setAgent(e.target.value || null)}>
+            <option value="">— Unassigned —</option>
+            {agents.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+          </select>
+        </div>
+
 
         {/* Activity */}
         <div className="px-6 py-5 border-b border-line">
