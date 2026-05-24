@@ -509,7 +509,7 @@ export default function Crm() {
                             draggable
                             onDragStart={(e) => { e.dataTransfer.setData("text/plain", l.id); e.dataTransfer.effectAllowed = "move"; setDragId(l.id); }}
                             onDragEnd={() => { setDragId(null); setHoverStage(null); setHoverBefore(null); }}
-                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== l.id) setHoverBefore(l.id); }}
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (dragId === l.id) return; if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== l.id) setHoverBefore(l.id); }}
                             onDrop={(e) => onDrop(e, s.id, l.id)}
                             onClick={() => setOpenLead(l.id)}
                             className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-all ${isDragging ? "opacity-40 scale-95 shadow-lg rotate-1" : ""}`}
