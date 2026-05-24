@@ -930,3 +930,66 @@ export default function Crm() {
     </div>
   );
 }
+
+function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-off border border-line text-[10px]">
+      {label}
+      <button onClick={onClear} className="text-muted-foreground hover:text-black" aria-label="Remove filter">
+        <XIcon className="w-2.5 h-2.5" />
+      </button>
+    </span>
+  );
+}
+
+function MoreFiltersMenu({ tagFilter, stageFilter, count }: { tagFilter: React.ReactNode; stageFilter: React.ReactNode; count: number }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Tags, stages & more filters">
+        <Settings2 className="w-3.5 h-3.5" /> More filters{count > 0 ? ` (${count})` : ""}
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-[320px] bg-white border border-line rounded-md shadow-lg z-[1050] p-3 space-y-2">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Tag</div>
+            {tagFilter}
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Stage</div>
+            {stageFilter}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OverflowActionsMenu({ onAddStage, onExport }: { onAddStage: () => void; onExport: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs !px-2" title="More actions" aria-label="More actions">⋯</button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-44 bg-white border border-line rounded-md shadow-lg z-[1050] py-1">
+          <button onClick={() => { setOpen(false); onAddStage(); }} className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-off">+ Add Stage</button>
+          <button onClick={() => { setOpen(false); onExport(); }} className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-off"><Download className="w-3 h-3 inline mr-1" /> Export CSV</button>
+        </div>
+      )}
+    </div>
+  );
+}
