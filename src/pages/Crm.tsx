@@ -27,6 +27,7 @@ export default function Crm() {
   const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
   const [tagFilter, setTagFilter] = useState<string>("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
   const navigate = useNavigate();
