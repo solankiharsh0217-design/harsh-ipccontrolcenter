@@ -210,6 +210,12 @@ export default function Crm() {
     const id = e.dataTransfer.getData("text/plain") || dragId;
     setDragId(null); setHoverStage(null); setHoverBefore(null);
     if (!id) return;
+    if (beforeLeadId === id) return; // dropped on self, no-op
+    const current = leads.find(l => l.id === id);
+    if (current && current.stage_id === stageId && !beforeLeadId) {
+      // dropped on same stage's empty area — no-op
+      return;
+    }
     // Compute new sort_order based on neighbors in target stage
     const targetList = leads.filter((l) => l.pipeline_id === activePipeline && l.stage_id === stageId && l.id !== id)
       .slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
