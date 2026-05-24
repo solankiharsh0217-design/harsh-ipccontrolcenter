@@ -574,6 +574,27 @@ export default function Crm() {
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
       {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
+      {renameStageTarget && (
+        <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-sm p-5">
+            <div className="font-serif text-base mb-1">Rename stage</div>
+            <div className="text-[11px] text-muted-foreground mb-3">Current: {renameStageTarget.name}</div>
+            <input
+              autoFocus
+              type="text"
+              value={renameStageValue}
+              onChange={(e) => setRenameStageValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") renameStage(renameStageTarget, renameStageValue); if (e.key === "Escape") setRenameStageTarget(null); }}
+              className="ipc-input w-full"
+              placeholder="New stage name"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setRenameStageTarget(null)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs">Cancel</button>
+              <button onClick={() => renameStage(renameStageTarget, renameStageValue)} className="ipc-btn ipc-btn-black !h-9 !text-xs">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
 
