@@ -516,7 +516,7 @@ export default function PaidPipeline() {
               <th className="px-3 py-2.5">Follow-up</th>
               <th className="px-3 py-2.5">Finance</th>
               <th className="px-3 py-2.5">Owner</th>
-              <th className="px-3 py-2.5"></th>
+              <th className="px-3 py-2.5 sticky right-0 bg-off text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
