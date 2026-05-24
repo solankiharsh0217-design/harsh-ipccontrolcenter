@@ -820,6 +820,12 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
                   Open in Calling CRM
                 </Link>
               )}
+              <button onClick={() => setOpenFin(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#15803D] text-white hover:opacity-90">
+                Update Finance
+              </button>
+              <button onClick={() => setOpenPay(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+                + Add Payment
+              </button>
               <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
                 Set Follow-up
               </button>
