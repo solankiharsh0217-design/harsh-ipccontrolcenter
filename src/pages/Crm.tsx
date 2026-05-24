@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
 import LeadDrawer from "@/components/LeadDrawer";
 import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload, Pencil, Calendar } from "lucide-react";
-import ImportLeadsModal from "@/components/ImportLeadsModal";
+import ImportLeadsModal, { type ImportResult } from "@/components/ImportLeadsModal";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
