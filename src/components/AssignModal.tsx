@@ -64,6 +64,8 @@ export default function AssignModal(props: Props) {
 
   const [step, setStep] = useState<Step>(1);
   const [users, setUsers] = useState<EligibleUser[]>([]);
+  const [moduleAccessIds, setModuleAccessIds] = useState<Set<string>>(new Set());
+  const [allActiveCount, setAllActiveCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<string>("");
   const [pickedUserIds, setPickedUserIds] = useState<Set<string>>(new Set());
