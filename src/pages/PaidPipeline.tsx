@@ -19,6 +19,7 @@ import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLo
 import AssignModal from "@/components/AssignModal";
 import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
+import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 
 type Lead = {
