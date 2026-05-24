@@ -6,13 +6,15 @@ import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
 import QuickFollowUpModal from "@/components/paid-pipeline/QuickFollowUpModal";
+import QuickFinanceModal from "@/components/paid-pipeline/QuickFinanceModal";
+import InlineManagedSelect from "@/components/paid-pipeline/InlineManagedSelect";
 import SendToCrmBulkModal from "@/components/paid-pipeline/SendToCrmBulkModal";
 import NewPaidBatchModal from "@/components/paid-pipeline/NewPaidBatchModal";
 import AddPaidStageModal from "@/components/paid-pipeline/AddPaidStageModal";
 import PaidBatchesView from "@/components/paid-pipeline/PaidBatchesView";
 import {
   inr, fmtDate, recomputePaidLead, downloadCsv,
-  TEMPERATURES, TEMP_COLORS, FOLLOWUP_PRIORITIES,
+  TEMPERATURES, TEMP_COLORS, FOLLOWUP_PRIORITIES, DEFAULT_FINANCE_PARTNERS,
 } from "@/lib/paidPipeline";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLog";
