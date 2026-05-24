@@ -12,6 +12,8 @@ import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
+import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
+import ManagedStageFilter from "@/components/crm/ManagedStageFilter";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
