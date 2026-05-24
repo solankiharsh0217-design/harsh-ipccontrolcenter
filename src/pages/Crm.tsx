@@ -356,29 +356,59 @@ export default function Crm() {
     finally { setAssignBusy(false); }
   };
 
+  const activeFilterCount =
+    (filter !== "all" ? 1 : 0) +
+    (batchFilter !== "all" ? 1 : 0) +
+    (tagFilter !== "all" ? 1 : 0) +
+    (stageFilter !== "all" ? 1 : 0) +
+    (dateFrom || dateTo ? 1 : 0) +
+    (searchQuery ? 1 : 0);
+  const advancedActiveCount = (tagFilter !== "all" ? 1 : 0) + (stageFilter !== "all" ? 1 : 0);
+  const activeTag = allTags.find((t) => t.id === tagFilter);
+  const activeStage = pipelineStages.find((s) => s.id === stageFilter);
+  const resetAll = () => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+
   return (
     <div>
-      <PageHead title="Calling CRM" sub="Diamond Program sales pipeline" />
-
-      {/* Toolbar */}
-      <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
-        <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white">
-          <button onClick={() => setView("kanban")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "kanban" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><LayoutGrid className="w-3.5 h-3.5" /> Kanban</button>
-          <button onClick={() => setView("list")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "list" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><List className="w-3.5 h-3.5" /> List</button>
-          <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><LayoutGrid className="w-3.5 h-3.5" /> Batches</button>
-          <button onClick={() => setView("stages")} className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 ${view === "stages" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><Settings2 className="w-3.5 h-3.5" /> Stages</button>
+      {/* Compact header */}
+      <div className="flex items-end justify-between mb-3 gap-3 flex-wrap">
+        <div>
+          <h1 className="font-serif text-[22px] leading-tight">Calling CRM</h1>
+          <div className="text-[11px] text-muted-foreground">Diamond Program sales pipeline</div>
         </div>
+        <button
+          onClick={() => {
+            const pipe = pipelines.find((p) => p.id === activePipeline);
+            const isPaid = pipe && (pipe as any).pipeline_type === "paid";
+            navigate(isPaid ? "/paid-pipeline?source=crm-paid-onboarding" : "/paid-pipeline");
+          }}
+          className="ipc-btn !h-9 bg-gold text-black hover:opacity-90 shadow-sm font-medium"
+          title="Track token, balance, finance, and revenue"
+        >
+          <ExternalLink className="w-3.5 h-3.5" /> Open Paid Pipeline
+        </button>
+      </div>
+
+      {/* Compact toolbar */}
+      <div className="sticky top-0 z-20 bg-bg pt-1 pb-2 mb-2">
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-line bg-white">
+            <button onClick={() => setView("kanban")} className={`px-2.5 py-1 rounded-md text-[11px] flex items-center gap-1 ${view === "kanban" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><LayoutGrid className="w-3 h-3" /> Kanban</button>
+            <button onClick={() => setView("list")} className={`px-2.5 py-1 rounded-md text-[11px] flex items-center gap-1 ${view === "list" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><List className="w-3 h-3" /> List</button>
+            <button onClick={() => setView("batches")} className={`px-2.5 py-1 rounded-md text-[11px] flex items-center gap-1 ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Batches</button>
+            <button onClick={() => setView("stages")} className={`px-2.5 py-1 rounded-md text-[11px] flex items-center gap-1 ${view === "stages" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><Settings2 className="w-3 h-3" /> Stages</button>
+          </div>
+
           {(view === "kanban" || view === "list") && (
-            <div className="relative">
+            <div className="relative flex-1 min-w-[200px] max-w-[320px]">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search student by name, phone, or email…"
-                className="ipc-input !h-10 !text-xs !pl-8 w-[280px]"
+                placeholder="Search name, phone, email…"
+                className="ipc-input !h-9 !text-xs !pl-7 w-full"
               />
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">⌕</span>
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">⌕</span>
               {searchQuery && (
                 <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black" title="Clear search">
                   <XIcon className="w-3 h-3" />
@@ -386,85 +416,102 @@ export default function Crm() {
               )}
             </div>
           )}
+
           {(view === "kanban" || view === "list") && (
-            <select className="ipc-input !h-10 !text-xs max-w-[220px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)}>
-              <option value="all">All webinar batches</option>
-              {Array.from(new Set(leads.filter((l) => l.pipeline_id === activePipeline).map((l) => l.webinar_source || "—"))).map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          )}
-          {(view === "kanban" || view === "list") && (
-            <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white h-10">
-              <select className="!text-xs bg-transparent border-0 outline-none px-1" value={dateField} onChange={(e) => setDateField(e.target.value as any)} title="Date field">
-                <option value="webinar_date">Webinar date</option>
-                <option value="created_at">Imported on</option>
+            <>
+              <select className="ipc-input !h-9 !text-xs max-w-[180px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)} title="Webinar batch">
+                <option value="all">All batches</option>
+                {Array.from(new Set(leads.filter((l) => l.pipeline_id === activePipeline).map((l) => l.webinar_source || "—"))).map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
               </select>
-              <input type="date" className="!text-xs border-0 outline-none px-1 w-[125px]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="From" />
-              <span className="text-muted-foreground text-xs">–</span>
-              <input type="date" className="!text-xs border-0 outline-none px-1 w-[125px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To" />
-              {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-muted-foreground hover:text-black px-1" title="Clear"><XIcon className="w-3 h-3" /></button>}
-            </div>
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-line bg-white h-9">
+                <select className="!text-[11px] bg-transparent border-0 outline-none px-1" value={dateField} onChange={(e) => setDateField(e.target.value as any)} title="Date field">
+                  <option value="webinar_date">Webinar</option>
+                  <option value="created_at">Imported</option>
+                </select>
+                <input type="date" className="!text-[11px] border-0 outline-none px-0.5 w-[110px]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="From" />
+                <span className="text-muted-foreground text-[10px]">–</span>
+                <input type="date" className="!text-[11px] border-0 outline-none px-0.5 w-[110px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To" />
+                {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-muted-foreground hover:text-black px-1" title="Clear"><XIcon className="w-3 h-3" /></button>}
+              </div>
+              <select className="ipc-input !h-9 !text-xs" value={filter} onChange={(e) => setFilter(e.target.value as any)} title="Grade">
+                <option value="all">All grades</option>
+                <option value="super-hot">★ Super Hot</option>
+                <option value="hot">Hot</option>
+                <option value="warm">Warm</option>
+                <option value="cold">Cold</option>
+              </select>
+              <MoreFiltersMenu
+                tagFilter={
+                  <ManagedTagFilter
+                    value={tagFilter}
+                    onChange={setTagFilter}
+                    tags={allTags}
+                    onChanged={async () => { const tags = await listAllTags().catch(() => [] as Tag[]); setAllTags(tags); }}
+                  />
+                }
+                stageFilter={
+                  <ManagedStageFilter
+                    value={stageFilter}
+                    onChange={setStageFilter}
+                    stages={pipelineStages}
+                    pipelineId={activePipeline}
+                    leadsCountByStage={pipelineLeads.reduce((acc: Record<string, number>, l) => { if (l.stage_id) acc[l.stage_id] = (acc[l.stage_id] || 0) + 1; return acc; }, {})}
+                    onChanged={load}
+                  />
+                }
+                count={advancedActiveCount}
+              />
+            </>
           )}
-          <select className="ipc-input !h-10 !text-xs" value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-            <option value="all">All grades</option>
-            <option value="super-hot">★ Super Hot</option>
-            <option value="hot">Hot</option>
-            <option value="warm">Warm</option>
-            <option value="cold">Cold</option>
-          </select>
-          <ManagedTagFilter
-            value={tagFilter}
-            onChange={setTagFilter}
-            tags={allTags}
-            onChanged={async () => { const tags = await listAllTags().catch(() => [] as Tag[]); setAllTags(tags); }}
-          />
-          {(view === "kanban" || view === "list") && (
-            <ManagedStageFilter
-              value={stageFilter}
-              onChange={setStageFilter}
-              stages={pipelineStages}
-              pipelineId={activePipeline}
-              leadsCountByStage={pipelineLeads.reduce((acc: Record<string, number>, l) => { if (l.stage_id) acc[l.stage_id] = (acc[l.stage_id] || 0) + 1; return acc; }, {})}
-              onChanged={load}
+
+          <div className="flex items-center gap-1 ml-auto">
+            <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
+            <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
+            <OverflowActionsMenu
+              onAddStage={() => setAddStageOpen(true)}
+              onExport={exportCsv}
             />
-          )}
-          {(filter !== "all" || batchFilter !== "all" || tagFilter !== "all" || stageFilter !== "all" || dateFrom || dateTo || searchQuery) && (
-            <button
-              onClick={() => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); setSearchQuery(""); }}
-              className="ipc-btn ipc-btn-ghost !h-10"
-              title="Clear search and filters"
-            >
-              <XIcon className="w-3.5 h-3.5" /> Reset Filters
-            </button>
-          )}
-          <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>
-          <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
-          <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-10">+ Add Stage</button>
-          <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-10"><Download className="w-3.5 h-3.5" /> Export</button>
-          <div className="w-px h-6 bg-line mx-1" aria-hidden />
-          <button
-            onClick={() => {
-              const pipe = pipelines.find((p) => p.id === activePipeline);
-              const isPaid = pipe && (pipe as any).pipeline_type === "paid";
-              navigate(isPaid ? "/paid-pipeline?source=crm-paid-onboarding" : "/paid-pipeline");
-            }}
-            className="ipc-btn !h-10 bg-gold text-black hover:opacity-90 shadow-sm font-medium"
-            title="Track token, balance, finance, and revenue"
-          >
-            <ExternalLink className="w-3.5 h-3.5" /> Open Paid Pipeline
-          </button>
+          </div>
         </div>
+
+        {/* Active filter chips */}
+        {activeFilterCount > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-2">
+            {searchQuery && (
+              <FilterChip label={`Search: ${searchQuery}`} onClear={() => setSearchQuery("")} />
+            )}
+            {batchFilter !== "all" && (
+              <FilterChip label={`Batch: ${batchFilter}`} onClear={() => setBatchFilter("all")} />
+            )}
+            {filter !== "all" && (
+              <FilterChip label={`Grade: ${filter}`} onClear={() => setFilter("all")} />
+            )}
+            {(dateFrom || dateTo) && (
+              <FilterChip label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${dateFrom || "…"} → ${dateTo || "…"}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />
+            )}
+            {tagFilter !== "all" && activeTag && (
+              <FilterChip label={`Tag: ${activeTag.name}`} onClear={() => setTagFilter("all")} />
+            )}
+            {stageFilter !== "all" && activeStage && (
+              <FilterChip label={`Stage: ${activeStage.name}`} onClear={() => setStageFilter("all")} />
+            )}
+            <button onClick={resetAll} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Reset all</button>
+          </div>
+        )}
       </div>
 
       {(view === "kanban" || view === "list") && (
-        <div className="text-[12px] text-muted-foreground mb-3">
+        <div className="text-[11px] text-muted-foreground mb-2">
           Showing <span className="font-medium text-foreground">{pipelineLeads.length}</span> of <span className="font-medium text-foreground">{leads.filter((l) => l.pipeline_id === activePipeline).length}</span> leads
         </div>
       )}
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
       {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
+
+
 
       {/* Kanban */}
       {view === "kanban" && (
