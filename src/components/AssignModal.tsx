@@ -225,6 +225,27 @@ export default function AssignModal(props: Props) {
 
   const stepLabel = ["Role", "Users", "Method", "Scope", "Confirm"][step - 1];
 
+  // Eligibility debug counts — exposed in empty states to diagnose read/write mismatches.
+  const dbg = {
+    active: allActiveCount,
+    roleMatch: role ? users.filter(u => (u.role || "") === role).length : 0,
+    moduleAccess: role
+      ? users.filter(u => (u.role || "") === role && moduleAccessIds.has(u.id)).length
+      : users.filter(u => moduleAccessIds.has(u.id)).length,
+    eligible: role
+      ? users.filter(u => (u.role || "") === role && u.active_for_assignment && u.flagValue).length
+      : users.filter(u => u.active_for_assignment && u.flagValue).length,
+  };
+  const DebugBox = () => (
+    <div className="mt-2 p-2.5 rounded-md bg-off border border-line text-[11px] font-mono space-y-0.5">
+      <div className="font-sans font-medium text-[11px] mb-1 text-muted-foreground uppercase tracking-wider">Eligibility debug</div>
+      <div>Active users found: <strong>{dbg.active}</strong></div>
+      <div>Matching role users found: <strong>{dbg.roleMatch}</strong>{role ? ` (role: ${role})` : " (no role picked)"}</div>
+      <div>Users with module access ({moduleKey}): <strong>{dbg.moduleAccess}</strong></div>
+      <div>Users with assignment eligibility ({eligibilityFlag}): <strong>{dbg.eligible}</strong></div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={onClose}>
       <div className="bg-white rounded-xl border border-line w-full max-w-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
