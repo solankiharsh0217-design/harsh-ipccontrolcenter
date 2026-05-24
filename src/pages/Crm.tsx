@@ -45,9 +45,16 @@ export default function Crm() {
     setBatchPipelineFilter(result.leadType);
     setView("batches");
     const pipelineLabel = result.leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)";
+    const parts: string[] = [];
+    if (result.newImported) parts.push(`${result.newImported} new`);
+    if (result.moved) parts.push(`${result.moved} moved`);
+    if (result.updated) parts.push(`${result.updated} updated`);
+    if (result.skippedDuplicates) parts.push(`${result.skippedDuplicates} skipped`);
+    if (result.failed) parts.push(`${result.failed} failed`);
+    const summary = parts.length ? parts.join(" · ") : `${result.imported} leads`;
     toast.success(
-      `Imported ${result.imported} leads into ${pipelineLabel} · Batch "${result.batchName}"${result.skipped ? ` · ${result.skipped} skipped` : ""}`,
-      { duration: 6000 }
+      `${summary} → ${pipelineLabel} · Batch "${result.batchName}"`,
+      { duration: 7000 }
     );
   };
 
