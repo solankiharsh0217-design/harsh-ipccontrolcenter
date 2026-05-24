@@ -2277,6 +2277,10 @@ export type Database = {
           deleted_by: string | null
           email: string | null
           final_revenue_realized: number
+          finance_amount_approved: number | null
+          finance_amount_disbursed: number | null
+          finance_count_as_collected: boolean
+          finance_disbursement_date: string | null
           finance_follow_up_date: string | null
           finance_notes: string | null
           finance_owner: string | null
@@ -2342,6 +2346,10 @@ export type Database = {
           deleted_by?: string | null
           email?: string | null
           final_revenue_realized?: number
+          finance_amount_approved?: number | null
+          finance_amount_disbursed?: number | null
+          finance_count_as_collected?: boolean
+          finance_disbursement_date?: string | null
           finance_follow_up_date?: string | null
           finance_notes?: string | null
           finance_owner?: string | null
@@ -2407,6 +2415,10 @@ export type Database = {
           deleted_by?: string | null
           email?: string | null
           final_revenue_realized?: number
+          finance_amount_approved?: number | null
+          finance_amount_disbursed?: number | null
+          finance_count_as_collected?: boolean
+          finance_disbursement_date?: string | null
           finance_follow_up_date?: string | null
           finance_notes?: string | null
           finance_owner?: string | null

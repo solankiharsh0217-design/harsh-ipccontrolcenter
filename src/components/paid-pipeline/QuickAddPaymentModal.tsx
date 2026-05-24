@@ -2,19 +2,26 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import QuickSaveInput from "@/components/QuickSaveInput";
-import { recomputePaidLead } from "@/lib/paidPipeline";
+import { recomputePaidLead, DEFAULT_FINANCE_PARTNERS } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
+
+const PAYMENT_TYPES = [
+  "First Token","Second Token","Additional Token","Balance Payment",
+  "Full Payment","Finance Disbursement","Bajaj Finance","EZMI Finance",
+  "Refund","Adjustment","Other",
+];
+const PAYMENT_MODES = ["UPI","Bank Transfer","Cash","Card","Razorpay","Finance Partner","Other"];
 
 export default function QuickAddPaymentModal({
   leadId, leadName, onClose, onSaved,
 }: { leadId: string; leadName?: string; onClose: () => void; onSaved: () => void }) {
   const { user } = useAuth();
   const [category, setCategory] = useState("Token Amount");
-  const [type, setType] = useState("Token");
+  const [type, setType] = useState("First Token");
   const [amount, setAmount] = useState<number>(0);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [mode, setMode] = useState("UPI");
+  const [financePartner, setFinancePartner] = useState("");
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
   const [nextDate, setNextDate] = useState("");
@@ -56,6 +63,11 @@ export default function QuickAddPaymentModal({
           follow_up_status: "Pending",
         } as any).eq("id", leadId);
       }
+      if (financePartner) {
+        await supabase.from("paid_pipeline_leads").update({
+          finance_partner: financePartner, finance_required: true,
+        } as any).eq("id", leadId);
+      }
       await recomputePaidLead(leadId);
       logActivity({
         module_key: "paid_pipeline", module_label: "Paid Pipeline",
@@ -79,13 +91,33 @@ export default function QuickAddPaymentModal({
         </div>
         <div className="p-6 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <QuickSaveInput fieldKey="payment_category" label="Payment category" value={category} onChange={setCategory} placeholder="Token Amount" />
-            <QuickSaveInput fieldKey="payment_type" label="Payment type" value={type} onChange={setType} placeholder="Token" />
+            <div>
+              <label className="qsi-label">Payment type</label>
+              <select className="qsi-input" value={type} onChange={(e) => { setType(e.target.value); if (e.target.value.includes("Token")) setCategory(e.target.value === "First Token" ? "Token Amount" : "Second Token"); else if (e.target.value === "Balance Payment") setCategory("Balance Payment"); else if (e.target.value === "Refund") setCategory("Refund"); else if (e.target.value === "Full Payment") setCategory("Full Payment"); else if (e.target.value.includes("Finance")) setCategory("EMI / Finance Disbursement"); }}>
+                {PAYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="qsi-label">Payment category</label>
+              <input className="qsi-input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Token Amount" />
+            </div>
             <div>
               <label className="qsi-label">Amount</label>
               <input type="number" className="qsi-input" value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0" />
             </div>
-            <QuickSaveInput fieldKey="payment_mode" label="Mode" value={mode} onChange={setMode} placeholder="UPI" />
+            <div>
+              <label className="qsi-label">Mode</label>
+              <select className="qsi-input" value={mode} onChange={(e) => setMode(e.target.value)}>
+                {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            {(type.includes("Finance") || mode === "Finance Partner") && (
+              <div className="col-span-2">
+                <label className="qsi-label">Finance partner</label>
+                <input list="qap-finance-partners" className="qsi-input" value={financePartner} onChange={(e) => setFinancePartner(e.target.value)} placeholder="Bajaj Finance" />
+                <datalist id="qap-finance-partners">{DEFAULT_FINANCE_PARTNERS.map(p => <option key={p} value={p} />)}</datalist>
+              </div>
+            )}
             <div>
               <label className="qsi-label">Payment date</label>
               <input type="date" className="qsi-input" value={date} onChange={(e) => setDate(e.target.value)} />

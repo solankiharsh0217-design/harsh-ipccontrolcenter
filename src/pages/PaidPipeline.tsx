@@ -6,13 +6,15 @@ import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
 import QuickFollowUpModal from "@/components/paid-pipeline/QuickFollowUpModal";
+import QuickFinanceModal from "@/components/paid-pipeline/QuickFinanceModal";
+import InlineManagedSelect from "@/components/paid-pipeline/InlineManagedSelect";
 import SendToCrmBulkModal from "@/components/paid-pipeline/SendToCrmBulkModal";
 import NewPaidBatchModal from "@/components/paid-pipeline/NewPaidBatchModal";
 import AddPaidStageModal from "@/components/paid-pipeline/AddPaidStageModal";
 import PaidBatchesView from "@/components/paid-pipeline/PaidBatchesView";
 import {
   inr, fmtDate, recomputePaidLead, downloadCsv,
-  TEMPERATURES, TEMP_COLORS, FOLLOWUP_PRIORITIES,
+  TEMPERATURES, TEMP_COLORS, FOLLOWUP_PRIORITIES, DEFAULT_FINANCE_PARTNERS,
 } from "@/lib/paidPipeline";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLog";
@@ -42,6 +44,10 @@ type Lead = {
   finance_status: string | null;
   finance_notes: string | null;
   finance_follow_up_date: string | null;
+  finance_amount_approved: number | null;
+  finance_amount_disbursed: number | null;
+  finance_disbursement_date: string | null;
+  finance_count_as_collected: boolean | null;
   attributed_media_buyer: string | null;
   follow_up_date: string | null;
   next_follow_up_date: string | null;
@@ -101,11 +107,15 @@ export default function PaidPipeline() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quickPayId, setQuickPayId] = useState<string | null>(null);
   const [quickFuId, setQuickFuId] = useState<string | null>(null);
+  const [quickFinanceId, setQuickFinanceId] = useState<string | null>(null);
   const [bulkSend, setBulkSend] = useState(false);
   const [bulkSendIdsOverride, setBulkSendIdsOverride] = useState<string[] | null>(null);
   const [newBatchOpen, setNewBatchOpen] = useState(false);
   const [addStageOpen, setAddStageOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [ownerFilter, setOwnerFilter] = useState("all");
+  const [insightFilter, setInsightFilter] = useState<string | null>(null);
+  const HIGH_BAL_THRESHOLD = 50000;
 
   const load = async () => {
     const [{ data: l }, { data: b }, { data: pb }, { data: s }, elig] = await Promise.all([
@@ -159,11 +169,15 @@ export default function PaidPipeline() {
     setStageFilter("all"); setTempFilter("all");
     setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
     setFollowUpFilter("all"); setRevenueStatusFilter("all");
-    setTagFilter("all");
+    setTagFilter("all"); setOwnerFilter("all"); setInsightFilter(null);
   };
-  const anyFilterActive = !!search || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter].some(v => v !== "all");
+  const anyFilterActive = !!search || !!insightFilter || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter, ownerFilter].some(v => v !== "all");
 
-
+  const financePartnerOptions = useMemo(() => {
+    const set = new Set<string>(DEFAULT_FINANCE_PARTNERS);
+    leads.forEach(l => { if (l.finance_partner) set.add(l.finance_partner); });
+    return Array.from(set);
+  }, [leads]);
 
   const filtered = useMemo(() => {
     const td = today();
@@ -175,6 +189,9 @@ export default function PaidPipeline() {
       if (tempFilter !== "all" && (l.lead_temperature || "") !== tempFilter) return false;
       if (financePartnerFilter !== "all" && (l.finance_partner || "") !== financePartnerFilter) return false;
       if (financeStatusFilter !== "all" && (l.finance_status || "") !== financeStatusFilter) return false;
+      if (ownerFilter !== "all") {
+        if (ownerFilter === "unassigned" ? !!l.assigned_sales_executive : l.assigned_sales_executive !== ownerFilter) return false;
+      }
       const fu = l.next_follow_up_date || l.follow_up_date;
       if (followUpFilter === "today" && fu !== td) return false;
       if (followUpFilter === "overdue" && !(fu && fu < td)) return false;
@@ -195,6 +212,19 @@ export default function PaidPipeline() {
         };
         if (!map[revenueStatusFilter]) return false;
       }
+      if (insightFilter) {
+        const bal = Number(l.balance_pending || 0);
+        const fu2 = l.next_follow_up_date || l.follow_up_date;
+        if (insightFilter === "high_balance" && !(bal >= HIGH_BAL_THRESHOLD)) return false;
+        if (insightFilter === "approved_not_disbursed" && !(l.finance_status === "Approved" && Number(l.finance_amount_disbursed || 0) <= 0)) return false;
+        if (insightFilter === "no_followup" && fu2) return false;
+        if (insightFilter === "urgent_balance" && !(["Hot","Urgent"].includes(l.lead_temperature || "") && bal > 0)) return false;
+        if (insightFilter === "token_no_second") {
+          const total = Number(l.total_collected || 0);
+          const tok = Number(l.token_amount_collected || 0);
+          if (!(tok > 0 && total <= tok && bal > 0)) return false;
+        }
+      }
       if (search) {
         const q = search.toLowerCase();
         if (!(`${l.name || ""} ${l.email || ""} ${l.phone || ""}`.toLowerCase().includes(q))) return false;
@@ -202,7 +232,29 @@ export default function PaidPipeline() {
       if (tagFilter !== "all" && !(leadTagsMap[l.id] || []).some((t) => t.id === tagFilter)) return false;
       return true;
     });
-  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap]);
+  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter]);
+
+  const insights = useMemo(() => {
+    let highBalCount = 0, highBalAmt = 0;
+    let approvedNotDisbCount = 0, approvedNotDisbAmt = 0;
+    let noFu = 0;
+    let urgentBalCount = 0, urgentBalAmt = 0;
+    let tokenNoSecond = 0;
+    leads.forEach(l => {
+      const bal = Number(l.balance_pending || 0);
+      const fu = l.next_follow_up_date || l.follow_up_date;
+      if (bal >= HIGH_BAL_THRESHOLD) { highBalCount++; highBalAmt += bal; }
+      if (l.finance_status === "Approved" && Number(l.finance_amount_disbursed || 0) <= 0) {
+        approvedNotDisbCount++; approvedNotDisbAmt += Number(l.finance_amount_approved || 0);
+      }
+      if (!fu && !l.is_dropped) noFu++;
+      if (["Hot","Urgent"].includes(l.lead_temperature || "") && bal > 0) { urgentBalCount++; urgentBalAmt += bal; }
+      const total = Number(l.total_collected || 0);
+      const tok = Number(l.token_amount_collected || 0);
+      if (tok > 0 && total <= tok && bal > 0) tokenNoSecond++;
+    });
+    return { highBalCount, highBalAmt, approvedNotDisbCount, approvedNotDisbAmt, noFu, urgentBalCount, urgentBalAmt, tokenNoSecond };
+  }, [leads]);
 
   const totals = useMemo(() => {
     const td = today();
@@ -353,6 +405,40 @@ export default function PaidPipeline() {
         <SumCard label="Follow-Ups Due Today" value={String(totals.dueToday)} accent="blue" />
       </div>
 
+      {/* Operational insight chips */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <InsightChip
+          label={`${insights.highBalCount} leads · balance > ${inr(HIGH_BAL_THRESHOLD)} (${inr(insights.highBalAmt)})`}
+          active={insightFilter === "high_balance"}
+          onClick={() => setInsightFilter(insightFilter === "high_balance" ? null : "high_balance")}
+          accent="gold"
+        />
+        <InsightChip
+          label={`${insights.approvedNotDisbCount} finance approved · not disbursed (${inr(insights.approvedNotDisbAmt)})`}
+          active={insightFilter === "approved_not_disbursed"}
+          onClick={() => setInsightFilter(insightFilter === "approved_not_disbursed" ? null : "approved_not_disbursed")}
+          accent="blue"
+        />
+        <InsightChip
+          label={`${insights.noFu} leads · no next follow-up`}
+          active={insightFilter === "no_followup"}
+          onClick={() => setInsightFilter(insightFilter === "no_followup" ? null : "no_followup")}
+          accent="muted"
+        />
+        <InsightChip
+          label={`${insights.urgentBalCount} urgent · balance pending (${inr(insights.urgentBalAmt)})`}
+          active={insightFilter === "urgent_balance"}
+          onClick={() => setInsightFilter(insightFilter === "urgent_balance" ? null : "urgent_balance")}
+          accent="red"
+        />
+        <InsightChip
+          label={`${insights.tokenNoSecond} token paid · no further payment`}
+          active={insightFilter === "token_no_second"}
+          onClick={() => setInsightFilter(insightFilter === "token_no_second" ? null : "token_no_second")}
+          accent="gold"
+        />
+      </div>
+
       {/* Filters */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-2">
         <input
@@ -367,7 +453,9 @@ export default function PaidPipeline() {
         <FilterSelect value={onboardingBatchFilter} onChange={setOnboardingBatchFilter} label="All onboarding batches" options={onboardingBatches.map(o => ({ v: o, l: o }))} />
         <FilterSelect value={stageFilter} onChange={setStageFilter} label="All stages" options={stages.map(s => ({ v: s, l: s }))} />
         <FilterSelect value={tempFilter} onChange={setTempFilter} label="All priorities" options={TEMPERATURES.map(t => ({ v: t, l: t }))} />
-        <FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Application Submitted","Approved","Rejected","Disbursed"].map(t => ({ v: t, l: t }))} />
+        <FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Documents Received","Application Submitted","Approved","Rejected","Disbursed","Alternate Partner Needed"].map(t => ({ v: t, l: t }))} />
+        <FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} />
+        <FilterSelect value={ownerFilter} onChange={setOwnerFilter} label="All owners" options={[{ v: "unassigned", l: "— Unassigned —" }, ...agents.map(a => ({ v: a.id, l: a.full_name }))]} />
         <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
           { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
         ]} />
@@ -476,35 +564,40 @@ export default function PaidPipeline() {
                   <td className="px-3 py-2.5 whitespace-nowrap">{inr(l.total_collected)}</td>
                   <td className="px-3 py-2.5 whitespace-nowrap text-[#CA8A04]">{inr(l.balance_pending)}</td>
                   <td className="px-3 py-2.5">
-                    <select className="h-7 border border-line rounded px-1 text-[11px] max-w-[140px]"
+                    <InlineManagedSelect
+                      settingType="pipeline_stage"
                       value={l.pipeline_stage || ""}
-                      onChange={async (e) => { await updateLead(l.id, { pipeline_stage: e.target.value }); recomputePaidLead(l.id); }}>
-                      <option value="">—</option>
-                      {stages.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                      onChange={async (v) => { await updateLead(l.id, { pipeline_stage: v }); recomputePaidLead(l.id); }}
+                      width={150}
+                      onListChanged={load}
+                    />
                   </td>
                   <td className="px-3 py-2.5">
-                    <select className="h-7 border border-line rounded px-1 text-[11px]"
-                      style={{ color: TEMP_COLORS[l.lead_temperature || ""] || undefined }}
+                    <InlineManagedSelect
+                      settingType="lead_priority"
                       value={l.lead_temperature || ""}
-                      onChange={(e) => updateLead(l.id, { lead_temperature: e.target.value })}>
-                      <option value="">—</option>
-                      {TEMPERATURES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                      onChange={(v) => updateLead(l.id, { lead_temperature: v })}
+                      width={130}
+                      colorize
+                      onListChanged={load}
+                    />
                   </td>
                   <td className="px-3 py-2.5 text-[11.5px]" style={{ color: fuColor }}>
                     {fu ? fmtDate(fu) : "—"}
                     {l.follow_up_reason && <div className="text-[10px] text-muted-foreground">{l.follow_up_reason}</div>}
                   </td>
-                  <td className="px-3 py-2.5 text-[11px]">{l.finance_required ? `${l.finance_partner || "—"} · ${l.finance_status || "—"}` : "—"}</td>
+                  <td className="px-3 py-2.5">
+                    <FinanceCell lead={l} onClick={() => setQuickFinanceId(l.id)} />
+                  </td>
                   <td className="px-3 py-2.5 text-[11.5px] max-w-[120px] truncate" title={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || ""}>
                     {agents.find(a => a.id === l.assigned_sales_executive)?.full_name || "—"}
                   </td>
                   <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-1 justify-end">
-                      <button onClick={() => setQuickPayId(l.id)} className="text-[10.5px] px-1.5 py-1 rounded border border-line hover:bg-off" title="Add payment">+ ₹</button>
-                      <button onClick={() => setQuickFuId(l.id)} className="text-[10.5px] px-1.5 py-1 rounded border border-line hover:bg-off" title="Set follow-up">Follow</button>
-                      <button onClick={() => setOpenId(l.id)} className="text-[10.5px] px-1.5 py-1 rounded bg-black text-white">Open</button>
+                    <div className="flex items-center gap-1 justify-end flex-wrap">
+                      <button onClick={() => setQuickPayId(l.id)} className="text-[11px] px-2 py-1 rounded bg-[#15803D] text-white hover:opacity-90 font-medium" title="Add payment">+ Payment</button>
+                      <button onClick={() => setQuickFinanceId(l.id)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off" title="Update finance">Finance</button>
+                      <button onClick={() => setQuickFuId(l.id)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off" title="Set follow-up">Follow-up</button>
+                      <button onClick={() => setOpenId(l.id)} className="text-[11px] px-2 py-1 rounded bg-black text-white">Open</button>
                     </div>
                   </td>
                 </tr>
@@ -521,6 +614,11 @@ export default function PaidPipeline() {
         crmLeadId={leads.find(l => l.id === quickFuId)?.crm_lead_id || null}
         defaults={{ priority: leads.find(l => l.id === quickFuId)?.lead_temperature || "Normal" }}
         onClose={() => setQuickFuId(null)} onSaved={load} />}
+      {quickFinanceId && (() => {
+        const l = leads.find(x => x.id === quickFinanceId);
+        if (!l) return null;
+        return <QuickFinanceModal lead={l as any} onClose={() => setQuickFinanceId(null)} onSaved={load} />;
+      })()}
       {bulkSend && <SendToCrmBulkModal
         leadIds={bulkSendIdsOverride && bulkSendIdsOverride.length > 0 ? bulkSendIdsOverride : Array.from(selected)}
         leads={leads}
@@ -563,6 +661,45 @@ function FilterSelect({ value, onChange, label, options }: { value: string; onCh
     </select>
   );
 }
+
+function InsightChip({ label, active, onClick, accent }: { label: string; active: boolean; onClick: () => void; accent: "gold" | "red" | "blue" | "muted" }) {
+  const colors: Record<string, string> = {
+    gold: active ? "bg-gold text-black border-gold" : "bg-gold-pale text-[#92400E] border-[#F5D78A] hover:bg-gold/40",
+    red: active ? "bg-[#DC2626] text-white border-[#DC2626]" : "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5] hover:bg-[#FECACA]",
+    blue: active ? "bg-[#2563EB] text-white border-[#2563EB]" : "bg-[#DBEAFE] text-[#1E40AF] border-[#93C5FD] hover:bg-[#BFDBFE]",
+    muted: active ? "bg-black text-white border-black" : "bg-off text-foreground border-line hover:bg-[#EAEAEA]",
+  };
+  return (
+    <button onClick={onClick} className={`text-[11.5px] px-2.5 py-1.5 rounded-full border font-medium transition-colors ${colors[accent]}`}>
+      {label}
+    </button>
+  );
+}
+
+function FinanceCell({ lead, onClick }: { lead: any; onClick: () => void }) {
+  const required = lead.finance_required;
+  const status = lead.finance_status || "";
+  const partner = lead.finance_partner || "";
+  const disbursed = Number(lead.finance_amount_disbursed || 0);
+  const approved = Number(lead.finance_amount_approved || 0);
+  let dot = "#9CA3AF";
+  if (status === "Approved" || status === "Disbursed") dot = "#15803D";
+  else if (status === "Rejected" || status === "Alternate Partner Needed") dot = "#DC2626";
+  else if (required && status && status !== "Not Required") dot = "#CA8A04";
+  let line2 = "";
+  if (status === "Disbursed" && disbursed > 0) line2 = `₹${disbursed.toLocaleString("en-IN")} disbursed`;
+  else if (status === "Approved" && approved > 0) line2 = `₹${approved.toLocaleString("en-IN")} approved`;
+  return (
+    <button onClick={onClick} className="text-left w-full px-1.5 py-1 rounded hover:bg-off text-[11px] leading-tight">
+      <div className="flex items-center gap-1.5">
+        <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
+        <span className="truncate">{!required ? (status === "Not Required" ? "Not Required" : "Not set") : (partner ? `${partner} · ${status || "—"}` : (status || "Set partner"))}</span>
+      </div>
+      {line2 && <div className="text-[10px] text-muted-foreground pl-3">{line2}</div>}
+    </button>
+  );
+}
+
 
 function BulkStageMenu({ onPick, stages }: { onPick: (s: string) => void; stages: string[] }) {
   const [open, setOpen] = useState(false);
@@ -614,6 +751,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [financeFu, setFinanceFu] = useState(lead.finance_follow_up_date || "");
   const [openPay, setOpenPay] = useState(false);
   const [openFu, setOpenFu] = useState(false);
+  const [openFin, setOpenFin] = useState(false);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
@@ -683,6 +821,12 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
                   Open in Calling CRM
                 </Link>
               )}
+              <button onClick={() => setOpenFin(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#15803D] text-white hover:opacity-90">
+                Update Finance
+              </button>
+              <button onClick={() => setOpenPay(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+                + Add Payment
+              </button>
               <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
                 Set Follow-up
               </button>
@@ -855,6 +999,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
 
       {openPay && <QuickAddPaymentModal leadId={lead.id} leadName={lead.name || undefined} onClose={() => setOpenPay(false)} onSaved={() => { loadInner(); onChanged(); }} />}
       {openFu && <QuickFollowUpModal leadId={lead.id} leadName={lead.name || undefined} crmLeadId={lead.crm_lead_id || null} defaults={{ priority: temperature || "Normal" }} onClose={() => setOpenFu(false)} onSaved={() => { loadInner(); onChanged(); }} />}
+      {openFin && <QuickFinanceModal lead={lead as any} onClose={() => setOpenFin(false)} onSaved={() => { loadInner(); onChanged(); }} />}
     </div>
   );
 }
