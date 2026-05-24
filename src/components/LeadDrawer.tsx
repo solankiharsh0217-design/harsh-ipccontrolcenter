@@ -28,7 +28,9 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [activityNote, setActivityNote] = useState("");
   const [activityChannel, setActivityChannel] = useState<ActivityLog["channel"]>("call");
-  // Legacy reminder inputs removed in favour of FastFollowUpComposer
+  const [paidSnap, setPaidSnap] = useState<any | null>(null);
+  const [showStagePicker, setShowStagePicker] = useState(false);
+  const [newStageName, setNewStageName] = useState("");
 
   const load = async () => {
     const [{ data: l }, { data: a }, { data: r }] = await Promise.all([
@@ -37,6 +39,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
       supabase.from("follow_up_reminders").select("*").eq("lead_id", leadId).order("reminder_date"),
     ]);
     setLead(l as any); setActivities((a || []) as any); setReminders((r || []) as any);
+    const ppid = (l as any)?.paid_pipeline_lead_id;
+    if (ppid) {
+      const { data: pp } = await supabase.from("paid_pipeline_leads")
+        .select("id,deal_value,token_amount_collected,total_collected,balance_pending,token_paid_status")
+        .eq("id", ppid).maybeSingle();
+      setPaidSnap(pp || null);
+    } else setPaidSnap(null);
   };
   useEffect(() => { load(); }, [leadId]);
 
