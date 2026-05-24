@@ -50,6 +50,10 @@ export default function Crm() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [hoverStage, setHoverStage] = useState<string | null>(null);
   const [hoverBefore, setHoverBefore] = useState<string | null>(null);
+  const [stageDragId, setStageDragId] = useState<string | null>(null);
+  const [stageHoverId, setStageHoverId] = useState<string | null>(null);
+  const [renameStageTarget, setRenameStageTarget] = useState<Stage | null>(null);
+  const [renameStageValue, setRenameStageValue] = useState("");
 
   const handleImportDone = async (result?: ImportResult) => {
     setImportOpen(false);
