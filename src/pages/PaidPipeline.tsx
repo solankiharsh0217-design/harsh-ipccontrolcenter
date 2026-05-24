@@ -74,7 +74,7 @@ export default function PaidPipeline() {
   const [onboardingBatches, setOnboardingBatches] = useState<string[]>([]);
   const [stages, setStages] = useState<string[]>([]);
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
-  const [view, setView] = useState<"leads"|"batches">("leads");
+  const [view, setView] = useState<"leads"|"batches">("batches");
   const [batchFilter, setBatchFilter] = useState("all"); // source webinar batch
   const [paidBatchFilter, setPaidBatchFilter] = useState("all");
   const [onboardingBatchFilter, setOnboardingBatchFilter] = useState("all");
