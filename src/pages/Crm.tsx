@@ -469,7 +469,13 @@ export default function Crm() {
               const total = items.reduce((sum, l) => sum + Number(l.deal_value || 0), 0);
               const color = STAGE_COLORS[s.color] || "#888";
               return (
-                <div key={s.id} className="w-[270px] flex-shrink-0 bg-off rounded-xl border border-line flex flex-col" onDragOver={(e) => e.preventDefault()} onDrop={(e) => onDrop(e, s.id)}>
+                <div
+                  key={s.id}
+                  className={`w-[270px] flex-shrink-0 rounded-xl border flex flex-col transition-colors ${hoverStage === s.id ? "bg-gold-pale border-gold" : "bg-off border-line"}`}
+                  onDragOver={(e) => { e.preventDefault(); if (hoverStage !== s.id) setHoverStage(s.id); }}
+                  onDragLeave={(e) => { if (e.currentTarget === e.target) { setHoverStage((h) => h === s.id ? null : h); } }}
+                  onDrop={(e) => onDrop(e, s.id)}
+                >
                   <div className="px-3 pt-3 pb-2 border-b-2" style={{ borderBottomColor: color }}>
                     <div className="flex items-center justify-between">
                       <div className="font-sans text-[11px] uppercase tracking-wider font-medium flex items-center gap-1.5">
@@ -486,41 +492,51 @@ export default function Crm() {
                       const ag = agents.find((a) => a.id === l.assigned_agent_id);
                       const cardBg = l.is_super_hot ? "#FDF2F8" : l.lead_type === "paid" ? "#F0FDF4" : "white";
                       const cardBorder = l.is_super_hot ? "#FBCFE8" : l.lead_type === "paid" ? "#BBF7D0" : "#E8E5DE";
+                      const isDragging = dragId === l.id;
+                      const showPlaceholderBefore = hoverStage === s.id && hoverBefore === l.id && dragId && dragId !== l.id;
                       return (
-                        <div key={l.id}
-                          draggable
-                          onDragStart={(e) => e.dataTransfer.setData("text/plain", l.id)}
-                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                          onDrop={(e) => onDrop(e, s.id, l.id)}
-                          onClick={() => setOpenLead(l.id)}
-                          className="p-3 rounded-lg border cursor-pointer hover:shadow-sm"
-                          style={{ background: cardBg, borderColor: cardBorder }}>
-                          {l.webinar_source && <div className="uppercase-label !text-[8px] mb-1">{l.webinar_source}</div>}
-                          <div className="font-serif text-sm">{l.full_name || "Unnamed"}</div>
-                          <div className="text-[11px] text-muted-foreground">{l.program_name}</div>
-                          <div className="text-[11px] mt-0.5">{l.phone || "—"}</div>
-                          <div className="text-[11px] mt-1">₹{Number(l.deal_value).toLocaleString("en-IN")}</div>
-                          {(leadTagsMap[l.id] || []).length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {(leadTagsMap[l.id] || []).slice(0, 2).map((tg) => {
-                                const tc = tg.color || pickTagColor(tg.name);
-                                return (
-                                  <span key={tg.id} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium border" style={{ background: tc + "1A", color: tc, borderColor: tc + "55" }}>{tg.name}</span>
-                                );
-                              })}
-                              {(leadTagsMap[l.id] || []).length > 2 && (
-                                <span className="text-[9px] text-muted-foreground">+{(leadTagsMap[l.id] || []).length - 2}</span>
-                              )}
-                            </div>
+                        <div key={l.id}>
+                          {showPlaceholderBefore && (
+                            <div className="mb-2 rounded-lg border-2 border-dashed border-gold bg-gold-pale/50 h-[88px] flex items-center justify-center text-[10px] uppercase tracking-wider text-gold-deep">Drop here</div>
                           )}
-                          <div className="flex items-center justify-between mt-2 gap-2">
-                            <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
-                            {ag && <div className="w-5 h-5 rounded-full bg-black text-gold font-serif text-[9px] flex items-center justify-center" title={ag.full_name}>{ag.full_name.slice(0,1)}</div>}
+                          <div
+                            draggable
+                            onDragStart={(e) => { e.dataTransfer.setData("text/plain", l.id); e.dataTransfer.effectAllowed = "move"; setDragId(l.id); }}
+                            onDragEnd={() => { setDragId(null); setHoverStage(null); setHoverBefore(null); }}
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== l.id) setHoverBefore(l.id); }}
+                            onDrop={(e) => onDrop(e, s.id, l.id)}
+                            onClick={() => setOpenLead(l.id)}
+                            className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-all ${isDragging ? "opacity-40 scale-95 shadow-lg rotate-1" : ""}`}
+                            style={{ background: cardBg, borderColor: cardBorder }}>
+                            {l.webinar_source && <div className="uppercase-label !text-[8px] mb-1">{l.webinar_source}</div>}
+                            <div className="font-serif text-sm">{l.full_name || "Unnamed"}</div>
+                            <div className="text-[11px] text-muted-foreground">{l.program_name}</div>
+                            <div className="text-[11px] mt-0.5">{l.phone || "—"}</div>
+                            <div className="text-[11px] mt-1">₹{Number(l.deal_value).toLocaleString("en-IN")}</div>
+                            {(leadTagsMap[l.id] || []).length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {(leadTagsMap[l.id] || []).slice(0, 2).map((tg) => {
+                                  const tc = tg.color || pickTagColor(tg.name);
+                                  return (
+                                    <span key={tg.id} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium border" style={{ background: tc + "1A", color: tc, borderColor: tc + "55" }}>{tg.name}</span>
+                                  );
+                                })}
+                                {(leadTagsMap[l.id] || []).length > 2 && (
+                                  <span className="text-[9px] text-muted-foreground">+{(leadTagsMap[l.id] || []).length - 2}</span>
+                                )}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between mt-2 gap-2">
+                              <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
+                              {ag && <div className="w-5 h-5 rounded-full bg-black text-gold font-serif text-[9px] flex items-center justify-center" title={ag.full_name}>{ag.full_name.slice(0,1)}</div>}
+                            </div>
                           </div>
                         </div>
                       );
                     })}
-                    {items.length === 0 && <div className="text-[10px] text-muted-foreground text-center py-4">Drop leads here</div>}
+                    {items.length === 0 && (
+                      <div className={`text-[10px] text-center py-6 rounded-lg border-2 border-dashed transition-colors ${hoverStage === s.id ? "border-gold bg-gold-pale/50 text-gold-deep uppercase tracking-wider" : "border-transparent text-muted-foreground"}`}>{hoverStage === s.id ? "Drop here" : "Drop leads here"}</div>
+                    )}
                   </div>
                 </div>
               );
