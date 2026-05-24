@@ -10,6 +10,7 @@ import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
+import AssignModal from "@/components/AssignModal";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
