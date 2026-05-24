@@ -27,10 +27,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [activityNote, setActivityNote] = useState("");
   const [activityChannel, setActivityChannel] = useState<ActivityLog["channel"]>("call");
-  const [rDate, setRDate] = useState(new Date().toISOString().slice(0, 10));
-  const [rTime, setRTime] = useState("10:00");
-  const [rChannel, setRChannel] = useState<Reminder["channel"]>("call");
-  const [rNote, setRNote] = useState("");
+  // Legacy reminder inputs removed in favour of FastFollowUpComposer
 
   const load = async () => {
     const [{ data: l }, { data: a }, { data: r }] = await Promise.all([
