@@ -128,7 +128,7 @@ export default function PaidBatchesView({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {batches.map(b => {
-        const a = aggMap[b.id] || { total: 0, token: 0, collected: 0, deal: 0, balance: 0, toBeRealized: 0, finalSales: 0, dropped: 0, financePending: 0, hotPending: 0 } as any;
+        const a = aggMap[b.id] || { total: 0, token: 0, collected: 0, deal: 0, balance: 0, toBeRealized: 0, finalSales: 0, dropped: 0, financePending: 0, hotPending: 0, followUpsDue: 0 } as any;
         const isRenaming = renamingId === b.id;
         return (
           <div key={b.id} className="border border-line rounded-xl bg-white p-4 hover:shadow-md hover:border-gold transition-all">
