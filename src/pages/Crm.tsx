@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHead } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
@@ -81,6 +82,11 @@ export default function Crm() {
     if (!activePipeline && p && p.length) setActivePipeline(p[0].id);
   };
   useEffect(() => { load(); }, []);
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const leadParam = searchParams.get("lead");
+    if (leadParam) setOpenLead(leadParam);
+  }, [searchParams]);
 
   const pipelineStages = useMemo(() => stages.filter((s) => s.pipeline_id === activePipeline).sort((a, b) => a.position - b.position), [stages, activePipeline]);
   const pipelineLeads = useMemo(() => {

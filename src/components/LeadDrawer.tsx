@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { GRADE_STYLES, type Lead, type Stage, type ActivityLog, type Reminder } from "@/lib/crmTypes";
-import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2 } from "lucide-react";
+import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 interface Props {
@@ -98,6 +99,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
           </div>
+          {(lead as any).paid_pipeline_lead_id && (
+            <div className="mt-3">
+              <Link to={`/paid-pipeline?lead=${(lead as any).paid_pipeline_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+                <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Score + signals */}

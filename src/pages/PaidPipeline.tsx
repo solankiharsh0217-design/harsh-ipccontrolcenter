@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ type Lead = {
   revenue_recognition_rule: string | null;
   notes: string | null;
   created_at: string;
+  crm_lead_id?: string | null;
 };
 type Batch = { id: string; batch_name: string; webinar_name: string; webinar_date: string | null };
 type PaidBatch = { id: string; batch_name: string; batch_status: string };
@@ -74,7 +76,7 @@ export default function PaidPipeline() {
   const [onboardingBatches, setOnboardingBatches] = useState<string[]>([]);
   const [stages, setStages] = useState<string[]>([]);
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
-  const [view, setView] = useState<"leads"|"batches">("batches");
+  const [view, setView] = useState<"leads"|"batches">("leads");
   const [batchFilter, setBatchFilter] = useState("all"); // source webinar batch
   const [paidBatchFilter, setPaidBatchFilter] = useState("all");
   const [onboardingBatchFilter, setOnboardingBatchFilter] = useState("all");
@@ -85,6 +87,7 @@ export default function PaidPipeline() {
   const [followUpFilter, setFollowUpFilter] = useState("all");
   const [revenueStatusFilter, setRevenueStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quickPayId, setQuickPayId] = useState<string | null>(null);
@@ -112,6 +115,23 @@ export default function PaidPipeline() {
     setOnboardingBatches(Array.from(obSet).sort());
   };
   useEffect(() => { load(); }, []);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const leadParam = searchParams.get("lead");
+    if (leadParam) { setOpenId(leadParam); setView("leads"); }
+  }, [searchParams]);
+
+  const resetFilters = () => {
+    setSearch(""); setSearchInput("");
+    setBatchFilter("all"); setPaidBatchFilter("all"); setOnboardingBatchFilter("all");
+    setStageFilter("all"); setTempFilter("all");
+    setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
+    setFollowUpFilter("all"); setRevenueStatusFilter("all");
+  };
+  const anyFilterActive = !!search || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter].some(v => v !== "all");
+
+
 
   const filtered = useMemo(() => {
     const td = today();
@@ -271,6 +291,7 @@ export default function PaidPipeline() {
 
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5">
+        <SumCard label="Total Paid Leads" value={String(filtered.length)} accent="blue" />
         <SumCard label="Total Deal Value" value={inr(totals.dealTotal)} />
         <SumCard label="Token Collected" value={inr(totals.token)} />
         <SumCard label="Total Collected" value={inr(totals.collectedTotal)} accent="green" />
@@ -286,8 +307,14 @@ export default function PaidPipeline() {
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-3">
-        <input className="h-9 border border-line rounded-md px-3 text-[13px] col-span-2" placeholder="Search name, email, phone…" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-2">
+        <input
+          className="h-9 border border-line rounded-md px-3 text-[13px] col-span-2"
+          placeholder="Search name, email, phone…"
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") setSearch(searchInput); }}
+        />
         <FilterSelect value={batchFilter} onChange={setBatchFilter} label="All webinar batches" options={batches.map(b => ({ v: b.id, l: b.batch_name }))} />
         <FilterSelect value={paidBatchFilter} onChange={setPaidBatchFilter} label="All paid batches" options={paidBatches.map(b => ({ v: b.id, l: b.batch_name }))} />
         <FilterSelect value={onboardingBatchFilter} onChange={setOnboardingBatchFilter} label="All onboarding batches" options={onboardingBatches.map(o => ({ v: o, l: o }))} />
@@ -303,6 +330,17 @@ export default function PaidPipeline() {
           { v: "balance_pending", l: "Balance pending" }, { v: "dropped", l: "Dropped" },
         ]} />
       </div>
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <div className="text-[12.5px] text-muted-foreground">
+          Showing <span className="font-medium text-black">{filtered.length}</span> of <span className="font-medium text-black">{leads.length}</span> paid leads
+          {anyFilterActive && <span className="ml-2 text-[11px] uppercase tracking-wider text-[#2563EB]">Filters active</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setSearch(searchInput)} className="ipc-btn ipc-btn-black !h-9">Search</button>
+          <button onClick={resetFilters} className="ipc-btn ipc-btn-ghost !h-9">Reset Filters</button>
+        </div>
+      </div>
+
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
@@ -346,7 +384,8 @@ export default function PaidPipeline() {
           <tbody>
             {filtered.length === 0 && (
               <tr><td colSpan={15} className="px-3 py-10 text-center text-muted-foreground">
-                No buyers match these filters.
+                <div>No paid leads match these filters.</div>
+                <button onClick={resetFilters} className="ipc-btn ipc-btn-ghost !h-8 mt-3">Reset Filters</button>
               </td></tr>
             )}
             {filtered.map(l => {
@@ -562,11 +601,36 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           <div>
             <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
             <div className="text-[12px] text-muted-foreground">{lead.email || "—"} · {lead.phone || "—"}</div>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {lead.crm_lead_id && (
+                <Link to={`/crm?lead=${lead.crm_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+                  Open in Calling CRM
+                </Link>
+              )}
+              <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
+                Set Follow-up
+              </button>
+            </div>
           </div>
           <button onClick={onClose} className="text-[20px] leading-none">×</button>
         </div>
 
         <div className="p-6 space-y-5">
+          {/* Timeline & Follow-up */}
+          <Section title="Timeline & Follow-up">
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="Created / Imported" value={lead.created_at ? fmtDate(lead.created_at) : "—"} />
+              <Field label="Paid Batch" value={lead.paid_batch_name || "—"} />
+              <Field label="Onboarding Batch" value={lead.onboarding_batch_name || "—"} />
+              <Field label="Last Payment Date" value={payments[0]?.payment_date ? fmtDate(payments[0].payment_date) : "—"} />
+              <Field label="Last Contacted" value={activity[0]?.created_at ? fmtDate(activity[0].created_at) : "—"} />
+              <Field label="Next Follow-up Date" value={lead.next_follow_up_date ? fmtDate(lead.next_follow_up_date) : "—"} />
+              <Field label="Next Follow-up Time" value={lead.next_follow_up_time ? String(lead.next_follow_up_time).slice(0,5) : "—"} />
+              <Field label="Follow-up Type" value={lead.follow_up_reason || "—"} />
+              <Field label="Assigned Owner" value={agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"} />
+            </div>
+          </Section>
+
           {/* Payment Summary */}
           <Section title="Payment summary">
             <div className="grid grid-cols-3 gap-2">
