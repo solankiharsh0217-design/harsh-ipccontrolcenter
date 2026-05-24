@@ -136,9 +136,16 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       setPipelines(pl || []);
       setStages(st || []);
       setAgents(((ag || []) as any).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")));
-      const def = (pl || []).find((p: any) => p.type === leadType) || (pl || [])[0];
-      setTargetPipelineId(def?.id || "__new__");
+      const list = pl || [];
+      const def = resolveDefaultPipelineId(leadType, list);
+      setTargetPipelineId(def);
       setNewPipeType(leadType);
+      if (def === "__new__") {
+        setCreatingPipeline(true);
+        setNewPipeName(leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)");
+      } else {
+        setCreatingPipeline(false);
+      }
       setStep(3);
     } finally { setLoading(false); }
   };
