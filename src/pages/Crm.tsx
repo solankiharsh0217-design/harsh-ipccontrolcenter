@@ -50,6 +50,10 @@ export default function Crm() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [hoverStage, setHoverStage] = useState<string | null>(null);
   const [hoverBefore, setHoverBefore] = useState<string | null>(null);
+  const [stageDragId, setStageDragId] = useState<string | null>(null);
+  const [stageHoverId, setStageHoverId] = useState<string | null>(null);
+  const [renameStageTarget, setRenameStageTarget] = useState<Stage | null>(null);
+  const [renameStageValue, setRenameStageValue] = useState("");
 
   const handleImportDone = async (result?: ImportResult) => {
     setImportOpen(false);
@@ -119,7 +123,15 @@ export default function Crm() {
     })();
   }, [leads]);
 
-  const pipelineStages = useMemo(() => stages.filter((s) => s.pipeline_id === activePipeline).sort((a, b) => a.position - b.position), [stages, activePipeline]);
+  const pipelineStages = useMemo(() => {
+    const all = stages.filter((s) => s.pipeline_id === activePipeline).sort((a, b) => a.position - b.position);
+    return all.filter((s) => {
+      const active = (s as any).is_active !== false;
+      if (active) return true;
+      // Keep inactive stages visible only if they still contain leads (so users can move them out)
+      return leads.some((l) => l.stage_id === s.id);
+    });
+  }, [stages, activePipeline, leads]);
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
@@ -294,14 +306,65 @@ export default function Crm() {
     if (!swap) return;
     await supabase.from("stages").update({ position: swap.position }).eq("id", s.id);
     await supabase.from("stages").update({ position: s.position }).eq("id", swap.id);
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_reordered", entity_type: "crm_stage", entity_id: s.id, entity_label: s.name, old_values: { position: s.position }, new_values: { position: swap.position }, summary: `Stage "${s.name}" moved ${dir < 0 ? "left" : "right"}` });
+    await load();
+  };
+
+  const reorderStageDrop = async (target: Stage) => {
+    const drag = stages.find((x) => x.id === stageDragId);
+    setStageDragId(null); setStageHoverId(null);
+    if (!drag || drag.id === target.id || drag.pipeline_id !== target.pipeline_id) return;
+    const ordered = pipelineStages.filter((s) => s.id !== drag.id);
+    const targetIdx = ordered.findIndex((s) => s.id === target.id);
+    const insertIdx = (pipelineStages.findIndex((s) => s.id === drag.id) < targetIdx) ? targetIdx + 1 : targetIdx;
+    ordered.splice(insertIdx, 0, drag);
+    // Rewrite positions sequentially for the active pipeline
+    for (let i = 0; i < ordered.length; i++) {
+      if (ordered[i].position !== i) {
+        await supabase.from("stages").update({ position: i }).eq("id", ordered[i].id);
+      }
+    }
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_reordered", entity_type: "crm_stage", entity_id: drag.id, entity_label: drag.name, summary: `Stage "${drag.name}" reordered` });
+    await load();
+  };
+
+  const renameStage = async (s: Stage, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) { toast.error("Name required"); return; }
+    if (trimmed.toLowerCase() === s.name.toLowerCase()) { setRenameStageTarget(null); return; }
+    const duplicate = pipelineStages.some((x) => x.id !== s.id && x.name.toLowerCase() === trimmed.toLowerCase());
+    if (duplicate) { toast.error("Another stage in this pipeline already uses that name"); return; }
+    const { error } = await supabase.from("stages").update({ name: trimmed }).eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Stage renamed to "${trimmed}"`);
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_renamed", entity_type: "crm_stage", entity_id: s.id, entity_label: trimmed, old_values: { name: s.name }, new_values: { name: trimmed }, summary: `Stage "${s.name}" renamed to "${trimmed}"` });
+    setRenameStageTarget(null);
+    await load();
+  };
+
+  const deactivateStage = async (s: Stage) => {
+    const count = leads.filter((l) => l.stage_id === s.id).length;
+    if (count > 0) {
+      if (!confirm(`"${s.name}" still holds ${count} lead${count === 1 ? "" : "s"}. Deactivate? It stays visible until those leads move out, but it won't show in new selections.`)) return;
+    } else {
+      if (!confirm(`Deactivate "${s.name}"? It will be hidden from selections.`)) return;
+    }
+    const { error } = await supabase.from("stages").update({ is_active: false } as any).eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Stage "${s.name}" deactivated`);
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_deactivated", entity_type: "crm_stage", entity_id: s.id, entity_label: s.name, summary: `Stage "${s.name}" deactivated`, severity: "warning" });
     await load();
   };
 
   const deleteStage = async (s: Stage) => {
-    if (s.is_protected) { toast.error("Protected stage — untoggle Protected first"); return; }
+    if (s.is_protected) { toast.error("Protected stage — cannot delete"); return; }
     const count = leads.filter((l) => l.stage_id === s.id).length;
-    if (count > 0) { toast.error(`${count} leads in this stage`); return; }
-    await supabase.from("stages").delete().eq("id", s.id);
+    if (count > 0) { toast.error(`${count} lead(s) still in "${s.name}". Move them first, or deactivate instead.`); return; }
+    if (!confirm(`Delete stage "${s.name}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from("stages").delete().eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Stage "${s.name}" deleted`);
+    logActivity({ module_key: "calling_crm", action_type: "crm_stage_deleted", entity_type: "crm_stage", entity_id: s.id, entity_label: s.name, summary: `Stage "${s.name}" deleted`, severity: "warning" });
     await load();
   };
 
@@ -470,8 +533,8 @@ export default function Crm() {
           <div className="flex items-center gap-1 ml-auto">
             <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
             <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
+            <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Add a new Kanban stage"><Plus className="w-3.5 h-3.5" /> Add Stage</button>
             <OverflowActionsMenu
-              onAddStage={() => setAddStageOpen(true)}
               onExport={exportCsv}
             />
           </div>
@@ -511,6 +574,27 @@ export default function Crm() {
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
       {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
+      {renameStageTarget && (
+        <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-sm p-5">
+            <div className="font-serif text-base mb-1">Rename stage</div>
+            <div className="text-[11px] text-muted-foreground mb-3">Current: {renameStageTarget.name}</div>
+            <input
+              autoFocus
+              type="text"
+              value={renameStageValue}
+              onChange={(e) => setRenameStageValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") renameStage(renameStageTarget, renameStageValue); if (e.key === "Escape") setRenameStageTarget(null); }}
+              className="ipc-input w-full"
+              placeholder="New stage name"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setRenameStageTarget(null)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs">Cancel</button>
+              <button onClick={() => renameStage(renameStageTarget, renameStageValue)} className="ipc-btn ipc-btn-black !h-9 !text-xs">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
 
@@ -518,25 +602,55 @@ export default function Crm() {
       {view === "kanban" && (
         <div className="overflow-x-auto pb-4">
           <div className="flex gap-3" style={{ minWidth: (stageFilter !== "all" ? 1 : pipelineStages.length) * 280 }}>
-            {pipelineStages.filter((s) => stageFilter === "all" || s.id === stageFilter).map((s) => {
+            {pipelineStages.filter((s) => stageFilter === "all" || s.id === stageFilter).map((s, idx, arr) => {
               const items = pipelineLeads.filter((l) => l.stage_id === s.id);
               const total = items.reduce((sum, l) => sum + Number(l.deal_value || 0), 0);
               const color = STAGE_COLORS[s.color] || "#888";
+              const isInactive = (s as any).is_active === false;
+              const isStageDragTarget = stageDragId && stageDragId !== s.id && stageHoverId === s.id;
+              const isStageBeingDragged = stageDragId === s.id;
               return (
                 <div
                   key={s.id}
-                  className={`w-[270px] flex-shrink-0 rounded-xl border flex flex-col transition-colors ${hoverStage === s.id ? "bg-gold-pale border-gold" : "bg-off border-line"}`}
-                  onDragOver={(e) => { e.preventDefault(); if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== null) setHoverBefore(null); }}
-                  onDragLeave={(e) => { if (e.currentTarget === e.target) { setHoverStage((h) => h === s.id ? null : h); } }}
-                  onDrop={(e) => onDrop(e, s.id)}
+                  className={`w-[270px] flex-shrink-0 rounded-xl border flex flex-col transition-all ${hoverStage === s.id ? "bg-gold-pale border-gold" : "bg-off border-line"} ${isStageDragTarget ? "ring-2 ring-gold ring-offset-2" : ""} ${isStageBeingDragged ? "opacity-50" : ""} ${isInactive ? "opacity-70" : ""}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (stageDragId) { if (stageHoverId !== s.id) setStageHoverId(s.id); return; }
+                    if (hoverStage !== s.id) setHoverStage(s.id);
+                    if (hoverBefore !== null) setHoverBefore(null);
+                  }}
+                  onDragLeave={(e) => { if (e.currentTarget === e.target) { setHoverStage((h) => h === s.id ? null : h); setStageHoverId((h) => h === s.id ? null : h); } }}
+                  onDrop={(e) => { if (stageDragId) { e.preventDefault(); e.stopPropagation(); reorderStageDrop(s); return; } onDrop(e, s.id); }}
                 >
                   <div className="px-3 pt-3 pb-2 border-b-2" style={{ borderBottomColor: color }}>
-                    <div className="flex items-center justify-between">
-                      <div className="font-sans text-[11px] uppercase tracking-wider font-medium flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-                        {s.name}
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                        <span
+                          draggable
+                          onDragStart={(e) => { e.dataTransfer.setData("text/plain", `stage:${s.id}`); e.dataTransfer.effectAllowed = "move"; setStageDragId(s.id); }}
+                          onDragEnd={() => { setStageDragId(null); setStageHoverId(null); }}
+                          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-black text-[10px] select-none"
+                          title="Drag to reorder stage"
+                        >⋮⋮</span>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                        <div className="font-sans text-[11px] uppercase tracking-wider font-medium truncate" title={s.name}>
+                          {s.name}{isInactive && <span className="ml-1 text-[9px] text-muted-foreground normal-case tracking-normal">(inactive)</span>}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">{items.length}</div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="text-xs text-muted-foreground">{items.length}</div>
+                        <StageHeaderMenu
+                          stage={s}
+                          idx={idx}
+                          total={arr.length}
+                          isInactive={isInactive}
+                          onRename={() => { setRenameStageTarget(s); setRenameStageValue(s.name); }}
+                          onMoveLeft={() => moveStage(s, -1)}
+                          onMoveRight={() => moveStage(s, 1)}
+                          onDeactivate={() => deactivateStage(s)}
+                          onDelete={() => deleteStage(s)}
+                        />
+                      </div>
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">₹{total.toLocaleString("en-IN")}</div>
                   </div>
@@ -977,7 +1091,7 @@ function MoreFiltersMenu({ tagFilter, stageFilter, count }: { tagFilter: React.R
 }
 
 
-function OverflowActionsMenu({ onAddStage, onExport }: { onAddStage: () => void; onExport: () => void }) {
+function OverflowActionsMenu({ onExport }: { onExport: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -991,10 +1105,45 @@ function OverflowActionsMenu({ onAddStage, onExport }: { onAddStage: () => void;
       <button onClick={() => setOpen(o => !o)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs !px-2" title="More actions" aria-label="More actions">⋯</button>
       {open && (
         <div className="absolute right-0 mt-1 w-44 bg-white border border-line rounded-md shadow-lg z-[1050] py-1">
-          <button onClick={() => { setOpen(false); onAddStage(); }} className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-off">+ Add Stage</button>
           <button onClick={() => { setOpen(false); onExport(); }} className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-off"><Download className="w-3 h-3 inline mr-1" /> Export CSV</button>
         </div>
       )}
     </div>
   );
 }
+
+function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight, onDeactivate, onDelete, isInactive }: {
+  stage: Stage; idx: number; total: number;
+  onRename: () => void; onMoveLeft: () => void; onMoveRight: () => void;
+  onDeactivate: () => void; onDelete: () => void;
+  isInactive: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const item = (label: string, fn: () => void, disabled?: boolean, accent?: string) => (
+    <button disabled={disabled} onClick={() => { setOpen(false); if (!disabled) fn(); }} className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-off disabled:opacity-40 disabled:hover:bg-transparent ${accent || ""}`}>{label}</button>
+  );
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)} className="text-muted-foreground hover:text-black text-[14px] leading-none px-1" title="Stage actions" aria-label="Stage actions">⋯</button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-44 bg-white border border-line rounded-md shadow-lg z-[1050] py-1">
+          {item("Rename stage", onRename)}
+          {item("Move left", onMoveLeft, idx === 0)}
+          {item("Move right", onMoveRight, idx >= total - 1)}
+          <div className="h-px bg-line my-1" />
+          {!isInactive && !stage.is_protected && item("Deactivate stage", onDeactivate, false, "text-[#B45309]")}
+          {!stage.is_protected && item("Delete stage", onDelete, false, "text-[#DC2626]")}
+          {stage.is_protected && <div className="px-3 py-1.5 text-[10px] text-muted-foreground italic">Protected stage</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
