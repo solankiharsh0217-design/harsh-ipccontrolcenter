@@ -370,6 +370,10 @@ export default function Crm() {
             <option value="warm">Warm</option>
             <option value="cold">Cold</option>
           </select>
+          <select className="ipc-input !h-10 !text-xs max-w-[180px]" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} title="Filter by tag">
+            <option value="all">All tags</option>
+            {allTags.map((t) => <option key={t.id} value={t.id}>🏷 {t.name}</option>)}
+          </select>
           <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>
           <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
           <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-10">+ Add Stage</button>
