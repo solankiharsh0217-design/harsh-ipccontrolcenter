@@ -519,7 +519,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               }
               paidLinked++;
             } else {
-              payload.created_by = user?.id;
+              payload.created_by = profile?.id;
               const { data: ins, error: insErr } = await supabase
                 .from("paid_pipeline_leads").insert(payload).select("id").maybeSingle();
               if (!insErr && ins?.id) {
