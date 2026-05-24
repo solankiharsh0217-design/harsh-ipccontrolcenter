@@ -66,13 +66,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
     });
     setActivityNote(""); await load();
   };
-  const addReminder = async () => {
-    await supabase.from("follow_up_reminders").insert({
-      lead_id: lead.id, agent_id: profile?.id,
-      reminder_date: rDate, reminder_time: rTime, channel: rChannel, note: rNote || null,
-    });
-    setRNote(""); await load();
-  };
+  // addReminder removed — handled by FastFollowUpComposer
   const delReminder = async (id: string) => {
     await supabase.from("follow_up_reminders").delete().eq("id", id);
     await load();
