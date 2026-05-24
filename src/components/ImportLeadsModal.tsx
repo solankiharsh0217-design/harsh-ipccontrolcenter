@@ -465,6 +465,87 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         }
       }
 
+      // ── Auto-sync paid leads to Paid Pipeline ─────────────────────────────
+      let paidSynced = 0;
+      let paidLinked = 0;
+      if (pipelineType === "paid") {
+        try {
+          // Pull the freshly imported/updated CRM leads for this batch
+          const { data: crmRows } = await supabase
+            .from("leads")
+            .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id")
+            .eq("pipeline_id", pipelineId)
+            .eq("webinar_source", segmentName);
+
+          for (const lead of (crmRows || []) as any[]) {
+            // Match priority: existing link → email → phone
+            let existing: any = null;
+            if (lead.paid_pipeline_lead_id) {
+              const { data } = await supabase.from("paid_pipeline_leads")
+                .select("id, crm_lead_id").eq("id", lead.paid_pipeline_lead_id).maybeSingle();
+              existing = data;
+            }
+            if (!existing && lead.email) {
+              const { data } = await supabase.from("paid_pipeline_leads")
+                .select("id, crm_lead_id").eq("email", lead.email).eq("is_deleted", false).maybeSingle();
+              existing = data;
+            }
+            if (!existing && lead.phone) {
+              const { data } = await supabase.from("paid_pipeline_leads")
+                .select("id, crm_lead_id").eq("phone", lead.phone).eq("is_deleted", false).maybeSingle();
+              existing = data;
+            }
+
+            const payload: any = {
+              name: lead.full_name,
+              email: lead.email,
+              phone: lead.phone,
+              product_name_snapshot: lead.program_name || productName || null,
+              deal_value_including_gst: Number(lead.deal_value || dealValue || 0),
+              source_webinar: segmentName,
+              pipeline_stage: "Payment Confirmed",
+              payment_status: "No Payment",
+              crm_lead_id: lead.id,
+            };
+
+            if (existing) {
+              await supabase.from("paid_pipeline_leads").update({
+                crm_lead_id: lead.id,
+                source_webinar: segmentName,
+                product_name_snapshot: payload.product_name_snapshot,
+              } as any).eq("id", existing.id);
+              if (lead.paid_pipeline_lead_id !== existing.id) {
+                await supabase.from("leads").update({ paid_pipeline_lead_id: existing.id } as any).eq("id", lead.id);
+              }
+              paidLinked++;
+            } else {
+              payload.created_by = user?.id;
+              const { data: ins, error: insErr } = await supabase
+                .from("paid_pipeline_leads").insert(payload).select("id").maybeSingle();
+              if (!insErr && ins?.id) {
+                await supabase.from("leads").update({ paid_pipeline_lead_id: ins.id } as any).eq("id", lead.id);
+                paidSynced++;
+              } else if (insErr) {
+                console.error("[ImportLeadsModal] paid_pipeline_leads insert failed", insErr);
+              }
+            }
+          }
+
+          if (paidSynced + paidLinked > 0) {
+            logActivity({
+              module_key: "paid_pipeline",
+              action_type: "paid_pipeline_record_created_from_crm",
+              entity_type: "crm_batch",
+              entity_label: segmentName,
+              metadata: { batch_name: segmentName, paid_created: paidSynced, paid_linked: paidLinked, pipeline_id: pipelineId },
+              summary: `Paid Pipeline auto-sync: ${paidSynced} created · ${paidLinked} linked from batch "${segmentName}".`,
+            });
+          }
+        } catch (syncErr: any) {
+          console.error("[ImportLeadsModal] paid pipeline sync failed", syncErr);
+        }
+      }
+
       const totalSuccess = newImported + updated + moved;
       if (totalSuccess === 0 && failed === 0 && skippedDuplicates === 0) {
         toast.error("No leads were imported.");
