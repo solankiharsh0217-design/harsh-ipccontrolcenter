@@ -405,6 +405,40 @@ export default function PaidPipeline() {
         <SumCard label="Follow-Ups Due Today" value={String(totals.dueToday)} accent="blue" />
       </div>
 
+      {/* Operational insight chips */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <InsightChip
+          label={`${insights.highBalCount} leads · balance > ${inr(HIGH_BAL_THRESHOLD)} (${inr(insights.highBalAmt)})`}
+          active={insightFilter === "high_balance"}
+          onClick={() => setInsightFilter(insightFilter === "high_balance" ? null : "high_balance")}
+          accent="gold"
+        />
+        <InsightChip
+          label={`${insights.approvedNotDisbCount} finance approved · not disbursed (${inr(insights.approvedNotDisbAmt)})`}
+          active={insightFilter === "approved_not_disbursed"}
+          onClick={() => setInsightFilter(insightFilter === "approved_not_disbursed" ? null : "approved_not_disbursed")}
+          accent="blue"
+        />
+        <InsightChip
+          label={`${insights.noFu} leads · no next follow-up`}
+          active={insightFilter === "no_followup"}
+          onClick={() => setInsightFilter(insightFilter === "no_followup" ? null : "no_followup")}
+          accent="muted"
+        />
+        <InsightChip
+          label={`${insights.urgentBalCount} urgent · balance pending (${inr(insights.urgentBalAmt)})`}
+          active={insightFilter === "urgent_balance"}
+          onClick={() => setInsightFilter(insightFilter === "urgent_balance" ? null : "urgent_balance")}
+          accent="red"
+        />
+        <InsightChip
+          label={`${insights.tokenNoSecond} token paid · no further payment`}
+          active={insightFilter === "token_no_second"}
+          onClick={() => setInsightFilter(insightFilter === "token_no_second" ? null : "token_no_second")}
+          accent="gold"
+        />
+      </div>
+
       {/* Filters */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-2">
         <input
@@ -419,7 +453,9 @@ export default function PaidPipeline() {
         <FilterSelect value={onboardingBatchFilter} onChange={setOnboardingBatchFilter} label="All onboarding batches" options={onboardingBatches.map(o => ({ v: o, l: o }))} />
         <FilterSelect value={stageFilter} onChange={setStageFilter} label="All stages" options={stages.map(s => ({ v: s, l: s }))} />
         <FilterSelect value={tempFilter} onChange={setTempFilter} label="All priorities" options={TEMPERATURES.map(t => ({ v: t, l: t }))} />
-        <FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Application Submitted","Approved","Rejected","Disbursed"].map(t => ({ v: t, l: t }))} />
+        <FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Documents Received","Application Submitted","Approved","Rejected","Disbursed","Alternate Partner Needed"].map(t => ({ v: t, l: t }))} />
+        <FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} />
+        <FilterSelect value={ownerFilter} onChange={setOwnerFilter} label="All owners" options={[{ v: "unassigned", l: "— Unassigned —" }, ...agents.map(a => ({ v: a.id, l: a.full_name }))]} />
         <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
           { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
         ]} />
