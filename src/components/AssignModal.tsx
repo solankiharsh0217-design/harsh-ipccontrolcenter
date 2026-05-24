@@ -190,12 +190,14 @@ export default function AssignModal(props: Props) {
         for (const [uid, ids] of buckets) {
           if (!uid) continue;
           try {
-            await notifyUser?.({
-              user_id: uid,
-              title: "New leads assigned",
-              body: `${ids.length} ${moduleLabel} lead(s) assigned to you.`,
+            await createNotification({
+              recipient_user_id: uid,
               module_key: moduleKey,
-            } as any);
+              notification_type: "leads_assigned",
+              title: "New leads assigned",
+              message: `${ids.length} ${moduleLabel} lead(s) assigned to you.`,
+              priority: "normal",
+            });
           } catch { /* notifications optional */ }
         }
       }
