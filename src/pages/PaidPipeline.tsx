@@ -362,8 +362,9 @@ export default function PaidPipeline() {
                       {l.name || "—"}
                       {l.sent_to_crm && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0]">CRM</span>}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">{l.email || l.phone || "—"}</div>
                   </td>
+                  <td className="px-3 py-2.5 text-[11.5px] whitespace-nowrap">{l.phone || "—"}</td>
+                  <td className="px-3 py-2.5 text-[11.5px] max-w-[180px] truncate" title={l.email || ""}>{l.email || "—"}</td>
                   <td className="px-3 py-2.5 cursor-pointer" onClick={() => setOpenId(l.id)}>
                     <div>{batch?.batch_name || l.source_webinar || "—"}</div>
                     <div className="text-[11px] text-muted-foreground">{l.product_name_snapshot || "—"}</div>
