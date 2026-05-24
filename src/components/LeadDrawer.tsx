@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
+import SuggestedNextActions from "@/components/SuggestedNextActions";
 
 interface Props {
   leadId: string;
@@ -109,6 +110,11 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               leadName={lead.full_name || undefined}
             />
           </div>
+          <SuggestedNextActions
+            crmLeadId={lead.id}
+            paidLeadId={(lead as any).paid_pipeline_lead_id || null}
+            onApplied={() => { load(); onChanged(); }}
+          />
         </div>
 
         {/* Score + signals */}

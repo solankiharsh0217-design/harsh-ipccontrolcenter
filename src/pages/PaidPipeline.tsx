@@ -19,6 +19,7 @@ import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLo
 import AssignModal from "@/components/AssignModal";
 import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
+import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 
 type Lead = {
@@ -693,6 +694,12 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               leadName={lead.name || undefined}
             />
           </div>
+          <SuggestedNextActions
+            paidLeadId={lead.id}
+            crmLeadId={lead.crm_lead_id || null}
+            onApplied={() => { loadInner(); onChanged(); }}
+            onOpenFollowUp={() => setOpenFu(true)}
+          />
         </div>
 
         <div className="p-6 space-y-5">

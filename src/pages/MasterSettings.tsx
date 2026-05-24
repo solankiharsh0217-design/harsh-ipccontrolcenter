@@ -50,6 +50,8 @@ const SECTIONS = [
   { key: "webinar", label: "Webinar" },
   { key: "team", label: "Roles & Departments" },
   { key: "eligibility", label: "Assignment Eligibility" },
+  { key: "tags", label: "Tags" },
+  { key: "stage_sync", label: "Stage Sync Rules" },
   { key: "whatsapp", label: "WhatsApp Templates" },
   { key: "dropdowns", label: "General Dropdowns" },
   { key: "media_buyer_cleanup", label: "Media Buyer Name Cleanup" },
@@ -185,6 +187,8 @@ export default function MasterSettings() {
             />
           )}
           {activeSection === "eligibility" && <EligibilitySection />}
+          {activeSection === "tags" && <TagsSection />}
+          {activeSection === "stage_sync" && <StageSyncRulesSection />}
           {activeSection === "whatsapp" && <WhatsAppTemplatesSection />}
           {activeSection === "dropdowns" && <GeneralDropdownsSection />}
           {activeSection === "media_buyer_cleanup" && <MediaBuyerAliasManager />}
@@ -929,6 +933,300 @@ function GeneralDropdownsSection() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ───────────────────────── Tags Section ─────────────────────────
+function TagsSection() {
+  const [tags, setTags] = useState<any[]>([]);
+  const [usage, setUsage] = useState<Record<string, number>>({});
+  const [newName, setNewName] = useState("");
+  const [newScope, setNewScope] = useState("all");
+  const [filter, setFilter] = useState<"active" | "all">("active");
+
+  const load = async () => {
+    const { data } = await supabase.from("tags" as any)
+      .select("id, name, color, module_scope, is_active, is_deleted")
+      .eq("is_deleted", false)
+      .order("name");
+    const rows = ((data as any[]) || []).filter(r => filter === "all" || r.is_active);
+    setTags(rows);
+    // usage counts
+    const counts: Record<string, number> = {};
+    for (const t of rows) {
+      const { count } = await supabase.from("lead_tag_assignments" as any)
+        .select("id", { count: "exact", head: true }).eq("tag_id", t.id);
+      counts[t.id] = count || 0;
+    }
+    setUsage(counts);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
+
+  const add = async () => {
+    const v = newName.trim();
+    if (!v) return;
+    const { data: existing } = await supabase.from("tags" as any)
+      .select("id").ilike("name", v).eq("module_scope", newScope).maybeSingle();
+    if (existing) { toast.error("Tag already exists"); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("tags" as any).insert({
+      name: v, module_scope: newScope, created_by: user?.id ?? null,
+    } as any);
+    if (error) { toast.error(error.message); return; }
+    logActivity({ module_key: MS, module_label: MSL, action_type: "tag_created", entity_type: "tag", entity_label: v, new_values: { name: v, module_scope: newScope }, summary: `Tag '${v}' created.` });
+    setNewName(""); await load();
+  };
+
+  const toggleActive = async (t: any) => {
+    const next = !t.is_active;
+    await supabase.from("tags" as any).update({ is_active: next } as any).eq("id", t.id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: next ? "tag_activated" : "tag_deactivated", entity_type: "tag", entity_id: t.id, entity_label: t.name, summary: `Tag '${t.name}' ${next ? "activated" : "deactivated"}.`, severity: next ? "info" : "warning" });
+    await load();
+  };
+
+  const remove = async (t: any) => {
+    const u = usage[t.id] || 0;
+    if (u > 0) {
+      if (!confirm(`Tag '${t.name}' is used by ${u} lead(s). Deactivate instead?`)) return;
+      await toggleActive({ ...t, is_active: true });
+      return;
+    }
+    if (!confirm(`Delete tag '${t.name}'?`)) return;
+    await supabase.from("tags" as any).update({ is_deleted: true, is_active: false } as any).eq("id", t.id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "tag_deleted", entity_type: "tag", entity_id: t.id, entity_label: t.name, summary: `Tag '${t.name}' deleted.`, severity: "warning" });
+    await load();
+  };
+
+  return (
+    <div className={cardCls + " p-6"}>
+      <h2 className={h2Cls}>Tags</h2>
+      <p className={subCls}>Manage lead tags used by Calling CRM and Paid Pipeline. Tags in use cannot be hard-deleted — deactivate them instead.</p>
+
+      <div className="flex gap-2 mt-5 mb-3">
+        <input className={inputCls + " flex-1"} placeholder="New tag name…" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
+        <select className={inputCls + " w-[180px]"} value={newScope} onChange={(e) => setNewScope(e.target.value)}>
+          <option value="all">All modules</option>
+          <option value="crm">Calling CRM</option>
+          <option value="paid">Paid Pipeline</option>
+        </select>
+        <button className={btnPrimary} onClick={add}>Add Tag</button>
+      </div>
+
+      <div className="flex gap-2 mb-3">
+        <button className={"text-[12px] px-3 py-1.5 rounded-md " + (filter === "active" ? "bg-black text-white" : "border border-line")} onClick={() => setFilter("active")}>Active</button>
+        <button className={"text-[12px] px-3 py-1.5 rounded-md " + (filter === "all" ? "bg-black text-white" : "border border-line")} onClick={() => setFilter("all")}>All</button>
+      </div>
+
+      <div className="border border-line rounded-lg overflow-hidden">
+        <div className="grid grid-cols-[1fr_140px_100px_100px_120px] bg-off px-4 py-2.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-sans">
+          <div>Name</div><div>Scope</div><div>Usage</div><div>Active</div><div className="text-right">Actions</div>
+        </div>
+        {tags.length === 0 && <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">No tags</div>}
+        {tags.map((t) => (
+          <div key={t.id} className="grid grid-cols-[1fr_140px_100px_100px_120px] px-4 py-3 border-t border-line items-center hover:bg-off/50">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color || "#888" }} />
+              <span className="font-serif text-[15px]">{t.name}</span>
+              {!t.is_active && <span className="text-[10px] text-muted-foreground">(inactive)</span>}
+            </div>
+            <div className="font-sans text-[12px] text-muted-foreground">{t.module_scope}</div>
+            <div className="font-sans text-[12px]">{usage[t.id] ?? "—"}</div>
+            <div>
+              <button onClick={() => toggleActive(t)} className={"text-[11px] px-2 py-0.5 rounded-full " + (t.is_active ? "bg-gold-pale text-gold-deep" : "bg-off text-muted-foreground")}>
+                {t.is_active ? "Active" : "Inactive"}
+              </button>
+            </div>
+            <div className="text-right">
+              <button className="w-7 h-7 rounded-md hover:bg-[#FEF2F2] text-muted-foreground hover:text-[#DC2626]" onClick={() => remove(t)}>🗑</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────── Stage Sync Rules Section ─────────────────────────
+type SyncRuleRow = {
+  id: string;
+  rule_name: string;
+  trigger_module: string;
+  trigger_field: string;
+  trigger_value: string;
+  suggested_module: string;
+  suggested_field: string;
+  suggested_value: string;
+  notes: string | null;
+  is_active: boolean;
+  sort_order: number;
+};
+
+function StageSyncRulesSection() {
+  const [rows, setRows] = useState<SyncRuleRow[]>([]);
+  const [editing, setEditing] = useState<Partial<SyncRuleRow> | null>(null);
+
+  const load = async () => {
+    const { data } = await supabase.from("stage_sync_rules" as any)
+      .select("*").order("sort_order").order("rule_name");
+    setRows((data as any) || []);
+  };
+  useEffect(() => { load(); }, []);
+
+  const blank = (): Partial<SyncRuleRow> => ({
+    rule_name: "", trigger_module: "paid", trigger_field: "finance_status",
+    trigger_value: "", suggested_module: "crm", suggested_field: "stage",
+    suggested_value: "", is_active: true, sort_order: rows.length,
+  });
+
+  const save = async () => {
+    if (!editing) return;
+    if (!editing.rule_name?.trim()) { toast.error("Rule name required"); return; }
+    if (!editing.trigger_value?.trim() || !editing.suggested_value?.trim()) { toast.error("Trigger and suggested values required"); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    const payload: any = { ...editing };
+    if (!editing.id) payload.created_by = user?.id ?? null;
+    const oldRow = editing.id ? rows.find(r => r.id === editing.id) : null;
+    const op = editing.id
+      ? supabase.from("stage_sync_rules" as any).update(payload).eq("id", editing.id)
+      : supabase.from("stage_sync_rules" as any).insert(payload);
+    const { error } = await op;
+    if (error) { toast.error(error.message); return; }
+    logActivity({
+      module_key: MS, module_label: MSL,
+      action_type: editing.id ? "master_setting_updated" : "master_setting_created",
+      entity_type: "stage_sync_rule", entity_id: editing.id ?? null, entity_label: editing.rule_name,
+      old_values: oldRow ?? null, new_values: payload,
+      summary: editing.id ? `Stage sync rule '${editing.rule_name}' updated.` : `Stage sync rule '${editing.rule_name}' created.`,
+    });
+    setEditing(null); await load();
+  };
+
+  const toggleActive = async (r: SyncRuleRow) => {
+    await supabase.from("stage_sync_rules" as any).update({ is_active: !r.is_active } as any).eq("id", r.id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: r.is_active ? "master_setting_deactivated" : "master_setting_updated", entity_type: "stage_sync_rule", entity_id: r.id, entity_label: r.rule_name, summary: `Stage sync rule '${r.rule_name}' ${r.is_active ? "deactivated" : "activated"}.`, severity: r.is_active ? "warning" : "info" });
+    await load();
+  };
+
+  const remove = async (r: SyncRuleRow) => {
+    if (!confirm(`Delete rule '${r.rule_name}'?`)) return;
+    await supabase.from("stage_sync_rules" as any).delete().eq("id", r.id);
+    logActivity({ module_key: MS, module_label: MSL, action_type: "master_setting_deactivated", entity_type: "stage_sync_rule", entity_id: r.id, entity_label: r.rule_name, summary: `Stage sync rule '${r.rule_name}' deleted.`, severity: "warning" });
+    await load();
+  };
+
+  const MODULES = [{ v: "crm", l: "Calling CRM" }, { v: "paid", l: "Paid Pipeline" }];
+  const CRM_FIELDS = [{ v: "stage", l: "Stage" }];
+  const PAID_FIELDS = [
+    { v: "pipeline_stage", l: "Pipeline Stage" },
+    { v: "finance_status", l: "Finance Status" },
+    { v: "payment_status", l: "Payment Status" },
+    { v: "balance_category", l: "Balance Category" },
+    { v: "lead_temperature", l: "Lead Temperature" },
+  ];
+  const fieldsFor = (m?: string) => (m === "paid" ? PAID_FIELDS : CRM_FIELDS);
+
+  return (
+    <div className={cardCls + " p-6"}>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className={h2Cls}>Stage Sync Rules</h2>
+          <p className={subCls}>Configure suggestions that appear in CRM and Paid Pipeline drawers. Rules never auto-apply — users review and apply each suggestion manually.</p>
+        </div>
+        <button className={btnPrimary} onClick={() => setEditing(blank())}>+ Add Rule</button>
+      </div>
+
+      <div className="mt-3 p-3 rounded-md bg-gold-pale/30 border border-gold-pale font-sans text-[12px] text-black">
+        Built-in suggestions for Payment Confirmed → Token Paid, balance = 0 → Final Sale, Finance Approved/Disbursed → CRM stage, Dropped After Token → Refund, and Urgent Follow-Up tag → schedule follow-up are always active and do not require a rule.
+      </div>
+
+      <div className="mt-5 border border-line rounded-lg overflow-hidden">
+        <div className="grid grid-cols-[1.4fr_2fr_2fr_90px_100px] bg-off px-4 py-2.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-sans">
+          <div>Rule</div><div>When</div><div>Suggest</div><div>Active</div><div className="text-right">Actions</div>
+        </div>
+        {rows.length === 0 && <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">No custom rules yet</div>}
+        {rows.map(r => (
+          <div key={r.id} className="grid grid-cols-[1.4fr_2fr_2fr_90px_100px] px-4 py-3 border-t border-line items-center hover:bg-off/50">
+            <div className="font-serif text-[14px]">{r.rule_name}</div>
+            <div className="font-sans text-[12px] text-muted-foreground">{r.trigger_module}.{r.trigger_field} = <span className="text-black">{r.trigger_value}</span></div>
+            <div className="font-sans text-[12px] text-muted-foreground">{r.suggested_module}.{r.suggested_field} → <span className="text-black">{r.suggested_value}</span></div>
+            <div><button onClick={() => toggleActive(r)} className={"text-[11px] px-2 py-0.5 rounded-full " + (r.is_active ? "bg-gold-pale text-gold-deep" : "bg-off text-muted-foreground")}>{r.is_active ? "Active" : "Inactive"}</button></div>
+            <div className="flex gap-1.5 justify-end">
+              <button className="w-7 h-7 rounded-md hover:bg-off text-muted-foreground hover:text-black" onClick={() => setEditing(r)}>✎</button>
+              <button className="w-7 h-7 rounded-md hover:bg-[#FEF2F2] text-muted-foreground hover:text-[#DC2626]" onClick={() => remove(r)}>🗑</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {editing && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setEditing(null)}>
+          <div className="bg-white rounded-lg p-6 w-[640px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-serif text-[20px] mb-5">{editing.id ? "Edit" : "Add"} Stage Sync Rule</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className={labelCls}>Rule Name</label>
+                <input className={inputCls} value={editing.rule_name ?? ""} onChange={(e) => setEditing({ ...editing, rule_name: e.target.value })} />
+              </div>
+
+              <div className="col-span-2 text-[11px] uppercase tracking-wider text-muted-foreground mt-2">Trigger</div>
+              <div>
+                <label className={labelCls}>Module</label>
+                <select className={inputCls} value={editing.trigger_module ?? "paid"} onChange={(e) => setEditing({ ...editing, trigger_module: e.target.value, trigger_field: fieldsFor(e.target.value)[0].v })}>
+                  {MODULES.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Field</label>
+                <select className={inputCls} value={editing.trigger_field ?? ""} onChange={(e) => setEditing({ ...editing, trigger_field: e.target.value })}>
+                  {fieldsFor(editing.trigger_module).map(f => <option key={f.v} value={f.v}>{f.l}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className={labelCls}>Trigger Value</label>
+                <input className={inputCls} value={editing.trigger_value ?? ""} onChange={(e) => setEditing({ ...editing, trigger_value: e.target.value })} placeholder="e.g. Approved" />
+              </div>
+
+              <div className="col-span-2 text-[11px] uppercase tracking-wider text-muted-foreground mt-2">Suggestion</div>
+              <div>
+                <label className={labelCls}>Module</label>
+                <select className={inputCls} value={editing.suggested_module ?? "crm"} onChange={(e) => setEditing({ ...editing, suggested_module: e.target.value, suggested_field: fieldsFor(e.target.value)[0].v })}>
+                  {MODULES.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Field</label>
+                <select className={inputCls} value={editing.suggested_field ?? ""} onChange={(e) => setEditing({ ...editing, suggested_field: e.target.value })}>
+                  {fieldsFor(editing.suggested_module).map(f => <option key={f.v} value={f.v}>{f.l}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className={labelCls}>Suggested Value</label>
+                <input className={inputCls} value={editing.suggested_value ?? ""} onChange={(e) => setEditing({ ...editing, suggested_value: e.target.value })} placeholder="e.g. Finance Approved" />
+              </div>
+
+              <div>
+                <label className={labelCls}>Sort</label>
+                <input type="number" className={inputCls} value={editing.sort_order ?? 0} onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label className={labelCls}>Active</label>
+                <select className={inputCls} value={String(editing.is_active ?? true)} onChange={(e) => setEditing({ ...editing, is_active: e.target.value === "true" })}>
+                  <option value="true">Active</option><option value="false">Inactive</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className={labelCls}>Notes (optional)</label>
+                <textarea className={inputCls + " h-[64px] py-2"} value={editing.notes ?? ""} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button className={btnGhost} onClick={() => setEditing(null)}>Cancel</button>
+              <button className={btnPrimary} onClick={save}>Save Rule</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
