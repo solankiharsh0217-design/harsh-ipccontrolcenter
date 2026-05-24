@@ -19,6 +19,7 @@ import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLo
 import AssignModal from "@/components/AssignModal";
 import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
+import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 
 type Lead = {
   id: string;
@@ -80,6 +81,10 @@ export default function PaidPipeline() {
   const [stages, setStages] = useState<string[]>([]);
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
   const [view, setView] = useState<"leads"|"batches">("leads");
+  const [showBatches, setShowBatches] = useState(false);
+  const [tagFilter, setTagFilter] = useState("all");
+  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
   const [batchFilter, setBatchFilter] = useState("all"); // source webinar batch
   const [paidBatchFilter, setPaidBatchFilter] = useState("all");
   const [onboardingBatchFilter, setOnboardingBatchFilter] = useState("all");
@@ -120,6 +125,27 @@ export default function PaidPipeline() {
   };
   useEffect(() => { load(); }, []);
 
+  // Load tag catalog + per-lead tag map (batched)
+  useEffect(() => {
+    (async () => {
+      const tags = await listAllTags().catch(() => [] as Tag[]);
+      setAllTags(tags);
+      const ids = leads.map((l) => l.id);
+      const crmIds = leads.map((l) => l.crm_lead_id).filter(Boolean) as string[];
+      if (ids.length === 0) { setLeadTagsMap({}); return; }
+      const map = await getTagsForLeads({ paidLeadIds: ids, crmLeadIds: crmIds }).catch(() => ({}));
+      // merge: a paid lead inherits tags assigned to its linked crm lead too
+      const merged: Record<string, Tag[]> = {};
+      leads.forEach((l) => {
+        const a = (map as any)[l.id] || [];
+        const b = l.crm_lead_id ? ((map as any)[l.crm_lead_id] || []) : [];
+        const seen = new Set<string>();
+        merged[l.id] = [...a, ...b].filter((t) => seen.has(t.id) ? false : (seen.add(t.id), true));
+      });
+      setLeadTagsMap(merged);
+    })();
+  }, [leads]);
+
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const leadParam = searchParams.get("lead");
@@ -132,8 +158,9 @@ export default function PaidPipeline() {
     setStageFilter("all"); setTempFilter("all");
     setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
     setFollowUpFilter("all"); setRevenueStatusFilter("all");
+    setTagFilter("all");
   };
-  const anyFilterActive = !!search || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter].some(v => v !== "all");
+  const anyFilterActive = !!search || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter].some(v => v !== "all");
 
 
 
@@ -171,9 +198,10 @@ export default function PaidPipeline() {
         const q = search.toLowerCase();
         if (!(`${l.name || ""} ${l.email || ""} ${l.phone || ""}`.toLowerCase().includes(q))) return false;
       }
+      if (tagFilter !== "all" && !(leadTagsMap[l.id] || []).some((t) => t.id === tagFilter)) return false;
       return true;
     });
-  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, search]);
+  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap]);
 
   const totals = useMemo(() => {
     const td = today();
@@ -275,23 +303,29 @@ export default function PaidPipeline() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => setNewBatchOpen(true)} className="ipc-btn ipc-btn-black !h-9">+ New Paid Batch</button>
+          <button onClick={() => setNewBatchOpen(true)} className="ipc-btn ipc-btn-ghost !h-9">+ New Paid Batch</button>
           <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-9">+ Add Stage</button>
+          <button onClick={() => setShowBatches((v) => !v)} className="ipc-btn ipc-btn-ghost !h-9" title="Toggle batch summary">
+            {showBatches ? "Hide" : "View"} Batch Summary
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white inline-flex mb-4">
-        <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Paid Batches</button>
-        <button onClick={() => setView("leads")} className={`px-3 py-1.5 rounded-md text-xs ${view === "leads" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>All Paid Leads</button>
-      </div>
-
-      {view === "batches" && (
-        <PaidBatchesView
-          onOpenBatch={(id) => { setPaidBatchFilter(id); setView("leads"); }}
-          onBulkSend={(ids) => { setBulkSendIdsOverride(ids); setBulkSend(true); }}
-        />
+      {showBatches && (
+        <div className="mb-4 border border-line rounded-lg p-3 bg-off/40">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Paid batch summary</div>
+            <button onClick={() => setShowBatches(false)} className="text-[11px] text-muted-foreground hover:text-black">Close</button>
+          </div>
+          <PaidBatchesView
+            onOpenBatch={(id) => { setPaidBatchFilter(id); setShowBatches(false); }}
+            onBulkSend={(ids) => { setBulkSendIdsOverride(ids); setBulkSend(true); }}
+          />
+        </div>
       )}
-      {view === "leads" && (<>
+
+      {true && (<>
+
 
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5">
@@ -333,6 +367,7 @@ export default function PaidPipeline() {
           { v: "finance_pending", l: "Finance pending" }, { v: "finance_disbursed", l: "Finance disbursed" },
           { v: "balance_pending", l: "Balance pending" }, { v: "dropped", l: "Dropped" },
         ]} />
+        <FilterSelect value={tagFilter} onChange={setTagFilter} label="All tags" options={allTags.map(t => ({ v: t.id, l: t.name }))} />
       </div>
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div className="text-[12.5px] text-muted-foreground">
@@ -407,6 +442,19 @@ export default function PaidPipeline() {
                       {l.name || "—"}
                       {l.sent_to_crm && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#15803D] border border-[#BBF7D0]">CRM</span>}
                     </div>
+                    {(leadTagsMap[l.id] || []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(leadTagsMap[l.id] || []).slice(0, 2).map((tg) => {
+                          const tc = tg.color || pickTagColor(tg.name);
+                          return (
+                            <span key={tg.id} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium border" style={{ background: tc + "1A", color: tc, borderColor: tc + "55" }}>{tg.name}</span>
+                          );
+                        })}
+                        {(leadTagsMap[l.id] || []).length > 2 && (
+                          <span className="text-[9px] text-muted-foreground">+{(leadTagsMap[l.id] || []).length - 2}</span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-[11.5px] whitespace-nowrap">{l.phone || "—"}</td>
                   <td className="px-3 py-2.5 text-[11.5px] max-w-[180px] truncate" title={l.email || ""}>{l.email || "—"}</td>

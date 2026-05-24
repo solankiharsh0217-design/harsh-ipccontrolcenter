@@ -1,7 +1,12 @@
 import { useEffect, useState, useRef } from "react";
-import { listAllTags, createTag, getAssignmentsFor, assignTag, unassignTag, pickTagColor, type Tag } from "@/lib/leadTags";
+import {
+  listAllTags, createTag, getAssignmentsFor, assignTag, unassignTag, pickTagColor,
+  deactivateTag, deleteTagIfUnused, getTagUsageCount,
+  type Tag,
+} from "@/lib/leadTags";
 import { logActivity } from "@/lib/auditLog";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Trash2, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
   crmLeadId?: string | null;
@@ -78,7 +83,7 @@ export default function TagPicker({ crmLeadId, paidLeadId, leadName, compact, on
     try {
       const t = await createTag(name);
       if (t) {
-        setAllTags((arr) => [...arr, t].sort((a, b) => a.name.localeCompare(b.name)));
+        setAllTags((arr) => [...arr.filter((x) => x.id !== t.id), t].sort((a, b) => a.name.localeCompare(b.name)));
         await assignTag(t.id, { crmLeadId, paidLeadId });
         setAssigned((s) => new Set(s).add(t.id));
         logActivity({
@@ -88,6 +93,45 @@ export default function TagPicker({ crmLeadId, paidLeadId, leadName, compact, on
           summary: `New tag "${t.name}" created and applied.`,
         });
         setQuery("");
+        onChange?.();
+      }
+    } finally { setBusy(false); }
+  };
+
+  const handleManageDelete = async (tag: Tag, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (busy) return;
+    setBusy(true);
+    try {
+      const usage = await getTagUsageCount(tag.id);
+      if (usage === 0) {
+        if (!confirm(`Delete tag "${tag.name}"? It isn't used on any leads.`)) return;
+        const ok = await deleteTagIfUnused(tag.id);
+        if (ok) {
+          setAllTags((arr) => arr.filter((x) => x.id !== tag.id));
+          setAssigned((s) => { const n = new Set(s); n.delete(tag.id); return n; });
+          toast.success(`Deleted tag "${tag.name}"`);
+          logActivity({
+            module_key: paidLeadId ? "paid_pipeline" : "calling_crm",
+            action_type: "tag_deleted", action_label: "Tag deleted",
+            entity_type: "tag", entity_id: tag.id, entity_label: tag.name,
+            severity: "warning",
+            summary: `Tag "${tag.name}" deleted (unused).`,
+          });
+          onChange?.();
+        }
+      } else {
+        if (!confirm(`This tag is used on ${usage} lead${usage === 1 ? "" : "s"}. Deactivate it instead? (Existing assignments stay intact, but it will be hidden from filters and dropdowns.)`)) return;
+        await deactivateTag(tag.id);
+        setAllTags((arr) => arr.filter((x) => x.id !== tag.id));
+        toast.success(`Deactivated tag "${tag.name}"`);
+        logActivity({
+          module_key: paidLeadId ? "paid_pipeline" : "calling_crm",
+          action_type: "tag_deactivated", action_label: "Tag deactivated",
+          entity_type: "tag", entity_id: tag.id, entity_label: tag.name,
+          severity: "warning",
+          summary: `Tag "${tag.name}" deactivated (used on ${usage} lead${usage === 1 ? "" : "s"}).`,
+        });
         onChange?.();
       }
     } finally { setBusy(false); }
@@ -135,7 +179,7 @@ export default function TagPicker({ crmLeadId, paidLeadId, leadName, compact, on
       </div>
 
       {open && (
-        <div className="absolute z-50 mt-2 w-[280px] bg-white border border-line rounded-md shadow-lg p-2">
+        <div className="absolute z-50 mt-2 w-[320px] bg-white border border-line rounded-md shadow-lg p-2">
           <input
             autoFocus
             className="qsi-input !h-8 !text-[12px] mb-2"
@@ -144,7 +188,7 @@ export default function TagPicker({ crmLeadId, paidLeadId, leadName, compact, on
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); quickCreate(); } }}
           />
-          <div className="max-h-[240px] overflow-y-auto">
+          <div className="max-h-[260px] overflow-y-auto">
             {filtered.length === 0 && !query.trim() && (
               <div className="px-2 py-3 text-[11px] text-muted-foreground text-center">No tags available</div>
             )}
@@ -152,17 +196,25 @@ export default function TagPicker({ crmLeadId, paidLeadId, leadName, compact, on
               const sel = assigned.has(t.id);
               const c = t.color || pickTagColor(t.name);
               return (
-                <button
+                <div
                   key={t.id}
-                  onClick={() => toggle(t)}
-                  className={"w-full flex items-center justify-between gap-2 px-2 py-1.5 text-[12px] hover:bg-off rounded " + (sel ? "bg-off" : "")}
+                  className={"group w-full flex items-center justify-between gap-2 px-2 py-1.5 text-[12px] hover:bg-off rounded " + (sel ? "bg-off" : "")}
                 >
-                  <span className="inline-flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full" style={{ background: c }} />
-                    {t.name}
-                  </span>
-                  {sel && <span className="text-[10px] text-muted-foreground">✓ Added</span>}
-                </button>
+                  <button onClick={() => toggle(t)} className="flex-1 inline-flex items-center gap-2 text-left">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c }} />
+                    <span className="truncate">{t.name}</span>
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {sel && <span className="text-[10px] text-muted-foreground">✓</span>}
+                    <button
+                      onClick={(e) => handleManageDelete(t, e)}
+                      className="opacity-0 group-hover:opacity-60 hover:!opacity-100 text-muted-foreground hover:text-[#DC2626] p-0.5"
+                      title="Delete or deactivate tag"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
               );
             })}
             {query.trim() && !filtered.some((t) => t.name.toLowerCase() === query.trim().toLowerCase()) && (
@@ -170,6 +222,9 @@ export default function TagPicker({ crmLeadId, paidLeadId, leadName, compact, on
                 + Create new tag "{query.trim()}"
               </button>
             )}
+          </div>
+          <div className="border-t border-line mt-2 pt-2 px-1 text-[10px] text-muted-foreground flex items-center gap-1">
+            <EyeOff className="w-3 h-3" /> Used tags get deactivated, unused get deleted.
           </div>
         </div>
       )}

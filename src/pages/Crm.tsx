@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { PageHead } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
 import LeadDrawer from "@/components/LeadDrawer";
-import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload, Pencil, Calendar } from "lucide-react";
+import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload, Pencil, Calendar, ExternalLink } from "lucide-react";
 import ImportLeadsModal, { type ImportResult } from "@/components/ImportLeadsModal";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
-import { listAllTags, getTagsForLeads, type Tag } from "@/lib/leadTags";
+import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
@@ -26,8 +26,10 @@ export default function Crm() {
   const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
   const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
   const [tagFilter, setTagFilter] = useState<string>("all");
+  const [stageFilter, setStageFilter] = useState<string>("all");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
+  const navigate = useNavigate();
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [dateField, setDateField] = useState<"webinar_date"|"created_at">("webinar_date");
@@ -111,10 +113,11 @@ export default function Crm() {
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
     if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
     if (tagFilter !== "all") list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => t.id === tagFilter));
+    if (stageFilter !== "all") list = list.filter((l) => l.stage_id === stageFilter);
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter, tagFilter, leadTagsMap, dateFrom, dateTo, dateField]);
+  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
@@ -374,12 +377,34 @@ export default function Crm() {
             <option value="all">All tags</option>
             {allTags.map((t) => <option key={t.id} value={t.id}>🏷 {t.name}</option>)}
           </select>
+          {(view === "kanban" || view === "list") && (
+            <select className="ipc-input !h-10 !text-xs max-w-[180px]" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} title="Filter by stage">
+              <option value="all">All stages</option>
+              {pipelineStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          )}
+          {(filter !== "all" || batchFilter !== "all" || tagFilter !== "all" || stageFilter !== "all" || dateFrom || dateTo) && (
+            <button
+              onClick={() => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); }}
+              className="ipc-btn ipc-btn-ghost !h-10"
+              title="Clear all filters"
+            >
+              <XIcon className="w-3.5 h-3.5" /> Reset
+            </button>
+          )}
           <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-10"><Upload className="w-3.5 h-3.5" /> Import</button>
           <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-10"><Users className="w-3.5 h-3.5" /> Assign</button>
           <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-10">+ Add Stage</button>
           <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-10"><Download className="w-3.5 h-3.5" /> Export</button>
+          <button onClick={() => navigate("/paid-pipeline")} className="ipc-btn ipc-btn-ghost !h-10" title="Open Paid Pipeline"><ExternalLink className="w-3.5 h-3.5" /> Paid Pipeline</button>
         </div>
       </div>
+
+      {(view === "kanban" || view === "list") && (
+        <div className="text-[12px] text-muted-foreground mb-3">
+          Showing <span className="font-medium text-foreground">{pipelineLeads.length}</span> of <span className="font-medium text-foreground">{leads.filter((l) => l.pipeline_id === activePipeline).length}</span> leads
+        </div>
+      )}
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
       {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
@@ -387,8 +412,8 @@ export default function Crm() {
       {/* Kanban */}
       {view === "kanban" && (
         <div className="overflow-x-auto pb-4">
-          <div className="flex gap-3" style={{ minWidth: pipelineStages.length * 280 }}>
-            {pipelineStages.map((s) => {
+          <div className="flex gap-3" style={{ minWidth: (stageFilter !== "all" ? 1 : pipelineStages.length) * 280 }}>
+            {pipelineStages.filter((s) => stageFilter === "all" || s.id === stageFilter).map((s) => {
               const items = pipelineLeads.filter((l) => l.stage_id === s.id);
               const total = items.reduce((sum, l) => sum + Number(l.deal_value || 0), 0);
               const color = STAGE_COLORS[s.color] || "#888";
@@ -424,6 +449,19 @@ export default function Crm() {
                           <div className="text-[11px] text-muted-foreground">{l.program_name}</div>
                           <div className="text-[11px] mt-0.5">{l.phone || "—"}</div>
                           <div className="text-[11px] mt-1">₹{Number(l.deal_value).toLocaleString("en-IN")}</div>
+                          {(leadTagsMap[l.id] || []).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {(leadTagsMap[l.id] || []).slice(0, 2).map((tg) => {
+                                const tc = tg.color || pickTagColor(tg.name);
+                                return (
+                                  <span key={tg.id} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium border" style={{ background: tc + "1A", color: tc, borderColor: tc + "55" }}>{tg.name}</span>
+                                );
+                              })}
+                              {(leadTagsMap[l.id] || []).length > 2 && (
+                                <span className="text-[9px] text-muted-foreground">+{(leadTagsMap[l.id] || []).length - 2}</span>
+                              )}
+                            </div>
+                          )}
                           <div className="flex items-center justify-between mt-2 gap-2">
                             <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
                             {ag && <div className="w-5 h-5 rounded-full bg-black text-gold font-serif text-[9px] flex items-center justify-center" title={ag.full_name}>{ag.full_name.slice(0,1)}</div>}
