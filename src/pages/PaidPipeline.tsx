@@ -351,13 +351,15 @@ export default function PaidPipeline() {
           <button onClick={() => setBulkSend(true)} className="ipc-btn ipc-btn-black !h-8">Send to CRM / Paid Onboarding</button>
           <BulkStageMenu onPick={(stage) => bulkUpdate({ pipeline_stage: stage } as any)} stages={stages} />
           <BulkTempMenu onPick={(t) => bulkUpdate({ lead_temperature: t } as any)} />
+          <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-8">Assign</button>
           <button onClick={exportSelectedCsv} className="ipc-btn ipc-btn-ghost !h-8">Export CSV</button>
           <button onClick={softDeleteSelected} className="ipc-btn ipc-btn-ghost !h-8 text-[#DC2626]">Delete</button>
           <button onClick={() => setSelected(new Set())} className="ml-auto text-[12px] text-muted-foreground hover:text-black">Clear</button>
         </div>
       )}
       {selected.size === 0 && (
-        <div className="mb-3 flex justify-end">
+        <div className="mb-3 flex justify-end gap-2">
+          <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-8">Assign filtered</button>
           <button onClick={exportSelectedCsv} className="ipc-btn ipc-btn-ghost !h-8">Export filtered CSV</button>
         </div>
       )}
