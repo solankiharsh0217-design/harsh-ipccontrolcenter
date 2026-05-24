@@ -1,116 +1,86 @@
-# Paid Pipeline Operational Upgrade
+# Calling CRM ↔ Paid Pipeline Refinement Plan
 
-This is a large, targeted enhancement to the existing Paid Pipeline + Calling CRM integration. No rebuild, no global UI changes, no data loss. I'll execute it in phased migrations + frontend additions, all preserving the existing IPC Control Center design.
+This is a large refinement spanning ~26 acceptance criteria. To keep it safe (no data loss, no rebuilds), I'll deliver it in **5 phases**. You approve this plan, then I ship Phase 1 and we review before continuing.
 
-## Scope summary
+---
 
-- Add operational fields (balance/follow-up/temperature/batches/CRM links) to existing tables
-- New `paid_pipeline_followups` and `paid_pipeline_to_crm_links` tables
-- Upgrade `PaidPipeline.tsx` dashboard, table, drawer, filters, bulk actions
-- Upgrade `SendToPaidPipelineDrawer` minimally (lead temperature on review step)
-- Add "Send to Calling CRM / Paid Onboarding" bulk modal that writes into existing CRM `leads`/`pipelines`/`stages`
-- Add "+ New Stage" inline creator on the Calling CRM Kanban
-- QuickSaveInput across every open-ended field
-- Recalculation logic for totals/realized/balance/final sale
+## Phase 1 — Data plumbing & auto-sync (foundation)
 
-## Phase 1 — Database migration (single migration, all `IF NOT EXISTS`-safe)
+**Schema (safe, additive only):**
+- `ALTER TABLE leads ADD COLUMN IF NOT EXISTS paid_pipeline_lead_id uuid`
+- `ALTER TABLE paid_pipeline_leads ADD COLUMN IF NOT EXISTS crm_lead_id uuid`
+- New `tags` table (id, name, color, module_scope, created_by, is_deleted)
+- New `lead_tag_assignments` (tag_id, crm_lead_id nullable, paid_pipeline_lead_id nullable, assigned_by)
+- New `quick_save_entries` scope `follow_up_type` (or extend existing quick-save table — I'll check first)
+- Add `active_for_assignment`, `can_receive_paid_pipeline_leads`, `include_in_round_robin` to `profiles` **only if missing** (eligibleAssignees.ts already references them).
 
-`paid_pipeline_leads` — add columns:
-balance_category, balance_description, next_balance_follow_up_date,
-next_follow_up_date (if missing), next_follow_up_time, follow_up_reason,
-follow_up_priority, follow_up_status, lead_temperature, paid_batch_name,
-onboarding_batch_name, crm_pipeline_id, crm_stage_id, sent_to_crm,
-sent_to_crm_at, revenue_to_be_realized, finance_notes,
-finance_follow_up_date, finance_owner.
+**Auto-sync logic (in `ImportLeadsModal.tsx`):**
+- After paid leads insert/update into Paid — Onboarding pipeline, for each row: upsert into `paid_pipeline_leads` matched by `crm_lead_id → email → phone`. Never duplicate.
+- Write `crm_lead_id ↔ paid_pipeline_lead_id` link both ways.
+- Audit log: `paid_pipeline_record_created_from_crm`, `crm_lead_linked_to_paid_pipeline`.
 
-`paid_pipeline_payments` — add columns:
-payment_category, next_payment_expected_date, payment_description,
-finance_linked.
+---
 
-New tables (with RLS for active users — matches existing pattern):
-- `paid_pipeline_followups`
-- `paid_pipeline_to_crm_links`
+## Phase 2 — Paid Pipeline UI (batches-first + table + payments)
 
-Seed default Paid Onboarding pipeline + stages into existing CRM pipeline/stage tables ONLY if a pipeline named "Paid — Onboarding" doesn't already exist.
+- `PaidPipeline.tsx`: tabs become **Paid Batches (default)** + **All Paid Leads**. Remove the confusing Leads vs Batches duplication.
+- Table columns per Part 16 spec (Buyer, Phone, Batch, CRM Stage, Deal, Token, Collected, Balance, Payment Stage, Finance, Priority, Tags, Next Follow-up, Owner, Actions).
+- Summary cards (Part 17) recompute on filter change.
+- Row-level quick actions: Add Token / Second Token / Finance / Balance / Full Payment / Finance Approved / Disbursed / Dropped — open existing `QuickAddPaymentModal` pre-filled.
+- Payment math already correct in `paidPipeline.ts#recomputePaidLead` — verify token never inflates `deal_value`.
 
-## Phase 2 — Frontend: PaidPipeline.tsx
+---
 
-Dashboard cards (replace current set):
-1. Realized Revenue
-2. Revenue To Be Realized
-3. Token Collected
-4. Balance Pending
-5. Finance Pending
-6. Final Sales
-7. Dropped After Token
-8. EMI / Finance Disbursed
-9. Hot/Urgent Balance Pending
-10. Follow-Ups Due Today
+## Phase 3 — Tags + Fast Follow-up + Quick-save types
 
-Filters bar additions: balance category, lead temperature, finance partner, finance status, follow-up date/status, revenue realization status, paid batch, onboarding batch.
+- New `<TagPicker>` component (multi-select, quick-create, color chip). Used in Calling CRM card+drawer and Paid Pipeline table+drawer.
+- New `<FastFollowUpComposer>` (single combined date-time `<input type="datetime-local">` + type dropdown + note + Today/Tomorrow/3d/Next week chips + Save). Wires to existing follow-up tables; links both `crm_lead_id` and `paid_pipeline_lead_id` when present.
+- Follow-up Type dropdown reads from `quick_save_entries` scope `follow_up_type` with "+ Save new" inline.
+- Filter-by-tag on both modules.
 
-Table additions:
-- Row checkbox column + select-all
-- Compact row actions: `+ Payment`, `Follow-Up`, inline `Stage` dropdown (QuickSave), inline `Priority/Temperature` dropdown (QuickSave), `Notes`, `Open`
-- New columns: Lead Temperature badge, Next Follow-Up date
+---
 
-Bulk action bar (appears when ≥1 selected):
-- Assign Owner, Update Stage, Update Temperature, Set Follow-Up, **Send to CRM / Paid Onboarding**, Export CSV, Delete (soft).
+## Phase 4 — Cross-navigation + Assignment modal fix
 
-## Phase 3 — New small components
+- **Cross-nav buttons** in both drawers + page headers ("Open in Paid Pipeline" / "Open in Calling CRM"). Routes carry `?leadId=...`.
+- **WhatsApp button** normalized phone helper shared between drawers; disabled when phone missing.
+- **Assignment modal rebuild (4 steps):**
+  1. Pick **Role** (loaded distinct from `profiles.role` of active users — no hardcoded list)
+  2. Pick **Users** under role, filtered by eligibility flag for the module (`can_receive_calling_crm_leads` or `can_receive_paid_pipeline_leads`); admins only if flagged
+  3. Pick **method** (round-robin / one-agent / manual / least-active / least-follow-ups)
+  4. Pick **scope** (unassigned / all in view / selected / current batch)
+- Helper `getAssignableUsers({ module, role?, eligibilityFlag? })` added to `eligibleAssignees.ts`.
+- Empty-state message references Team Directory eligibility flag exactly.
 
-- `QuickAddPaymentModal` — payment category + type + amount + mode + date + description + next follow-up + flags (token / final / finance-linked). Recomputes totals on save.
-- `QuickFollowUpModal` — date/time/reason/priority/status/assignee/notes → writes to `paid_pipeline_followups` and updates lead's next_follow_up_*.
-- `SendToCrmBulkModal` — choose CRM pipeline (default "Paid — Onboarding"), CRM stage, onboarding batch (QuickSave), owner, notes. Inserts into existing CRM `leads` (skipping duplicates by phone/email per pipeline) + writes `paid_pipeline_to_crm_links`. Marks `sent_to_crm = true`.
-- `BalanceFollowUpSection` (inside drawer) — balance_category + description + next_balance_follow_up_date.
+---
 
-## Phase 4 — Lead drawer rework (within existing drawer file)
+## Phase 5 — Master Settings + Stage sync + Notifications/Audit polish
 
-Sections: Lead Summary, Payment Summary (with Realized + To-Be-Realized), Quick Status (stage/temperature/payment status/follow-up/owner), Add Payment, Finance/EMI, Activity/Notes, WhatsApp Templates (mailto/wa.me deep links with prefilled token-received / balance reminder / EMI docs / welcome messages).
+- Master Settings sections: Payment Types, Modes, Finance Partners, Finance Statuses, Paid Pipeline Stages, CRM Paid Onboarding Stages, Lead Tags, Follow-up Types, Lead Priority, Balance Categories — all customizable, defaults seeded.
+- Soft stage-sync suggestions (CRM ↔ Paid Pipeline) — non-forced; toast with "Apply suggestion" button.
+- Notifications via existing `createNotification` for the events in Part 24, with dedup window.
+- Audit logs for all events in Part 23.
 
-## Phase 5 — Calling CRM "+ New Stage"
+---
 
-In existing CRM Kanban (`src/pages/Crm.tsx`): add a small "+ New Stage" button at the end of the stage strip → opens compact dialog (name, color, pipeline). Inserts into existing `stages` table with next position. Duplicate-name guard within pipeline.
+## Guardrails (every phase)
+- Additive migrations only (`IF NOT EXISTS`), no drops, no resets, no constraint removal.
+- Soft delete pattern (`is_deleted` columns) — no hard deletes.
+- Match-don't-duplicate on `crm_lead_id → email → phone`.
+- No global CSS / font / sidebar / topbar changes.
 
-## Phase 6 — Recalculation helper
+---
 
-Shared `recomputePaidLead(leadId)` util:
-- token_amount_collected = Σ payments where category/type ∈ {Token, Second Token}
-- total_collected = Σ positive payments − Σ refunds
-- balance_pending = max(deal_value_including_gst − total_collected, 0)
-- revenue_to_be_realized = balance_pending if not dropped/closed-lost else 0
-- final_revenue_realized per `revenue_recognition_rule`
-- is_final_sale only when full collection / finance disbursed / stage Enrolled-Active / manual
-- is_dropped when stage = Dropped After Token / Closed Lost
+## Technical notes
+- DB writes batched; chunked inserts with per-row fallback (pattern already in `ImportLeadsModal`).
+- New components colocated under `src/components/paid-pipeline/` and `src/components/crm/`.
+- All new shared helpers (phone normalize, getAssignableUsers, tag CRUD) under `src/lib/`.
+- RLS: tags + assignments scoped via existing `is_active(auth.uid())` pattern.
 
-Called after every payment add/edit/delete and stage change.
+---
 
-## Phase 7 — Quick-save coverage
+## What I need from you
+1. **Approve this plan** → I start Phase 1 (DB migration + auto-sync). You'll get a migration approval prompt.
+2. After each phase ships, you test and we move to the next.
 
-Every open-ended field uses `QuickSaveInput` with these field keys:
-`paid_pipeline_stage`, `payment_category`, `payment_type`, `payment_mode`,
-`balance_category`, `follow_up_reason`, `follow_up_priority`,
-`lead_temperature`, `finance_partner`, `finance_status`,
-`paid_batch_name`, `onboarding_batch_name`, `crm_pipeline`,
-`crm_stage`, `revenue_recognition_rule`.
-
-## Phase 8 — Export CSV
-
-Filtered-view CSV with the 19 fields listed in the prompt (Part 19).
-
-## Out-of-scope guardrails
-
-- No edits to global CSS, sidebar, topbar, or fonts
-- No rebuild of Reports/Attribution/SendToPaidPipeline
-- No deletion of any existing rows
-- All migrations additive, all `IF NOT EXISTS`
-- No hardcoded coach/finance/token values
-
-## Sequencing
-
-1. Run the single Supabase migration (Phase 1).
-2. After approval + types regen, ship frontend in this order: helpers → modals → table/dashboard → drawer → CRM "+ New Stage".
-
-Given the size, I'll deliver this in 2 turns: **Turn A** = migration only (so types regenerate). **Turn B** = all frontend changes + new components in one shot.
-
-Approve to proceed with the migration.
+Reply "go" (or pick a different starting phase) and I'll execute.
