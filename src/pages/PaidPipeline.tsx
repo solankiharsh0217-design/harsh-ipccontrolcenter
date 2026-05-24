@@ -694,6 +694,12 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               leadName={lead.name || undefined}
             />
           </div>
+          <SuggestedNextActions
+            paidLeadId={lead.id}
+            crmLeadId={lead.crm_lead_id || null}
+            onApplied={() => { loadInner(); onChanged(); }}
+            onOpenFollowUp={() => setOpenFu(true)}
+          />
         </div>
 
         <div className="p-6 space-y-5">
