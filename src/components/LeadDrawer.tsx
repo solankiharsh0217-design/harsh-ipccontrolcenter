@@ -5,6 +5,8 @@ import { GRADE_STYLES, type Lead, type Stage, type ActivityLog, type Reminder } 
 import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import TagPicker from "@/components/TagPicker";
+import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 
 interface Props {
   leadId: string;
