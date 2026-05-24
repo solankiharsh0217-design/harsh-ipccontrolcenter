@@ -26,8 +26,10 @@ export default function Crm() {
   const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
   const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
   const [tagFilter, setTagFilter] = useState<string>("all");
+  const [stageFilter, setStageFilter] = useState<string>("all");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
+  const navigate = useNavigate();
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [dateField, setDateField] = useState<"webinar_date"|"created_at">("webinar_date");
