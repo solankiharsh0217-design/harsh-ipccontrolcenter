@@ -367,6 +367,7 @@ export default function PaidPipeline() {
           { v: "finance_pending", l: "Finance pending" }, { v: "finance_disbursed", l: "Finance disbursed" },
           { v: "balance_pending", l: "Balance pending" }, { v: "dropped", l: "Dropped" },
         ]} />
+        <FilterSelect value={tagFilter} onChange={setTagFilter} label="All tags" options={allTags.map(t => ({ v: t.id, l: t.name }))} />
       </div>
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div className="text-[12.5px] text-muted-foreground">
