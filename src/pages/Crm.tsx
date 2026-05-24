@@ -412,8 +412,8 @@ export default function Crm() {
       {/* Kanban */}
       {view === "kanban" && (
         <div className="overflow-x-auto pb-4">
-          <div className="flex gap-3" style={{ minWidth: pipelineStages.length * 280 }}>
-            {pipelineStages.map((s) => {
+          <div className="flex gap-3" style={{ minWidth: (stageFilter !== "all" ? 1 : pipelineStages.length) * 280 }}>
+            {pipelineStages.filter((s) => stageFilter === "all" || s.id === stageFilter).map((s) => {
               const items = pipelineLeads.filter((l) => l.stage_id === s.id);
               const total = items.reduce((sum, l) => sum + Number(l.deal_value || 0), 0);
               const color = STAGE_COLORS[s.color] || "#888";
