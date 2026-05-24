@@ -614,6 +614,11 @@ export default function PaidPipeline() {
         crmLeadId={leads.find(l => l.id === quickFuId)?.crm_lead_id || null}
         defaults={{ priority: leads.find(l => l.id === quickFuId)?.lead_temperature || "Normal" }}
         onClose={() => setQuickFuId(null)} onSaved={load} />}
+      {quickFinanceId && (() => {
+        const l = leads.find(x => x.id === quickFinanceId);
+        if (!l) return null;
+        return <QuickFinanceModal lead={l as any} onClose={() => setQuickFinanceId(null)} onSaved={load} />;
+      })()}
       {bulkSend && <SendToCrmBulkModal
         leadIds={bulkSendIdsOverride && bulkSendIdsOverride.length > 0 ? bulkSendIdsOverride : Array.from(selected)}
         leads={leads}
