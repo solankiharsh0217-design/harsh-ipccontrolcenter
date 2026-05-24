@@ -189,17 +189,12 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               );
             })}
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            <input type="date" className="ipc-input !h-10 !text-xs" value={rDate} onChange={(e) => setRDate(e.target.value)} />
-            <input type="time" className="ipc-input !h-10 !text-xs" value={rTime} onChange={(e) => setRTime(e.target.value)} />
-            <select className="ipc-input !h-10 !text-xs" value={rChannel} onChange={(e) => setRChannel(e.target.value as any)}>
-              <option value="call">Call</option><option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="sms">SMS</option>
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <input type="text" className="ipc-input !h-10 !text-xs flex-1" placeholder="Optional note…" value={rNote} onChange={(e) => setRNote(e.target.value)} />
-            <button onClick={addReminder} className="ipc-btn ipc-btn-black !h-10">Add</button>
-          </div>
+          <FastFollowUpComposer
+            crmLeadId={lead.id}
+            paidLeadId={(lead as any).paid_pipeline_lead_id || null}
+            leadName={lead.full_name || undefined}
+            onSaved={load}
+          />
         </div>
 
         {/* Activity */}
