@@ -662,7 +662,43 @@ function FilterSelect({ value, onChange, label, options }: { value: string; onCh
   );
 }
 
-function BulkStageMenu({ onPick, stages }: { onPick: (s: string) => void; stages: string[] }) {
+function InsightChip({ label, active, onClick, accent }: { label: string; active: boolean; onClick: () => void; accent: "gold" | "red" | "blue" | "muted" }) {
+  const colors: Record<string, string> = {
+    gold: active ? "bg-gold text-black border-gold" : "bg-gold-pale text-[#92400E] border-[#F5D78A] hover:bg-gold/40",
+    red: active ? "bg-[#DC2626] text-white border-[#DC2626]" : "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5] hover:bg-[#FECACA]",
+    blue: active ? "bg-[#2563EB] text-white border-[#2563EB]" : "bg-[#DBEAFE] text-[#1E40AF] border-[#93C5FD] hover:bg-[#BFDBFE]",
+    muted: active ? "bg-black text-white border-black" : "bg-off text-foreground border-line hover:bg-[#EAEAEA]",
+  };
+  return (
+    <button onClick={onClick} className={`text-[11.5px] px-2.5 py-1.5 rounded-full border font-medium transition-colors ${colors[accent]}`}>
+      {label}
+    </button>
+  );
+}
+
+function FinanceCell({ lead, onClick }: { lead: any; onClick: () => void }) {
+  const required = lead.finance_required;
+  const status = lead.finance_status || "";
+  const partner = lead.finance_partner || "";
+  const disbursed = Number(lead.finance_amount_disbursed || 0);
+  const approved = Number(lead.finance_amount_approved || 0);
+  let dot = "#9CA3AF";
+  if (status === "Approved" || status === "Disbursed") dot = "#15803D";
+  else if (status === "Rejected" || status === "Alternate Partner Needed") dot = "#DC2626";
+  else if (required && status && status !== "Not Required") dot = "#CA8A04";
+  let line2 = "";
+  if (status === "Disbursed" && disbursed > 0) line2 = `₹${disbursed.toLocaleString("en-IN")} disbursed`;
+  else if (status === "Approved" && approved > 0) line2 = `₹${approved.toLocaleString("en-IN")} approved`;
+  return (
+    <button onClick={onClick} className="text-left w-full px-1.5 py-1 rounded hover:bg-off text-[11px] leading-tight">
+      <div className="flex items-center gap-1.5">
+        <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
+        <span className="truncate">{!required ? (status === "Not Required" ? "Not Required" : "Not set") : (partner ? `${partner} · ${status || "—"}` : (status || "Set partner"))}</span>
+      </div>
+      {line2 && <div className="text-[10px] text-muted-foreground pl-3">{line2}</div>}
+    </button>
+  );
+}
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
