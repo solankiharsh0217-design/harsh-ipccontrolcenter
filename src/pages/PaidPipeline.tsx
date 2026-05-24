@@ -469,6 +469,18 @@ export default function PaidPipeline() {
         onDone={() => { setSelected(new Set()); setBulkSendIdsOverride(null); load(); }} />}
       {newBatchOpen && <NewPaidBatchModal onClose={() => setNewBatchOpen(false)} onCreated={() => load()} />}
       {addStageOpen && <AddPaidStageModal existingStages={stages} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
+      <AssignModal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        moduleKey="paid_pipeline"
+        moduleLabel="Paid Pipeline"
+        ownerColumn="assigned_sales_executive"
+        tableName="paid_pipeline_leads"
+        eligibilityFlag="can_receive_paid_pipeline_leads"
+        filteredLeads={filtered.map(l => ({ id: l.id, current_owner_id: l.assigned_sales_executive }))}
+        selectedIds={Array.from(selected)}
+        onAssigned={() => { setSelected(new Set()); load(); }}
+      />
     </div>
   );
 }
