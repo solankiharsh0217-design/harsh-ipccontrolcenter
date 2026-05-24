@@ -533,8 +533,8 @@ export default function Crm() {
           <div className="flex items-center gap-1 ml-auto">
             <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
             <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
+            <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Add a new Kanban stage"><Plus className="w-3.5 h-3.5" /> Add Stage</button>
             <OverflowActionsMenu
-              onAddStage={() => setAddStageOpen(true)}
               onExport={exportCsv}
             />
           </div>
