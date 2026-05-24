@@ -10,6 +10,7 @@ import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
+import AssignModal from "@/components/AssignModal";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
@@ -736,49 +737,17 @@ export default function Crm() {
       {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={() => setOpenLead(null)} onChanged={load} />}
 
       {/* Assign agents modal */}
-      {assignOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={() => setAssignOpen(false)}>
-          <div className="bg-white rounded-xl border border-line w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <div>
-              <div className="font-serif text-xl">Assign leads to agents</div>
-              <div className="text-xs text-muted-foreground mt-1">{pipelineLeads.length} leads in current view · {agents.length} active sales agents</div>
-            </div>
-            <div>
-              <label className="form-label">Method</label>
-              <select className="ipc-input" value={assignMode} onChange={(e) => setAssignMode(e.target.value as any)}>
-                <option value="round_robin">Round-robin to all agents (equal split)</option>
-                <option value="manual">Assign all to one specific agent</option>
-                <option value="unassign">Unassign (clear agent)</option>
-              </select>
-            </div>
-            {assignMode === "manual" && (
-              <div>
-                <label className="form-label">Agent</label>
-                <select className="ipc-input" value={assignAgentId} onChange={(e) => setAssignAgentId(e.target.value)}>
-                  <option value="">Select agent…</option>
-                  {agents.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-                </select>
-              </div>
-            )}
-            <div>
-              <label className="form-label">Scope</label>
-              <select className="ipc-input" value={assignScope} onChange={(e) => setAssignScope(e.target.value as any)}>
-                <option value="unassigned">Only unassigned leads in current view</option>
-                <option value="all">All leads in current view (overwrites)</option>
-              </select>
-            </div>
-            {agents.length === 0 && (
-              <div className="p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs">
-                No active sales agents found. Create members with role <strong>BDE</strong>, <strong>Sales</strong>, or <strong>Agent</strong> from the Admin Panel first.
-              </div>
-            )}
-            <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setAssignOpen(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
-              <button onClick={runAssignment} disabled={assignBusy} className="ipc-btn ipc-btn-black">{assignBusy ? "Assigning…" : "Assign"}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AssignModal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        moduleKey="calling_crm"
+        moduleLabel="Calling CRM"
+        ownerColumn="assigned_agent_id"
+        tableName="leads"
+        eligibilityFlag="can_receive_calling_crm_leads"
+        filteredLeads={pipelineLeads.map(l => ({ id: l.id, current_owner_id: (l as any).assigned_agent_id }))}
+        onAssigned={load}
+      />
     </div>
   );
 }

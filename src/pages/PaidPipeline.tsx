@@ -16,6 +16,7 @@ import {
 } from "@/lib/paidPipeline";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLog";
+import AssignModal from "@/components/AssignModal";
 
 type Lead = {
   id: string;
@@ -96,6 +97,7 @@ export default function PaidPipeline() {
   const [bulkSendIdsOverride, setBulkSendIdsOverride] = useState<string[] | null>(null);
   const [newBatchOpen, setNewBatchOpen] = useState(false);
   const [addStageOpen, setAddStageOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
 
   const load = async () => {
     const [{ data: l }, { data: b }, { data: pb }, { data: s }, elig] = await Promise.all([
@@ -349,13 +351,15 @@ export default function PaidPipeline() {
           <button onClick={() => setBulkSend(true)} className="ipc-btn ipc-btn-black !h-8">Send to CRM / Paid Onboarding</button>
           <BulkStageMenu onPick={(stage) => bulkUpdate({ pipeline_stage: stage } as any)} stages={stages} />
           <BulkTempMenu onPick={(t) => bulkUpdate({ lead_temperature: t } as any)} />
+          <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-8">Assign</button>
           <button onClick={exportSelectedCsv} className="ipc-btn ipc-btn-ghost !h-8">Export CSV</button>
           <button onClick={softDeleteSelected} className="ipc-btn ipc-btn-ghost !h-8 text-[#DC2626]">Delete</button>
           <button onClick={() => setSelected(new Set())} className="ml-auto text-[12px] text-muted-foreground hover:text-black">Clear</button>
         </div>
       )}
       {selected.size === 0 && (
-        <div className="mb-3 flex justify-end">
+        <div className="mb-3 flex justify-end gap-2">
+          <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-8">Assign filtered</button>
           <button onClick={exportSelectedCsv} className="ipc-btn ipc-btn-ghost !h-8">Export filtered CSV</button>
         </div>
       )}
@@ -465,6 +469,18 @@ export default function PaidPipeline() {
         onDone={() => { setSelected(new Set()); setBulkSendIdsOverride(null); load(); }} />}
       {newBatchOpen && <NewPaidBatchModal onClose={() => setNewBatchOpen(false)} onCreated={() => load()} />}
       {addStageOpen && <AddPaidStageModal existingStages={stages} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
+      <AssignModal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        moduleKey="paid_pipeline"
+        moduleLabel="Paid Pipeline"
+        ownerColumn="assigned_sales_executive"
+        tableName="paid_pipeline_leads"
+        eligibilityFlag="can_receive_paid_pipeline_leads"
+        filteredLeads={filtered.map(l => ({ id: l.id, current_owner_id: l.assigned_sales_executive }))}
+        selectedIds={Array.from(selected)}
+        onAssigned={() => { setSelected(new Set()); load(); }}
+      />
     </div>
   );
 }
