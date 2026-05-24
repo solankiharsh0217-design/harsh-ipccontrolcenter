@@ -303,23 +303,29 @@ export default function PaidPipeline() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => setNewBatchOpen(true)} className="ipc-btn ipc-btn-black !h-9">+ New Paid Batch</button>
+          <button onClick={() => setNewBatchOpen(true)} className="ipc-btn ipc-btn-ghost !h-9">+ New Paid Batch</button>
           <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-9">+ Add Stage</button>
+          <button onClick={() => setShowBatches((v) => !v)} className="ipc-btn ipc-btn-ghost !h-9" title="Toggle batch summary">
+            {showBatches ? "Hide" : "View"} Batch Summary
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-1 p-1 rounded-lg border border-line bg-white inline-flex mb-4">
-        <button onClick={() => setView("batches")} className={`px-3 py-1.5 rounded-md text-xs ${view === "batches" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>Paid Batches</button>
-        <button onClick={() => setView("leads")} className={`px-3 py-1.5 rounded-md text-xs ${view === "leads" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}>All Paid Leads</button>
-      </div>
-
-      {view === "batches" && (
-        <PaidBatchesView
-          onOpenBatch={(id) => { setPaidBatchFilter(id); setView("leads"); }}
-          onBulkSend={(ids) => { setBulkSendIdsOverride(ids); setBulkSend(true); }}
-        />
+      {showBatches && (
+        <div className="mb-4 border border-line rounded-lg p-3 bg-off/40">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Paid batch summary</div>
+            <button onClick={() => setShowBatches(false)} className="text-[11px] text-muted-foreground hover:text-black">Close</button>
+          </div>
+          <PaidBatchesView
+            onOpenBatch={(id) => { setPaidBatchFilter(id); setShowBatches(false); }}
+            onBulkSend={(ids) => { setBulkSendIdsOverride(ids); setBulkSend(true); }}
+          />
+        </div>
       )}
-      {view === "leads" && (<>
+
+      {true && (<>
+
 
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5">
