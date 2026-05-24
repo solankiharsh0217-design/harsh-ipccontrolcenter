@@ -449,6 +449,19 @@ export default function Crm() {
                           <div className="text-[11px] text-muted-foreground">{l.program_name}</div>
                           <div className="text-[11px] mt-0.5">{l.phone || "—"}</div>
                           <div className="text-[11px] mt-1">₹{Number(l.deal_value).toLocaleString("en-IN")}</div>
+                          {(leadTagsMap[l.id] || []).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {(leadTagsMap[l.id] || []).slice(0, 2).map((tg) => {
+                                const tc = tg.color || pickTagColor(tg.name);
+                                return (
+                                  <span key={tg.id} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium border" style={{ background: tc + "1A", color: tc, borderColor: tc + "55" }}>{tg.name}</span>
+                                );
+                              })}
+                              {(leadTagsMap[l.id] || []).length > 2 && (
+                                <span className="text-[9px] text-muted-foreground">+{(leadTagsMap[l.id] || []).length - 2}</span>
+                              )}
+                            </div>
+                          )}
                           <div className="flex items-center justify-between mt-2 gap-2">
                             <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
                             {ag && <div className="w-5 h-5 rounded-full bg-black text-gold font-serif text-[9px] flex items-center justify-center" title={ag.full_name}>{ag.full_name.slice(0,1)}</div>}
