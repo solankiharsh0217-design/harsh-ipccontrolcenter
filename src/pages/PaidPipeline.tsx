@@ -97,6 +97,7 @@ export default function PaidPipeline() {
   const [bulkSendIdsOverride, setBulkSendIdsOverride] = useState<string[] | null>(null);
   const [newBatchOpen, setNewBatchOpen] = useState(false);
   const [addStageOpen, setAddStageOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
 
   const load = async () => {
     const [{ data: l }, { data: b }, { data: pb }, { data: s }, elig] = await Promise.all([
