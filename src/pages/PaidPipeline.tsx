@@ -16,6 +16,7 @@ import {
 } from "@/lib/paidPipeline";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLog";
+import AssignModal from "@/components/AssignModal";
 
 type Lead = {
   id: string;
