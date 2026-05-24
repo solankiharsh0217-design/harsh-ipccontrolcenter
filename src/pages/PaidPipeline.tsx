@@ -384,7 +384,8 @@ export default function PaidPipeline() {
           <tbody>
             {filtered.length === 0 && (
               <tr><td colSpan={15} className="px-3 py-10 text-center text-muted-foreground">
-                No buyers match these filters.
+                <div>No paid leads match these filters.</div>
+                <button onClick={resetFilters} className="ipc-btn ipc-btn-ghost !h-8 mt-3">Reset Filters</button>
               </td></tr>
             )}
             {filtered.map(l => {
