@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -516,7 +516,7 @@ export default function PaidPipeline() {
               <th className="px-3 py-2.5">Follow-up</th>
               <th className="px-3 py-2.5">Finance</th>
               <th className="px-3 py-2.5">Owner</th>
-              <th className="px-3 py-2.5"></th>
+              <th className="px-3 py-2.5 sticky right-0 bg-off text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -592,12 +592,15 @@ export default function PaidPipeline() {
                   <td className="px-3 py-2.5 text-[11.5px] max-w-[120px] truncate" title={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || ""}>
                     {agents.find(a => a.id === l.assigned_sales_executive)?.full_name || "—"}
                   </td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-1 justify-end flex-wrap">
-                      <button onClick={() => setQuickPayId(l.id)} className="text-[11px] px-2 py-1 rounded bg-[#15803D] text-white hover:opacity-90 font-medium" title="Add payment">+ Payment</button>
-                      <button onClick={() => setQuickFinanceId(l.id)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off" title="Update finance">Finance</button>
-                      <button onClick={() => setQuickFuId(l.id)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off" title="Set follow-up">Follow-up</button>
-                      <button onClick={() => setOpenId(l.id)} className="text-[11px] px-2 py-1 rounded bg-black text-white">Open</button>
+                  <td className="px-3 py-2.5 sticky right-0 bg-white">
+                    <div className="flex items-center gap-1 justify-end flex-nowrap">
+                      <button onClick={() => setOpenId(l.id)} className="text-[11px] px-2.5 py-1 rounded bg-black text-white hover:opacity-90">Open</button>
+                      <RowActionsMenu
+                        onAddPayment={() => setQuickPayId(l.id)}
+                        onUpdateFinance={() => setQuickFinanceId(l.id)}
+                        onSetFollowUp={() => setQuickFuId(l.id)}
+                        onOpen={() => setOpenId(l.id)}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -699,6 +702,37 @@ function FinanceCell({ lead, onClick }: { lead: any; onClick: () => void }) {
     </button>
   );
 }
+
+function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }: {
+  onAddPayment: () => void; onUpdateFinance: () => void; onSetFollowUp: () => void; onOpen: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const item = (label: string, fn: () => void, accent?: string) => (
+    <button onClick={() => { setOpen(false); fn(); }} className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-off ${accent || ""}`}>{label}</button>
+  );
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)} className="text-[12px] px-2 py-1 rounded border border-line hover:bg-off leading-none" title="More actions" aria-label="More actions">⋯</button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-44 bg-white border border-line rounded-md shadow-lg z-30 py-1">
+          {item("+ Add Payment", onAddPayment, "text-[#15803D] font-medium")}
+          {item("Update Finance", onUpdateFinance)}
+          {item("Set Follow-up", onSetFollowUp)}
+          <div className="h-px bg-line my-1" />
+          {item("Open Details", onOpen)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 
 function BulkStageMenu({ onPick, stages }: { onPick: (s: string) => void; stages: string[] }) {
