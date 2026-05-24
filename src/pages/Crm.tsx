@@ -119,7 +119,15 @@ export default function Crm() {
     })();
   }, [leads]);
 
-  const pipelineStages = useMemo(() => stages.filter((s) => s.pipeline_id === activePipeline).sort((a, b) => a.position - b.position), [stages, activePipeline]);
+  const pipelineStages = useMemo(() => {
+    const all = stages.filter((s) => s.pipeline_id === activePipeline).sort((a, b) => a.position - b.position);
+    return all.filter((s) => {
+      const active = (s as any).is_active !== false;
+      if (active) return true;
+      // Keep inactive stages visible only if they still contain leads (so users can move them out)
+      return leads.some((l) => l.stage_id === s.id);
+    });
+  }, [stages, activePipeline, leads]);
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
