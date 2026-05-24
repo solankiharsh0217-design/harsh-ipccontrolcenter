@@ -50,6 +50,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Assignment Eligibility Setup",
+      desc: "Bulk enable or disable lead assignment eligibility for multiple team members at once.",
+      cta: "Open Eligibility Setup",
+      to: "/admin-center/eligibility",
+      show: isAdmin,
+    },
+    {
       title: "Media Buyer Dashboard Preview",
       desc: "View each media buyer's work dashboard, pending calls, active ad clients, and overdue tasks.",
       cta: "Open Media Buyer Desk",
