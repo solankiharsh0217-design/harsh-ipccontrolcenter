@@ -27,6 +27,7 @@ type LeadAgg = {
   dropped: number;
   financePending: number;
   hotPending: number;
+  followUpsDue: number;
 };
 
 export default function PaidBatchesView({
