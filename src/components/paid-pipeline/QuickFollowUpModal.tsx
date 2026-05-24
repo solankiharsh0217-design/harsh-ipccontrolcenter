@@ -6,9 +6,9 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import { logActivity } from "@/lib/auditLog";
 
 export default function QuickFollowUpModal({
-  leadId, leadName, defaults, onClose, onSaved,
+  leadId, leadName, crmLeadId, defaults, onClose, onSaved,
 }: {
-  leadId: string; leadName?: string;
+  leadId: string; leadName?: string; crmLeadId?: string | null;
   defaults?: { date?: string; time?: string; reason?: string; priority?: string };
   onClose: () => void; onSaved: () => void;
 }) {
