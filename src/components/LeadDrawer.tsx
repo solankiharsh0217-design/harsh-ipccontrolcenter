@@ -204,28 +204,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
           </div>
         </div>
 
-        {/* Move stage */}
-        <div className="px-6 py-5 border-b border-line">
-          <div className="section-divider">Move stage</div>
-          <div className="flex flex-wrap gap-1.5">
-            {pipelineStages.map((s) => (
-              <button key={s.id} onClick={() => moveStage(s.id)} className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${s.id === lead.stage_id ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"}`}>
-                {s.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Agent */}
-        <div className="px-6 py-5 border-b border-line">
-          <div className="section-divider">Assigned agent</div>
-          <select className="ipc-input" value={lead.assigned_agent_id || ""} onChange={(e) => setAgent(e.target.value || null)}>
-            <option value="">— Unassigned —</option>
-            {agents.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-          </select>
-        </div>
-
-        {/* Reminders */}
+        {/* Follow-up reminders (moved up — most-used action) */}
         <div className="px-6 py-5 border-b border-line">
           <div className="section-divider">Follow-up reminders</div>
           <div className="space-y-2 mb-3">
@@ -252,6 +231,57 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
             onSaved={load}
           />
         </div>
+
+        {/* Stage — compact dropdown with inline add/delete */}
+        <div className="px-6 py-5 border-b border-line">
+          <div className="flex items-center justify-between mb-2">
+            <div className="section-divider !mb-0">Stage</div>
+            <button onClick={() => setShowStagePicker((v) => !v)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off">
+              {showStagePicker ? "Close" : "Change stage"}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
+            <span className="px-2.5 py-1 rounded-full text-xs bg-black text-white">{currentStage?.name || "—"}</span>
+          </div>
+          {showStagePicker && (
+            <div className="mt-3 border border-line rounded-lg p-2 bg-white space-y-0.5 max-h-[280px] overflow-y-auto">
+              {pipelineStages.map((s) => (
+                <div key={s.id} className="group flex items-center gap-2">
+                  <button onClick={() => { moveStage(s.id); setShowStagePicker(false); }}
+                    className={`flex-1 text-left px-2.5 py-1.5 rounded text-xs ${s.id === lead.stage_id ? "bg-off font-medium" : "hover:bg-off"}`}>
+                    {s.name}
+                  </button>
+                  {!(s as any).is_protected && s.id !== lead.stage_id && (
+                    <button onClick={() => deactivateStage(s)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[#DC2626] p-1" title="Delete stage (only if unused)">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex items-center gap-1.5 pt-2 border-t border-line mt-2">
+                <input
+                  value={newStageName}
+                  onChange={(e) => setNewStageName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addStageInline(); }}
+                  placeholder="+ Add new stage…"
+                  className="ipc-input !h-8 !text-xs flex-1"
+                />
+                <button onClick={addStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">Add</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Agent */}
+        <div className="px-6 py-5 border-b border-line">
+          <div className="section-divider">Assigned agent</div>
+          <select className="ipc-input" value={lead.assigned_agent_id || ""} onChange={(e) => setAgent(e.target.value || null)}>
+            <option value="">— Unassigned —</option>
+            {agents.map((a) => <option key={a.id} value={a.id}>{a.full_name}</option>)}
+          </select>
+        </div>
+
 
         {/* Activity */}
         <div className="px-6 py-5 border-b border-line">
