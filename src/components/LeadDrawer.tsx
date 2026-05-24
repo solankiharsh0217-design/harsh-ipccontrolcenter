@@ -134,6 +134,29 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               </Link>
             </div>
           )}
+          {/* Payment / Token snapshot */}
+          {(paidSnap || Number(lead.deal_value) > 0) && (
+            <div className="mt-4 rounded-lg border border-line bg-off/40 px-3 py-2.5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground">Payment Snapshot</div>
+                {paidSnap ? (
+                  Number(paidSnap.token_amount_collected || 0) > 0 ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#DCFCE7] text-[#15803D] border border-[#86EFAC]">Token Paid {inr(paidSnap.token_amount_collected)}</span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">Token Pending</span>
+                  )
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">No paid record</span>
+                )}
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="p-1.5 rounded bg-white border border-line"><div className="uppercase-label">Deal</div><div className="font-serif text-sm">{inr(paidSnap?.deal_value ?? lead.deal_value)}</div></div>
+                <div className="p-1.5 rounded bg-white border border-line"><div className="uppercase-label">Token</div><div className="font-serif text-sm">{paidSnap ? inr(paidSnap.token_amount_collected) : "—"}</div></div>
+                <div className="p-1.5 rounded bg-white border border-line"><div className="uppercase-label">Collected</div><div className="font-serif text-sm">{paidSnap ? inr(paidSnap.total_collected) : "—"}</div></div>
+                <div className="p-1.5 rounded bg-white border border-line"><div className="uppercase-label">Balance</div><div className="font-serif text-sm">{paidSnap ? inr(paidSnap.balance_pending) : "—"}</div></div>
+              </div>
+            </div>
+          )}
           <div className="mt-4 rounded-lg border border-line bg-off/40 px-3 py-2.5">
             <div className="flex items-center justify-between mb-2">
               <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground">Lead Tags</div>
