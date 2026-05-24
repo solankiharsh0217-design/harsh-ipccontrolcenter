@@ -86,11 +86,14 @@ export default function AssignModal(props: Props) {
     setLoading(true);
     try {
       const cols = `id, full_name, email, role, department, status, active_for_assignment, include_in_round_robin, ${eligibilityFlag}`;
-      const [{ data: profs }, { data: roles }] = await Promise.all([
+      const aliases = moduleAliases(moduleKey);
+      const [{ data: profs }, { data: roles }, { data: access }] = await Promise.all([
         supabase.from("profiles").select(cols).eq("status", "active"),
         supabase.from("user_roles").select("user_id, role").eq("role", "admin"),
+        supabase.from("user_module_access").select("user_id, module_key").in("module_key", aliases),
       ]);
       const admins = new Set((roles ?? []).map((r: any) => r.user_id));
+      const accessSet = new Set((access ?? []).map((a: any) => a.user_id));
       const mapped: EligibleUser[] = ((profs ?? []) as any[]).map((p) => ({
         id: p.id,
         full_name: p.full_name,
@@ -103,6 +106,8 @@ export default function AssignModal(props: Props) {
         flagValue: p[eligibilityFlag] === true,
       }));
       setUsers(mapped);
+      setModuleAccessIds(accessSet);
+      setAllActiveCount(mapped.length);
     } catch (e: any) {
       toast.error(e.message || "Failed to load users");
     } finally {
