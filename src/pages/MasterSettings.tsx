@@ -50,6 +50,8 @@ const SECTIONS = [
   { key: "webinar", label: "Webinar" },
   { key: "team", label: "Roles & Departments" },
   { key: "eligibility", label: "Assignment Eligibility" },
+  { key: "tags", label: "Tags" },
+  { key: "stage_sync", label: "Stage Sync Rules" },
   { key: "whatsapp", label: "WhatsApp Templates" },
   { key: "dropdowns", label: "General Dropdowns" },
   { key: "media_buyer_cleanup", label: "Media Buyer Name Cleanup" },
