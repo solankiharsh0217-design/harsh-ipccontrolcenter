@@ -415,9 +415,32 @@ export default function Crm() {
       {/* Batches view — one card per webinar import */}
       {view === "batches" && (
         <div>
-          {batches.length === 0 && <div className="text-sm text-muted-foreground">No imports yet. Use Lead Qualifier → Send to CRM to import a batch.</div>}
+          {/* Pipeline-type tabs: clearly separate Sales (Unpaid) vs Paid — Onboarding batches */}
+          <div className="flex items-center gap-1 p-1 mb-4 rounded-lg border border-line bg-white w-fit">
+            {([
+              { key: "all", label: `All batches (${batchCounts.all})` },
+              { key: "unpaid", label: `Sales Pipeline (Unpaid) (${batchCounts.unpaid})` },
+              { key: "paid", label: `Paid — Onboarding (${batchCounts.paid})` },
+              ...(batchCounts.custom > 0 ? [{ key: "custom", label: `Custom (${batchCounts.custom})` }] : []),
+            ] as { key: typeof batchPipelineFilter; label: string }[]).map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setBatchPipelineFilter(t.key)}
+                className={`px-3 py-1.5 rounded-md text-xs ${batchPipelineFilter === t.key ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {visibleBatches.length === 0 && (
+            <div className="text-sm text-muted-foreground">
+              {batches.length === 0
+                ? "No imports yet. Use Import to bring in a batch."
+                : `No batches in ${batchPipelineFilter === "all" ? "this view" : batchPipelineFilter === "paid" ? "Paid — Onboarding" : batchPipelineFilter === "unpaid" ? "Sales Pipeline (Unpaid)" : "Custom pipelines"}.`}
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-4">
-            {batches.map((b) => {
+            {visibleBatches.map((b) => {
               const pipe = pipelines.find((p) => p.id === b.pipelineId);
               return (
                 <div
