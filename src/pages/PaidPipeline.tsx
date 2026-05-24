@@ -703,6 +703,37 @@ function FinanceCell({ lead, onClick }: { lead: any; onClick: () => void }) {
   );
 }
 
+function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }: {
+  onAddPayment: () => void; onUpdateFinance: () => void; onSetFollowUp: () => void; onOpen: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const item = (label: string, fn: () => void, accent?: string) => (
+    <button onClick={() => { setOpen(false); fn(); }} className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-off ${accent || ""}`}>{label}</button>
+  );
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)} className="text-[12px] px-2 py-1 rounded border border-line hover:bg-off leading-none" title="More actions" aria-label="More actions">⋯</button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-44 bg-white border border-line rounded-md shadow-lg z-30 py-1">
+          {item("+ Add Payment", onAddPayment, "text-[#15803D] font-medium")}
+          {item("Update Finance", onUpdateFinance)}
+          {item("Set Follow-up", onSetFollowUp)}
+          <div className="h-px bg-line my-1" />
+          {item("Open Details", onOpen)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
 function BulkStageMenu({ onPick, stages }: { onPick: (s: string) => void; stages: string[] }) {
   const [open, setOpen] = useState(false);
