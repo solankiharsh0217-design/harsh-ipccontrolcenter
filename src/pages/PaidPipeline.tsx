@@ -291,6 +291,7 @@ export default function PaidPipeline() {
 
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5">
+        <SumCard label="Total Paid Leads" value={String(filtered.length)} accent="blue" />
         <SumCard label="Total Deal Value" value={inr(totals.dealTotal)} />
         <SumCard label="Token Collected" value={inr(totals.token)} />
         <SumCard label="Total Collected" value={inr(totals.collectedTotal)} accent="green" />
