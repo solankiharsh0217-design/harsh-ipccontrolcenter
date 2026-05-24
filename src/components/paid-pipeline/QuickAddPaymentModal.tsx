@@ -63,6 +63,11 @@ export default function QuickAddPaymentModal({
           follow_up_status: "Pending",
         } as any).eq("id", leadId);
       }
+      if (financePartner) {
+        await supabase.from("paid_pipeline_leads").update({
+          finance_partner: financePartner, finance_required: true,
+        } as any).eq("id", leadId);
+      }
       await recomputePaidLead(leadId);
       logActivity({
         module_key: "paid_pipeline", module_label: "Paid Pipeline",
