@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 import { supabase } from "@/integrations/supabase/client";
 import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
@@ -944,33 +945,37 @@ function FilterChip({ label, onClear }: { label: string; onClear: () => void }) 
 
 function MoreFiltersMenu({ tagFilter, stageFilter, count }: { tagFilter: React.ReactNode; stageFilter: React.ReactNode; count: number }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
   return (
-    <div ref={ref} className="relative">
-      <button onClick={() => setOpen(o => !o)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Tags, stages & more filters">
-        <Settings2 className="w-3.5 h-3.5" /> More filters{count > 0 ? ` (${count})` : ""}
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-1 w-[320px] bg-white border border-line rounded-md shadow-lg z-[1050] p-3 space-y-2">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Tag</div>
-            {tagFilter}
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Stage</div>
-            {stageFilter}
-          </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Tags, stages & more filters">
+          <Settings2 className="w-3.5 h-3.5" /> More filters{count > 0 ? ` (${count})` : ""}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="bottom"
+        sideOffset={6}
+        collisionPadding={16}
+        className="z-[1080] w-[340px] p-3 space-y-3 bg-white border border-line rounded-md shadow-xl"
+      >
+        <div className="flex items-center justify-between">
+          <div className="font-serif text-[13px]">Filters &amp; Manage</div>
+          <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-black text-[11px]">Close</button>
         </div>
-      )}
-    </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Tag</div>
+          {tagFilter}
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Stage</div>
+          {stageFilter}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
+
 
 function OverflowActionsMenu({ onAddStage, onExport }: { onAddStage: () => void; onExport: () => void }) {
   const [open, setOpen] = useState(false);
