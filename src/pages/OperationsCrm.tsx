@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  Plus, Search, X as XIcon, RefreshCw, Settings2, GripVertical, ExternalLink,
+  Plus, Search, X as XIcon, RefreshCw, GripVertical,
   Pencil, Trash2,
 } from "lucide-react";
-import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, DEFAULT_OPERATIONS_STAGES } from "@/lib/operationsCrm";
+import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, computeServiceCalc } from "@/lib/operationsCrm";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
+import OperationsLeadDrawer, { type OpsLeadFull } from "@/components/OperationsLeadDrawer";
 import type { Pipeline, Stage } from "@/lib/crmTypes";
 
 interface OpsLead {
