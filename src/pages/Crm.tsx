@@ -352,6 +352,10 @@ export default function Crm() {
       logActivity({ module_key: "calling_crm", action_type: "crm_card_reordered", entity_type: "crm_lead", entity_id: id, entity_label: lead?.full_name ?? undefined, old_values: { sort_order: oldSort }, new_values: { sort_order: newOrder }, summary: `${lead?.full_name ?? "Lead"} reordered within ${newName}.` });
     }
     setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage_id: stageId, sort_order: newOrder } as any : l));
+    if (oldStageId !== stageId) {
+      const lead2 = leads.find((l) => l.id === id);
+      evaluateHandoffForLeads([id], lead2?.pipeline_id ?? activePipeline, stageId).catch(() => {});
+    }
   };
 
   const createPipeline = async () => {
