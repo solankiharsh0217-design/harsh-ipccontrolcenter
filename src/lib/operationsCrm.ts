@@ -263,4 +263,140 @@ export async function findExistingActiveOpsLead(opts: {
   return null;
 }
 
+// ─────────────── Auto handoff executor ───────────────
+
+export interface AutoHandoffLeadInput {
+  id: string;                      // crm lead id
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  program_name?: string | null;
+  webinar_source?: string | null;
+  deal_value?: number | null;
+  paid_pipeline_lead_id?: string | null;
+}
+
+export interface AutoHandoffResult {
+  inserted: number;
+  updated: number;
+  skipped: number;
+  buyerCounts: Record<string, number>;
+}
+
+/**
+ * Creates / updates Operations CRM leads from an active handoff rule.
+ * Honors duplicate_behavior, performs round-robin / single assignment, and
+ * returns counts the caller can use for notifications / audit logs.
+ */
+export async function applyAutoHandoff(
+  rule: HandoffRule,
+  leads: AutoHandoffLeadInput[],
+  createdBy: string | null,
+): Promise<AutoHandoffResult> {
+  const sb = supabase as any;
+  if (!leads.length) return { inserted: 0, updated: 0, skipped: 0, buyerCounts: {} };
+
+  const { pipelineId, firstStageId } = await ensureOperationsPipeline();
+
+  const crmIds = leads.map((l) => l.id);
+  const ppIds = leads.map((l) => l.paid_pipeline_lead_id).filter(Boolean) as string[];
+  const dupQueries: Promise<any>[] = [
+    sb.from("operations_leads").select("id, crm_lead_id, paid_pipeline_lead_id, service_status").in("crm_lead_id", crmIds),
+  ];
+  if (ppIds.length) {
+    dupQueries.push(sb.from("operations_leads").select("id, crm_lead_id, paid_pipeline_lead_id, service_status").in("paid_pipeline_lead_id", ppIds));
+  }
+  const dupResults = await Promise.all(dupQueries);
+  const dupByCrm = new Map<string, any>();
+  const dupByPp = new Map<string, any>();
+  for (const { data } of dupResults) {
+    for (const r of (data ?? [])) {
+      if (r.service_status === "stopped" || r.service_status === "completed") continue;
+      if (r.crm_lead_id) dupByCrm.set(r.crm_lead_id, r);
+      if (r.paid_pipeline_lead_id) dupByPp.set(r.paid_pipeline_lead_id, r);
+    }
+  }
+
+  const buyerIds = new Set<string>();
+  if (rule.default_assignment_method === "single" && rule.default_single_buyer_id) buyerIds.add(rule.default_single_buyer_id);
+  if (rule.default_assignment_method === "round_robin") (rule.eligible_buyer_ids || []).forEach((id) => buyerIds.add(id));
+  const buyerNames = new Map<string, string>();
+  if (buyerIds.size) {
+    const { data: profs } = await sb.from("profiles").select("id, full_name").in("id", Array.from(buyerIds));
+    (profs ?? []).forEach((p: any) => buyerNames.set(p.id, p.full_name ?? "—"));
+  }
+
+  const days = rule.default_service_days ?? 0;
+  const months = days > 0 ? Math.round((days / 30) * 100) / 100 : null;
+  const pkg = rule.default_service_package ?? null;
+  const pool = rule.eligible_buyer_ids ?? [];
+  let rr = 0;
+  let inserted = 0, updated = 0, skipped = 0;
+  const buyerCounts: Record<string, number> = {};
+
+  const toInsert: any[] = [];
+
+  for (const lead of leads) {
+    let buyerId: string | null = null;
+    if (rule.default_assignment_method === "single") buyerId = rule.default_single_buyer_id ?? null;
+    else if (rule.default_assignment_method === "round_robin" && pool.length) {
+      buyerId = pool[rr % pool.length];
+      rr++;
+    }
+    const buyerName = buyerId ? buyerNames.get(buyerId) ?? null : null;
+
+    const dup = dupByCrm.get(lead.id) || (lead.paid_pipeline_lead_id ? dupByPp.get(lead.paid_pipeline_lead_id) : undefined);
+    if (dup) {
+      if (rule.duplicate_behavior === "skip") { skipped++; continue; }
+      const patch: any = {
+        service_package_name: pkg,
+        service_days_committed: days || null,
+        service_months: months,
+      };
+      if (buyerId) { patch.assigned_media_buyer_id = buyerId; patch.assigned_media_buyer_name = buyerName; }
+      const { error } = await sb.from("operations_leads").update(patch).eq("id", dup.id);
+      if (!error) {
+        updated++;
+        if (buyerId) buyerCounts[buyerId] = (buyerCounts[buyerId] ?? 0) + 1;
+      }
+      continue;
+    }
+
+    toInsert.push({
+      crm_lead_id: lead.id,
+      paid_pipeline_lead_id: lead.paid_pipeline_lead_id ?? null,
+      name: lead.full_name ?? "—",
+      email: lead.email,
+      phone: lead.phone,
+      product_name: lead.program_name ?? null,
+      batch_name: lead.webinar_source ?? null,
+      onboarding_batch: lead.webinar_source ?? null,
+      deal_value: lead.deal_value ?? null,
+      service_package_name: pkg,
+      service_months: months,
+      service_days_committed: days || null,
+      service_status: "not_started",
+      pipeline_id: pipelineId,
+      stage_id: firstStageId,
+      assigned_media_buyer_id: buyerId,
+      assigned_media_buyer_name: buyerName,
+      created_by: createdBy,
+    });
+    if (buyerId) buyerCounts[buyerId] = (buyerCounts[buyerId] ?? 0) + 1;
+  }
+
+  if (toInsert.length) {
+    const chunk = 200;
+    for (let i = 0; i < toInsert.length; i += chunk) {
+      const slice = toInsert.slice(i, i + chunk);
+      const { error, data } = await sb.from("operations_leads").insert(slice).select("id");
+      if (!error) inserted += data?.length ?? slice.length;
+      else skipped += slice.length;
+    }
+  }
+
+  return { inserted, updated, skipped, buyerCounts };
+}
+
+
 
