@@ -486,6 +486,41 @@ export default function Crm() {
     await load();
   };
 
+  // Pipeline tab reorder (admin only, global)
+  const [pipeDragId, setPipeDragId] = useState<string | null>(null);
+  const [pipeHoverId, setPipeHoverId] = useState<string | null>(null);
+  const reorderPipelineDrop = async (target: any) => {
+    const dragId = pipeDragId;
+    setPipeDragId(null); setPipeHoverId(null);
+    if (!isAdmin || !dragId || dragId === target.id) return;
+    const drag = pipelines.find((p) => p.id === dragId);
+    if (!drag) return;
+    const prevFirstId = pipelines[0]?.id;
+    const ordered = pipelines.filter((p) => p.id !== dragId);
+    const targetIdx = ordered.findIndex((p) => p.id === target.id);
+    const dragIdx = pipelines.findIndex((p) => p.id === dragId);
+    const insertIdx = dragIdx < targetIdx ? targetIdx + 1 : targetIdx;
+    ordered.splice(insertIdx, 0, drag);
+    try {
+      for (let i = 0; i < ordered.length; i++) {
+        if ((ordered[i] as any).position !== i) {
+          const { error } = await supabase.from("pipelines").update({ position: i }).eq("id", ordered[i].id);
+          if (error) throw error;
+        }
+      }
+      logActivity({ module_key: "calling_crm", action_type: "pipeline_tabs_reordered", entity_type: "pipeline", entity_id: drag.id, entity_label: (drag as any).name, summary: `Pipeline tabs reordered: "${(drag as any).name}" moved.` });
+      const newFirstId = ordered[0]?.id;
+      if (newFirstId && newFirstId !== prevFirstId) {
+        const newFirst: any = ordered[0];
+        logActivity({ module_key: "calling_crm", action_type: "default_pipeline_changed", entity_type: "pipeline", entity_id: newFirst.id, entity_label: newFirst.name, new_values: { default_pipeline: newFirst.name }, summary: `Default pipeline changed to "${newFirst.name}".` });
+      }
+      toast.success("Pipeline order saved");
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to reorder pipelines");
+    }
+  };
+
   const renameStage = async (s: Stage, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed) { toast.error("Name required"); return; }
@@ -1554,8 +1589,19 @@ export default function Crm() {
         {pipelines.map((p) => {
           const isActive = p.id === activePipeline;
           const dot = p.type === "paid" ? "#16A34A" : p.type === "unpaid" ? "#2563EB" : "#C8A84B";
+          const isHover = isAdmin && pipeHoverId === p.id && pipeDragId && pipeDragId !== p.id;
           return (
-            <div key={p.id} className={`flex items-center rounded-lg border ${isActive ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"}`}>
+            <div
+              key={p.id}
+              draggable={isAdmin}
+              onDragStart={isAdmin ? (e) => { setPipeDragId(p.id); e.dataTransfer.effectAllowed = "move"; } : undefined}
+              onDragOver={isAdmin ? (e) => { if (pipeDragId && pipeDragId !== p.id) { e.preventDefault(); setPipeHoverId(p.id); } } : undefined}
+              onDragLeave={isAdmin ? () => { if (pipeHoverId === p.id) setPipeHoverId(null); } : undefined}
+              onDrop={isAdmin ? (e) => { e.preventDefault(); reorderPipelineDrop(p); } : undefined}
+              onDragEnd={isAdmin ? () => { setPipeDragId(null); setPipeHoverId(null); } : undefined}
+              title={isAdmin ? "Drag to reorder. First tab becomes the default pipeline for everyone." : undefined}
+              className={`flex items-center rounded-lg border ${isActive ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"} ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isHover ? "ring-2 ring-blue-400" : ""} ${pipeDragId === p.id ? "opacity-60" : ""}`}
+            >
               <button onClick={() => setActivePipeline(p.id)} className="px-3 py-1.5 text-xs flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
                 {p.name}
