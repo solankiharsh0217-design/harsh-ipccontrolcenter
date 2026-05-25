@@ -195,7 +195,9 @@ export default function OperationsHandoffRulesPanel() {
         <div className="border border-line rounded-lg bg-white divide-y">
           {rules.map((r) => {
             const pipe = pipelines.find((p) => p.id === r.source_pipeline_id);
+            const liveStageIds = new Set(stagesFor(r.source_pipeline_id).map((s) => s.id));
             const stgs = stagesFor(r.source_pipeline_id).filter((s) => r.eligible_stage_ids?.includes(s.id));
+            const missingStageCount = (r.eligible_stage_ids ?? []).filter((id) => !liveStageIds.has(id)).length;
             const needsCompletion = r.mode === "auto" && !isRuleAutoReady(r);
             return (
               <div key={r.id} className="p-3 flex items-start gap-3">
@@ -209,11 +211,28 @@ export default function OperationsHandoffRulesPanel() {
                         <AlertTriangle className="w-3 h-3" /> Incomplete · falls back to suggest
                       </span>
                     )}
+                    {missingStageCount > 0 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-red-50 text-red-800 border border-red-200 inline-flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> {missingStageCount} stale stage{missingStageCount === 1 ? "" : "s"}
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-1">
                     <span className="font-medium text-foreground">{pipe?.name ?? "—"}</span>
-                    {stgs.length > 0 && <> · {stgs.map((s) => s.name).join(", ")}</>}
                   </div>
+                  {stgs.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {stgs.map((s) => (
+                        <span key={s.id} className="text-[10px] px-2 py-0.5 rounded-full bg-off border border-line text-foreground">{s.name}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="text-[11px] text-muted-foreground mt-1.5">
+                    {r.default_service_package ?? "—"} · {r.default_service_days ?? "—"} days · {r.default_assignment_method.replace("_", " ")} · {r.duplicate_behavior === "skip" ? "Skip duplicates" : "Update existing"}
+                    {r.default_assignment_method === "round_robin" && <> · {(r.eligible_buyer_ids ?? []).length} buyer{(r.eligible_buyer_ids ?? []).length === 1 ? "" : "s"} in pool</>}
+                  </div>
+                </div>
+
                   <div className="text-[11px] text-muted-foreground mt-0.5">
                     {r.default_service_package ?? "—"} · {r.default_service_days ?? "—"} days · {r.default_assignment_method.replace("_", " ")} · {r.duplicate_behavior === "skip" ? "Skip duplicates" : "Update existing"}
                   </div>
