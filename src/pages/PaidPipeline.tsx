@@ -24,6 +24,8 @@ import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
+import { archivePaidBuyer, restorePaidBuyer } from "@/lib/crmArchive";
+import { ArchiveConfirmModal } from "@/components/crm/ArchiveConfirmModal";
 
 type Lead = {
   id: string;
