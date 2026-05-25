@@ -354,13 +354,48 @@ export default function Team() {
               <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Profile</div>
               <div>
                 <label className="font-sans text-[11px] text-muted-foreground block mb-1">Login email</label>
-                <input
-                  value={editing.email || ""}
-                  readOnly
-                  placeholder="Email not available"
-                  className="w-full h-9 px-3 rounded-md border border-line bg-off font-sans text-sm text-muted-foreground cursor-not-allowed"
-                  title="Login email is read-only"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    value={editing.email || ""}
+                    readOnly
+                    placeholder="Email not available"
+                    className="flex-1 h-9 px-3 rounded-md border border-line bg-off font-sans text-sm text-muted-foreground cursor-not-allowed"
+                    title="Login email is read-only"
+                  />
+                  {isAdmin && editing.email && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!editing?.email) return;
+                        if (!confirm(`Send a password reset link to ${editing.email}?`)) return;
+                        try {
+                          const { error } = await supabase.auth.resetPasswordForEmail(editing.email, {
+                            redirectTo: `${window.location.origin}/login`,
+                          });
+                          if (error) throw error;
+                          await logActivity({
+                            module_key: "team_directory",
+                            action_type: "password_reset_link_sent",
+                            entity_type: "team_member",
+                            entity_id: editing.id,
+                            entity_label: editing.full_name,
+                            target_user_id: editing.id,
+                            target_name: editing.full_name,
+                            summary: `Password reset link sent to ${editing.email} for ${editing.full_name}.`,
+                            severity: "warning",
+                          });
+                          toast.success(`Password reset link sent to ${editing.email}`);
+                        } catch (e: any) {
+                          toast.error(e.message ?? "Failed to send reset link");
+                        }
+                      }}
+                      className="h-9 px-3 rounded-md border border-line bg-white hover:bg-off font-sans text-[12px] whitespace-nowrap"
+                      title="Send password reset email to this member"
+                    >
+                      Send reset link
+                    </button>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="font-sans text-[11px] text-muted-foreground block mb-1">Full name</label>
