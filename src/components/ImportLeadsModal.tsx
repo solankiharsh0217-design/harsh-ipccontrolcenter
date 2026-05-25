@@ -497,6 +497,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       // ── Auto-sync paid leads to Paid Pipeline ─────────────────────────────
       let paidSynced = 0;
       let paidLinked = 0;
+      let paidUnlinked = 0;
       if (pipelineType === "paid") {
         try {
           // Pull the freshly imported/updated CRM leads for this batch
@@ -507,7 +508,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             .eq("webinar_source", segmentName);
 
           for (const lead of (crmRows || []) as any[]) {
-            // Match priority: existing link → email → phone
+            // Match priority: existing link → email → phone (covers backfill of older rows)
             let existing: any = null;
             if (lead.paid_pipeline_lead_id) {
               const { data } = await supabase.from("paid_pipeline_leads")
@@ -556,9 +557,19 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 paidSynced++;
               } else if (insErr) {
                 console.error("[ImportLeadsModal] paid_pipeline_leads insert failed", insErr);
+                paidUnlinked++;
+                if (!errors.includes(insErr.message)) errors.push(insErr.message);
               }
             }
           }
+
+          // Recount unlinked by re-querying — authoritative diagnostic
+          const { data: linkCheck } = await supabase
+            .from("leads")
+            .select("id, paid_pipeline_lead_id")
+            .eq("pipeline_id", pipelineId)
+            .eq("webinar_source", segmentName);
+          paidUnlinked = (linkCheck || []).filter((r: any) => !r.paid_pipeline_lead_id).length;
 
           if (paidSynced + paidLinked > 0) {
             logActivity({
@@ -566,8 +577,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               action_type: "paid_pipeline_record_created_from_crm",
               entity_type: "crm_batch",
               entity_label: segmentName,
-              metadata: { batch_name: segmentName, paid_created: paidSynced, paid_linked: paidLinked, pipeline_id: pipelineId },
-              summary: `Paid Pipeline auto-sync: ${paidSynced} created · ${paidLinked} linked from batch "${segmentName}".`,
+              metadata: { batch_name: segmentName, paid_created: paidSynced, paid_linked: paidLinked, paid_unlinked: paidUnlinked, pipeline_id: pipelineId },
+              summary: `Paid Pipeline auto-sync: ${paidSynced} created · ${paidLinked} linked · ${paidUnlinked} unlinked from batch "${segmentName}".`,
             });
           }
         } catch (syncErr: any) {
@@ -602,19 +613,25 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           new_imported_count: newImported,
           updated_existing_count: updated,
           moved_existing_count: moved,
+          restored_count: restored,
           skipped_duplicate_count: skippedDuplicates,
           failed_count: failed,
+          paid_created: paidSynced,
+          paid_linked: paidLinked,
+          paid_unlinked: paidUnlinked,
           duplicate_policy: duplicatePolicy,
+          assignment_mode: assignment,
+          assigned_to: assignment === "assign_to_me" ? profile?.id : (assignment === "assign_to_member" ? selectedAssigneeId : null),
           default_grade: defaultGrade,
           product_name: productName,
           deal_value: dealValue,
           webinar_name: webinarName || segmentName,
           webinar_date: webinarDate,
         },
-        summary: `Imported ${newImported} new · ${moved} moved · ${updated} updated · ${skippedDuplicates} skipped · ${failed} failed into "${pipelineName}" — batch "${segmentName}".`,
+        summary: `Imported ${newImported} new · ${moved} moved · ${updated} updated · ${restored} restored · ${skippedDuplicates} skipped · ${failed} failed → "${pipelineName}" — batch "${segmentName}".`,
       });
 
-      onDone({
+      const finalResult: ImportResult = {
         pipelineId: pipelineId as string,
         pipelineName,
         pipelineType,
@@ -624,16 +641,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         newImported,
         updated,
         moved,
+        restored,
         skippedDuplicates,
         failed,
         skipped: skippedDuplicates + failed,
         duplicatePolicy,
-      });
+        paidCreated: paidSynced,
+        paidLinked,
+        paidUnlinked,
+        errors,
+      };
+      setResult(finalResult);
+      setStep(5);
     } catch (e: any) {
       console.error("[ImportLeadsModal] importNow failed", e);
       toast.error(e.message || "Import failed");
     } finally { setImporting(false); }
   };
+
 
   const validRows = rows.length;
   const mappedOk = !!(mapping.full_name || mapping.email || mapping.phone);
