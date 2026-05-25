@@ -44,19 +44,20 @@ export async function createNotification(input: CreateNotificationInput): Promis
     if (!input.recipient_user_id && !input.recipient_team_member_id && !input.recipient_role) {
       return;
     }
-    if (!input.allowDuplicate && input.recipient_user_id && input.entity_id) {
+    if (!input.allowDuplicate && input.entity_id && (input.recipient_user_id || input.recipient_role)) {
       const since = new Date();
       since.setHours(0, 0, 0, 0);
-      const { data: existing } = await (supabase as any)
+      let q = (supabase as any)
         .from("notifications")
         .select("id")
-        .eq("recipient_user_id", input.recipient_user_id)
         .eq("notification_type", input.notification_type)
         .eq("entity_id", input.entity_id)
         .eq("status", "unread")
         .eq("is_deleted", false)
-        .gte("created_at", since.toISOString())
-        .limit(1);
+        .gte("created_at", since.toISOString());
+      if (input.recipient_user_id) q = q.eq("recipient_user_id", input.recipient_user_id);
+      else if (input.recipient_role) q = q.eq("recipient_role", input.recipient_role);
+      const { data: existing } = await q.limit(1);
       if (existing && existing.length > 0) return;
     }
     await (supabase as any).from("notifications").insert({
