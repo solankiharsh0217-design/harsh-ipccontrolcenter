@@ -708,11 +708,15 @@ export type Database = {
           deal_value: number | null
           email_error: string | null
           id: string
+          last_email_attempt_at: string | null
+          last_email_error: string | null
+          last_email_error_code: string | null
           member_email: string
           member_name: string
           member_phone: string | null
           paid_pipeline_lead_id: string | null
           program_name: string | null
+          provider_message_id: string | null
           sent_at: string | null
           signature_data_url: string | null
           signature_name: string | null
@@ -740,11 +744,15 @@ export type Database = {
           deal_value?: number | null
           email_error?: string | null
           id?: string
+          last_email_attempt_at?: string | null
+          last_email_error?: string | null
+          last_email_error_code?: string | null
           member_email: string
           member_name: string
           member_phone?: string | null
           paid_pipeline_lead_id?: string | null
           program_name?: string | null
+          provider_message_id?: string | null
           sent_at?: string | null
           signature_data_url?: string | null
           signature_name?: string | null
@@ -772,11 +780,15 @@ export type Database = {
           deal_value?: number | null
           email_error?: string | null
           id?: string
+          last_email_attempt_at?: string | null
+          last_email_error?: string | null
+          last_email_error_code?: string | null
           member_email?: string
           member_name?: string
           member_phone?: string | null
           paid_pipeline_lead_id?: string | null
           program_name?: string | null
+          provider_message_id?: string | null
           sent_at?: string | null
           signature_data_url?: string | null
           signature_name?: string | null
