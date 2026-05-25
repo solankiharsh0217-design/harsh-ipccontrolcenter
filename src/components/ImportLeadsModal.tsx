@@ -22,6 +22,7 @@ export interface ImportResult {
   updated: number;
   moved: number;
   restored: number;
+  phoneOnlyImported: number;
   skippedDuplicates: number;
   failed: number;
   skipped: number;           // back-compat alias = skippedDuplicates + failed
@@ -30,6 +31,7 @@ export interface ImportResult {
   paidLinked: number;
   paidUnlinked: number;
   errors: string[];
+  failureReasons: { reason: string; count: number }[];
 }
 
 interface Props {
@@ -272,11 +274,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             invalid,
             existingByEmail,
           });
-          // If every duplicate is only in the archive, recommend "Import as new active lead"
-          // so a fresh re-import after a batch reset is not silently blocked.
-          if (dupCount > 0 && archivedDupCount === dupCount) {
-            setDuplicatePolicy("new_only");
-          }
+          // NOTE: We intentionally do NOT auto-switch the duplicate policy here.
+          // Previously this forced "new_only" when all dups were archived, which
+          // silently skipped archived rows the user wanted to restore via "move".
         }
       } finally {
         if (!cancelled) setPreflightLoading(false);
@@ -343,33 +343,57 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         country: get(r, "country") || null,
       })).filter((r) => r.full_name || r.email || r.phone);
 
-      // Fresh duplicate map (in case preflight is stale)
+      // Fresh duplicate maps — match by email AND by phone (phone is a fallback
+      // unique key when email is missing or doesn't match an existing record).
       const emails = Array.from(new Set(records.map((r) => r.email).filter(Boolean) as string[]));
+      const phones = Array.from(new Set(records.map((r) => r.phone).filter(Boolean) as string[]));
       const existingByEmail = new Map<string, any>();
+      const existingByPhone = new Map<string, any>();
+      const leadCols = "id, email, full_name, phone, pipeline_id, stage_id, lead_type, archived_at, archived_by, archive_reason, paid_pipeline_lead_id";
       for (let i = 0; i < emails.length; i += 300) {
         const chunk = emails.slice(i, i + 300);
-        const { data } = await supabase
-          .from("leads")
-          .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type")
-          .in("email", chunk);
+        const { data } = await supabase.from("leads").select(leadCols).in("email", chunk);
         (data || []).forEach((l: any) => {
+          const k = normEmail(l.email);
+          if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
+          if (l.phone && !existingByPhone.has(l.phone)) existingByPhone.set(l.phone, l);
+        });
+      }
+      for (let i = 0; i < phones.length; i += 300) {
+        const chunk = phones.slice(i, i + 300);
+        const { data } = await supabase.from("leads").select(leadCols).in("phone", chunk);
+        (data || []).forEach((l: any) => {
+          if (l.phone && !existingByPhone.has(l.phone)) existingByPhone.set(l.phone, l);
           const k = normEmail(l.email);
           if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
         });
       }
 
-      // Bucket: new vs existing. Dedup within CSV by email (keep first).
+      // Bucket: new vs existing. Dedup within CSV by email then phone.
       const seenEmails = new Set<string>();
-      const newRows: N[] = [];
-      const dupRows: { row: N; existing: any }[] = [];
+      const seenPhones = new Set<string>();
+      const newRows: (N & { _phoneOnly?: boolean })[] = [];
+      const dupRows: { row: N; existing: any; matchedBy: "email" | "phone" }[] = [];
+      let failedNoKey = 0;
       for (const r of records) {
+        let existing: any = null;
+        let matchedBy: "email" | "phone" | null = null;
         if (r.email) {
           if (seenEmails.has(r.email)) continue;
           seenEmails.add(r.email);
           const ex = existingByEmail.get(r.email);
-          if (ex) { dupRows.push({ row: r, existing: ex }); continue; }
+          if (ex) { existing = ex; matchedBy = "email"; }
         }
-        newRows.push(r);
+        if (!existing && r.phone) {
+          if (!r.email && seenPhones.has(r.phone)) continue;
+          if (r.phone) seenPhones.add(r.phone);
+          const ex = existingByPhone.get(r.phone);
+          if (ex) { existing = ex; matchedBy = "phone"; }
+        }
+        if (existing) { dupRows.push({ row: r, existing, matchedBy: matchedBy! }); continue; }
+        // No match — must have at least an email OR phone to insert.
+        if (!r.email && !r.phone) { failedNoKey++; continue; }
+        newRows.push({ ...r, _phoneOnly: !r.email && !!r.phone });
       }
 
       // Assignment helper — applies to BOTH new rows and dup moves/updates.
@@ -391,19 +415,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let updated = 0;
       let moved = 0;
       let restored = 0;
+      let phoneOnlyImported = 0;
       let skippedDuplicates = 0;
-      let failed = 0;
+      let failed = failedNoKey;
       const errors: string[] = [];
+      const reasonCounts = new Map<string, number>();
+      if (failedNoKey > 0) reasonCounts.set("Row has neither email nor phone", failedNoKey);
 
       // --- Handle duplicates per policy ---
+      const addReason = (msg: string) => reasonCounts.set(msg, (reasonCounts.get(msg) || 0) + 1);
       if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") {
         skippedDuplicates += dupRows.length;
       } else {
         // update / move
-        for (const { row, existing } of dupRows) {
-          const isSH = true; // existing email match → super-hot per original logic
+        for (const { row, existing, matchedBy } of dupRows) {
+          const isSH = true; // existing match → super-hot per original logic
           const grade = (isSH ? "super-hot" : defaultGrade) as LeadGrade;
           const wasArchived = !!existing.archived_at;
+          const wasSoftDeleted = !!(existing as any).deleted_at;
           const agentId = assign(grade, isSH);
           const base: any = {
             pipeline_id: pipelineId,
@@ -418,25 +447,26 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             deal_value: dealValue,
             lead_source_type: "direct_import",
             ...(wasArchived ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
+            ...(wasSoftDeleted ? { deleted_at: null, deleted_by: null, delete_reason: null } : {}),
             ...(agentId ? { assigned_agent_id: agentId } : {}),
           };
-          if (duplicatePolicy === "update") {
-            if (!existing.full_name && row.full_name) base.full_name = row.full_name;
-            if (!existing.phone && row.phone) base.phone = row.phone;
-            if (row.country) base.country = row.country;
-          } else {
-            if (!existing.full_name && row.full_name) base.full_name = row.full_name;
-            if (!existing.phone && row.phone) base.phone = row.phone;
-          }
+          // Always fill missing fields; for "update" also overwrite country.
+          if (!existing.full_name && row.full_name) base.full_name = row.full_name;
+          if (!existing.phone && row.phone) base.phone = row.phone;
+          if (!existing.email && row.email) base.email = row.email;
+          if (duplicatePolicy === "update" && row.country) base.country = row.country;
+
           const { error } = await supabase.from("leads").update(base).eq("id", existing.id);
           if (error) {
             console.error("[ImportLeadsModal] update existing failed", error, existing.id);
             failed++;
+            addReason(`Update existing failed: ${error.message}`);
             if (!errors.includes(error.message)) errors.push(error.message);
           } else {
             if (duplicatePolicy === "update") updated++;
             else moved++;
             if (wasArchived) restored++;
+            if (matchedBy === "phone" && !row.email) phoneOnlyImported++;
           }
         }
       }
@@ -472,25 +502,32 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
       for (let i = 0; i < newPayloads.length; i += 200) {
         const chunk = newPayloads.slice(i, i + 200);
+        const chunkSrc = newRows.slice(i, i + 200);
         const { data, error } = await supabase.from("leads").insert(chunk).select("id");
         if (error) {
           // Fallback: race condition / unseen duplicate — retry one-by-one
           console.error("[ImportLeadsModal] insert chunk error, retrying per-row", error);
-          for (const row of chunk) {
+          for (let j = 0; j < chunk.length; j++) {
+            const row = chunk[j];
+            const src = chunkSrc[j];
             const { data: d2, error: e2 } = await supabase.from("leads").insert(row).select("id").maybeSingle();
             if (e2) {
               if (e2.code === "23505" || /duplicate key/i.test(e2.message)) {
                 skippedDuplicates++;
+                addReason("Duplicate key collision on insert");
               } else {
                 failed++;
+                addReason(`Insert failed: ${e2.message}`);
                 if (!errors.includes(e2.message)) errors.push(e2.message);
               }
             } else if (d2) {
               newImported++;
+              if (src?._phoneOnly) phoneOnlyImported++;
             }
           }
         } else {
           newImported += data?.length || chunk.length;
+          chunkSrc.forEach((s) => { if (s._phoneOnly) phoneOnlyImported++; });
         }
       }
 
@@ -642,6 +679,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         updated,
         moved,
         restored,
+        phoneOnlyImported,
         skippedDuplicates,
         failed,
         skipped: skippedDuplicates + failed,
@@ -650,6 +688,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         paidLinked,
         paidUnlinked,
         errors,
+        failureReasons: Array.from(reasonCounts.entries()).map(([reason, count]) => ({ reason, count })),
       };
       setResult(finalResult);
       setStep(5);
@@ -964,7 +1003,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               <div><span className="text-muted-foreground">Created (new):</span> <b className="text-emerald-700">{result.newImported}</b></div>
               <div><span className="text-muted-foreground">Moved:</span> <b>{result.moved}</b></div>
               <div><span className="text-muted-foreground">Updated:</span> <b>{result.updated}</b></div>
-              <div><span className="text-muted-foreground">Restored from archive:</span> <b>{result.restored}</b></div>
+              <div><span className="text-muted-foreground">Restored from archive:</span> <b className={result.restored > 0 ? "text-emerald-700" : ""}>{result.restored}</b></div>
+              <div><span className="text-muted-foreground">Phone-only imported:</span> <b>{result.phoneOnlyImported}</b></div>
               <div><span className="text-muted-foreground">Skipped duplicates:</span> <b className="text-amber-700">{result.skippedDuplicates}</b></div>
               <div><span className="text-muted-foreground">Failed:</span> <b className={result.failed ? "text-red-700" : ""}>{result.failed}</b></div>
             </div>
@@ -978,12 +1018,26 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   <span className="text-muted-foreground">Unlinked (CRM leads with no Paid Pipeline row):</span>{" "}
                   <b className={result.paidUnlinked > 0 ? "text-amber-700" : "text-emerald-700"}>{result.paidUnlinked}</b>
                 </div>
+                <div className="col-span-2 pt-1">
+                  <PaidSyncCheckButton pipelineId={result.pipelineId} onComplete={(r) => {
+                    setResult((prev) => prev ? { ...prev, paidCreated: prev.paidCreated + r.created, paidLinked: prev.paidLinked + r.linked, paidUnlinked: r.unlinkedAfter } : prev);
+                  }} />
+                </div>
                 {result.paidUnlinked > 0 && (
                   <div className="col-span-2 flex items-start gap-2 mt-1 p-2.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5" />
-                    <span>Some paid CRM leads are not linked to Paid Pipeline. Re-running the import will retry the link/backfill.</span>
+                    <span>Some paid CRM leads are not linked to Paid Pipeline. Click "Run Paid Import Sync Check" above to backfill.</span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {result.failureReasons.length > 0 && (
+              <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 text-xs">
+                <div className="font-medium text-amber-900 mb-1">Failure reasons</div>
+                <ul className="list-disc pl-4 space-y-0.5 text-amber-800">
+                  {result.failureReasons.map((r, i) => <li key={i}>{r.reason} — <b>{r.count}</b></li>)}
+                </ul>
               </div>
             )}
 
@@ -1002,6 +1056,88 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Finds Paid pipeline CRM leads with no paid_pipeline_lead_id and backfills them. */
+function PaidSyncCheckButton({ pipelineId, onComplete }: { pipelineId: string; onComplete: (r: { before: number; created: number; linked: number; unlinkedAfter: number }) => void }) {
+  const { profile } = useAuth();
+  const [running, setRunning] = useState(false);
+  const [last, setLast] = useState<{ before: number; created: number; linked: number; unlinkedAfter: number } | null>(null);
+
+  const run = async () => {
+    setRunning(true);
+    try {
+      const { data: crm } = await supabase
+        .from("leads")
+        .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id, archived_at")
+        .eq("pipeline_id", pipelineId)
+        .is("archived_at", null);
+      const unlinked = (crm || []).filter((l: any) => !l.paid_pipeline_lead_id);
+      const before = unlinked.length;
+      let created = 0, linked = 0;
+      for (const lead of unlinked as any[]) {
+        let existing: any = null;
+        if (lead.email) {
+          const { data } = await supabase.from("paid_pipeline_leads")
+            .select("id").eq("email", lead.email).eq("is_deleted", false).maybeSingle();
+          existing = data;
+        }
+        if (!existing && lead.phone) {
+          const { data } = await supabase.from("paid_pipeline_leads")
+            .select("id").eq("phone", lead.phone).eq("is_deleted", false).maybeSingle();
+          existing = data;
+        }
+        if (existing) {
+          await supabase.from("paid_pipeline_leads").update({ crm_lead_id: lead.id } as any).eq("id", existing.id);
+          await supabase.from("leads").update({ paid_pipeline_lead_id: existing.id } as any).eq("id", lead.id);
+          linked++;
+        } else {
+          const { data: ins } = await supabase.from("paid_pipeline_leads").insert({
+            name: lead.full_name, email: lead.email, phone: lead.phone,
+            product_name_snapshot: lead.program_name || null,
+            deal_value_including_gst: Number(lead.deal_value || 0),
+            pipeline_stage: "Payment Confirmed", payment_status: "No Payment",
+            crm_lead_id: lead.id, created_by: profile?.id,
+          } as any).select("id").maybeSingle();
+          if (ins?.id) {
+            await supabase.from("leads").update({ paid_pipeline_lead_id: ins.id } as any).eq("id", lead.id);
+            created++;
+          }
+        }
+      }
+      const { data: after } = await supabase.from("leads")
+        .select("id, paid_pipeline_lead_id").eq("pipeline_id", pipelineId).is("archived_at", null);
+      const unlinkedAfter = (after || []).filter((l: any) => !l.paid_pipeline_lead_id).length;
+      const result = { before, created, linked, unlinkedAfter };
+      setLast(result);
+      onComplete(result);
+      toast.success(`Sync check: ${created} created · ${linked} linked · ${unlinkedAfter} still unlinked`);
+      logActivity({
+        module_key: "paid_pipeline", action_type: "paid_pipeline_sync_check_run",
+        entity_type: "pipeline", entity_id: pipelineId,
+        summary: `Paid Import Sync Check: ${before} unlinked → ${created} created · ${linked} linked · ${unlinkedAfter} still unlinked.`,
+        metadata: { pipeline_id: pipelineId, before, created, linked, unlinked_after: unlinkedAfter },
+      }).catch(() => {});
+    } catch (e: any) {
+      console.error("[PaidSyncCheckButton]", e);
+      toast.error(e?.message || "Sync check failed");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button onClick={run} disabled={running} className="ipc-btn ipc-btn-ghost text-xs self-start disabled:opacity-50">
+        {running ? "Checking…" : "Run Paid Import Sync Check"}
+      </button>
+      {last && (
+        <div className="text-[11px] text-muted-foreground">
+          Before: <b>{last.before}</b> unlinked → After: <b>{last.unlinkedAfter}</b> unlinked (created {last.created}, linked {last.linked})
+        </div>
+      )}
     </div>
   );
 }
