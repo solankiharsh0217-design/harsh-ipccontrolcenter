@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { X, Info } from "lucide-react";
-import { getEligibleAssignees } from "@/lib/eligibleAssignees";
-import { ensureOperationsPipeline } from "@/lib/operationsCrm";
+import { X, Info, AlertTriangle, ExternalLink } from "lucide-react";
+import { getEligibleAssignees, getOperationsEligibilityDiagnostics, type OpsEligibilityDiagnostics } from "@/lib/eligibleAssignees";
+import { ensureOperationsPipeline, findExistingActiveOpsLead } from "@/lib/operationsCrm";
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
+
 
 interface SourceLead {
   id: string;
