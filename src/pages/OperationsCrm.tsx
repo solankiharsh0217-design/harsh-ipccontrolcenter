@@ -255,6 +255,18 @@ export default function OperationsCrm() {
         <div className="text-sm text-muted-foreground py-12 text-center border border-dashed border-line rounded-lg">
           No stages yet. <button className="underline text-black" onClick={addStage}>Add the first stage</button>.
         </div>
+      ) : leads.length === 0 ? (
+        <div className="border border-dashed border-line rounded-xl bg-off/40 py-12 px-6 text-center">
+          <div className="font-serif text-lg text-black mb-1">No clients in Operations CRM yet</div>
+          <div className="text-xs text-muted-foreground max-w-md mx-auto mb-4">
+            Send paid / onboarded clients here from Calling CRM using the <span className="font-medium text-foreground">Send to Operations</span> action — in the bulk bar or inside the lead drawer.
+          </div>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <a href="/crm" className="ipc-btn ipc-btn-black !h-9 !text-xs">Go to Calling CRM</a>
+            {isAdmin && <a href="/master-settings" className="ipc-btn ipc-btn-ghost !h-9 !text-xs">Master Settings</a>}
+            <button onClick={load} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><RefreshCw className="w-3.5 h-3.5" /> Refresh</button>
+          </div>
+        </div>
       ) : (
         <div className="flex gap-3 overflow-x-auto pb-4">
           {stages.map((s) => {
