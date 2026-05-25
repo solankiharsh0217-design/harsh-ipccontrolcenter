@@ -6,6 +6,13 @@ import { logActivity } from "@/lib/auditLog";
 
 type Opt = { id: string; label: string; color?: string | null };
 
+const NOUN: Record<string, string> = {
+  pipeline_stage: "stage",
+  lead_priority: "priority",
+  finance_partner: "finance partner",
+  finance_status: "finance status",
+};
+
 export default function InlineManagedSelect({
   settingType,
   value,
@@ -15,15 +22,17 @@ export default function InlineManagedSelect({
   colorize = false,
   refreshKey,
   onListChanged,
+  triggerClassName,
 }: {
-  settingType: "pipeline_stage" | "lead_priority";
+  settingType: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  width?: number;
+  width?: number | string;
   colorize?: boolean;
   refreshKey?: number;
   onListChanged?: () => void;
+  triggerClassName?: string;
 }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
