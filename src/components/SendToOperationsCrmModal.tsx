@@ -207,10 +207,13 @@ export default function SendToOperationsCrmModal({
       }
 
       await logActivity({
-        action: "operations_leads_sent_from_crm",
-        entity: "operations_leads",
-        entityId: null,
-        details: {
+        module_key: "operations_crm",
+        module_label: "Operations CRM",
+        action_type: "operations_leads_sent_from_crm",
+        action_label: "Sent leads to Operations CRM",
+        entity_type: "operations_leads",
+        summary: `Sent ${inserted + updated} client${(inserted + updated) === 1 ? "" : "s"} to Operations CRM (${packageName} · ${monthsFinal} months)`,
+        metadata: {
           inserted, updated, skipped,
           service_months: monthsFinal,
           package: packageName,
