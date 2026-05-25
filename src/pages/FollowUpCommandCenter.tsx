@@ -594,7 +594,8 @@ export default function FollowUpCommandCenter() {
         </select>
         <select className="qsi-input" value={ownerFilter} onChange={e=>setOwnerFilter(e.target.value)}>
           <option value="all">All owners</option>
-          {owners.map(o=> <option key={o}>{o}</option>)}
+          <option value="">Unassigned</option>
+          {profileList.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
         </select>
         <select className="qsi-input" value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}>
           <option value="all">All sources</option>
