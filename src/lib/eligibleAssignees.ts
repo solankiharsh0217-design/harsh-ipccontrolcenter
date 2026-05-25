@@ -184,8 +184,10 @@ export interface OpsEligibilityDiagnostics {
 export async function getOperationsEligibilityDiagnostics(): Promise<OpsEligibilityDiagnostics> {
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, role, status, active_for_assignment, can_receive_operations_leads")
-    .eq("status", "active");
+    .select("id, full_name, role, status, active_for_assignment, can_receive_operations_leads, deactivated_at")
+    .eq("status", "active")
+    .is("deactivated_at", null);
+
 
   const { data: modAccess } = await supabase
     .from("user_module_access")
