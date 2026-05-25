@@ -10,6 +10,8 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import { toast } from "sonner";
 import { Shield, X } from "lucide-react";
 import { logActivity } from "@/lib/auditLog";
+import MemberActionMenu from "@/components/team/MemberActionMenu";
+import MemberActionModal from "@/components/team/MemberActionModal";
 
 interface Member {
   id: string;
@@ -18,7 +20,10 @@ interface Member {
   department: string | null;
   email: string | null;
   last_login: string | null;
+  deactivated_at: string | null;
+  deactivation_reason: string | null;
 }
+
 
 type EligibilityFlags = {
   can_receive_calling_crm_leads: boolean;
