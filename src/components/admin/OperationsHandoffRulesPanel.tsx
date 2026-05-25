@@ -219,10 +219,12 @@ export default function OperationsHandoffRulesPanel() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <button onClick={() => validate(r)} className="ipc-btn ipc-btn-ghost !h-8 !text-[11px]">Validate</button>
                   <button onClick={() => toggleActive(r)} className="ipc-btn ipc-btn-ghost !h-8 !text-[11px]">{r.is_active ? "Deactivate" : "Activate"}</button>
                   <button onClick={() => setEditing(r)} className="w-8 h-8 rounded hover:bg-off flex items-center justify-center" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={() => remove(r)} className="w-8 h-8 rounded hover:bg-off flex items-center justify-center text-[#DC2626]" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
+
               </div>
             );
           })}
