@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { GRADE_STYLES, type Lead, type Stage, type ActivityLog, type Reminder } from "@/lib/crmTypes";
-import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink, ArrowRightCircle, Sparkles } from "lucide-react";
+import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink, ArrowRightCircle, Sparkles, ChevronDown, Search } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import TagPicker from "@/components/TagPicker";
@@ -35,10 +37,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [activityChannel, setActivityChannel] = useState<ActivityLog["channel"]>("call");
   const [paidSnap, setPaidSnap] = useState<any | null>(null);
   const [showStagePicker, setShowStagePicker] = useState(false);
+  const [stageSearch, setStageSearch] = useState("");
   const [newStageName, setNewStageName] = useState("");
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
+  const [extraOpen, setExtraOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, { id: s.id, name: s.name }])), [stages]);
 
 
@@ -247,7 +252,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           />
         </div>
 
-        {/* CRM Stage — prominent card with Ops eligibility */}
+        {/* CRM Stage — single prominent card with popover picker */}
         <div className="px-6 py-4 border-b border-line bg-gold-pale/10">
           <div className="rounded-xl border border-line bg-white p-4">
             <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
@@ -264,20 +269,76 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                   </span>
                 )}
               </div>
-              <button
-                onClick={() => setShowStagePicker((v) => !v)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-black text-white hover:opacity-90"
-              >
-                <ArrowRightCircle className="w-3.5 h-3.5" />
-                {showStagePicker ? "Close" : "Change Stage"}
-              </button>
+              <Popover open={showStagePicker} onOpenChange={(v) => { setShowStagePicker(v); if (!v) { setStageSearch(""); setNewStageName(""); } }}>
+                <PopoverTrigger asChild>
+                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-black text-white hover:opacity-90">
+                    <ArrowRightCircle className="w-3.5 h-3.5" />
+                    Change Stage
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={6}
+                  collisionPadding={16}
+                  className="z-[1100] w-[320px] p-0 bg-white border border-line rounded-md shadow-lg overflow-hidden"
+                >
+                  <div className="px-3 py-2 border-b border-line">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground mb-1.5">Change CRM Stage</div>
+                    <div className="flex items-center gap-1.5">
+                      <Search className="w-3.5 h-3.5 text-muted-foreground" />
+                      <input
+                        autoFocus
+                        value={stageSearch}
+                        onChange={(e) => setStageSearch(e.target.value)}
+                        placeholder="Search stages…"
+                        className="flex-1 text-xs outline-none bg-transparent"
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-[260px] overflow-y-auto">
+                    {pipelineStages
+                      .filter((s) => !stageSearch.trim() || s.name.toLowerCase().includes(stageSearch.trim().toLowerCase()))
+                      .map((s) => (
+                        <div key={s.id} className="group flex items-center hover:bg-off">
+                          <button
+                            onClick={() => { moveStage(s.id); setShowStagePicker(false); }}
+                            className={`flex-1 text-left px-3 py-1.5 text-xs truncate ${s.id === lead.stage_id ? "bg-off font-medium" : ""}`}
+                          >
+                            {s.name}
+                          </button>
+                          {!(s as any).is_protected && s.id !== lead.stage_id && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deactivateStage(s); }}
+                              className="opacity-0 group-hover:opacity-100 px-2 text-muted-foreground hover:text-[#DC2626]"
+                              title="Delete stage (only if unused)"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                  <div className="border-t border-line p-2 flex items-center gap-1.5">
+                    <input
+                      value={newStageName}
+                      onChange={(e) => setNewStageName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") addStageInline(); }}
+                      placeholder="+ Add new stage…"
+                      className="ipc-input !h-8 !text-xs flex-1"
+                    />
+                    <button onClick={addStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">Add</button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
               <span className="px-2.5 py-1 rounded-full text-xs bg-off border border-line font-medium">{currentStage?.name || "—"}</span>
             </div>
 
-            {/* Drawer-level Operations suggestion */}
+            {/* Operations handoff suggestion */}
             {matchingRule && !inOps && (
               <div className="mt-3 rounded-lg border border-[#86EFAC] bg-[#F0FDF4] p-3">
                 {matchingRule.mode === "auto" && !isRuleAutoReady(matchingRule) ? (
@@ -306,63 +367,11 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                 </Link>
               </div>
             )}
-
-            {showStagePicker && (
-              <div className="mt-3 border border-line rounded-lg p-2 bg-white space-y-0.5 max-h-[260px] overflow-y-auto">
-                {pipelineStages.map((s) => (
-                  <div key={s.id} className="group flex items-center gap-2">
-                    <button onClick={() => { moveStage(s.id); setShowStagePicker(false); }}
-                      className={`flex-1 text-left px-2.5 py-1.5 rounded text-xs ${s.id === lead.stage_id ? "bg-off font-medium" : "hover:bg-off"}`}>
-                      {s.name}
-                    </button>
-                    {!(s as any).is_protected && s.id !== lead.stage_id && (
-                      <button onClick={() => deactivateStage(s)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[#DC2626] p-1" title="Delete stage (only if unused)">
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <div className="flex items-center gap-1.5 pt-2 border-t border-line mt-2">
-                  <input
-                    value={newStageName}
-                    onChange={(e) => setNewStageName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addStageInline(); }}
-                    placeholder="+ Add new stage…"
-                    className="ipc-input !h-8 !text-xs flex-1"
-                  />
-                  <button onClick={addStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">Add</button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
-
-
-
-
-        {/* Score + signals */}
-        <div className="px-6 py-5 border-b border-line">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative w-20 h-20">
-              <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
-                <circle cx="18" cy="18" r="15" fill="none" stroke="#E8E5DE" strokeWidth="3" />
-                <circle cx="18" cy="18" r="15" fill="none" stroke={g.fg} strokeWidth="3" strokeDasharray={`${(lead.score / 100) * 94.2} 94.2`} strokeLinecap="round" />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="font-serif text-xl">{lead.score}</div>
-                <div className="font-sans text-[9px] uppercase text-muted-foreground tracking-wider">{g.label}</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 flex-1">
-              <div className="p-2 rounded-md bg-off border border-line"><div className="uppercase-label">Attendance</div><div className="font-serif text-base">{lead.total_minutes} min · {lead.sessions_count}×</div></div>
-              <div className="p-2 rounded-md bg-off border border-line"><div className="uppercase-label">Webinars</div><div className="font-serif text-base">{lead.webinar_count}{lead.is_super_hot ? " ★" : ""}</div></div>
-              <div className="p-2 rounded-md bg-off border border-line"><div className="uppercase-label">First join</div><div className="font-sans text-xs">{lead.first_join_time?.slice(0, 16) || "—"}</div></div>
-              <div className="p-2 rounded-md bg-off border border-line"><div className="uppercase-label">Deal value</div><div className="font-serif text-base">₹{Number(lead.deal_value).toLocaleString("en-IN")}</div></div>
-            </div>
-          </div>
-
-          {/* Contact actions */}
+        {/* Communication actions */}
+        <div className="px-6 py-4 border-b border-line">
           <div className="grid grid-cols-4 gap-2">
             <a href={`tel:${lead.phone}`} className="ipc-btn !bg-[#16A34A] !text-white !h-10"><Phone className="w-3.5 h-3.5" /> Call</a>
             <a href={`https://wa.me/${(lead.phone || "").replace(/\D/g,"")}`} target="_blank" rel="noreferrer" className="ipc-btn ipc-btn-ghost !h-10"><MessageCircle className="w-3.5 h-3.5" /> WA</a>
@@ -371,7 +380,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           </div>
         </div>
 
-        {/* Follow-up reminders (moved up — most-used action) */}
+        {/* Follow-up reminders (most-used daily action) */}
         <div className="px-6 py-5 border-b border-line">
           <div className="section-divider">Follow-up reminders</div>
           <div className="space-y-2 mb-3">
@@ -399,48 +408,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           />
         </div>
 
-        {/* Stage — compact dropdown with inline add/delete */}
-        <div className="px-6 py-5 border-b border-line">
-          <div className="flex items-center justify-between mb-2">
-            <div className="section-divider !mb-0">Stage</div>
-            <button onClick={() => setShowStagePicker((v) => !v)} className="text-[11px] px-2 py-1 rounded border border-line hover:bg-off">
-              {showStagePicker ? "Close" : "Change stage"}
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
-            <span className="px-2.5 py-1 rounded-full text-xs bg-black text-white">{currentStage?.name || "—"}</span>
-          </div>
-          {showStagePicker && (
-            <div className="mt-3 border border-line rounded-lg p-2 bg-white space-y-0.5 max-h-[280px] overflow-y-auto">
-              {pipelineStages.map((s) => (
-                <div key={s.id} className="group flex items-center gap-2">
-                  <button onClick={() => { moveStage(s.id); setShowStagePicker(false); }}
-                    className={`flex-1 text-left px-2.5 py-1.5 rounded text-xs ${s.id === lead.stage_id ? "bg-off font-medium" : "hover:bg-off"}`}>
-                    {s.name}
-                  </button>
-                  {!(s as any).is_protected && s.id !== lead.stage_id && (
-                    <button onClick={() => deactivateStage(s)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[#DC2626] p-1" title="Delete stage (only if unused)">
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <div className="flex items-center gap-1.5 pt-2 border-t border-line mt-2">
-                <input
-                  value={newStageName}
-                  onChange={(e) => setNewStageName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") addStageInline(); }}
-                  placeholder="+ Add new stage…"
-                  className="ipc-input !h-8 !text-xs flex-1"
-                />
-                <button onClick={addStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">Add</button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Agent */}
+        {/* Assigned agent */}
         <div className="px-6 py-5 border-b border-line">
           <div className="section-divider">Assigned agent</div>
           <select className="ipc-input" value={lead.assigned_agent_id || ""} onChange={(e) => setAgent(e.target.value || null)}>
@@ -449,39 +417,71 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           </select>
         </div>
 
-
-        {/* Activity */}
-        <div className="px-6 py-5 border-b border-line">
-          <div className="section-divider">Log activity</div>
-          <textarea className="ipc-input !h-auto py-2.5" rows={3} placeholder="Write call notes, WhatsApp summary…" value={activityNote} onChange={(e) => setActivityNote(e.target.value)} />
-          <div className="flex gap-2 mt-2">
-            <select className="ipc-input !h-10 !text-xs flex-1" value={activityChannel} onChange={(e) => setActivityChannel(e.target.value as any)}>
-              <option value="call">Call</option><option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="sms">SMS</option><option value="note">Note</option>
-            </select>
-            <button onClick={logActivity} className="ipc-btn ipc-btn-black !h-10">Save</button>
-          </div>
-        </div>
-
-        {/* History */}
-        <div className="px-6 py-5">
-          <div className="section-divider">Activity history</div>
-          <div className="space-y-3">
-            {activities.length === 0 && <div className="text-xs text-muted-foreground">No activity yet.</div>}
-            {activities.map((a) => (
-              <div key={a.id} className="flex gap-3">
-                <div className="w-1 rounded-full" style={{ background: channelStyle[a.channel] }} />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: channelStyle[a.channel] }}>{a.channel}</span>
-                    <span className="text-[10px] text-muted-foreground">{new Date(a.logged_at).toLocaleString()}</span>
+        {/* Extra details — collapsed by default */}
+        <div className="px-6 py-4 border-b border-line">
+          <Collapsible open={extraOpen} onOpenChange={setExtraOpen}>
+            <CollapsibleTrigger className="w-full flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-foreground hover:text-black">
+              <span>Extra details · attendance, webinars, score</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${extraOpen ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+              <div className="flex items-center gap-4">
+                <div className="relative w-20 h-20">
+                  <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
+                    <circle cx="18" cy="18" r="15" fill="none" stroke="#E8E5DE" strokeWidth="3" />
+                    <circle cx="18" cy="18" r="15" fill="none" stroke={g.fg} strokeWidth="3" strokeDasharray={`${(lead.score / 100) * 94.2} 94.2`} strokeLinecap="round" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="font-serif text-xl">{lead.score}</div>
+                    <div className="font-sans text-[9px] uppercase text-muted-foreground tracking-wider">{g.label}</div>
                   </div>
-                  <div className="font-sans text-xs">{a.note}</div>
-                  {a.agent_name && <div className="text-[10px] text-muted-foreground mt-0.5">— {a.agent_name}</div>}
+                </div>
+                <div className="grid grid-cols-2 gap-2 flex-1">
+                  <div className="p-2 rounded-md bg-off border border-line"><div className="uppercase-label">Attendance</div><div className="font-serif text-base">{lead.total_minutes} min · {lead.sessions_count}×</div></div>
+                  <div className="p-2 rounded-md bg-off border border-line"><div className="uppercase-label">Webinars</div><div className="font-serif text-base">{lead.webinar_count}{lead.is_super_hot ? " ★" : ""}</div></div>
+                  <div className="p-2 rounded-md bg-off border border-line"><div className="uppercase-label">First join</div><div className="font-sans text-xs">{lead.first_join_time?.slice(0, 16) || "—"}</div></div>
+                  <div className="p-2 rounded-md bg-off border border-line"><div className="uppercase-label">Deal value</div><div className="font-serif text-base">₹{Number(lead.deal_value).toLocaleString("en-IN")}</div></div>
                 </div>
               </div>
-            ))}
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
+
+        {/* Activity — collapsed by default */}
+        <div className="px-6 py-4">
+          <Collapsible open={activityOpen} onOpenChange={setActivityOpen}>
+            <CollapsibleTrigger className="w-full flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-foreground hover:text-black">
+              <span>Activity log & history{activities.length > 0 ? ` · ${activities.length}` : ""}</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activityOpen ? "rotate-180" : ""}`} />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+              <textarea className="ipc-input !h-auto py-2.5" rows={3} placeholder="Write call notes, WhatsApp summary…" value={activityNote} onChange={(e) => setActivityNote(e.target.value)} />
+              <div className="flex gap-2 mt-2">
+                <select className="ipc-input !h-10 !text-xs flex-1" value={activityChannel} onChange={(e) => setActivityChannel(e.target.value as any)}>
+                  <option value="call">Call</option><option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="sms">SMS</option><option value="note">Note</option>
+                </select>
+                <button onClick={logActivity} className="ipc-btn ipc-btn-black !h-10">Save</button>
+              </div>
+              <div className="space-y-3 mt-4">
+                {activities.length === 0 && <div className="text-xs text-muted-foreground">No activity yet.</div>}
+                {activities.map((a) => (
+                  <div key={a.id} className="flex gap-3">
+                    <div className="w-1 rounded-full" style={{ background: channelStyle[a.channel] }} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: channelStyle[a.channel] }}>{a.channel}</span>
+                        <span className="text-[10px] text-muted-foreground">{new Date(a.logged_at).toLocaleString()}</span>
+                      </div>
+                      <div className="font-sans text-xs">{a.note}</div>
+                      {a.agent_name && <div className="text-[10px] text-muted-foreground mt-0.5">— {a.agent_name}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+
 
         {/* Sticky Save & Close */}
         <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex items-center justify-between gap-3">
