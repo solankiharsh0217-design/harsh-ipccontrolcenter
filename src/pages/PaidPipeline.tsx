@@ -1048,22 +1048,72 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   };
 
   const changeCrmStage = async (newStageId: string) => {
-    if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) return;
+    if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) { setCrmPickerOpen(false); return; }
     const oldName = crmStages.find(s => s.id === crmStageId)?.name || "—";
     const newName = crmStages.find(s => s.id === newStageId)?.name || "—";
+    const prevId = crmStageId;
     setCrmStageId(newStageId);
-    await supabase.from("leads").update({ stage_id: newStageId }).eq("id", lead.crm_lead_id);
+    setCrmPickerOpen(false);
+    const { error } = await supabase.from("leads").update({ stage_id: newStageId }).eq("id", lead.crm_lead_id);
+    if (error) {
+      setCrmStageId(prevId);
+      toast.error("Failed to update CRM stage");
+      return;
+    }
     logActivity({
       module_key: "paid_pipeline", module_label: "Paid Pipeline",
-      action_type: "linked_crm_stage_changed_from_paid_pipeline",
+      action_type: "paid_pipeline_updated_linked_crm_stage",
       entity_type: "lead", entity_id: lead.crm_lead_id, entity_label: lead.name || undefined,
       old_values: { stage: oldName },
       new_values: { stage: newName },
-      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id },
+      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, old_stage: oldName, new_stage: newName, changed_by: user?.id || null },
       summary: `Linked CRM stage changed from '${oldName}' to '${newName}' from Paid Pipeline drawer.`,
     });
-    toast.success(`CRM stage → ${newName}`);
+    toast.success("Calling CRM stage updated.");
+
+    // Trigger Operations handoff evaluation for this stage change
+    try {
+      const rules = await getActiveHandoffRules();
+      const stagesById = new Map(crmStages.map(s => [s.id, { id: s.id, name: s.name }]));
+      const rule = findRuleForStage(rules, crmPipelineId, newStageId, stagesById as any);
+      if (rule) {
+        if (rule.mode === "auto" && isRuleAutoReady(rule)) {
+          const res = await applyAutoHandoff(rule, [{
+            id: lead.crm_lead_id, full_name: lead.name, email: lead.email, phone: lead.phone,
+            program_name: lead.product_name_snapshot || null, paid_pipeline_lead_id: lead.id,
+          }], user?.id || null);
+          if (res.inserted > 0) toast.success("Auto-sent to Operations CRM");
+          else if (res.updated > 0) toast.info("Operations CRM record updated");
+        } else if (rule.mode === "suggest") {
+          toast.info(`Operations handoff suggested: ${rule.name}`);
+        }
+      }
+    } catch (e) { /* non-fatal */ }
+
     onChanged();
+  };
+
+  // Backfill: try to link this paid buyer to a Calling CRM lead via email/phone.
+  const linkToCrm = async () => {
+    setLinkingCrm(true);
+    try {
+      const filters: string[] = [];
+      if (lead.email) filters.push(`email.ilike.${lead.email}`);
+      if (lead.phone) filters.push(`phone.eq.${lead.phone}`);
+      if (filters.length === 0) { toast.error("No email/phone on this buyer to match."); return; }
+      const { data: match } = await supabase.from("leads").select("id, full_name").or(filters.join(",")).limit(1).maybeSingle();
+      if (!match) { toast.error("No matching Calling CRM lead found."); return; }
+      await supabase.from("paid_pipeline_leads").update({ crm_lead_id: (match as any).id } as any).eq("id", lead.id);
+      logActivity({
+        module_key: "paid_pipeline", action_type: "paid_buyer_linked_to_crm",
+        entity_type: "paid_pipeline_lead", entity_id: lead.id, entity_label: lead.name || undefined,
+        metadata: { crm_lead_id: (match as any).id }, summary: `Linked paid buyer to Calling CRM lead ${(match as any).full_name || ""}.`,
+      });
+      toast.success("Linked to Calling CRM lead");
+      onChanged();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to link");
+    } finally { setLinkingCrm(false); }
   };
 
 
