@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/auditLog";
 import MediaBuyerAliasManager from "@/components/admin/MediaBuyerAliasManager";
 import OperationsHandoffRulesPanel from "@/components/admin/OperationsHandoffRulesPanel";
+import OperationsRewardRulesPanel from "@/components/admin/OperationsRewardRulesPanel";
 
 
 const MS = "master_settings";
