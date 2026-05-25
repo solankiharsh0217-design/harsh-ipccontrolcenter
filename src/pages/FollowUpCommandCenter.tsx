@@ -105,7 +105,10 @@ export default function FollowUpCommandCenter() {
 
   const [fus, setFus] = useState<FollowUp[]>([]);
   const [leadMap, setLeadMap] = useState<Record<string, Lead>>({});
+  const [profileMap, setProfileMap] = useState<Record<string, string>>({});
+  const [profileList, setProfileList] = useState<{ id: string; full_name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const ownerName = (id: string | null | undefined) => (id && profileMap[id]) || (id ? id.slice(0, 8) + "…" : "—");
 
   const [quickPreset, setQuickPreset] = useState<string>("due_today");
   const [search, setSearch] = useState("");
@@ -156,6 +159,16 @@ export default function FollowUpCommandCenter() {
       const map: Record<string, Lead> = {};
       leadsArr.forEach(l => { map[l.id] = l; });
       setLeadMap(map);
+
+      // Load profiles for owner-name resolution
+      try {
+        const { data: profs } = await (supabase as any).from("profiles").select("id, full_name").order("full_name");
+        const pList = (profs as any[] || []).map(p => ({ id: p.id, full_name: p.full_name || "—" }));
+        setProfileList(pList);
+        const pMap: Record<string, string> = {};
+        pList.forEach(p => { pMap[p.id] = p.full_name; });
+        setProfileMap(pMap);
+      } catch { /* ignore */ }
 
       // 3) Synthetic from paid_pipeline_payments.next_payment_expected_date
       const syn: FollowUp[] = [];
@@ -581,7 +594,8 @@ export default function FollowUpCommandCenter() {
         </select>
         <select className="qsi-input" value={ownerFilter} onChange={e=>setOwnerFilter(e.target.value)}>
           <option value="all">All owners</option>
-          {owners.map(o=> <option key={o}>{o}</option>)}
+          <option value="">Unassigned</option>
+          {profileList.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
         </select>
         <select className="qsi-input" value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)}>
           <option value="all">All sources</option>
@@ -657,7 +671,7 @@ export default function FollowUpCommandCenter() {
                     <div className={overdue ? "text-red-600 font-medium" : ""}>{fmtDate(f.follow_up_date)}</div>
                     <div className="text-[11px] text-muted-foreground">{f.follow_up_time || ""}</div>
                   </td>
-                  <td className="p-2">{f.assigned_to || "—"}</td>
+                  <td className="p-2">{ownerName(f.assigned_to)}</td>
                   <td className="p-2">
                     <span className={`px-2 py-0.5 rounded-full text-[11px] border ${f.status==="Done"?"border-green-300 bg-green-50 text-green-700":f.status==="Missed"?"border-red-300 bg-red-50 text-red-700":"border-line"}`}>{f.status}</span>
                   </td>
@@ -665,12 +679,14 @@ export default function FollowUpCommandCenter() {
                     <span className={`px-2 py-0.5 rounded-full text-[11px] border ${SOURCE_BADGE[src] || "border-line"}`}>{SOURCE_LABELS[src] || src}</span>
                   </td>
                   <td className="p-2 whitespace-nowrap">
-                    <button title="Mark done" onClick={()=>markDone([f.id])} className="text-[11px] underline mr-2">Done</button>
-                    {f.paid_pipeline_lead_id && <button title="Add payment" onClick={()=>setPayFor(f.paid_pipeline_lead_id!)} className="text-[11px] underline mr-2">Pay</button>}
-                    {f.paid_pipeline_lead_id && <button title="Finance" onClick={()=>setFinanceFor(f.paid_pipeline_lead_id!)} className="text-[11px] underline mr-2">Finance</button>}
-                    {!f.isSynthetic && <button title="Note" onClick={()=>setNoteFor(f.id)} className="text-[11px] underline mr-2">Note</button>}
-                    <button title="WhatsApp" onClick={()=>setWaFor(f)} className="text-[11px] underline mr-2">WA</button>
-                    <button title="Open lead" onClick={()=>nav(src === "crm" ? "/calling-crm" : "/paid-pipeline")} className="text-[11px] underline">Open</button>
+                    <div className="flex flex-wrap gap-1">
+                      <button title="Mark done" onClick={()=>markDone([f.id])} className="px-2 py-1 rounded border border-green-300 bg-green-50 text-green-700 text-[11px] hover:bg-green-100">Done</button>
+                      {f.paid_pipeline_lead_id && <button title="Add payment" onClick={()=>setPayFor(f.paid_pipeline_lead_id!)} className="px-2 py-1 rounded border border-line bg-white text-[11px] hover:bg-off">Pay</button>}
+                      {f.paid_pipeline_lead_id && <button title="Finance" onClick={()=>setFinanceFor(f.paid_pipeline_lead_id!)} className="px-2 py-1 rounded border border-line bg-white text-[11px] hover:bg-off">Finance</button>}
+                      {!f.isSynthetic && <button title="Note" onClick={()=>setNoteFor(f.id)} className="px-2 py-1 rounded border border-line bg-white text-[11px] hover:bg-off">Note</button>}
+                      <button title="WhatsApp" onClick={()=>setWaFor(f)} className="px-2 py-1 rounded border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] hover:bg-emerald-100">WA</button>
+                      <button title="Open lead" onClick={()=>nav(src === "crm" ? "/calling-crm" : "/paid-pipeline")} className="px-2 py-1 rounded border border-black bg-black text-white text-[11px] hover:opacity-80">Open</button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -723,8 +739,13 @@ function AddFollowUpModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
   const [time, setTime] = useState("11:00");
   const [priority, setPriority] = useState("Normal");
   const [assignee, setAssignee] = useState("");
+  const [profiles, setProfiles] = useState<{ id: string; full_name: string }[]>([]);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    (supabase as any).from("profiles").select("id, full_name").order("full_name")
+      .then(({ data }: any) => setProfiles((data || []).map((p: any) => ({ id: p.id, full_name: p.full_name || "—" }))));
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -801,7 +822,10 @@ function AddFollowUpModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
           </div>
           <div className="col-span-2">
             <label className="qsi-label">Assigned to</label>
-            <input className="qsi-input" value={assignee} onChange={e=>setAssignee(e.target.value)} placeholder="Owner name" />
+            <select className="qsi-input" value={assignee} onChange={e=>setAssignee(e.target.value)}>
+              <option value="">— Unassigned —</option>
+              {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+            </select>
           </div>
         </div>
         <div>
@@ -845,7 +869,12 @@ function BulkRescheduleModal({ ids, onClose, onSaved }: { ids: string[]; onClose
 
 function BulkAssignModal({ ids, onClose, onSaved }: { ids: string[]; onClose: () => void; onSaved: () => void }) {
   const [owner, setOwner] = useState("");
+  const [profiles, setProfiles] = useState<{ id: string; full_name: string }[]>([]);
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    (supabase as any).from("profiles").select("id, full_name").order("full_name")
+      .then(({ data }: any) => setProfiles((data || []).map((p: any) => ({ id: p.id, full_name: p.full_name || "—" }))));
+  }, []);
   const save = async () => {
     setBusy(true);
     try {
@@ -856,7 +885,13 @@ function BulkAssignModal({ ids, onClose, onSaved }: { ids: string[]; onClose: ()
   };
   return (
     <Shell title={`Assign owner (${ids.length})`} onClose={onClose}>
-      <div><label className="qsi-label">Owner</label><input className="qsi-input" value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" /></div>
+      <div>
+        <label className="qsi-label">Owner</label>
+        <select className="qsi-input" value={owner} onChange={e=>setOwner(e.target.value)}>
+          <option value="">— Unassigned —</option>
+          {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+        </select>
+      </div>
       <Footer onClose={onClose} onSave={save} busy={busy} />
     </Shell>
   );
