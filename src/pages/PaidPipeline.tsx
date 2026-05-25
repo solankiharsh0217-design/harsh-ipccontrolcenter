@@ -730,18 +730,43 @@ function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }
   onAddPayment: () => void; onUpdateFinance: () => void; onSetFollowUp: () => void; onOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [openUp, setOpenUp] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const MENU_W = 260;
+  const MENU_H = 260;
+
+  const place = () => {
+    const b = btnRef.current?.getBoundingClientRect();
+    if (!b) return;
+    const spaceBelow = window.innerHeight - b.bottom;
+    const openUp = spaceBelow < MENU_H + 16;
+    const top = openUp ? Math.max(8, b.top - MENU_H - 8) : b.bottom + 6;
+    const left = Math.min(window.innerWidth - MENU_W - 12, Math.max(8, b.right - MENU_W));
+    setCoords({ top, left });
+  };
+
   useEffect(() => {
     if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    if (btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setOpenUp(window.innerHeight - r.bottom < 240);
-    }
-    return () => document.removeEventListener("mousedown", h);
+    place();
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t) || btnRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onScroll = () => setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onScroll);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("scroll", onScroll, true);
+    };
   }, [open]);
 
   const Row = ({
@@ -751,7 +776,7 @@ function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }
       onClick={() => { setOpen(false); onClick(); }}
       className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-off text-left transition-colors"
     >
-      <span className="w-7 h-7 rounded-md flex items-center justify-center text-[14px]" style={{ background: tint, color: dotColor }}>{icon}</span>
+      <span className="w-7 h-7 rounded-md flex items-center justify-center text-[14px] shrink-0" style={{ background: tint, color: dotColor }}>{icon}</span>
       <span className="flex-1 min-w-0">
         <span className="block text-[12.5px] font-medium text-black">{title}</span>
         <span className="block text-[10.5px] text-muted-foreground truncate">{subtitle}</span>
@@ -759,25 +784,35 @@ function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }
     </button>
   );
 
+  const menu = open && coords ? createPortal(
+    <div
+      ref={menuRef}
+      style={{ position: "fixed", top: coords.top, left: coords.left, width: MENU_W, zIndex: 9999 }}
+      className="bg-white border border-line rounded-lg shadow-2xl py-1 overflow-hidden"
+      role="menu"
+    >
+      <Row onClick={onOpen} dotColor="#111827" tint="#F3F4F6" title="Open Details" subtitle="Full lead drawer" icon="↗" />
+      <div className="h-px bg-line my-0.5" />
+      <Row onClick={onAddPayment} dotColor="#15803D" tint="#DCFCE7" title="Add Payment" subtitle="Record token / balance / EMI" icon="₹" />
+      <Row onClick={onUpdateFinance} dotColor="#1E40AF" tint="#DBEAFE" title="Update Finance" subtitle="Partner, status, disbursal" icon="◈" />
+      <Row onClick={onSetFollowUp} dotColor="#92400E" tint="#FEF3C7" title="Set Follow-up" subtitle="Schedule next call / message" icon="⏰" />
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
         ref={btnRef}
         onClick={() => setOpen(o => !o)}
-        className="text-[14px] px-2 py-1 rounded border border-line hover:bg-off leading-none text-muted-foreground"
-        title="More actions"
-        aria-label="More actions"
+        className="text-[14px] px-2.5 py-1 rounded border border-line hover:bg-off leading-none text-muted-foreground"
+        title="Actions"
+        aria-label="Actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >⋯</button>
-      {open && (
-        <div className={`absolute right-0 ${openUp ? "bottom-9" : "mt-1"} w-60 bg-white border border-line rounded-lg shadow-xl z-30 py-1 overflow-hidden`}>
-          <Row onClick={onAddPayment} dotColor="#15803D" tint="#DCFCE7" title="Add Payment" subtitle="Record token / balance / EMI" icon="₹" />
-          <Row onClick={onUpdateFinance} dotColor="#1E40AF" tint="#DBEAFE" title="Update Finance" subtitle="Partner, status, disbursal" icon="◈" />
-          <Row onClick={onSetFollowUp} dotColor="#92400E" tint="#FEF3C7" title="Set Follow-up" subtitle="Schedule next call / message" icon="⏰" />
-          <div className="h-px bg-line my-0.5" />
-          <Row onClick={onOpen} dotColor="#111827" tint="#F3F4F6" title="Open Details" subtitle="Full lead drawer" icon="↗" />
-        </div>
-      )}
-    </div>
+      {menu}
+    </>
   );
 }
 
