@@ -659,6 +659,45 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_batch_archives: {
+        Row: {
+          affected_lead_count: number
+          archive_reason: string | null
+          archived_at: string
+          archived_by: string | null
+          batch_date: string | null
+          batch_name: string
+          id: string
+          pipeline_id: string | null
+          restored_at: string | null
+          restored_by: string | null
+        }
+        Insert: {
+          affected_lead_count?: number
+          archive_reason?: string | null
+          archived_at?: string
+          archived_by?: string | null
+          batch_date?: string | null
+          batch_name: string
+          id?: string
+          pipeline_id?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+        }
+        Update: {
+          affected_lead_count?: number
+          archive_reason?: string | null
+          archived_at?: string
+          archived_by?: string | null
+          batch_date?: string | null
+          batch_name?: string
+          id?: string
+          pipeline_id?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+        }
+        Relationships: []
+      }
       daily_custom_metrics: {
         Row: {
           aggregation_method: string
@@ -1206,11 +1245,17 @@ export type Database = {
       }
       leads: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           assigned_agent_id: string | null
           attendance_pct: number
           country: string | null
           created_at: string
           deal_value: number
+          delete_reason: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           email: string | null
           first_join_time: string | null
           full_name: string | null
@@ -1235,11 +1280,17 @@ export type Database = {
           webinar_source: string | null
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assigned_agent_id?: string | null
           attendance_pct?: number
           country?: string | null
           created_at?: string
           deal_value?: number
+          delete_reason?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           first_join_time?: string | null
           full_name?: string | null
@@ -1264,11 +1315,17 @@ export type Database = {
           webinar_source?: string | null
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assigned_agent_id?: string | null
           attendance_pct?: number
           country?: string | null
           created_at?: string
           deal_value?: number
+          delete_reason?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           first_join_time?: string | null
           full_name?: string | null
@@ -2704,6 +2761,9 @@ export type Database = {
       }
       paid_pipeline_leads: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           assigned_sales_executive: string | null
           attributed_media_buyer: string | null
           attribution_sale_id: string | null
@@ -2773,6 +2833,9 @@ export type Database = {
           webinar_batch_id: string | null
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assigned_sales_executive?: string | null
           attributed_media_buyer?: string | null
           attribution_sale_id?: string | null
@@ -2842,6 +2905,9 @@ export type Database = {
           webinar_batch_id?: string | null
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assigned_sales_executive?: string | null
           attributed_media_buyer?: string | null
           attribution_sale_id?: string | null
