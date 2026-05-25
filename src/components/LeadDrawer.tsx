@@ -9,6 +9,7 @@ import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { createNotification } from "@/lib/notifications";
+import SendToOperationsCrmModal from "@/components/SendToOperationsCrmModal";
 
 interface Props {
   leadId: string;
