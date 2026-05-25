@@ -55,7 +55,7 @@ export default function OperationsCrm() {
   const [statusFilter, setStatusFilter] = useState<string>(params.get("filter") || "all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [buyers, setBuyers] = useState<{ id: string; full_name: string }[]>([]);
-  const [openLead, setOpenLead] = useState<string | null>(null);
+  const [openLead, setOpenLead] = useState<string | null>(params.get("lead"));
   const [addStageOpen, setAddStageOpen] = useState(false);
   const [drag, setDrag] = useState<{ id: string; fromStage: string | null } | null>(null);
   const [hoverStage, setHoverStage] = useState<string | null>(null);
