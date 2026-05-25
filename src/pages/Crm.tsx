@@ -1388,29 +1388,13 @@ export default function Crm() {
       <div className="h-14" />
 
       {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={() => setOpenLead(null)} onChanged={load} onStageChanged={async (lid, stageId) => {
-        await refreshOpsState();
-        const { data: l } = await supabase.from("leads").select("*").eq("id", lid).maybeSingle();
+        // Fetch latest lead so pipeline_id is current, then route through the unified evaluator
+        const { data: l } = await supabase.from("leads").select("id, pipeline_id, full_name, email, phone, program_name, webinar_source, deal_value, paid_pipeline_lead_id").eq("id", lid).maybeSingle();
         if (!l) return;
-        const rule = findRuleForStage(opsRules, (l as any).pipeline_id, stageId);
-        if (!rule) return;
-        if (opsLeadCrmIds.has(lid)) return;
-        const payload: AutoHandoffLeadInput = {
-          id: (l as any).id,
-          full_name: (l as any).full_name,
-          email: (l as any).email,
-          phone: (l as any).phone,
-          program_name: (l as any).program_name ?? null,
-          webinar_source: (l as any).webinar_source,
-          deal_value: (l as any).deal_value ?? null,
-          paid_pipeline_lead_id: (l as any).paid_pipeline_lead_id ?? null,
-        };
-        if (rule.mode === "auto" && isRuleAutoReady(rule)) {
-          const res = await applyAutoHandoff(rule, [payload], null);
-          toast.success(`Auto-handoff: ${res.inserted + res.updated} sent to Operations CRM`);
-          await refreshOpsState();
-        } else {
-          setOpsBanner({ rule, leadIds: [lid] });
-        }
+        // Ensure lead exists in local state for evaluator lookups
+        setLeads((prev) => prev.some((x) => x.id === lid) ? prev.map((x) => x.id === lid ? { ...x, ...(l as any), stage_id: stageId } as any : x) : [...prev, { ...(l as any), stage_id: stageId } as any]);
+        await refreshOpsState();
+        await evaluateHandoffForLeads([lid], (l as any).pipeline_id, stageId);
       }} />}
 
 
