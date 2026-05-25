@@ -857,9 +857,20 @@ export default function Crm() {
                               const beforeId = hoverBefore === "__end__" ? "__end__" : (hoverBefore || l.id);
                               onDrop(e, s.id, beforeId);
                             }}
-                            onClick={() => setOpenLead(l.id)}
-                            className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${isDragging ? "opacity-30 shadow-lg" : ""}`}
+                            onClick={(e) => {
+                              if (selectedIds.size > 0) { toggleSelect(l.id); return; }
+                              setOpenLead(l.id);
+                            }}
+                            className={`relative p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${isDragging ? "opacity-30 shadow-lg" : ""} ${selectedIds.has(l.id) ? "ring-2 ring-gold" : ""}`}
                             style={{ background: cardBg, borderColor: cardBorder }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(l.id)}
+                              onClick={(e) => { e.stopPropagation(); toggleSelect(l.id); }}
+                              onChange={() => {}}
+                              className="absolute top-2 right-2 w-3.5 h-3.5 cursor-pointer accent-black"
+                              title="Select lead"
+                            />
                             {l.webinar_source && <div className="uppercase-label !text-[8px] mb-1">{l.webinar_source}</div>}
                             <div className="font-serif text-sm">{l.full_name || "Unnamed"}</div>
                             <div className="text-[11px] text-muted-foreground">{l.program_name}</div>
