@@ -115,6 +115,8 @@ export default function PaidPipeline() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [insightFilter, setInsightFilter] = useState<string | null>(null);
+  const [showMoreMetrics, setShowMoreMetrics] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const HIGH_BAL_THRESHOLD = 50000;
 
   const load = async () => {
