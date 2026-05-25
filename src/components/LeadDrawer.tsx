@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { GRADE_STYLES, type Lead, type Stage, type ActivityLog, type Reminder } from "@/lib/crmTypes";
-import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink } from "lucide-react";
+import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink, ArrowRightCircle, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import TagPicker from "@/components/TagPicker";
@@ -10,6 +10,7 @@ import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { createNotification } from "@/lib/notifications";
 import SendToOperationsCrmModal from "@/components/SendToOperationsCrmModal";
+import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, type HandoffRule } from "@/lib/operationsCrm";
 
 interface Props {
   leadId: string;
@@ -17,7 +18,9 @@ interface Props {
   agents: { id: string; full_name: string }[];
   onClose: () => void;
   onChanged: () => void;
+  onStageChanged?: (leadId: string, newStageId: string) => void;
 }
+
 
 const channelStyle: Record<string, string> = {
   call: "#16A34A", whatsapp: "#22C55E", email: "#2563EB", sms: "#7C3AED", note: "#888888", system: "#0a0a0a",
