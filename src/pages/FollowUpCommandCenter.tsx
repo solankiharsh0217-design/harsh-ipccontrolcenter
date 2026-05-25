@@ -861,7 +861,12 @@ function BulkRescheduleModal({ ids, onClose, onSaved }: { ids: string[]; onClose
 
 function BulkAssignModal({ ids, onClose, onSaved }: { ids: string[]; onClose: () => void; onSaved: () => void }) {
   const [owner, setOwner] = useState("");
+  const [profiles, setProfiles] = useState<{ id: string; full_name: string }[]>([]);
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    (supabase as any).from("profiles").select("id, full_name").order("full_name")
+      .then(({ data }: any) => setProfiles((data || []).map((p: any) => ({ id: p.id, full_name: p.full_name || "—" }))));
+  }, []);
   const save = async () => {
     setBusy(true);
     try {
@@ -872,7 +877,13 @@ function BulkAssignModal({ ids, onClose, onSaved }: { ids: string[]; onClose: ()
   };
   return (
     <Shell title={`Assign owner (${ids.length})`} onClose={onClose}>
-      <div><label className="qsi-label">Owner</label><input className="qsi-input" value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Owner name" /></div>
+      <div>
+        <label className="qsi-label">Owner</label>
+        <select className="qsi-input" value={owner} onChange={e=>setOwner(e.target.value)}>
+          <option value="">— Unassigned —</option>
+          {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+        </select>
+      </div>
       <Footer onClose={onClose} onSave={save} busy={busy} />
     </Shell>
   );
