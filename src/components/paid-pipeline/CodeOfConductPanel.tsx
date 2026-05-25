@@ -21,10 +21,11 @@ const STATUS_STYLES: Record<string, string> = {
   signed: "bg-emerald-50 text-emerald-700 border-emerald-200",
   expired: "bg-rose-50 text-rose-700 border-rose-200",
   cancelled: "bg-slate-100 text-slate-500 border-slate-200",
+  failed: "bg-rose-50 text-rose-700 border-rose-200",
 };
 const STATUS_LABELS: Record<string, string> = {
   not_required: "Not Required", required: "Required", ready_to_send: "Ready to Send",
-  sent: "Sent", viewed: "Viewed", signed: "Signed", expired: "Expired", cancelled: "Cancelled",
+  sent: "Sent", viewed: "Viewed", signed: "Signed", expired: "Expired", cancelled: "Cancelled", failed: "Failed",
 };
 
 export default function CodeOfConductPanel(props: Props) {
@@ -33,6 +34,7 @@ export default function CodeOfConductPanel(props: Props) {
   const [req, setReq] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [emailOverride, setEmailOverride] = useState(memberEmail || "");
+  const [signingUrl, setSigningUrl] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -48,7 +50,7 @@ export default function CodeOfConductPanel(props: Props) {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [paidLeadId, crmLeadId]);
 
   const sendEmail = async () => {
-    if (!emailOverride) { toast({ title: "Email required", variant: "destructive" }); return; }
+    if (!emailOverride || !emailOverride.includes("@")) { toast({ title: "Valid email required", variant: "destructive" }); return; }
     setBusy(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-code-of-conduct-email", {
@@ -62,11 +64,16 @@ export default function CodeOfConductPanel(props: Props) {
         },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      toast({ title: "Code of Conduct email sent", description: emailOverride });
+      const res = data as any;
+      if (res?.ok === false) {
+        throw new Error(`[${res.error_code}] ${res.message}`);
+      }
+      if (res?.signing_url) setSigningUrl(res.signing_url);
+      toast({ title: `Code of Conduct email sent to ${emailOverride}` });
       await load();
     } catch (e: any) {
-      toast({ title: "Failed to send", description: e?.message || "Unknown error", variant: "destructive" });
+      toast({ title: "Code of Conduct email failed", description: e?.message || "Unknown error", variant: "destructive" });
+      await load();
     } finally { setBusy(false); }
   };
 
@@ -76,18 +83,27 @@ export default function CodeOfConductPanel(props: Props) {
     await (supabase as any).from("code_of_conduct_requests").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", req.id);
     await (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "request_cancelled" });
     toast({ title: "Request cancelled" });
+    setSigningUrl(null);
     load();
   };
 
-  const status = req?.status || "not_required";
-  const cls = STATUS_STYLES[status] || STATUS_STYLES.not_required;
+  const copyLink = async () => {
+    if (!signingUrl) return;
+    await navigator.clipboard.writeText(signingUrl);
+    toast({ title: "Signing link copied" });
+    if (req) await (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signing_link_copied_by_admin" });
+  };
+
+  const isFailed = !!req?.last_email_error_code;
+  const displayStatus = isFailed ? "failed" : (req?.status || "not_required");
+  const cls = STATUS_STYLES[displayStatus] || STATUS_STYLES.not_required;
 
   return (
     <div className="rounded-xl border border-[#E5E7EB] bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm">
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex items-center gap-2">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">📜 Code of Conduct</div>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium border ${cls}`}>{STATUS_LABELS[status] || status}</span>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium border ${cls}`}>{STATUS_LABELS[displayStatus]}</span>
         </div>
         {req?.template_version && <span className="text-[10.5px] text-slate-400">v{req.template_version}</span>}
       </div>
@@ -96,7 +112,7 @@ export default function CodeOfConductPanel(props: Props) {
         <div className="text-[12px] text-slate-500">Loading…</div>
       ) : !req ? (
         <div className="space-y-2.5">
-          <p className="text-[12px] text-slate-600">No signing request yet. Send the agreement to capture digital acknowledgement before adding the member to the Diamond group.</p>
+          <p className="text-[12px] text-slate-600">No Code of Conduct request created yet. Send the agreement to capture digital acknowledgement before adding the member to the Diamond group.</p>
           <input type="email" value={emailOverride} onChange={(e) => setEmailOverride(e.target.value)}
             className="w-full border border-slate-200 rounded-md px-2.5 py-1.5 text-[12.5px]" placeholder="Member email" />
           <button onClick={sendEmail} disabled={busy} className="ipc-btn ipc-btn-black !h-9 w-full">
@@ -112,25 +128,40 @@ export default function CodeOfConductPanel(props: Props) {
             <Cell label="Expires" value={req.token_expires_at ? new Date(req.token_expires_at).toLocaleDateString() : "—"} />
             <Cell label="Member email" value={req.member_email} />
             {req.signature_name && <Cell label="Signed by" value={req.signature_name} />}
+            {req.provider_message_id && <Cell label="Provider id" value={req.provider_message_id} />}
+            <Cell label="Request id" value={req.id.slice(0, 8)} />
           </div>
-          {req.email_error && <div className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded px-2 py-1">{req.email_error}</div>}
+          {isFailed && (
+            <div className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1.5">
+              <div className="font-medium">Email failed</div>
+              <div className="opacity-80">[{req.last_email_error_code}] {req.last_email_error}</div>
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-1">
-            {status === "signed" ? (
-              <span className="text-[11.5px] text-emerald-700">Signed — ready for Diamond group access.</span>
-            ) : status === "cancelled" || status === "expired" ? (
+            {req.status === "signed" ? (
+              <>
+                <span className="text-[11.5px] text-emerald-700">Signed — ready for Diamond group access.</span>
+              </>
+            ) : req.status === "cancelled" || req.status === "expired" ? (
               <button onClick={sendEmail} disabled={busy} className="ipc-btn ipc-btn-black !h-8">
                 {busy ? "Sending…" : "Resend New Link"}
               </button>
             ) : (
               <>
                 <button onClick={sendEmail} disabled={busy} className="ipc-btn ipc-btn-black !h-8">
-                  {busy ? "Sending…" : status === "ready_to_send" ? "Send Email" : "Resend Email"}
+                  {busy ? "Sending…" : isFailed ? "Retry Send" : req.status === "sent" || req.status === "viewed" ? "Resend Email" : "Send Email"}
                 </button>
+                {signingUrl && (
+                  <button onClick={copyLink} className="ipc-btn ipc-btn-ghost !h-8">Copy Signing Link</button>
+                )}
                 <button onClick={cancel} className="ipc-btn ipc-btn-ghost !h-8">Cancel</button>
               </>
             )}
           </div>
+          {!signingUrl && (req.status === "sent" || req.status === "viewed" || isFailed) && (
+            <div className="text-[10.5px] text-slate-400">Tip: click {isFailed ? "Retry Send" : "Resend Email"} to also receive a fresh copyable signing link.</div>
+          )}
         </div>
       )}
     </div>
@@ -141,7 +172,7 @@ function Cell({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-slate-400">{label}</div>
-      <div className="text-[12px] text-slate-700 truncate">{value}</div>
+      <div className="text-[12px] text-slate-700 truncate" title={value}>{value}</div>
     </div>
   );
 }
