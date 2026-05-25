@@ -454,6 +454,57 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           </div>
         </div>
 
+        {/* Next Follow-up — high-visibility, daily-use card (moved up) */}
+        <div className="px-6 py-4 border-b border-line">
+          {(() => {
+            const upcoming = [...reminders].sort((a, b) => (a.reminder_date < b.reminder_date ? -1 : 1));
+            const next = upcoming.find((r) => r.reminder_date >= today) || upcoming[upcoming.length - 1] || null;
+            let status: { label: string; cls: string } = { label: "No follow-up set", cls: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" };
+            if (next) {
+              if (next.reminder_date < today) status = { label: "Overdue", cls: "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]" };
+              else if (next.reminder_date === today) status = { label: "Due today", cls: "bg-[#FEF3C7] text-[#92400E] border-[#FBBF24]" };
+              else status = { label: "Upcoming", cls: "bg-[#DBEAFE] text-[#1E3A8A] border-[#93C5FD]" };
+            }
+            return (
+              <div className="rounded-xl border border-[#FDE68A] bg-gradient-to-br from-[#FFFBEB] to-[#FEF3C7]/40 p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[#78350F]">⏰ Next Follow-up</div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${status.cls}`}>{status.label}</span>
+                  </div>
+                  {next && (
+                    <div className="text-[11.5px] text-[#78350F]">
+                      <b>{next.reminder_date}</b>{next.reminder_time ? ` · ${next.reminder_time.slice(0,5)}` : ""} · <span className="uppercase">{next.channel}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2 mb-3">
+                  {reminders.map((r) => {
+                    const overdue = r.reminder_date < today;
+                    const isToday = r.reminder_date === today;
+                    const cls = overdue ? "bg-[#FEF2F2] border-[#FECACA]" : isToday ? "bg-[#FFFBEB] border-[#FDE68A]" : "bg-white border-line";
+                    return (
+                      <div key={r.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${cls}`}>
+                        <div className="flex-1 text-xs">
+                          <span className="font-medium">{r.reminder_date}</span> {r.reminder_time?.slice(0, 5)} · <span className="uppercase">{r.channel}</span>
+                          {r.note && <div className="text-muted-foreground mt-0.5">{r.note}</div>}
+                        </div>
+                        <button onClick={() => delReminder(r.id)} className="text-muted-foreground hover:text-black" title="Remove"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <FastFollowUpComposer
+                  crmLeadId={lead.id}
+                  paidLeadId={(lead as any).paid_pipeline_lead_id || null}
+                  leadName={lead.full_name || undefined}
+                  onSaved={load}
+                />
+              </div>
+            );
+          })()}
+        </div>
+
         {/* Communication actions */}
         <div className="px-6 py-4 border-b border-line">
           <div className="grid grid-cols-4 gap-2">
@@ -462,34 +513,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             <a href={`mailto:${lead.email}`} className="ipc-btn ipc-btn-ghost !h-10"><Mail className="w-3.5 h-3.5" /> Email</a>
             <a href={`sms:${lead.phone}`} className="ipc-btn ipc-btn-ghost !h-10"><MessageSquare className="w-3.5 h-3.5" /> SMS</a>
           </div>
-        </div>
-
-        {/* Follow-up reminders (most-used daily action) */}
-        <div className="px-6 py-5 border-b border-line">
-          <div className="section-divider">Follow-up reminders</div>
-          <div className="space-y-2 mb-3">
-            {reminders.length === 0 && <div className="text-xs text-muted-foreground">No reminders yet.</div>}
-            {reminders.map((r) => {
-              const overdue = r.reminder_date < today;
-              const isToday = r.reminder_date === today;
-              const cls = overdue ? "bg-[#FEF2F2] border-[#FECACA]" : isToday ? "bg-[#FFFBEB] border-[#FDE68A]" : "bg-[#EFF6FF] border-[#BFDBFE]";
-              return (
-                <div key={r.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${cls}`}>
-                  <div className="flex-1 text-xs">
-                    <span className="font-medium">{r.reminder_date}</span> {r.reminder_time?.slice(0, 5)} · <span className="uppercase">{r.channel}</span>
-                    {r.note && <div className="text-muted-foreground mt-0.5">{r.note}</div>}
-                  </div>
-                  <button onClick={() => delReminder(r.id)} className="text-muted-foreground hover:text-black"><Trash2 className="w-3.5 h-3.5" /></button>
-                </div>
-              );
-            })}
-          </div>
-          <FastFollowUpComposer
-            crmLeadId={lead.id}
-            paidLeadId={(lead as any).paid_pipeline_lead_id || null}
-            leadName={lead.full_name || undefined}
-            onSaved={load}
-          />
         </div>
 
         {/* Assigned agent */}

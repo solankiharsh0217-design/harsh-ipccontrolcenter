@@ -129,10 +129,10 @@ export default function FastFollowUpComposer({
   };
 
   return (
-    <div className="border border-line rounded-md p-3 space-y-2">
+    <div className="rounded-lg border border-line bg-white p-3 space-y-2.5">
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="qsi-label">When</label>
+          <label className="qsi-label">Date & time</label>
           <input
             type="datetime-local"
             className="qsi-input !h-9 !text-[12px]"
@@ -147,15 +147,26 @@ export default function FastFollowUpComposer({
           </select>
         </div>
       </div>
-      <div className="flex flex-wrap gap-1">
-        <button onClick={() => setPreset(0)} className="px-2 py-0.5 rounded-full text-[10.5px] border border-line hover:bg-off">Today</button>
-        <button onClick={() => setPreset(1)} className="px-2 py-0.5 rounded-full text-[10.5px] border border-line hover:bg-off">Tomorrow</button>
-        <button onClick={() => setPreset(3)} className="px-2 py-0.5 rounded-full text-[10.5px] border border-line hover:bg-off">+3 days</button>
-        <button onClick={() => setPreset(7)} className="px-2 py-0.5 rounded-full text-[10.5px] border border-line hover:bg-off">Next week</button>
+      <div className="flex flex-wrap gap-1.5">
+        <button onClick={() => setPreset(0)} className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-[#FDE68A] bg-[#FFFBEB] text-[#92400E] hover:bg-[#FEF3C7]">Today</button>
+        <button onClick={() => setPreset(1)} className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-line bg-white hover:bg-off">Tomorrow</button>
+        <button onClick={() => setPreset(3)} className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-line bg-white hover:bg-off">+3 days</button>
+        <button onClick={() => setPreset(7)} className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-line bg-white hover:bg-off">Next week</button>
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.activeElement as HTMLElement | null;
+            el?.blur?.();
+            const input = (document.querySelector('input[type="datetime-local"]') as HTMLInputElement | null);
+            input?.focus?.();
+            try { (input as any)?.showPicker?.(); } catch {}
+          }}
+          className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-dashed border-line bg-white hover:bg-off"
+        >Custom…</button>
       </div>
       <QuickSaveInput
         fieldKey="follow_up_type"
-        label="Follow-up Type"
+        label="Follow-up type"
         value={type}
         onChange={setType}
         placeholder="Call"
@@ -170,11 +181,9 @@ export default function FastFollowUpComposer({
           placeholder="Short context for this follow-up…"
         />
       </div>
-      <div className="flex justify-end">
-        <button onClick={save} disabled={busy} className="ipc-btn ipc-btn-black !h-9">
-          {busy ? "Saving…" : "Save follow-up"}
-        </button>
-      </div>
+      <button onClick={save} disabled={busy} className="w-full ipc-btn ipc-btn-black !h-10 !text-[13px] font-medium">
+        {busy ? "Saving…" : "Save Follow-up"}
+      </button>
     </div>
   );
 }

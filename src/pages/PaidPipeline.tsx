@@ -1176,42 +1176,40 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           </Section>
 
 
-          {/* 2. Next action / Follow-up — unified, high in drawer */}
-          <Section title="Next action · Follow-up">
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              <Field label="Next follow-up" value={lead.next_follow_up_date ? fmtDate(lead.next_follow_up_date) : (lead.next_balance_follow_up_date ? fmtDate(lead.next_balance_follow_up_date) + " (balance)" : (lead.finance_follow_up_date ? fmtDate(lead.finance_follow_up_date) + " (finance)" : "—"))} />
-              <Field label="Type" value={lead.follow_up_reason || "—"} />
-              <Field label="Owner" value={agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"} />
-            </div>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {[
-                { l: "Today", days: 0 },
-                { l: "Tomorrow", days: 1 },
-                { l: "+3 days", days: 3 },
-                { l: "Next week", days: 7 },
-              ].map(q => (
-                <button
-                  key={q.l}
-                  onClick={async () => {
-                    const d = new Date(); d.setDate(d.getDate() + q.days);
-                    const iso = d.toISOString().slice(0,10);
-                    await supabase.from("paid_pipeline_leads").update({ next_follow_up_date: iso } as any).eq("id", lead.id);
-                    toast.success(`Follow-up set ${q.l.toLowerCase()}`);
-                    onChanged();
-                  }}
-                  className="text-[11.5px] px-2.5 py-1 rounded-full border border-line hover:bg-off"
-                >{q.l}</button>
-              ))}
-              <button onClick={() => setOpenFu(true)} className="text-[11.5px] px-2.5 py-1 rounded-full bg-black text-white hover:opacity-90">Set custom follow-up</button>
-            </div>
-            <FastFollowUpComposer
-              paidLeadId={lead.id}
-              crmLeadId={lead.crm_lead_id || null}
-              leadName={lead.name || undefined}
-              defaultPriority={temperature || "Normal"}
-              onSaved={() => { loadInner(); onChanged(); }}
-            />
-          </Section>
+          {/* 2. Next Follow-up — high-visibility, daily-use card */}
+          {(() => {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const fu = lead.next_follow_up_date || lead.follow_up_date || lead.next_balance_follow_up_date || lead.finance_follow_up_date || null;
+            let status = { label: "No follow-up set", cls: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" };
+            if (fu) {
+              if (fu < todayStr) status = { label: "Overdue", cls: "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]" };
+              else if (fu === todayStr) status = { label: "Due today", cls: "bg-[#FEF3C7] text-[#92400E] border-[#FBBF24]" };
+              else status = { label: "Upcoming", cls: "bg-[#DBEAFE] text-[#1E3A8A] border-[#93C5FD]" };
+            }
+            return (
+              <div className="rounded-xl border border-[#FDE68A] bg-gradient-to-br from-[#FFFBEB] to-[#FEF3C7]/40 p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[#78350F]">⏰ Next Follow-up</div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${status.cls}`}>{status.label}</span>
+                  </div>
+                  <div className="text-[11.5px] text-[#78350F]">
+                    {fu ? <b>{fmtDate(fu)}</b> : "—"} {lead.follow_up_reason ? <span>· {lead.follow_up_reason}</span> : null}
+                  </div>
+                </div>
+                <div className="text-[11.5px] text-[#78350F] mb-2">
+                  Owner: {agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"}
+                </div>
+                <FastFollowUpComposer
+                  paidLeadId={lead.id}
+                  crmLeadId={lead.crm_lead_id || null}
+                  leadName={lead.name || undefined}
+                  defaultPriority={temperature || "Normal"}
+                  onSaved={() => { loadInner(); onChanged(); }}
+                />
+              </div>
+            );
+          })()}
 
           {/* 3. Quick status — managed dropdowns */}
           <Section title="Quick status">
