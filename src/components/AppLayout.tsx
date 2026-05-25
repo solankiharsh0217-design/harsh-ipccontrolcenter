@@ -141,19 +141,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M2 14c0-2 1.5-3 3-3s3 1 3 3M8 14c0-2 1.5-3 3-3s3 1 3 3"/></></Icon>
             Calling CRM
           </NavItem>
-          <NavItem to="/paid-pipeline" show={hasModule("paid-pipeline") || hasModule("paid_pipeline")}>
+          {/* For admins these live inside Revenue/Admin Centers to keep the sidebar minimal.
+              They appear directly only for team members that have explicit module access. */}
+          <NavItem to="/paid-pipeline" show={!isAdmin && (hasModule("paid-pipeline") || hasModule("paid_pipeline"))}>
             <Icon d="M2 4h12v8H2z" />
             Paid Pipeline
           </NavItem>
-          <NavItem to="/follow-up-command-center" show={hasModule("follow_up_command_center")}>
+          <NavItem to="/follow-up-command-center" show={!isAdmin && hasModule("follow_up_command_center")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
             Follow-Up Center
           </NavItem>
-          <NavItem to="/payment-recovery" show={hasModule("payment_recovery")}>
+          <NavItem to="/payment-recovery" show={!isAdmin && hasModule("payment_recovery")}>
             <Icon d="M2 8h12M5 4l-3 4 3 4M11 4l3 4-3 4" />
             Payment Recovery
           </NavItem>
-          <NavItem to="/operations-crm" show={isAdmin || hasModule("operations_crm")}>
+          <NavItem to="/operations-crm" show={!isAdmin && hasModule("operations_crm")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M5 8l2 2 4-5"/></></Icon>
             Operations CRM
           </NavItem>
