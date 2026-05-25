@@ -1,16 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { recomputePaidLead, DEFAULT_FINANCE_PARTNERS } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const PAYMENT_TYPES = [
-  "First Token","Second Token","Additional Token","Balance Payment",
-  "Full Payment","Finance Disbursement","Bajaj Finance","EZMI Finance",
-  "Refund","Adjustment","Other",
+type PaymentTypeOpt = { value: string; dot: string };
+const PAYMENT_TYPES: PaymentTypeOpt[] = [
+  { value: "First Token",          dot: "bg-emerald-500" },
+  { value: "Second Token",         dot: "bg-sky-500" },
+  { value: "Additional Token",     dot: "bg-violet-500" },
+  { value: "Balance Payment",      dot: "bg-amber-500" },
+  { value: "Full Payment",         dot: "bg-emerald-600" },
+  { value: "Finance Disbursement", dot: "bg-indigo-500" },
+  { value: "Bajaj Finance",        dot: "bg-indigo-400" },
+  { value: "EZMI Finance",         dot: "bg-indigo-400" },
+  { value: "Refund",               dot: "bg-rose-500" },
+  { value: "Adjustment",           dot: "bg-slate-400" },
+  { value: "Other",                dot: "bg-neutral-400" },
 ];
-const PAYMENT_MODES = ["UPI","Bank Transfer","Cash","Card","Razorpay","Finance Partner","Other"];
+
+const PAYMENT_MODES: PaymentTypeOpt[] = [
+  { value: "UPI",            dot: "bg-emerald-500" },
+  { value: "Bank Transfer",  dot: "bg-sky-500" },
+  { value: "Cash",           dot: "bg-amber-500" },
+  { value: "Card",           dot: "bg-violet-500" },
+  { value: "Razorpay",       dot: "bg-indigo-500" },
+  { value: "Finance Partner",dot: "bg-orange-500" },
+  { value: "Other",          dot: "bg-neutral-400" },
+];
+
+function dotFor(list: PaymentTypeOpt[], value: string) {
+  return list.find(o => o.value === value)?.dot || "bg-neutral-300";
+}
 
 export default function QuickAddPaymentModal({
   leadId, leadName, onClose, onSaved, prefill, headerNote,
@@ -36,6 +59,22 @@ export default function QuickAddPaymentModal({
   const [isFinal, setIsFinal] = useState(false);
   const [financeLinked, setFinanceLinked] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Auto-toggle helpers based on payment type
+  useEffect(() => {
+    if (/token/i.test(type)) setIsToken(true);
+    if (type === "Full Payment") setIsFinal(true);
+    if (/Finance/i.test(type)) setFinanceLinked(true);
+  }, [type]);
+
+  const handleTypeChange = (val: string) => {
+    setType(val);
+    if (val.includes("Token")) setCategory(val === "First Token" ? "Token Amount" : "Second Token");
+    else if (val === "Balance Payment") setCategory("Balance Payment");
+    else if (val === "Refund") setCategory("Refund");
+    else if (val === "Full Payment") setCategory("Full Payment");
+    else if (val.includes("Finance")) setCategory("EMI / Finance Disbursement");
+  };
 
   const save = async () => {
     if (!amount || amount <= 0) { toast.error("Amount required"); return; }
@@ -104,69 +143,179 @@ export default function QuickAddPaymentModal({
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
 
+  const fieldLabel = "block text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-1";
+  const inputBase = "w-full h-10 rounded-md border border-line bg-white px-3 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-foreground/10 focus:border-foreground/20";
+
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl border border-line w-full max-w-[640px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-white rounded-xl border border-line w-full max-w-[640px] max-h-[92vh] overflow-y-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
         <div className="px-6 py-4 border-b border-line sticky top-0 bg-white z-10">
-          <div className="font-serif text-[20px]">Add payment</div>
-          {leadName && <div className="text-[12px] text-muted-foreground mt-0.5">{leadName}</div>}
-          {headerNote && <div className="mt-2 text-[12px] rounded-md bg-gold-pale border border-[#F5D78A] px-2.5 py-1.5 text-foreground">{headerNote}</div>}
+          <div className="font-serif text-[20px] leading-tight">Add payment</div>
+          {leadName && <div className="text-[12.5px] text-muted-foreground mt-0.5">{leadName}</div>}
+          {headerNote && (
+            <div className="mt-2 text-[12px] rounded-md bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-foreground">
+              {headerNote}
+            </div>
+          )}
         </div>
-        <div className="p-6 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+
+        {/* Body */}
+        <div className="p-6 space-y-4">
+          {/* Row 1 — Payment Type + Category */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="qsi-label">Payment type</label>
-              <select className="qsi-input" value={type} onChange={(e) => { setType(e.target.value); if (e.target.value.includes("Token")) setCategory(e.target.value === "First Token" ? "Token Amount" : "Second Token"); else if (e.target.value === "Balance Payment") setCategory("Balance Payment"); else if (e.target.value === "Refund") setCategory("Refund"); else if (e.target.value === "Full Payment") setCategory("Full Payment"); else if (e.target.value.includes("Finance")) setCategory("EMI / Finance Disbursement"); }}>
-                {PAYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <label className={fieldLabel}>Payment type</label>
+              <Select value={type} onValueChange={handleTypeChange}>
+                <SelectTrigger className="h-10 text-[13.5px]">
+                  <SelectValue>
+                    <span className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${dotFor(PAYMENT_TYPES, type)}`} />
+                      <span>{type}</span>
+                    </span>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="z-[80]">
+                  {PAYMENT_TYPES.map(o => (
+                    <SelectItem key={o.value} value={o.value}>
+                      <span className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${o.dot}`} />
+                        <span>{o.value}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label className="qsi-label">Payment category</label>
-              <input className="qsi-input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Token Amount" />
+              <label className={fieldLabel}>Payment category</label>
+              <input
+                className={inputBase}
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="Token Amount"
+              />
             </div>
+          </div>
+
+          {/* Row 2 — Amount (prominent) + Mode */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="qsi-label">Amount</label>
-              <input type="number" className="qsi-input" value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))} placeholder="0" />
-            </div>
-            <div>
-              <label className="qsi-label">Mode</label>
-              <select className="qsi-input" value={mode} onChange={(e) => setMode(e.target.value)}>
-                {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </div>
-            {(type.includes("Finance") || mode === "Finance Partner") && (
-              <div className="col-span-2">
-                <label className="qsi-label">Finance partner</label>
-                <input list="qap-finance-partners" className="qsi-input" value={financePartner} onChange={(e) => setFinancePartner(e.target.value)} placeholder="Bajaj Finance" />
-                <datalist id="qap-finance-partners">{DEFAULT_FINANCE_PARTNERS.map(p => <option key={p} value={p} />)}</datalist>
+              <label className={fieldLabel}>Amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[15px] text-muted-foreground">₹</span>
+                <input
+                  type="number"
+                  className="w-full h-12 rounded-md border border-line bg-white pl-7 pr-3 text-[18px] font-semibold tracking-tight focus:outline-none focus:ring-2 focus:ring-foreground/10 focus:border-foreground/30"
+                  value={amount || ""}
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  placeholder="0"
+                />
               </div>
-            )}
-            <div>
-              <label className="qsi-label">Payment date</label>
-              <input type="date" className="qsi-input" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
             <div>
-              <label className="qsi-label">Next payment expected</label>
-              <input type="date" className="qsi-input" value={nextDate} onChange={(e) => setNextDate(e.target.value)} />
+              <label className={fieldLabel}>Mode</label>
+              <Select value={mode} onValueChange={setMode}>
+                <SelectTrigger className="h-12 text-[13.5px]">
+                  <SelectValue>
+                    <span className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${dotFor(PAYMENT_MODES, mode)}`} />
+                      <span>{mode}</span>
+                    </span>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="z-[80]">
+                  {PAYMENT_MODES.map(o => (
+                    <SelectItem key={o.value} value={o.value}>
+                      <span className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${o.dot}`} />
+                        <span>{o.value}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          <div>
-            <label className="qsi-label">Description / notes</label>
-            <textarea className="qsi-input !h-auto py-2" rows={3} placeholder="e.g. Student paid ₹2,000 token, promised second token tomorrow 4 PM." value={description} onChange={(e) => setDescription(e.target.value)} />
+
+          {/* Finance partner (conditional) */}
+          {(type.includes("Finance") || mode === "Finance Partner") && (
+            <div>
+              <label className={fieldLabel}>Finance partner</label>
+              <input
+                list="qap-finance-partners"
+                className={inputBase}
+                value={financePartner}
+                onChange={(e) => setFinancePartner(e.target.value)}
+                placeholder="Bajaj Finance"
+              />
+              <datalist id="qap-finance-partners">
+                {DEFAULT_FINANCE_PARTNERS.map(p => <option key={p} value={p} />)}
+              </datalist>
+            </div>
+          )}
+
+          {/* Row 3 — Dates */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={fieldLabel}>Payment date</label>
+              <input type="date" className={inputBase} value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <div>
+              <label className={fieldLabel}>Next payment expected</label>
+              <input type="date" className={inputBase} value={nextDate} onChange={(e) => setNextDate(e.target.value)} />
+            </div>
           </div>
+
+          {/* Notes */}
           <div>
-            <label className="qsi-label">Payment reference (optional)</label>
-            <input className="qsi-input" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Razorpay / UPI ref" />
+            <label className={fieldLabel}>Description / notes</label>
+            <textarea
+              className="w-full rounded-md border border-line bg-white px-3 py-2 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-foreground/10 focus:border-foreground/20"
+              rows={3}
+              placeholder="e.g. Student paid ₹2,000 token, promised second token tomorrow 4 PM."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
-          <div className="flex flex-wrap gap-4 text-[12.5px] pt-1">
-            <label className="flex items-center gap-1.5"><input type="checkbox" checked={isToken} onChange={(e) => setIsToken(e.target.checked)} /> Mark as token</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" checked={isFinal} onChange={(e) => setIsFinal(e.target.checked)} /> Mark as final payment</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" checked={financeLinked} onChange={(e) => setFinanceLinked(e.target.checked)} /> Finance-linked</label>
+
+          {/* Reference */}
+          <div>
+            <label className={fieldLabel}>Payment reference (optional)</label>
+            <input
+              className={inputBase}
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="Razorpay / UPI ref"
+            />
+          </div>
+
+          {/* Checkboxes */}
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12.5px] pt-1 border-t border-line/60 pt-3">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={isToken} onChange={(e) => setIsToken(e.target.checked)} />
+              Mark as token
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={isFinal} onChange={(e) => setIsFinal(e.target.checked)} />
+              Mark as final payment
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={financeLinked} onChange={(e) => setFinanceLinked(e.target.checked)} />
+              Finance-linked
+            </label>
           </div>
         </div>
+
+        {/* Footer */}
         <div className="px-6 py-3 border-t border-line flex justify-end gap-2 sticky bottom-0 bg-white">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
-          <button onClick={save} disabled={busy} className="ipc-btn ipc-btn-black">{busy ? "Saving…" : "Save payment"}</button>
+          <button onClick={save} disabled={busy} className="ipc-btn ipc-btn-black">
+            {busy ? "Saving…" : "Save payment"}
+          </button>
         </div>
       </div>
     </div>
