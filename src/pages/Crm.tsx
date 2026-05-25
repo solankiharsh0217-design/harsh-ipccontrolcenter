@@ -398,6 +398,7 @@ export default function Crm() {
     try {
       const target = pipelineLeads.filter((l) => assignScope === "all" ? true : !l.assigned_agent_id);
       if (target.length === 0) { toast.info("No leads to assign in current view"); setAssignBusy(false); return; }
+      const buckets = new Map<string | null, string[]>();
       if (assignMode === "unassign") {
         const ids = target.map((l) => l.id);
         await supabase.from("leads").update({ assigned_agent_id: null }).in("id", ids);
@@ -406,10 +407,10 @@ export default function Crm() {
         if (!assignAgentId) { toast.error("Pick an agent"); setAssignBusy(false); return; }
         const ids = target.map((l) => l.id);
         await supabase.from("leads").update({ assigned_agent_id: assignAgentId }).in("id", ids);
+        buckets.set(assignAgentId, ids);
         toast.success(`Assigned ${ids.length} leads`);
       } else {
         if (agents.length === 0) { toast.error("No active sales agents available"); setAssignBusy(false); return; }
-        const buckets = new Map<string, string[]>();
         target.forEach((l, i) => {
           const a = agents[i % agents.length].id;
           if (!buckets.has(a)) buckets.set(a, []);
@@ -422,6 +423,37 @@ export default function Crm() {
       }
       setAssignOpen(false);
       logActivity({ module_key: "calling_crm", action_type: assignMode === "unassign" ? "crm_bulk_unassigned" : "crm_bulk_assigned", entity_type: "crm_lead", metadata: { mode: assignMode, scope: assignScope, count: target.length, agent_id: assignAgentId || null }, summary: `${target.length} CRM leads ${assignMode === "unassign" ? "unassigned" : assignMode === "manual" ? `assigned to ${agents.find(a => a.id === assignAgentId)?.full_name ?? "agent"}` : "round-robin assigned"}.` });
+      // Notifications — one grouped per assignee
+      if (assignMode !== "unassign") {
+        const { data: { user: actor } } = await supabase.auth.getUser();
+        for (const [uid, ids] of buckets) {
+          if (!uid) continue;
+          try {
+            await createNotification({
+              recipient_user_id: uid,
+              module_key: "calling_crm",
+              notification_type: "leads_assigned",
+              title: "New Calling CRM leads assigned",
+              message: `${ids.length} Calling CRM lead(s) ${assignMode === "round_robin" ? "(round-robin) " : ""}assigned to you.`,
+              priority: ids.length >= 10 ? "high" : "normal",
+              action_url: "/crm?assigned_to=me",
+              action_label: "Open Calling CRM",
+              entity_type: "lead_assignment",
+              triggered_by_user_id: actor?.id ?? null,
+              allowDuplicate: true,
+              metadata: {
+                module_key: "calling_crm",
+                lead_ids: ids,
+                assignment_type: assignMode === "round_robin" ? "round_robin" : (assignScope === "all" ? "filtered" : "bulk"),
+                assigned_by: actor?.id ?? null,
+                assigned_to: uid,
+                count: ids.length,
+                deep_link: "/crm?assigned_to=me",
+              },
+            });
+          } catch { /* ignore */ }
+        }
+      }
       await load();
     } catch (e: any) { toast.error(e.message || "Assignment failed"); }
     finally { setAssignBusy(false); }
