@@ -414,6 +414,10 @@ export default function OperationsCrm() {
           })}
         </div>
       )}
+      </>
+      )}
+
+
 
       {/* Add stage modal — reuses Calling CRM stage modal */}
       {addStageOpen && pipelineId && (
