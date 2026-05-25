@@ -170,7 +170,7 @@ export default function InlineManagedSelect({
                 type="button"
                 onClick={() => setAdding(true)}
                 className="w-full text-left px-2.5 py-1.5 text-[11.5px] text-[#2563EB] hover:bg-off"
-              >+ Add new {settingType === "pipeline_stage" ? "stage" : "priority"}</button>
+              >+ Add new {NOUN[settingType] || settingType}</button>
             ) : (
               <div className="p-2 space-y-1.5">
                 <input
