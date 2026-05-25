@@ -151,6 +151,28 @@ export default function OperationsHandoffRulesPanel() {
     await load();
   };
 
+  const validate = (r: HandoffRule) => {
+    const issues: string[] = [];
+    const pipe = pipelines.find((p) => p.id === r.source_pipeline_id);
+    if (!pipe) issues.push("Source pipeline no longer exists.");
+    const liveStages = stagesFor(r.source_pipeline_id);
+    const liveStageIds = new Set(liveStages.map((s) => s.id));
+    const missingStages = (r.eligible_stage_ids ?? []).filter((id) => !liveStageIds.has(id));
+    if (missingStages.length) issues.push(`${missingStages.length} selected stage(s) no longer match live CRM stages. Re-select them.`);
+    if (!r.eligible_stage_ids || r.eligible_stage_ids.length === 0) issues.push("No eligible stages selected.");
+    if (!r.default_service_package) issues.push("Default service package missing.");
+    if (!r.default_service_days || r.default_service_days <= 0) issues.push("Default service duration missing.");
+    if (r.default_assignment_method === "single" && !r.default_single_buyer_id) issues.push("Single assignment needs a media buyer.");
+    if (r.default_assignment_method === "round_robin" && (!r.eligible_buyer_ids || r.eligible_buyer_ids.length === 0)) issues.push("Round robin needs at least one media buyer in the pool.");
+    if (r.mode === "auto" && !isRuleAutoReady(r)) issues.push("Auto-send requires complete settings — will fall back to suggest.");
+    if (issues.length === 0) {
+      toast.success(`Rule "${r.name}" is ready. Mode: ${r.mode}.`);
+    } else {
+      toast.error(issues.join(" "), { duration: 8000 });
+    }
+  };
+
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
