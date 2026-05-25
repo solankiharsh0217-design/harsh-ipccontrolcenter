@@ -37,6 +37,7 @@ interface OpsLead {
 interface Props {
   leads: OpsLead[];
   onOpenLead: (id: string) => void;
+  isAdmin?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
