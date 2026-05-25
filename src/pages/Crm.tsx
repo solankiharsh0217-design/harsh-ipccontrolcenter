@@ -21,6 +21,10 @@ import {
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
 import ManagedStageFilter from "@/components/crm/ManagedStageFilter";
+import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/ArchiveConfirmModal";
+import { archiveBatch, restoreBatch, permanentlyDeleteBatch, bulkArchiveLeads, getLeadLinks } from "@/lib/crmArchive";
+import { useAuth } from "@/context/AuthContext";
+import { Archive, RotateCcw, MoreVertical } from "lucide-react";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
