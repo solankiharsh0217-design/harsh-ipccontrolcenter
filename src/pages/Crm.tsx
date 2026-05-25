@@ -987,6 +987,58 @@ export default function Crm() {
           }}
         />
       )}
+      {batchChoicesTarget && (
+        <BatchDeleteChoicesModal
+          batchName={batchChoicesTarget.name}
+          linkedPaid={batchChoicesTarget.linkedPaid}
+          linkedOps={batchChoicesTarget.linkedOps}
+          totalLeads={batchChoicesTarget.leadIds.length}
+          isAdmin={isAdmin}
+          busy={batchChoicesBusy}
+          onClose={() => setBatchChoicesTarget(null)}
+          onArchive={async () => {
+            const activeIds = leads
+              .filter((l: any) => (l.webinar_source || "Unsourced") === batchChoicesTarget.name && (l.webinar_date || null) === batchChoicesTarget.date && !l.archived_at)
+              .map((l) => l.id);
+            if (!activeIds.length) { toast.info("No active leads to archive"); setBatchChoicesTarget(null); return; }
+            setArchiveBatchLinks({ paid: batchChoicesTarget.linkedPaid, ops: batchChoicesTarget.linkedOps });
+            setArchiveBatchTarget({
+              name: batchChoicesTarget.name, date: batchChoicesTarget.date, pipelineId: batchChoicesTarget.pipelineId,
+              leadIds: activeIds, activeCount: activeIds.length,
+            });
+            setBatchChoicesTarget(null);
+          }}
+          onReset={async (reason) => {
+            setBatchChoicesBusy(true);
+            try {
+              const activeIds = leads
+                .filter((l: any) => (l.webinar_source || "Unsourced") === batchChoicesTarget.name && (l.webinar_date || null) === batchChoicesTarget.date && !l.archived_at)
+                .map((l) => l.id);
+              const r = await resetBatchForReimport({
+                batchName: batchChoicesTarget.name, batchDate: batchChoicesTarget.date,
+                pipelineId: batchChoicesTarget.pipelineId, leadIds: activeIds, reason: reason || undefined,
+              });
+              toast.success(`Batch reset for re-import (${r.affected} leads). You can now upload fresh leads.`);
+              setBatchChoicesTarget(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Reset failed"); }
+            finally { setBatchChoicesBusy(false); }
+          }}
+          onSafeDelete={async (reason) => {
+            setBatchChoicesBusy(true);
+            try {
+              const r = await safePermanentDeleteBatch({
+                batchName: batchChoicesTarget.name, batchDate: batchChoicesTarget.date,
+                pipelineId: batchChoicesTarget.pipelineId, leadIds: batchChoicesTarget.leadIds, reason: reason || undefined,
+              });
+              toast.success(`${r.deleted} deleted permanently, ${r.archived} archived (linked), ${r.alreadyArchivedLinked} already archived.`);
+              setBatchChoicesTarget(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Delete failed"); }
+            finally { setBatchChoicesBusy(false); }
+          }}
+        />
+      )}
       {renameStageTarget && (
         <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-sm p-5">
