@@ -726,6 +726,11 @@ export default function Crm() {
           Showing <span className="font-medium text-foreground">{pipelineLeads.length}</span> of <span className="font-medium text-foreground">{leads.filter((l) => l.pipeline_id === activePipeline).length}</span> leads
         </div>
       )}
+      {view === "batches" && (
+        <div className="text-[11px] text-muted-foreground mb-2">
+          Showing <span className="font-medium text-foreground">{visibleBatches.length}</span> of <span className="font-medium text-foreground">{batchesWithType.length}</span> batches
+        </div>
+      )}
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
