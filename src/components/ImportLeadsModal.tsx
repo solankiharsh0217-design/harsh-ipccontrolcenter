@@ -3,11 +3,13 @@ import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { X, Plus, Upload } from "lucide-react";
+import { X, Plus, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
 import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type LeadGrade } from "@/lib/crmTypes";
 import { logActivity } from "@/lib/auditLog";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 export type DuplicatePolicy = "skip" | "update" | "move" | "new_only";
+export type AssignmentMode = "unassigned" | "assign_to_me" | "assign_to_member" | "round_robin" | "hot_to_top";
 
 export interface ImportResult {
   pipelineId: string;
@@ -19,10 +21,15 @@ export interface ImportResult {
   newImported: number;
   updated: number;
   moved: number;
+  restored: number;
   skippedDuplicates: number;
   failed: number;
   skipped: number;           // back-compat alias = skippedDuplicates + failed
   duplicatePolicy: DuplicatePolicy;
+  paidCreated: number;
+  paidLinked: number;
+  paidUnlinked: number;
+  errors: string[];
 }
 
 interface Props {
@@ -84,11 +91,15 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [dealValue, setDealValue] = useState<number>(118000);
 
   // Step 4
-  const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
-  const [assignment, setAssignment] = useState<"unassigned" | "round_robin" | "hot_to_top">("unassigned");
+  const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
+  const [assignment, setAssignment] = useState<AssignmentMode>("unassigned");
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>("");
   const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>("move");
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Step 5 — diagnostics result
+  const [result, setResult] = useState<ImportResult | null>(null);
 
   // Preflight summary
   const [preflightLoading, setPreflightLoading] = useState(false);
@@ -129,14 +140,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const goToStep3 = async () => {
     setLoading(true);
     try {
-      const [{ data: pl }, { data: st }, { data: ag }] = await Promise.all([
+      const [{ data: pl }, { data: st }, elig] = await Promise.all([
         supabase.from("pipelines").select("*").order("position"),
         supabase.from("stages").select("*").order("position"),
-        supabase.from("profiles").select("id, full_name, role, status").eq("status", "active"),
+        getEligibleAssignees("calling_crm"),
       ]);
       setPipelines(pl || []);
       setStages(st || []);
-      setAgents(((ag || []) as any).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")));
+      setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name, role: a.role })));
       const list = pl || [];
       const def = resolveDefaultPipelineId(leadType, list);
       setTargetPipelineId(def);
@@ -361,10 +372,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         newRows.push(r);
       }
 
-      // Assignment helper
+      // Assignment helper — applies to BOTH new rows and dup moves/updates.
       const activeAgents = agents;
       let rr = 0;
       const assign = (grade: LeadGrade, isSH: boolean): string | null => {
+        if (assignment === "assign_to_me") return profile?.id || null;
+        if (assignment === "assign_to_member") return selectedAssigneeId || null;
         if (assignment === "round_robin" && activeAgents.length) {
           const id = activeAgents[rr % activeAgents.length].id; rr++; return id;
         }
@@ -377,6 +390,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let newImported = 0;
       let updated = 0;
       let moved = 0;
+      let restored = 0;
       let skippedDuplicates = 0;
       let failed = 0;
       const errors: string[] = [];
@@ -389,6 +403,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         for (const { row, existing } of dupRows) {
           const isSH = true; // existing email match → super-hot per original logic
           const grade = (isSH ? "super-hot" : defaultGrade) as LeadGrade;
+          const wasArchived = !!existing.archived_at;
+          const agentId = assign(grade, isSH);
           const base: any = {
             pipeline_id: pipelineId,
             stage_id: firstStageId,
@@ -401,16 +417,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             program_name: productName,
             deal_value: dealValue,
             lead_source_type: "direct_import",
-            // If existing duplicate is archived, restore it so the fresh import isn't silently blocked.
-            ...(existing.archived_at ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
+            ...(wasArchived ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
+            ...(agentId ? { assigned_agent_id: agentId } : {}),
           };
           if (duplicatePolicy === "update") {
-            // Fill missing name/phone/country only
             if (!existing.full_name && row.full_name) base.full_name = row.full_name;
             if (!existing.phone && row.phone) base.phone = row.phone;
             if (row.country) base.country = row.country;
           } else {
-            // move — only fill missing name/phone, never overwrite
             if (!existing.full_name && row.full_name) base.full_name = row.full_name;
             if (!existing.phone && row.phone) base.phone = row.phone;
           }
@@ -422,9 +436,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           } else {
             if (duplicatePolicy === "update") updated++;
             else moved++;
+            if (wasArchived) restored++;
           }
         }
       }
+
 
       // --- Insert new rows in chunks ---
       const newPayloads = newRows.map((r) => {
@@ -481,6 +497,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       // ── Auto-sync paid leads to Paid Pipeline ─────────────────────────────
       let paidSynced = 0;
       let paidLinked = 0;
+      let paidUnlinked = 0;
       if (pipelineType === "paid") {
         try {
           // Pull the freshly imported/updated CRM leads for this batch
@@ -491,7 +508,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             .eq("webinar_source", segmentName);
 
           for (const lead of (crmRows || []) as any[]) {
-            // Match priority: existing link → email → phone
+            // Match priority: existing link → email → phone (covers backfill of older rows)
             let existing: any = null;
             if (lead.paid_pipeline_lead_id) {
               const { data } = await supabase.from("paid_pipeline_leads")
@@ -540,9 +557,19 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 paidSynced++;
               } else if (insErr) {
                 console.error("[ImportLeadsModal] paid_pipeline_leads insert failed", insErr);
+                paidUnlinked++;
+                if (!errors.includes(insErr.message)) errors.push(insErr.message);
               }
             }
           }
+
+          // Recount unlinked by re-querying — authoritative diagnostic
+          const { data: linkCheck } = await supabase
+            .from("leads")
+            .select("id, paid_pipeline_lead_id")
+            .eq("pipeline_id", pipelineId)
+            .eq("webinar_source", segmentName);
+          paidUnlinked = (linkCheck || []).filter((r: any) => !r.paid_pipeline_lead_id).length;
 
           if (paidSynced + paidLinked > 0) {
             logActivity({
@@ -550,8 +577,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               action_type: "paid_pipeline_record_created_from_crm",
               entity_type: "crm_batch",
               entity_label: segmentName,
-              metadata: { batch_name: segmentName, paid_created: paidSynced, paid_linked: paidLinked, pipeline_id: pipelineId },
-              summary: `Paid Pipeline auto-sync: ${paidSynced} created · ${paidLinked} linked from batch "${segmentName}".`,
+              metadata: { batch_name: segmentName, paid_created: paidSynced, paid_linked: paidLinked, paid_unlinked: paidUnlinked, pipeline_id: pipelineId },
+              summary: `Paid Pipeline auto-sync: ${paidSynced} created · ${paidLinked} linked · ${paidUnlinked} unlinked from batch "${segmentName}".`,
             });
           }
         } catch (syncErr: any) {
@@ -586,19 +613,25 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           new_imported_count: newImported,
           updated_existing_count: updated,
           moved_existing_count: moved,
+          restored_count: restored,
           skipped_duplicate_count: skippedDuplicates,
           failed_count: failed,
+          paid_created: paidSynced,
+          paid_linked: paidLinked,
+          paid_unlinked: paidUnlinked,
           duplicate_policy: duplicatePolicy,
+          assignment_mode: assignment,
+          assigned_to: assignment === "assign_to_me" ? profile?.id : (assignment === "assign_to_member" ? selectedAssigneeId : null),
           default_grade: defaultGrade,
           product_name: productName,
           deal_value: dealValue,
           webinar_name: webinarName || segmentName,
           webinar_date: webinarDate,
         },
-        summary: `Imported ${newImported} new · ${moved} moved · ${updated} updated · ${skippedDuplicates} skipped · ${failed} failed into "${pipelineName}" — batch "${segmentName}".`,
+        summary: `Imported ${newImported} new · ${moved} moved · ${updated} updated · ${restored} restored · ${skippedDuplicates} skipped · ${failed} failed → "${pipelineName}" — batch "${segmentName}".`,
       });
 
-      onDone({
+      const finalResult: ImportResult = {
         pipelineId: pipelineId as string,
         pipelineName,
         pipelineType,
@@ -608,16 +641,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         newImported,
         updated,
         moved,
+        restored,
         skippedDuplicates,
         failed,
         skipped: skippedDuplicates + failed,
         duplicatePolicy,
-      });
+        paidCreated: paidSynced,
+        paidLinked,
+        paidUnlinked,
+        errors,
+      };
+      setResult(finalResult);
+      setStep(5);
     } catch (e: any) {
       console.error("[ImportLeadsModal] importNow failed", e);
       toast.error(e.message || "Import failed");
     } finally { setImporting(false); }
   };
+
 
   const validRows = rows.length;
   const mappedOk = !!(mapping.full_name || mapping.email || mapping.phone);
@@ -635,7 +676,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         <div className="px-6 py-4 border-b border-line flex items-center justify-between">
           <div>
             <div className="font-serif text-xl">Import Leads</div>
-            <div className="font-sans text-xs text-muted-foreground mt-0.5">Step {step} of 4</div>
+            <div className="font-sans text-xs text-muted-foreground mt-0.5">{step === 5 ? "Import complete" : `Step ${step} of 4`}</div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
         </div>
@@ -863,19 +904,100 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             </div>
 
             <div>
-              <label className="form-label">Assignment (applies to new leads only)</label>
-              <select className="ipc-input" value={assignment} onChange={(e) => setAssignment(e.target.value as any)}>
-                <option value="unassigned">Leave unassigned</option>
-                <option value="round_robin">Round-robin to all agents ({agents.length})</option>
-                <option value="hot_to_top">Hot + Super Hot to top 2 agents only</option>
+              <label className="form-label">Assignment (applies to all imported leads)</label>
+              <select className="ipc-input" value={assignment} onChange={(e) => setAssignment(e.target.value as AssignmentMode)}>
+                <option value="unassigned">Keep unassigned</option>
+                <option value="assign_to_me">Assign all to me{profile?.full_name ? ` (${profile.full_name})` : ""}</option>
+                <option value="assign_to_member" disabled={agents.length === 0}>Assign all to selected team member…</option>
+                <option value="round_robin" disabled={agents.length === 0}>Round-robin among eligible sales team ({agents.length})</option>
+                <option value="hot_to_top" disabled={agents.length === 0}>Hot + Super Hot to top 2 agents only</option>
               </select>
+              {assignment === "assign_to_member" && (
+                <select
+                  className="ipc-input mt-2"
+                  value={selectedAssigneeId}
+                  onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                >
+                  <option value="">— pick a team member —</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>{a.full_name}{a.role ? ` · ${a.role}` : ""}</option>
+                  ))}
+                </select>
+              )}
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Eligible list = active members with “Can receive Calling CRM leads”. Round-robin requires “Include in round-robin” too.
+              </p>
             </div>
 
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(3)} className="ipc-btn ipc-btn-ghost">Back</button>
-              <button onClick={importNow} disabled={importing || preflightLoading || targetMismatch || (resolvedTarget.isNew && !newPipeName.trim())} className="ipc-btn ipc-btn-black disabled:opacity-50">
+              <button
+                onClick={importNow}
+                disabled={
+                  importing || preflightLoading || targetMismatch ||
+                  (resolvedTarget.isNew && !newPipeName.trim()) ||
+                  (assignment === "assign_to_member" && !selectedAssigneeId)
+                }
+                className="ipc-btn ipc-btn-black disabled:opacity-50"
+              >
                 {importing ? "Importing…" : `Import ${validRows} rows`}
               </button>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && result && (
+          <div className="p-6 space-y-4">
+            <div className="flex items-start gap-3 p-4 rounded-lg border border-emerald-200 bg-emerald-50">
+              <CheckCircle2 className="w-5 h-5 text-emerald-700 mt-0.5" />
+              <div className="text-sm">
+                <div className="font-medium text-emerald-900">Import complete</div>
+                <div className="text-emerald-800/80 text-xs mt-0.5">
+                  Batch <b>"{result.batchName}"</b> → {result.pipelineName} ({result.pipelineType})
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm p-4 rounded-lg border border-line">
+              <div className="uppercase-label col-span-2 mb-1">Calling CRM</div>
+              <div><span className="text-muted-foreground">Total rows processed:</span> <b>{result.newImported + result.updated + result.moved + result.skippedDuplicates + result.failed}</b></div>
+              <div><span className="text-muted-foreground">Created (new):</span> <b className="text-emerald-700">{result.newImported}</b></div>
+              <div><span className="text-muted-foreground">Moved:</span> <b>{result.moved}</b></div>
+              <div><span className="text-muted-foreground">Updated:</span> <b>{result.updated}</b></div>
+              <div><span className="text-muted-foreground">Restored from archive:</span> <b>{result.restored}</b></div>
+              <div><span className="text-muted-foreground">Skipped duplicates:</span> <b className="text-amber-700">{result.skippedDuplicates}</b></div>
+              <div><span className="text-muted-foreground">Failed:</span> <b className={result.failed ? "text-red-700" : ""}>{result.failed}</b></div>
+            </div>
+
+            {result.pipelineType === "paid" && (
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm p-4 rounded-lg border border-line">
+                <div className="uppercase-label col-span-2 mb-1">Paid Pipeline sync</div>
+                <div><span className="text-muted-foreground">Created in Paid Pipeline:</span> <b className="text-emerald-700">{result.paidCreated}</b></div>
+                <div><span className="text-muted-foreground">Linked to existing buyer:</span> <b>{result.paidLinked}</b></div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Unlinked (CRM leads with no Paid Pipeline row):</span>{" "}
+                  <b className={result.paidUnlinked > 0 ? "text-amber-700" : "text-emerald-700"}>{result.paidUnlinked}</b>
+                </div>
+                {result.paidUnlinked > 0 && (
+                  <div className="col-span-2 flex items-start gap-2 mt-1 p-2.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5" />
+                    <span>Some paid CRM leads are not linked to Paid Pipeline. Re-running the import will retry the link/backfill.</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {result.errors.length > 0 && (
+              <details className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs">
+                <summary className="cursor-pointer font-medium text-red-800">Errors ({result.errors.length})</summary>
+                <ul className="list-disc pl-4 mt-2 space-y-0.5 text-red-700">
+                  {result.errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              </details>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button onClick={() => onDone(result)} className="ipc-btn ipc-btn-black">Done</button>
             </div>
           </div>
         )}
