@@ -110,6 +110,7 @@ export default function QuickAddPaymentModal({
         <div className="px-6 py-4 border-b border-line sticky top-0 bg-white z-10">
           <div className="font-serif text-[20px]">Add payment</div>
           {leadName && <div className="text-[12px] text-muted-foreground mt-0.5">{leadName}</div>}
+          {headerNote && <div className="mt-2 text-[12px] rounded-md bg-gold-pale border border-[#F5D78A] px-2.5 py-1.5 text-foreground">{headerNote}</div>}
         </div>
         <div className="p-6 space-y-3">
           <div className="grid grid-cols-2 gap-3">
