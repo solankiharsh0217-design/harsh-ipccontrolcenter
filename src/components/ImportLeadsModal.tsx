@@ -343,33 +343,57 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         country: get(r, "country") || null,
       })).filter((r) => r.full_name || r.email || r.phone);
 
-      // Fresh duplicate map (in case preflight is stale)
+      // Fresh duplicate maps — match by email AND by phone (phone is a fallback
+      // unique key when email is missing or doesn't match an existing record).
       const emails = Array.from(new Set(records.map((r) => r.email).filter(Boolean) as string[]));
+      const phones = Array.from(new Set(records.map((r) => r.phone).filter(Boolean) as string[]));
       const existingByEmail = new Map<string, any>();
+      const existingByPhone = new Map<string, any>();
+      const leadCols = "id, email, full_name, phone, pipeline_id, stage_id, lead_type, archived_at, archived_by, archive_reason, paid_pipeline_lead_id";
       for (let i = 0; i < emails.length; i += 300) {
         const chunk = emails.slice(i, i + 300);
-        const { data } = await supabase
-          .from("leads")
-          .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type")
-          .in("email", chunk);
+        const { data } = await supabase.from("leads").select(leadCols).in("email", chunk);
         (data || []).forEach((l: any) => {
+          const k = normEmail(l.email);
+          if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
+          if (l.phone && !existingByPhone.has(l.phone)) existingByPhone.set(l.phone, l);
+        });
+      }
+      for (let i = 0; i < phones.length; i += 300) {
+        const chunk = phones.slice(i, i + 300);
+        const { data } = await supabase.from("leads").select(leadCols).in("phone", chunk);
+        (data || []).forEach((l: any) => {
+          if (l.phone && !existingByPhone.has(l.phone)) existingByPhone.set(l.phone, l);
           const k = normEmail(l.email);
           if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
         });
       }
 
-      // Bucket: new vs existing. Dedup within CSV by email (keep first).
+      // Bucket: new vs existing. Dedup within CSV by email then phone.
       const seenEmails = new Set<string>();
-      const newRows: N[] = [];
-      const dupRows: { row: N; existing: any }[] = [];
+      const seenPhones = new Set<string>();
+      const newRows: (N & { _phoneOnly?: boolean })[] = [];
+      const dupRows: { row: N; existing: any; matchedBy: "email" | "phone" }[] = [];
+      let failedNoKey = 0;
       for (const r of records) {
+        let existing: any = null;
+        let matchedBy: "email" | "phone" | null = null;
         if (r.email) {
           if (seenEmails.has(r.email)) continue;
           seenEmails.add(r.email);
           const ex = existingByEmail.get(r.email);
-          if (ex) { dupRows.push({ row: r, existing: ex }); continue; }
+          if (ex) { existing = ex; matchedBy = "email"; }
         }
-        newRows.push(r);
+        if (!existing && r.phone) {
+          if (!r.email && seenPhones.has(r.phone)) continue;
+          if (r.phone) seenPhones.add(r.phone);
+          const ex = existingByPhone.get(r.phone);
+          if (ex) { existing = ex; matchedBy = "phone"; }
+        }
+        if (existing) { dupRows.push({ row: r, existing, matchedBy: matchedBy! }); continue; }
+        // No match — must have at least an email OR phone to insert.
+        if (!r.email && !r.phone) { failedNoKey++; continue; }
+        newRows.push({ ...r, _phoneOnly: !r.email && !!r.phone });
       }
 
       // Assignment helper — applies to BOTH new rows and dup moves/updates.
@@ -391,9 +415,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let updated = 0;
       let moved = 0;
       let restored = 0;
+      let phoneOnlyImported = 0;
       let skippedDuplicates = 0;
-      let failed = 0;
+      let failed = failedNoKey;
       const errors: string[] = [];
+      const reasonCounts = new Map<string, number>();
+      if (failedNoKey > 0) reasonCounts.set("Row has neither email nor phone", failedNoKey);
 
       // --- Handle duplicates per policy ---
       if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") {
