@@ -423,6 +423,30 @@ export default function PaymentRecovery() {
     if (error) toast.error(error.message); else {
       toast.success(`Assigned ${selected.size} leads to ${owner.full_name}`);
       logBulkPaidLeadDiff(snaps, { assigned_sales_executive: owner.id }, { ids, moduleKey: "payment_recovery", moduleLabel: "Payment Recovery" });
+      try {
+        await createNotification({
+          recipient_user_id: owner.id,
+          module_key: "payment_recovery",
+          notification_type: "leads_assigned",
+          title: "New Payment Recovery leads assigned",
+          message: `${ids.length} payment recovery lead(s) need your attention.`,
+          priority: ids.length >= 10 ? "high" : "normal",
+          action_url: "/payment-recovery?owner=me",
+          action_label: "Open Payment Recovery",
+          entity_type: "lead_assignment",
+          triggered_by_user_id: user?.id ?? null,
+          allowDuplicate: true,
+          metadata: {
+            module_key: "payment_recovery",
+            lead_ids: ids,
+            assignment_type: ids.length > 1 ? "bulk" : "single",
+            assigned_by: user?.id ?? null,
+            assigned_to: owner.id,
+            count: ids.length,
+            deep_link: "/payment-recovery?owner=me",
+          },
+        });
+      } catch { /* ignore */ }
       setSelected(new Set()); load();
     }
   };
