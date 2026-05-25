@@ -62,10 +62,10 @@ export default function CodeOfConductPanel(props: Props) {
   const tpl = diag?.template;
   const setupMissing: string[] = [];
   if (!diag?.has_resend_api_key) setupMissing.push("RESEND_API_KEY");
+  if (!tpl?.from_email && !diag?.has_email_from_address) setupMissing.push("EMAIL_FROM_ADDRESS");
+  if (!tpl?.from_name && !diag?.has_email_from_name) setupMissing.push("EMAIL_FROM_NAME");
   if (!tpl) setupMissing.push("template");
   else {
-    if (!tpl.from_email) setupMissing.push("sender email");
-    if (!tpl.from_name) setupMissing.push("sender name");
     if (!tpl.email_subject) setupMissing.push("email subject");
     if (!tpl.email_body) setupMissing.push("email body");
     if (!tpl.template_pdf_url && !tpl.html_content) setupMissing.push("PDF/HTML");
@@ -200,20 +200,27 @@ export default function CodeOfConductPanel(props: Props) {
         </div>
       )}
 
-      {confirmOpen && tpl && (
+      {confirmOpen && tpl && (() => {
+        const sFromEmail = diag?.resolved_from_email || tpl.from_email || "";
+        const sFromName = diag?.resolved_from_name || tpl.from_name || "";
+        const sReplyTo = diag?.resolved_reply_to || tpl.reply_to_email || "—";
+        const looksUnverified = !sFromEmail || sFromEmail === "onboarding@resend.dev";
+        return (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setConfirmOpen(false)}>
           <div className="bg-white rounded-xl border border-line w-full max-w-md p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="text-[15px] font-semibold mb-3">Send Code of Conduct Email?</div>
             <div className="space-y-1.5 text-[12.5px]">
               <Row k="Member" v={memberName} />
               <Row k="Member email" v={emailOverride} />
-              <Row k="Sender" v={`${tpl.from_name} <${tpl.from_email}>`} />
+              <Row k="Sender email" v={sFromEmail || "—"} />
+              <Row k="Sender name" v={sFromName || "—"} />
+              <Row k="Reply-to" v={sReplyTo} />
               <Row k="Template" v={`${tpl.name || "—"}${tpl.version ? ` v${tpl.version}` : ""}`} />
               <Row k="Link expiry" v={`${tpl.expiry_days || 7} days`} />
             </div>
-            {tpl.from_email === "onboarding@resend.dev" && (
+            {looksUnverified && (
               <div className="mt-3 text-[11.5px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
-                This test sender may not deliver to all recipients. Use a verified domain sender for real members.
+                This sender may not deliver to all recipients. Use a verified Resend domain sender for real members.
               </div>
             )}
             <div className="flex justify-end gap-2 mt-4">
@@ -222,7 +229,8 @@ export default function CodeOfConductPanel(props: Props) {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

@@ -71,10 +71,23 @@ Deno.serve(async (req) => {
       const { data: lastReq } = await diagAdmin.from('code_of_conduct_requests')
         .select('id,member_email,status,sent_at,last_email_attempt_at,last_email_error,last_email_error_code,provider_message_id')
         .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const envFrom = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
+      const envName = Deno.env.get('EMAIL_FROM_NAME') || '';
+      const envReply = Deno.env.get('EMAIL_REPLY_TO') || '';
+      const resolvedFromEmail = (tpl?.from_email && tpl.from_email.trim()) || envFrom || '';
+      const resolvedFromName = (tpl?.from_name && tpl.from_name.trim()) || envName || '';
+      const resolvedReplyTo = (tpl?.reply_to_email && tpl.reply_to_email.trim()) || envReply || '';
       return jsonResponse({
         ok: true,
         provider: 'resend',
         has_resend_api_key: !!Deno.env.get('RESEND_API_KEY'),
+        has_email_from_address: !!envFrom,
+        has_email_from_name: !!envName,
+        has_email_reply_to: !!envReply,
+        resolved_from_email: resolvedFromEmail,
+        resolved_from_name: resolvedFromName,
+        resolved_reply_to: resolvedReplyTo,
+        sender_source: tpl?.from_email ? 'template' : (envFrom ? 'secret' : 'none'),
         template: tpl || null,
         last_attempt: lastReq || null,
       });
@@ -105,9 +118,7 @@ Deno.serve(async (req) => {
     if (!templateRow.email_subject || !templateRow.email_body) {
       return fail('TEMPLATE_MISSING_EMAIL_BODY', 'Template is missing email subject or body.');
     }
-    if (!templateRow.from_email) {
-      return fail('MISSING_FROM_EMAIL', 'Template has no From email configured.');
-    }
+    // from_email/from_name resolution happens later (template > secret > error)
 
     // Find or reuse request (skip for test sends)
     if (!is_test) {
@@ -192,19 +203,37 @@ ${bodyText.split('\n').map((l: string) => l.includes(signingLink) ? '' : `<p sty
 </div></body></html>`;
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    const fromEmail = templateRow.from_email;
-    const fromName = templateRow.from_name || 'IPC Control Center';
+    const envFromEmail = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
+    const envFromName = Deno.env.get('EMAIL_FROM_NAME') || '';
+    const envReplyTo = Deno.env.get('EMAIL_REPLY_TO') || '';
+
+    const fromEmail = (templateRow.from_email && String(templateRow.from_email).trim()) || envFromEmail;
+    const fromName = (templateRow.from_name && String(templateRow.from_name).trim()) || envFromName || 'IPC Control Center';
+    const replyTo = ((templateRow as any).reply_to_email && String((templateRow as any).reply_to_email).trim()) || envReplyTo || undefined;
+
+    const recordSetupError = async (code: string, msg: string) => {
+      if (requestRow) {
+        await admin.from('code_of_conduct_requests').update({ last_email_error: msg, last_email_error_code: code, email_error: msg }).eq('id', requestRow.id);
+        await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'email_failed', metadata: { error_code: code, error: msg }, created_by: userId });
+      }
+    };
 
     if (!RESEND_API_KEY) {
-      const msg = 'RESEND_API_KEY is not configured in backend secrets.';
-      if (requestRow) {
-        await admin.from('code_of_conduct_requests').update({ last_email_error: msg, last_email_error_code: 'MISSING_RESEND_API_KEY', email_error: msg }).eq('id', requestRow.id);
-        await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'email_failed', metadata: { error_code: 'MISSING_RESEND_API_KEY', error: msg }, created_by: userId });
-      }
+      const msg = 'RESEND_API_KEY is not configured. Please add it in secure secrets.';
+      await recordSetupError('MISSING_RESEND_API_KEY', msg);
       return fail('MISSING_RESEND_API_KEY', msg, null, 400);
     }
+    if (!fromEmail) {
+      const msg = 'Sender email is not configured. Please add EMAIL_FROM_ADDRESS in secure secrets (or set a template From email).';
+      await recordSetupError('MISSING_EMAIL_FROM_ADDRESS', msg);
+      return fail('MISSING_EMAIL_FROM_ADDRESS', msg, null, 400);
+    }
+    if (!fromName) {
+      const msg = 'Sender name is not configured. Please add EMAIL_FROM_NAME in secure secrets.';
+      await recordSetupError('MISSING_EMAIL_FROM_NAME', msg);
+      return fail('MISSING_EMAIL_FROM_NAME', msg, null, 400);
+    }
 
-    const replyTo = (templateRow as any).reply_to_email || undefined;
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },

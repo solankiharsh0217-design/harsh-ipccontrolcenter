@@ -182,9 +182,11 @@ export default function CodeOfConductAdmin() {
 
   const checklist: ChecklistItem[] = useMemo(() => {
     const t = tpl || {};
+    const hasFromEmail = !!t.from_email || !!diag?.has_email_from_address;
+    const hasFromName = !!t.from_name || !!diag?.has_email_from_name;
     const items: ChecklistItem[] = [
-      { key: "from_email", label: "Sender email added", ok: !!t.from_email, required: true, hint: "Use an address on a domain verified with your email provider." },
-      { key: "from_name", label: "Sender name added", ok: !!t.from_name, required: true },
+      { key: "from_email", label: "Sender email configured (template or EMAIL_FROM_ADDRESS secret)", ok: hasFromEmail, required: true, hint: "Use an address on a domain verified with your email provider." },
+      { key: "from_name", label: "Sender name configured (template or EMAIL_FROM_NAME secret)", ok: hasFromName, required: true },
       { key: "email_subject", label: "Email subject added", ok: !!t.email_subject, required: true },
       { key: "email_body", label: "Email body added", ok: !!t.email_body, required: true },
       { key: "doc", label: "PDF or HTML document added", ok: !!(t.template_pdf_url || t.html_content), required: true },
@@ -403,10 +405,13 @@ export default function CodeOfConductAdmin() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12.5px]">
             <DiagRow label="Provider" value="Resend" />
-            <DiagRow label="API key configured" value={diag?.has_resend_api_key ? "Yes" : "No"} hint={diag?.has_resend_api_key ? "Stored securely in backend secrets." : "Add RESEND_API_KEY in backend secrets."} bad={!diag?.has_resend_api_key} />
-            <DiagRow label="From name" value={tpl?.from_name || "—"} bad={!tpl?.from_name} />
-            <DiagRow label="From email" value={tpl?.from_email || "—"} bad={!tpl?.from_email} />
-            <DiagRow label="Reply-to" value={tpl?.reply_to_email || "—"} />
+            <DiagRow label="RESEND_API_KEY" value={diag?.has_resend_api_key ? "Configured" : "Missing"} hint={diag?.has_resend_api_key ? "Stored securely in backend secrets. Value never exposed." : "Add RESEND_API_KEY in backend secrets."} bad={!diag?.has_resend_api_key} />
+            <DiagRow label="EMAIL_FROM_ADDRESS" value={diag?.has_email_from_address ? "Configured" : "Missing"} hint={diag?.has_email_from_address ? "Default sender email secret is set." : "Add EMAIL_FROM_ADDRESS in backend secrets."} bad={!diag?.has_email_from_address && !tpl?.from_email} />
+            <DiagRow label="EMAIL_FROM_NAME" value={diag?.has_email_from_name ? "Configured" : "Missing"} hint={diag?.has_email_from_name ? "Default sender name secret is set." : "Add EMAIL_FROM_NAME in backend secrets."} bad={!diag?.has_email_from_name && !tpl?.from_name} />
+            <DiagRow label="EMAIL_REPLY_TO" value={diag?.has_email_reply_to ? "Configured" : "Not set (optional)"} hint={diag?.has_email_reply_to ? "Default reply-to secret is set." : "Optional — replies will go to the sender address."} />
+            <DiagRow label="Resolved sender email" value={diag?.resolved_from_email || "—"} hint={diag?.sender_source === "template" ? "Source: template override" : diag?.sender_source === "secret" ? "Source: EMAIL_FROM_ADDRESS secret" : "No sender configured"} bad={!diag?.resolved_from_email} />
+            <DiagRow label="Resolved sender name" value={diag?.resolved_from_name || "—"} bad={!diag?.resolved_from_name} />
+            <DiagRow label="Resolved reply-to" value={diag?.resolved_reply_to || "—"} />
             <DiagRow label="Test recipient" value={tpl?.test_recipient_email || "—"} />
           </div>
           {tpl?.from_email === "onboarding@resend.dev" && (
@@ -457,6 +462,8 @@ export default function CodeOfConductAdmin() {
 function errorHint(code?: string) {
   switch (code) {
     case "MISSING_RESEND_API_KEY": return "Add RESEND_API_KEY in backend secrets.";
+    case "MISSING_EMAIL_FROM_ADDRESS": return "Add EMAIL_FROM_ADDRESS in backend secrets (or set a template From email).";
+    case "MISSING_EMAIL_FROM_NAME": return "Add EMAIL_FROM_NAME in backend secrets (or set a template From name).";
     case "MISSING_FROM_EMAIL": return "Add the sender email connected to your email provider in Email Setup.";
     case "RESEND_DOMAIN_NOT_VERIFIED": return "Use a verified sender/domain inside Resend.";
     case "EMAIL_PROVIDER_REJECTED": return "Your email provider rejected the request. Check sender domain, recipient, and provider limits.";
