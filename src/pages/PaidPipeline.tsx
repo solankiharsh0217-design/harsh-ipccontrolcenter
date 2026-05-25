@@ -1131,6 +1131,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             crmLeadId={lead.crm_lead_id || null}
             onApplied={() => { loadInner(); onChanged(); }}
             onOpenFollowUp={() => setOpenFu(true)}
+            onOpenTokenPayment={openTokenPayment}
           />
         </div>
 
