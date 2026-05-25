@@ -16,11 +16,15 @@ export default function MemberActionMenu({ isAdmin, isDeactivated, onManage, onD
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      if (!btnRef.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t)) return;
+      if (menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -58,6 +62,7 @@ export default function MemberActionMenu({ isAdmin, isDeactivated, onManage, onD
       </button>
       {open && pos && createPortal(
         <div
+          ref={menuRef}
           className="fixed z-[9999] w-[200px] rounded-md border border-line bg-white shadow-lg py-1"
           style={{ top: pos.top, left: pos.left }}
         >
