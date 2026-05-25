@@ -62,10 +62,10 @@ export default function CodeOfConductPanel(props: Props) {
   const tpl = diag?.template;
   const setupMissing: string[] = [];
   if (!diag?.has_resend_api_key) setupMissing.push("RESEND_API_KEY");
+  if (!tpl?.from_email && !diag?.has_email_from_address) setupMissing.push("EMAIL_FROM_ADDRESS");
+  if (!tpl?.from_name && !diag?.has_email_from_name) setupMissing.push("EMAIL_FROM_NAME");
   if (!tpl) setupMissing.push("template");
   else {
-    if (!tpl.from_email) setupMissing.push("sender email");
-    if (!tpl.from_name) setupMissing.push("sender name");
     if (!tpl.email_subject) setupMissing.push("email subject");
     if (!tpl.email_body) setupMissing.push("email body");
     if (!tpl.template_pdf_url && !tpl.html_content) setupMissing.push("PDF/HTML");
