@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
   X as XIcon, ExternalLink, Play, Pause, Square, CheckCircle2, RotateCcw,
-  Copy, ClipboardCopy,
+  ClipboardCopy,
 } from "lucide-react";
 import {
   SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS,
