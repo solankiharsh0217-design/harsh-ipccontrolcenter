@@ -215,13 +215,28 @@ export async function getActiveHandoffRules(): Promise<HandoffRule[]> {
   return (data ?? []) as HandoffRule[];
 }
 
-export function findRuleForStage(rules: HandoffRule[], pipelineId: string | null, stageId: string | null): HandoffRule | null {
+export function findRuleForStage(
+  rules: HandoffRule[],
+  pipelineId: string | null,
+  stageId: string | null,
+  stagesById?: Map<string, { id: string; name: string | null }>,
+): HandoffRule | null {
   if (!pipelineId || !stageId) return null;
-  return rules.find((r) =>
-    r.is_active &&
-    r.source_pipeline_id === pipelineId &&
-    (r.eligible_stage_ids || []).includes(stageId)
-  ) ?? null;
+  const currentName = stagesById?.get(stageId)?.name?.trim().toLowerCase() ?? null;
+  return rules.find((r) => {
+    if (!r.is_active || r.source_pipeline_id !== pipelineId) return false;
+    const ids = r.eligible_stage_ids || [];
+    // 1) Match by stage ID (primary)
+    if (ids.includes(stageId)) return true;
+    // 2) Fallback: match by stage name (handles stage rebuilds/renames where IDs drift)
+    if (currentName && stagesById) {
+      for (const eid of ids) {
+        const n = stagesById.get(eid)?.name?.trim().toLowerCase();
+        if (n && n === currentName) return true;
+      }
+    }
+    return false;
+  }) ?? null;
 }
 
 export function isRuleAutoReady(r: HandoffRule): boolean {
