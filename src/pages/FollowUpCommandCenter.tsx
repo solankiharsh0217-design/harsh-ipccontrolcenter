@@ -671,7 +671,7 @@ export default function FollowUpCommandCenter() {
                     <div className={overdue ? "text-red-600 font-medium" : ""}>{fmtDate(f.follow_up_date)}</div>
                     <div className="text-[11px] text-muted-foreground">{f.follow_up_time || ""}</div>
                   </td>
-                  <td className="p-2">{f.assigned_to || "—"}</td>
+                  <td className="p-2">{ownerName(f.assigned_to)}</td>
                   <td className="p-2">
                     <span className={`px-2 py-0.5 rounded-full text-[11px] border ${f.status==="Done"?"border-green-300 bg-green-50 text-green-700":f.status==="Missed"?"border-red-300 bg-red-50 text-red-700":"border-line"}`}>{f.status}</span>
                   </td>
@@ -679,12 +679,14 @@ export default function FollowUpCommandCenter() {
                     <span className={`px-2 py-0.5 rounded-full text-[11px] border ${SOURCE_BADGE[src] || "border-line"}`}>{SOURCE_LABELS[src] || src}</span>
                   </td>
                   <td className="p-2 whitespace-nowrap">
-                    <button title="Mark done" onClick={()=>markDone([f.id])} className="text-[11px] underline mr-2">Done</button>
-                    {f.paid_pipeline_lead_id && <button title="Add payment" onClick={()=>setPayFor(f.paid_pipeline_lead_id!)} className="text-[11px] underline mr-2">Pay</button>}
-                    {f.paid_pipeline_lead_id && <button title="Finance" onClick={()=>setFinanceFor(f.paid_pipeline_lead_id!)} className="text-[11px] underline mr-2">Finance</button>}
-                    {!f.isSynthetic && <button title="Note" onClick={()=>setNoteFor(f.id)} className="text-[11px] underline mr-2">Note</button>}
-                    <button title="WhatsApp" onClick={()=>setWaFor(f)} className="text-[11px] underline mr-2">WA</button>
-                    <button title="Open lead" onClick={()=>nav(src === "crm" ? "/calling-crm" : "/paid-pipeline")} className="text-[11px] underline">Open</button>
+                    <div className="flex flex-wrap gap-1">
+                      <button title="Mark done" onClick={()=>markDone([f.id])} className="px-2 py-1 rounded border border-green-300 bg-green-50 text-green-700 text-[11px] hover:bg-green-100">Done</button>
+                      {f.paid_pipeline_lead_id && <button title="Add payment" onClick={()=>setPayFor(f.paid_pipeline_lead_id!)} className="px-2 py-1 rounded border border-line bg-white text-[11px] hover:bg-off">Pay</button>}
+                      {f.paid_pipeline_lead_id && <button title="Finance" onClick={()=>setFinanceFor(f.paid_pipeline_lead_id!)} className="px-2 py-1 rounded border border-line bg-white text-[11px] hover:bg-off">Finance</button>}
+                      {!f.isSynthetic && <button title="Note" onClick={()=>setNoteFor(f.id)} className="px-2 py-1 rounded border border-line bg-white text-[11px] hover:bg-off">Note</button>}
+                      <button title="WhatsApp" onClick={()=>setWaFor(f)} className="px-2 py-1 rounded border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] hover:bg-emerald-100">WA</button>
+                      <button title="Open lead" onClick={()=>nav(src === "crm" ? "/calling-crm" : "/paid-pipeline")} className="px-2 py-1 rounded border border-black bg-black text-white text-[11px] hover:opacity-80">Open</button>
+                    </div>
                   </td>
                 </tr>
               );
