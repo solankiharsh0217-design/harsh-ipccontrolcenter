@@ -87,7 +87,8 @@ export default function Crm() {
 
   /** After any CRM stage change, evaluate handoff rules. Returns true if auto-handoff fired. */
   const evaluateHandoffForLeads = async (leadIds: string[], pipelineId: string | null, newStageId: string | null): Promise<boolean> => {
-    const rule = findRuleForStage(opsRules, pipelineId, newStageId);
+    const stagesById = new Map(stages.map((s) => [s.id, { id: s.id, name: s.name }]));
+    const rule = findRuleForStage(opsRules, pipelineId, newStageId, stagesById);
     if (!rule) return false;
     const eligibleLeads = leadIds
       .map((id) => leads.find((l) => l.id === id))
