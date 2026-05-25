@@ -739,8 +739,13 @@ function AddFollowUpModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
   const [time, setTime] = useState("11:00");
   const [priority, setPriority] = useState("Normal");
   const [assignee, setAssignee] = useState("");
+  const [profiles, setProfiles] = useState<{ id: string; full_name: string }[]>([]);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    (supabase as any).from("profiles").select("id, full_name").order("full_name")
+      .then(({ data }: any) => setProfiles((data || []).map((p: any) => ({ id: p.id, full_name: p.full_name || "—" }))));
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(async () => {
