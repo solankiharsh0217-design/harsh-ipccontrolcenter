@@ -55,6 +55,10 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteBlocked, setDeleteBlocked] = useState<string | null>(null);
+  const [openPay, setOpenPay] = useState(false);
+  const [payPrefill, setPayPrefill] = useState<any>(null);
+  const [payHeaderNote, setPayHeaderNote] = useState<string | undefined>(undefined);
+  const [postPayAction, setPostPayAction] = useState<"setTokenPaid" | null>(null);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, { id: s.id, name: s.name }])), [stages]);
 
 
