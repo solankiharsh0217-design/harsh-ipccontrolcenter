@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  Plus, Search, X as XIcon, RefreshCw, Settings2, GripVertical, ExternalLink,
+  Plus, Search, X as XIcon, RefreshCw, GripVertical,
   Pencil, Trash2,
 } from "lucide-react";
-import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, DEFAULT_OPERATIONS_STAGES } from "@/lib/operationsCrm";
+import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, computeServiceCalc } from "@/lib/operationsCrm";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
+import OperationsLeadDrawer, { type OpsLeadFull } from "@/components/OperationsLeadDrawer";
 import type { Pipeline, Stage } from "@/lib/crmTypes";
 
 interface OpsLead {
@@ -28,8 +29,11 @@ interface OpsLead {
   assigned_media_buyer_name: string | null;
   priority: string | null;
   ad_launch_date: string | null;
+  current_active_start_date: string | null;
   total_active_days: number;
   total_paused_days: number;
+  last_paused_at: string | null;
+  last_resumed_at: string | null;
   service_end_target_date: string | null;
   crm_lead_id: string | null;
   paid_pipeline_lead_id: string | null;
@@ -48,10 +52,10 @@ export default function OperationsCrm() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [buyerFilter, setBuyerFilter] = useState<string>(params.get("assigned_to") === "me" ? "me" : "all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(params.get("filter") || "all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [buyers, setBuyers] = useState<{ id: string; full_name: string }[]>([]);
-  const [openLead, setOpenLead] = useState<string | null>(null);
+  const [openLead, setOpenLead] = useState<string | null>(params.get("lead"));
   const [addStageOpen, setAddStageOpen] = useState(false);
   const [drag, setDrag] = useState<{ id: string; fromStage: string | null } | null>(null);
   const [hoverStage, setHoverStage] = useState<string | null>(null);
@@ -278,7 +282,15 @@ export default function OperationsCrm() {
                   )}
                 </div>
                 <div className="px-2 pb-2 space-y-2 min-h-[100px]">
-                  {items.map((l) => (
+                  {items.map((l) => {
+                    const calc = computeServiceCalc(l);
+                    let progressLine = "";
+                    if (l.service_status === "active") progressLine = `Active · ${calc.activeDaysUsed}/${calc.committedDays} days · ${calc.remainingDays} left`;
+                    else if (l.service_status === "paused") progressLine = `Paused · ${calc.pausedDays} paused days · ${calc.remainingDays} left`;
+                    else if (l.service_status === "completed") progressLine = `Completed · ${calc.activeDaysUsed} active days`;
+                    else if (l.service_status === "stopped") progressLine = `Stopped · ${calc.activeDaysUsed}/${calc.committedDays} delivered`;
+                    else progressLine = `Not started · ${calc.committedDays} days committed`;
+                    return (
                     <div
                       key={l.id}
                       draggable
@@ -298,15 +310,17 @@ export default function OperationsCrm() {
                         <div className="text-[10px] text-muted-foreground truncate">
                           {l.assigned_media_buyer_name || "Unassigned"}
                         </div>
-                        {l.service_months && (
-                          <div className="text-[10px] text-muted-foreground flex-shrink-0">{l.service_months}m</div>
+                        {l.service_package_name && (
+                          <div className="text-[10px] text-muted-foreground flex-shrink-0 truncate max-w-[120px]" title={l.service_package_name}>{l.service_package_name}</div>
                         )}
                       </div>
+                      <div className="text-[10px] text-foreground/80 truncate mt-1">{progressLine}</div>
                       {l.batch_name && (
                         <div className="text-[10px] text-muted-foreground truncate mt-0.5 italic">{l.batch_name}</div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                   {items.length === 0 && (
                     <div className="text-[10px] text-muted-foreground text-center py-4">No cards</div>
                   )}
@@ -349,60 +363,14 @@ export default function OperationsCrm() {
         </div>
       )}
 
-      {/* Lead drawer (Phase A placeholder — Phase B will add full controls) */}
+      {/* Lead drawer — Phase B */}
       {drawerLead && (
-        <div className="fixed inset-0 z-[1100] bg-black/40 flex justify-end" onClick={() => setOpenLead(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-white h-full overflow-y-auto">
-            <div className="px-5 py-4 border-b border-line flex items-center justify-between">
-              <div className="min-w-0">
-                <div className="font-serif text-lg text-black truncate">{drawerLead.name}</div>
-                <div className="text-[11px] text-muted-foreground truncate">{drawerLead.product_name || "—"}</div>
-              </div>
-              <button onClick={() => setOpenLead(null)} className="w-7 h-7 rounded hover:bg-off flex items-center justify-center"><XIcon className="w-4 h-4" /></button>
-            </div>
-            <div className="p-5 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Email" value={drawerLead.email || "—"} />
-                <Field label="Phone" value={drawerLead.phone || "—"} />
-                <Field label="Batch" value={drawerLead.batch_name || "—"} />
-                <Field label="Package" value={drawerLead.service_package_name || "—"} />
-                <Field label="Duration" value={drawerLead.service_months ? `${drawerLead.service_months} months` : "—"} />
-                <Field label="Status" value={SERVICE_STATUS_LABELS[drawerLead.service_status] || drawerLead.service_status} />
-                <Field label="Assigned" value={drawerLead.assigned_media_buyer_name || "Unassigned"} />
-                <Field label="Ad launch" value={drawerLead.ad_launch_date || "—"} />
-              </div>
-              {drawerLead.notes && (
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Notes</div>
-                  <div className="text-xs whitespace-pre-wrap text-foreground">{drawerLead.notes}</div>
-                </div>
-              )}
-              <div className="border-t border-line pt-3">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Linked records</div>
-                {drawerLead.crm_lead_id ? (
-                  <button onClick={() => openCrmLink(drawerLead)} className="ipc-btn ipc-btn-ghost !text-xs">
-                    <ExternalLink className="w-3 h-3" /> Open in Calling CRM
-                  </button>
-                ) : (
-                  <div className="text-[11px] text-muted-foreground">No linked Calling CRM record.</div>
-                )}
-              </div>
-              <div className="bg-off border border-line rounded-md p-3 text-[11px] text-muted-foreground">
-                Service tracking, conversion reporting, and reward progress are coming in the next update. Stage drag/drop and assignment are live now.
-              </div>
-            </div>
-          </div>
-        </div>
+        <OperationsLeadDrawer
+          lead={drawerLead as unknown as OpsLeadFull}
+          onClose={() => setOpenLead(null)}
+          onSaved={() => load()}
+        />
       )}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-xs text-foreground truncate" title={value}>{value}</div>
     </div>
   );
 }
