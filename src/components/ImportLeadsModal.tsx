@@ -22,6 +22,7 @@ export interface ImportResult {
   updated: number;
   moved: number;
   restored: number;
+  phoneOnlyImported: number;
   skippedDuplicates: number;
   failed: number;
   skipped: number;           // back-compat alias = skippedDuplicates + failed
@@ -30,6 +31,7 @@ export interface ImportResult {
   paidLinked: number;
   paidUnlinked: number;
   errors: string[];
+  failureReasons: { reason: string; count: number }[];
 }
 
 interface Props {
