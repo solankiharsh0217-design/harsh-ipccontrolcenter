@@ -359,7 +359,7 @@ export default function PaidPipeline() {
   const openLead = leads.find(l => l.id === openId) || null;
 
   return (
-    <div className="max-w-[1500px]">
+    <div className="w-full min-w-0">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-serif text-[28px] text-black">Paid Pipeline</h1>
