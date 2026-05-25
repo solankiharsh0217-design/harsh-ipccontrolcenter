@@ -23,6 +23,7 @@ export type ModuleKey =
   | "notifications"
   | "profit-statement"
   | "media_buyer_operations"
+  | "operations_crm"
   | "offline_seminar_roas";
 
 
