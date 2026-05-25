@@ -1367,19 +1367,42 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
                           <div className="text-[11px] font-semibold uppercase tracking-wider mb-1.5">Change CRM Stage <span className="text-muted-foreground font-normal">({crmStages.length})</span></div>
                           <input autoFocus value={crmStageSearch} onChange={(e) => setCrmStageSearch(e.target.value)} placeholder="Search stages…" className="w-full text-xs outline-none bg-transparent" />
                         </div>
-                        <div className="max-h-[280px] overflow-y-auto">
+                        <div className="max-h-[260px] overflow-y-auto">
                           {filtered.length === 0 && <div className="px-3 py-4 text-[12px] text-muted-foreground">No stages found.</div>}
                           {filtered.map((s) => {
                             const ch = stageChip(s.name, s.color);
                             const isCurrent = s.id === crmStageId;
                             return (
-                              <button key={s.id} onClick={() => changeCrmStage(s.id)} className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-off ${isCurrent ? "bg-off" : ""}`}>
-                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: ch.dot }} />
-                                <span className={`flex-1 truncate ${isCurrent ? "font-medium" : ""}`}>{s.name}</span>
-                                {isCurrent && <span className="text-[10px] text-muted-foreground">current</span>}
-                              </button>
+                              <div key={s.id} className={`group flex items-center hover:bg-off ${isCurrent ? "bg-off" : ""}`}>
+                                <button onClick={() => changeCrmStage(s.id)} className="flex-1 flex items-center gap-2 text-left px-3 py-2 text-xs">
+                                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: ch.dot }} />
+                                  <span className={`flex-1 truncate ${isCurrent ? "font-medium" : ""}`}>{s.name}</span>
+                                  {isCurrent && <span className="text-[10px] text-muted-foreground">current</span>}
+                                </button>
+                                {!isCurrent && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); deleteCrmStageInline({ id: s.id, name: s.name }); }}
+                                    className="opacity-0 group-hover:opacity-100 px-2 py-2 text-muted-foreground hover:text-[#DC2626]"
+                                    title="Delete or deactivate stage"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             );
                           })}
+                        </div>
+                        <div className="border-t border-line p-2 flex items-center gap-1.5">
+                          <input
+                            value={newCrmStageName}
+                            onChange={(e) => setNewCrmStageName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") addCrmStageInline(); }}
+                            placeholder="+ Add new CRM stage…"
+                            className="ipc-input !h-8 !text-xs flex-1"
+                          />
+                          <button disabled={addingStage} onClick={addCrmStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">
+                            {addingStage ? "Adding…" : "Add"}
+                          </button>
                         </div>
                       </PopoverContent>
                     </Popover>
