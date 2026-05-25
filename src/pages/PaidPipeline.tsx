@@ -1119,6 +1119,71 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     } finally { setLinkingCrm(false); }
   };
 
+  // Add a new Calling CRM stage (in the linked pipeline) from inside the Paid Pipeline drawer.
+  const addCrmStageInline = async () => {
+    const name = newCrmStageName.trim();
+    if (!name) return;
+    if (!crmPipelineId) { toast.error("No linked Calling CRM pipeline"); return; }
+    if (crmStages.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
+      toast.error("Stage already exists in this pipeline"); return;
+    }
+    setAddingStage(true);
+    try {
+      const { data, error } = await supabase.from("stages").insert({
+        pipeline_id: crmPipelineId, name, color: "#E8E5DE", position: crmStages.length,
+      } as any).select("id, name, pipeline_id, color, is_active").maybeSingle();
+      if (error) { toast.error(error.message); return; }
+      setNewCrmStageName("");
+      toast.success("Stage added to Calling CRM");
+      if (data) setCrmStages([...crmStages, data as any]);
+      logActivity({
+        module_key: "paid_pipeline", module_label: "Paid Pipeline",
+        action_type: "crm_stage_created_from_paid_pipeline_drawer",
+        entity_type: "stage", entity_id: (data as any)?.id, entity_label: name,
+        metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, pipeline_id: crmPipelineId, stage_name: name, changed_by: user?.id || null },
+        summary: `Created Calling CRM stage '${name}' from Paid Pipeline drawer.`,
+      });
+    } finally { setAddingStage(false); }
+  };
+
+  // Delete/deactivate a stage with lead-safety guard.
+  const deleteCrmStageInline = async (s: { id: string; name: string }) => {
+    // Check usage in leads table
+    const { count } = await supabase.from("leads").select("id", { count: "exact", head: true }).eq("stage_id", s.id);
+    const used = (count ?? 0) > 0;
+    if (used) {
+      // Soft-deactivate
+      const ok = confirm(`Stage "${s.name}" has ${count} lead(s). Deactivate (hide from selectors) instead?`);
+      if (!ok) return;
+      const { error } = await supabase.from("stages").update({ is_active: false } as any).eq("id", s.id);
+      if (error) { toast.error(error.message); return; }
+      toast.success("Stage deactivated");
+      setCrmStages(crmStages.filter((x) => x.id !== s.id));
+      logActivity({
+        module_key: "paid_pipeline", module_label: "Paid Pipeline",
+        action_type: "crm_stage_deactivated_from_paid_pipeline_drawer",
+        entity_type: "stage", entity_id: s.id, entity_label: s.name,
+        metadata: { paid_pipeline_lead_id: lead.id, pipeline_id: crmPipelineId, stage_name: s.name, used_count: count, changed_by: user?.id || null },
+        summary: `Deactivated Calling CRM stage '${s.name}' (had ${count} leads) from Paid Pipeline drawer.`,
+      });
+      return;
+    }
+    if (!confirm(`Delete stage "${s.name}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from("stages").delete().eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Stage deleted");
+    setCrmStages(crmStages.filter((x) => x.id !== s.id));
+    logActivity({
+      module_key: "paid_pipeline", module_label: "Paid Pipeline",
+      action_type: "crm_stage_deleted_from_paid_pipeline_drawer",
+      entity_type: "stage", entity_id: s.id, entity_label: s.name,
+      metadata: { paid_pipeline_lead_id: lead.id, pipeline_id: crmPipelineId, stage_name: s.name, changed_by: user?.id || null },
+      summary: `Deleted Calling CRM stage '${s.name}' from Paid Pipeline drawer.`,
+    });
+  };
+
+
+
 
   const save = async (patch: Partial<Lead>) => {
     await supabase.from("paid_pipeline_leads").update(patch as any).eq("id", lead.id);
