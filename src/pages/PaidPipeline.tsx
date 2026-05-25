@@ -139,7 +139,7 @@ export default function PaidPipeline() {
     ((l as any[]) || []).forEach(x => { if (x.onboarding_batch_name) obSet.add(x.onboarding_batch_name); });
     setOnboardingBatches(Array.from(obSet).sort());
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [showArchived]);
 
   // Load tag catalog + per-lead tag map (batched)
   useEffect(() => {
