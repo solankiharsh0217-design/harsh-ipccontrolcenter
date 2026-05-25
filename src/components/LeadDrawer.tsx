@@ -695,6 +695,16 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           onDone={() => { setSendOpsOpen(false); load(); }}
         />
       )}
+      {openPay && paidLeadId && (
+        <QuickAddPaymentModal
+          leadId={paidLeadId}
+          leadName={lead.full_name || undefined}
+          prefill={payPrefill || undefined}
+          headerNote={payHeaderNote}
+          onClose={() => { setOpenPay(false); setPostPayAction(null); }}
+          onSaved={handlePaymentSaved}
+        />
+      )}
     </div>
   );
 }
