@@ -69,6 +69,8 @@ export default function OperationsCrm() {
   const [renameValue, setRenameValue] = useState("");
   const [convCounts, setConvCounts] = useState<Map<string, { approved: number; pending: number; rejected: number; value: number }>>(new Map());
   const [refreshKey, setRefreshKey] = useState(0);
+  const initialTab = (params.get("tab") as "kanban" | "reports" | "conversions" | "rewards") || "kanban";
+  const [tab, setTab] = useState<"kanban" | "reports" | "conversions" | "rewards">(initialTab);
 
   const load = async () => {
     setLoading(true);
