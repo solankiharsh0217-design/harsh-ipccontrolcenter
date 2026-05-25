@@ -34,6 +34,15 @@ interface Props {
   sourceStages: StageOption[];
   /** Optional pre-selected lead ids (overrides scope selector) */
   preSelectedIds?: string[];
+  /** Optional defaults from a matching handoff rule */
+  prefill?: {
+    serviceMonths?: number | null;
+    serviceDays?: number | null;
+    packageName?: string | null;
+    assignMethod?: "unassigned" | "single" | "round_robin";
+    singleBuyerId?: string | null;
+    duplicateBehavior?: "skip" | "update";
+  } | null;
   onClose: () => void;
   onDone: () => void;
 }
@@ -45,6 +54,7 @@ export default function SendToOperationsCrmModal({
   candidateLeads,
   sourceStages,
   preSelectedIds,
+  prefill,
   onClose,
   onDone,
 }: Props) {
@@ -53,14 +63,15 @@ export default function SendToOperationsCrmModal({
   const [scope, setScope] = useState<Scope>(preSelectedIds && preSelectedIds.length > 0 ? "selected" : "all");
   const [pickedStages, setPickedStages] = useState<Set<string>>(new Set());
 
-  const [serviceMonths, setServiceMonths] = useState<number>(3);
-  const [customMonths, setCustomMonths] = useState<string>("");
-  const [packageName, setPackageName] = useState<string>("Ads Management");
-  const [assignMethod, setAssignMethod] = useState<AssignMethod>("unassigned");
+  const prefillMonths = prefill?.serviceMonths ?? (prefill?.serviceDays ? Math.round(prefill.serviceDays / 30) : null);
+  const [serviceMonths, setServiceMonths] = useState<number>(prefillMonths && [3, 6, 10].includes(prefillMonths) ? prefillMonths : prefillMonths ? -1 : 3);
+  const [customMonths, setCustomMonths] = useState<string>(prefillMonths && ![3, 6, 10].includes(prefillMonths) ? String(prefillMonths) : "");
+  const [packageName, setPackageName] = useState<string>(prefill?.packageName ?? "Ads Management");
+  const [assignMethod, setAssignMethod] = useState<AssignMethod>(prefill?.assignMethod ?? "unassigned");
   const [assignees, setAssignees] = useState<{ id: string; full_name: string }[]>([]);
-  const [singleAssignee, setSingleAssignee] = useState<string>("");
+  const [singleAssignee, setSingleAssignee] = useState<string>(prefill?.singleBuyerId ?? "");
   const [notes, setNotes] = useState<string>("");
-  const [duplicateMode, setDuplicateMode] = useState<"skip" | "update">("skip");
+  const [duplicateMode, setDuplicateMode] = useState<"skip" | "update">(prefill?.duplicateBehavior ?? "skip");
 
   const [diagnostics, setDiagnostics] = useState<OpsEligibilityDiagnostics | null>(null);
 
