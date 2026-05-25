@@ -16,6 +16,7 @@ interface Member {
   full_name: string;
   role: string;
   department: string | null;
+  email: string | null;
   last_login: string | null;
 }
 
@@ -53,7 +54,7 @@ export default function Team() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department").eq("status","active").order("full_name");
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department, email").eq("status","active").order("full_name");
     const { data: logs } = await supabase.from("attendance_logs").select("user_id, login_time").order("login_time", { ascending: false });
     const lastByUser = new Map<string, string>();
     logs?.forEach(l => { if (!lastByUser.has(l.user_id)) lastByUser.set(l.user_id, l.login_time); });
@@ -264,6 +265,12 @@ export default function Team() {
               <div className="min-w-0 flex-1">
                 <div className="font-serif text-[17px] font-medium text-black mb-0.5 truncate">{m.full_name}</div>
                 <div className="font-sans text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{m.role}</div>
+                <div className="font-sans text-[11px] text-muted-foreground truncate mt-0.5" title={m.email || undefined}>
+                  {m.email || <span className="italic">Email not available</span>}
+                  {m.email && members.filter((x) => (x.email || "").toLowerCase() === m.email!.toLowerCase()).length > 1 && (
+                    <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-red-50 text-red-700 border border-red-200">Duplicate email</span>
+                  )}
+                </div>
               </div>
               {m.last_login && (
                 <div className="font-sans text-[10px] text-muted-foreground whitespace-nowrap text-right">
@@ -297,6 +304,16 @@ export default function Team() {
 
             <div className="px-7 py-5 border-b border-line space-y-3">
               <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Profile</div>
+              <div>
+                <label className="font-sans text-[11px] text-muted-foreground block mb-1">Login email</label>
+                <input
+                  value={editing.email || ""}
+                  readOnly
+                  placeholder="Email not available"
+                  className="w-full h-9 px-3 rounded-md border border-line bg-off font-sans text-sm text-muted-foreground cursor-not-allowed"
+                  title="Login email is read-only"
+                />
+              </div>
               <div>
                 <label className="font-sans text-[11px] text-muted-foreground block mb-1">Full name</label>
                 <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
