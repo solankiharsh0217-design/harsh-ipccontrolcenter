@@ -12,6 +12,7 @@ import {
 } from "@/lib/operationsCrm";
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
+import ConversionsSection from "@/components/operations/ConversionsSection";
 
 export interface OpsLeadFull {
   id: string;
