@@ -204,6 +204,7 @@ ${bodyText.split('\n').map((l: string) => l.includes(signingLink) ? '' : `<p sty
       return fail('MISSING_RESEND_API_KEY', msg, null, 400);
     }
 
+    const replyTo = (templateRow as any).reply_to_email || undefined;
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -213,6 +214,7 @@ ${bodyText.split('\n').map((l: string) => l.includes(signingLink) ? '' : `<p sty
         subject: is_test ? `[TEST] ${subject}` : subject,
         html: htmlBody,
         text: bodyText,
+        ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     });
 
