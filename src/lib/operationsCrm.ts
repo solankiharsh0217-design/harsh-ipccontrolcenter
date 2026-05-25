@@ -155,6 +155,11 @@ export function computeServiceCalc(l: OpsLeadCalcInput): ServiceCalc {
   let estimatedEndDate: string | null = null;
   if (l.service_status === "active") {
     estimatedEndDate = addDays(today, remainingDays);
+  } else if (l.service_status === "paused") {
+    // If resumed today, service would end remainingDays from today.
+    estimatedEndDate = addDays(today, remainingDays);
+  } else if (l.service_status === "not_started") {
+    estimatedEndDate = committedDays > 0 ? addDays(today, committedDays) : null;
   } else {
     estimatedEndDate = l.service_end_target_date ?? null;
   }
