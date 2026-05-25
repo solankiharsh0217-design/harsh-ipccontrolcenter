@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
+import SendToOperationsCrmModal from "@/components/SendToOperationsCrmModal";
 import { createNotification } from "@/lib/notifications";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
@@ -46,6 +47,7 @@ export default function Crm() {
   const [newStageColor, setNewStageColor] = useState("gray");
   const [importOpen, setImportOpen] = useState(false);
   const [addStageOpen, setAddStageOpen] = useState(false);
+  const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [editBatch, setEditBatch] = useState<{ origName: string; origDate: string | null; name: string; date: string } | null>(null);
   const [batchPipelineFilter, setBatchPipelineFilter] = useState<"all" | "unpaid" | "paid" | "custom">("all");
   const [dragId, setDragId] = useState<string | null>(null);
@@ -573,6 +575,15 @@ export default function Crm() {
           <div className="flex items-center gap-1 ml-auto">
             <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
             <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
+            {(() => {
+              const pipe = pipelines.find((p) => p.id === activePipeline) as any;
+              if (!pipe || pipe.pipeline_type !== "paid") return null;
+              return (
+                <button onClick={() => setSendOpsOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Send paid clients to Operations CRM for service delivery">
+                  <ExternalLink className="w-3.5 h-3.5" /> Send to Operations
+                </button>
+              );
+            })()}
             <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Add a new Kanban stage"><Plus className="w-3.5 h-3.5" /> Add Stage</button>
             <OverflowActionsMenu
               onExport={exportCsv}
@@ -613,6 +624,24 @@ export default function Crm() {
       )}
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
+      {sendOpsOpen && (
+        <SendToOperationsCrmModal
+          candidateLeads={pipelineLeads.map((l) => ({
+            id: l.id,
+            full_name: l.full_name,
+            email: l.email,
+            phone: l.phone,
+            program_name: (l as any).program_name ?? null,
+            webinar_source: l.webinar_source,
+            deal_value: (l as any).deal_value ?? null,
+            stage_id: l.stage_id,
+            paid_pipeline_lead_id: (l as any).paid_pipeline_lead_id ?? null,
+          }))}
+          sourceStages={pipelineStages.map((s) => ({ id: s.id, name: s.name }))}
+          onClose={() => setSendOpsOpen(false)}
+          onDone={() => { /* leads remain in Calling CRM */ }}
+        />
+      )}
       {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
       {renameStageTarget && (
         <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>

@@ -33,6 +33,7 @@ import AdminCenter from "./pages/AdminCenter";
 import BulkEligibility from "./pages/BulkEligibility";
 import SystemRefinementChecklist from "./pages/SystemRefinementChecklist";
 import MediaBuyerOperations from "./pages/MediaBuyerOperations";
+import OperationsCrm from "./pages/OperationsCrm";
 import NotFound from "./pages/NotFound";
 
 import type { ModuleKey } from "@/lib/modules";
@@ -87,6 +88,7 @@ const App = () => (
             <Route path="/admin-center/system-refinement" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="/admin-center/eligibility" element={<Shell admin><BulkEligibility /></Shell>} />
             <Route path="/media-buyer-operations" element={<Shell moduleKey="media_buyer_operations"><MediaBuyerOperations /></Shell>} />
+            <Route path="/operations-crm" element={<Shell moduleKey="operations_crm"><OperationsCrm /></Shell>} />
             <Route path="/system-refinement-checklist" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
