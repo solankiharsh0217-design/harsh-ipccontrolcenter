@@ -2120,6 +2120,68 @@ export type Database = {
           },
         ]
       }
+      operations_handoff_rules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_assignment_method: string
+          default_service_days: number | null
+          default_service_package: string | null
+          default_single_buyer_id: string | null
+          duplicate_behavior: string
+          eligible_buyer_ids: string[]
+          eligible_stage_ids: string[]
+          id: string
+          is_active: boolean
+          mode: string
+          name: string
+          source_pipeline_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_assignment_method?: string
+          default_service_days?: number | null
+          default_service_package?: string | null
+          default_single_buyer_id?: string | null
+          duplicate_behavior?: string
+          eligible_buyer_ids?: string[]
+          eligible_stage_ids?: string[]
+          id?: string
+          is_active?: boolean
+          mode?: string
+          name: string
+          source_pipeline_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_assignment_method?: string
+          default_service_days?: number | null
+          default_service_package?: string | null
+          default_single_buyer_id?: string | null
+          duplicate_behavior?: string
+          eligible_buyer_ids?: string[]
+          eligible_stage_ids?: string[]
+          id?: string
+          is_active?: boolean
+          mode?: string
+          name?: string
+          source_pipeline_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_handoff_rules_source_pipeline_id_fkey"
+            columns: ["source_pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operations_leads: {
         Row: {
           ad_launch_date: string | null
