@@ -240,7 +240,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
 
-      <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line overflow-y-auto pb-24" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line overflow-y-auto pb-32" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="px-6 py-5 border-b border-line">
           <div className="flex items-start justify-between gap-3">
@@ -653,15 +653,23 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           </div>
         </div>
 
-        {/* Sticky Save & Close */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex items-center justify-between gap-3">
+        {/* Sticky Save / Save & Close */}
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex items-center justify-between gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
-          <button
-            onClick={() => { toast.success("Saved"); onChanged(); onClose(); }}
-            className="ipc-btn !bg-[#16A34A] hover:!bg-[#15803D] !text-white !h-10 flex-1"
-          >
-            Save & Close
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => { await load(); onChanged(); toast.success("Saved"); }}
+              className="ipc-btn ipc-btn-ghost !h-10"
+            >
+              Save
+            </button>
+            <button
+              onClick={async () => { await load(); onChanged(); toast.success("Saved"); onClose(); }}
+              className="ipc-btn !bg-[#16A34A] hover:!bg-[#15803D] !text-white !h-10"
+            >
+              Save & Close
+            </button>
+          </div>
         </div>
       </div>
       {archiveOpen && (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -34,11 +34,17 @@ export default function FastFollowUpComposer({
   const [priority, setPriority] = useState(defaultPriority || "Normal");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [activePreset, setActivePreset] = useState<number | "custom" | null>(0);
+  const dtInputRef = useRef<HTMLInputElement | null>(null);
 
   const setPreset = (days: number) => {
     const d = new Date();
     d.setDate(d.getDate() + days);
-    setWhen(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T11:00`);
+    // Preserve existing time-of-day if already set, else 11:00
+    const currentTime = (when?.split("T")[1] || "11:00").slice(0, 5);
+    const next = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${currentTime}`;
+    setWhen(next);
+    setActivePreset(days);
   };
 
   const save = async () => {
@@ -134,10 +140,11 @@ export default function FastFollowUpComposer({
         <div>
           <label className="qsi-label">Date & time</label>
           <input
+            ref={dtInputRef}
             type="datetime-local"
             className="qsi-input !h-9 !text-[12px]"
             value={when}
-            onChange={(e) => setWhen(e.target.value)}
+            onChange={(e) => { setWhen(e.target.value); setActivePreset("custom"); }}
           />
         </div>
         <div>
@@ -148,20 +155,31 @@ export default function FastFollowUpComposer({
         </div>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <button onClick={() => setPreset(0)} className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-[#FDE68A] bg-[#FFFBEB] text-[#92400E] hover:bg-[#FEF3C7]">Today</button>
-        <button onClick={() => setPreset(1)} className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-line bg-white hover:bg-off">Tomorrow</button>
-        <button onClick={() => setPreset(3)} className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-line bg-white hover:bg-off">+3 days</button>
-        <button onClick={() => setPreset(7)} className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-line bg-white hover:bg-off">Next week</button>
+        {[
+          { days: 0, label: "Today" },
+          { days: 1, label: "Tomorrow" },
+          { days: 3, label: "+3 days" },
+          { days: 7, label: "Next week" },
+        ].map((p) => {
+          const active = activePreset === p.days;
+          return (
+            <button
+              key={p.days}
+              type="button"
+              onClick={() => setPreset(p.days)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${active ? "border-[#92400E] bg-[#FEF3C7] text-[#78350F]" : "border-line bg-white hover:bg-off"}`}
+            >{p.label}</button>
+          );
+        })}
         <button
           type="button"
           onClick={() => {
-            const el = document.activeElement as HTMLElement | null;
-            el?.blur?.();
-            const input = (document.querySelector('input[type="datetime-local"]') as HTMLInputElement | null);
+            setActivePreset("custom");
+            const input = dtInputRef.current;
             input?.focus?.();
             try { (input as any)?.showPicker?.(); } catch {}
           }}
-          className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-dashed border-line bg-white hover:bg-off"
+          className={`px-2.5 py-1 rounded-full text-[11px] font-medium border border-dashed ${activePreset === "custom" ? "border-[#92400E] bg-[#FEF3C7] text-[#78350F]" : "border-line bg-white hover:bg-off"}`}
         >Custom…</button>
       </div>
       <QuickSaveInput
