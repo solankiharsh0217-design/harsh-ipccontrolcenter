@@ -427,7 +427,7 @@ export default function OperationsCrm() {
         <OperationsLeadDrawer
           lead={drawerLead as unknown as OpsLeadFull}
           onClose={() => setOpenLead(null)}
-          onSaved={() => load()}
+          onSaved={() => { load(); setRefreshKey((k) => k + 1); }}
         />
       )}
     </div>
