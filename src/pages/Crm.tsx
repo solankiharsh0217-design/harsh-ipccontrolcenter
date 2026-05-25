@@ -47,6 +47,7 @@ export default function Crm() {
   const [newStageColor, setNewStageColor] = useState("gray");
   const [importOpen, setImportOpen] = useState(false);
   const [addStageOpen, setAddStageOpen] = useState(false);
+  const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [editBatch, setEditBatch] = useState<{ origName: string; origDate: string | null; name: string; date: string } | null>(null);
   const [batchPipelineFilter, setBatchPipelineFilter] = useState<"all" | "unpaid" | "paid" | "custom">("all");
   const [dragId, setDragId] = useState<string | null>(null);
