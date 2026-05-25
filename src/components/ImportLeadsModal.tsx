@@ -676,7 +676,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         <div className="px-6 py-4 border-b border-line flex items-center justify-between">
           <div>
             <div className="font-serif text-xl">Import Leads</div>
-            <div className="font-sans text-xs text-muted-foreground mt-0.5">Step {step} of 4</div>
+            <div className="font-sans text-xs text-muted-foreground mt-0.5">{step === 5 ? "Import complete" : `Step ${step} of 4`}</div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
         </div>
