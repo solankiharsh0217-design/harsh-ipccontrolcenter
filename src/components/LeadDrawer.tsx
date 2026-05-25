@@ -18,6 +18,7 @@ import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/Arch
 import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModal";
 import { recomputePaidLead } from "@/lib/paidPipeline";
 import { logActivity as auditLog } from "@/lib/auditLog";
+import { stageChip } from "@/lib/stageColors";
 
 interface Props {
   leadId: string;
