@@ -379,6 +379,25 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
           </button>
         </div>
       </div>
+      {sendOpsOpen && (
+        <SendToOperationsCrmModal
+          candidateLeads={[{
+            id: lead.id,
+            full_name: lead.full_name,
+            email: lead.email,
+            phone: lead.phone,
+            program_name: (lead as any).program_name ?? null,
+            webinar_source: lead.webinar_source,
+            deal_value: (lead as any).deal_value ?? null,
+            stage_id: lead.stage_id,
+            paid_pipeline_lead_id: (lead as any).paid_pipeline_lead_id ?? null,
+          }]}
+          sourceStages={[]}
+          preSelectedIds={[lead.id]}
+          onClose={() => setSendOpsOpen(false)}
+          onDone={() => { setSendOpsOpen(false); load(); }}
+        />
+      )}
     </div>
   );
 }
