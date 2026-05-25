@@ -169,8 +169,9 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     duplicateBehavior: matchingRule.duplicate_behavior,
   } : null;
 
-
+  return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
+
       <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line overflow-y-auto pb-24" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="px-6 py-5 border-b border-line">
