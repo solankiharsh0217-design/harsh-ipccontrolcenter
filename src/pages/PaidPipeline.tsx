@@ -1208,18 +1208,25 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   );
 }
 
-function Section({ title, children }: { title: string; children: any }) {
+function Section({ title, children, right }: { title: string; children: any; right?: any }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-2">{title}</div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{title}</div>
+        {right}
+      </div>
       <div className="border border-line rounded-md p-3">{children}</div>
     </div>
   );
 }
 
-function Field({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Field({ label, value, accent, tone }: { label: string; value: string; accent?: boolean; tone?: "green" | "amber" | "red" }) {
+  const toneBg = tone === "green" ? "bg-[#F0FDF4] border-[#BBF7D0]"
+    : tone === "amber" ? "bg-gold-pale border-[#F5D78A]"
+    : tone === "red" ? "bg-[#FEF2F2] border-[#FCA5A5]"
+    : (accent ? "bg-gold-pale" : "");
   return (
-    <div className={"border border-line rounded-md px-3 py-2 " + (accent ? "bg-gold-pale" : "")}>
+    <div className={"border border-line rounded-md px-3 py-2 " + toneBg}>
       <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
       <div className="font-serif text-[16px] mt-0.5">{value}</div>
     </div>
