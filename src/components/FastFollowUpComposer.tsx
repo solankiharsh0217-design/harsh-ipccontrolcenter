@@ -34,11 +34,17 @@ export default function FastFollowUpComposer({
   const [priority, setPriority] = useState(defaultPriority || "Normal");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [activePreset, setActivePreset] = useState<number | "custom" | null>(0);
+  const dtInputRef = useRef<HTMLInputElement | null>(null);
 
   const setPreset = (days: number) => {
     const d = new Date();
     d.setDate(d.getDate() + days);
-    setWhen(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T11:00`);
+    // Preserve existing time-of-day if already set, else 11:00
+    const currentTime = (when?.split("T")[1] || "11:00").slice(0, 5);
+    const next = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${currentTime}`;
+    setWhen(next);
+    setActivePreset(days);
   };
 
   const save = async () => {
