@@ -530,6 +530,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           chunkSrc.forEach((s) => { if (s._phoneOnly) phoneOnlyImported++; });
         }
       }
+
+      // ── Auto-sync paid leads to Paid Pipeline ─────────────────────────────
+      let paidSynced = 0;
       let paidLinked = 0;
       let paidUnlinked = 0;
       if (pipelineType === "paid") {
