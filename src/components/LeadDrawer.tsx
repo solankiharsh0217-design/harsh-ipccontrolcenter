@@ -158,8 +158,18 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const today = new Date().toISOString().slice(0, 10);
   const currentStage = pipelineStages.find((s) => s.id === lead.stage_id);
   const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+  const matchingRule = findRuleForStage(opsRules, lead.pipeline_id, lead.stage_id);
+  const isOpsEligible = !!matchingRule;
+  const inOps = opsLeadId !== null;
+  const rulePrefill = matchingRule ? {
+    serviceDays: matchingRule.default_service_days ?? null,
+    packageName: matchingRule.default_service_package ?? null,
+    assignMethod: matchingRule.default_assignment_method,
+    singleBuyerId: matchingRule.default_single_buyer_id,
+    duplicateBehavior: matchingRule.duplicate_behavior,
+  } : null;
 
-  return (
+
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
       <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line overflow-y-auto pb-24" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
