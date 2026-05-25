@@ -508,6 +508,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           }]}
           sourceStages={[]}
           preSelectedIds={[lead.id]}
+          prefill={rulePrefill}
+
           onClose={() => setSendOpsOpen(false)}
           onDone={() => { setSendOpsOpen(false); load(); }}
         />
