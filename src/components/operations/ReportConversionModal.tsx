@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { X as XIcon } from "lucide-react";
 import { toast } from "sonner";
-import { reportConversion, updatePendingConversion, todayStrSafe, type ConversionReport } from "@/lib/operationsConversionsHelpers";
+import { reportConversion, updatePendingConversion, type ConversionReport } from "@/lib/operationsConversions";
+import { todayStr as todayStrSafe } from "@/lib/operationsCrm";
 
 export default function ReportConversionModal({
   leadId, leadName, buyerId, actor, existing, onClose, onSaved,
