@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { GRADE_STYLES, type Lead, type Stage, type ActivityLog, type Reminder } from "@/lib/crmTypes";
-import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink, ArrowRightCircle, Sparkles, ChevronDown, Search } from "lucide-react";
+import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink, ArrowRightCircle, Sparkles, ChevronDown, Search, Archive, RotateCcw } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link } from "react-router-dom";
@@ -13,6 +13,8 @@ import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { createNotification } from "@/lib/notifications";
 import SendToOperationsCrmModal from "@/components/SendToOperationsCrmModal";
 import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, type HandoffRule } from "@/lib/operationsCrm";
+import { archiveLead, restoreLead, permanentlyDeleteLead, getLeadLinks } from "@/lib/crmArchive";
+import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/ArchiveConfirmModal";
 
 interface Props {
   leadId: string;
