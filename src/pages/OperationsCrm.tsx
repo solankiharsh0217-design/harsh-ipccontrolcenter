@@ -92,6 +92,22 @@ export default function OperationsCrm() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const c = await getMonthlyCountsByBuyer(currentMonthStr());
+      if (!cancel) setConvCounts(c);
+    })();
+    return () => { cancel = true; };
+  }, [refreshKey]);
+
+  const myConv = useMemo(() => convCounts.get(profile?.id ?? "") ?? { approved: 0, pending: 0, rejected: 0, value: 0 }, [convCounts, profile?.id]);
+  const allConv = useMemo(() => {
+    let approved = 0, pending = 0, rejected = 0;
+    for (const v of convCounts.values()) { approved += v.approved; pending += v.pending; rejected += v.rejected; }
+    return { approved, pending, rejected };
+  }, [convCounts]);
+
   const filtered = useMemo(() => {
     return leads.filter((l) => {
       if (search.trim()) {
