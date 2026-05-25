@@ -299,7 +299,7 @@ export default function Crm() {
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
-  }, [leads]);
+  }, [leads, showArchived]);
 
   // Tag each batch with the pipeline type for the Batches view tabs and apply the active tab filter.
   const pipelineTypeById = useMemo(() => {
