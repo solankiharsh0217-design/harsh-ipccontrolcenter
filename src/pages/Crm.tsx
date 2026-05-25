@@ -1387,16 +1387,31 @@ export default function Crm() {
       <div className="h-14" />
 
       {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={() => setOpenLead(null)} onChanged={load} onStageChanged={async (lid, stageId) => {
-        const st = stages.find((s) => s.id === stageId);
         await refreshOpsState();
-        // Use freshest leads from DB to avoid stale closure
         const { data: l } = await supabase.from("leads").select("*").eq("id", lid).maybeSingle();
-        if (l) {
-          // Patch local state so evaluator sees this lead
-          setLeads((prev) => prev.some((p) => p.id === lid) ? prev.map((p) => p.id === lid ? { ...p, ...(l as any) } : p) : [...prev, l as any]);
-          setTimeout(() => evaluateHandoffForLeads([lid], (l as any).pipeline_id ?? st?.pipeline_id ?? activePipeline, stageId).catch(() => {}), 0);
+        if (!l) return;
+        const rule = findRuleForStage(opsRules, (l as any).pipeline_id, stageId);
+        if (!rule) return;
+        if (opsLeadCrmIds.has(lid)) return;
+        const payload: AutoHandoffLeadInput = {
+          id: (l as any).id,
+          full_name: (l as any).full_name,
+          email: (l as any).email,
+          phone: (l as any).phone,
+          program_name: (l as any).program_name ?? null,
+          webinar_source: (l as any).webinar_source,
+          deal_value: (l as any).deal_value ?? null,
+          paid_pipeline_lead_id: (l as any).paid_pipeline_lead_id ?? null,
+        };
+        if (rule.mode === "auto" && isRuleAutoReady(rule)) {
+          const res = await applyAutoHandoff(rule, [payload], null);
+          toast.success(`Auto-handoff: ${res.inserted + res.updated} sent to Operations CRM`);
+          await refreshOpsState();
+        } else {
+          setOpsBanner({ rule, leadIds: [lid] });
         }
       }} />}
+
 
 
       {/* Assign agents modal */}
