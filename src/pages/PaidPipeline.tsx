@@ -731,31 +731,57 @@ function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }
   onAddPayment: () => void; onUpdateFinance: () => void; onSetFollowUp: () => void; onOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", h);
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setOpenUp(window.innerHeight - r.bottom < 240);
+    }
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
-  const item = (label: string, fn: () => void, accent?: string) => (
-    <button onClick={() => { setOpen(false); fn(); }} className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-off ${accent || ""}`}>{label}</button>
+
+  const Row = ({
+    onClick, dotColor, tint, title, subtitle, icon,
+  }: { onClick: () => void; dotColor: string; tint: string; title: string; subtitle: string; icon: string }) => (
+    <button
+      onClick={() => { setOpen(false); onClick(); }}
+      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-off text-left transition-colors"
+    >
+      <span className="w-7 h-7 rounded-md flex items-center justify-center text-[14px]" style={{ background: tint, color: dotColor }}>{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-[12.5px] font-medium text-black">{title}</span>
+        <span className="block text-[10.5px] text-muted-foreground truncate">{subtitle}</span>
+      </span>
+    </button>
   );
+
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen(o => !o)} className="text-[12px] px-2 py-1 rounded border border-line hover:bg-off leading-none" title="More actions" aria-label="More actions">⋯</button>
+      <button
+        ref={btnRef}
+        onClick={() => setOpen(o => !o)}
+        className="text-[14px] px-2 py-1 rounded border border-line hover:bg-off leading-none text-muted-foreground"
+        title="More actions"
+        aria-label="More actions"
+      >⋯</button>
       {open && (
-        <div className="absolute right-0 mt-1 w-44 bg-white border border-line rounded-md shadow-lg z-30 py-1">
-          {item("+ Add Payment", onAddPayment, "text-[#15803D] font-medium")}
-          {item("Update Finance", onUpdateFinance)}
-          {item("Set Follow-up", onSetFollowUp)}
-          <div className="h-px bg-line my-1" />
-          {item("Open Details", onOpen)}
+        <div className={`absolute right-0 ${openUp ? "bottom-9" : "mt-1"} w-60 bg-white border border-line rounded-lg shadow-xl z-30 py-1 overflow-hidden`}>
+          <Row onClick={onAddPayment} dotColor="#15803D" tint="#DCFCE7" title="Add Payment" subtitle="Record token / balance / EMI" icon="₹" />
+          <Row onClick={onUpdateFinance} dotColor="#1E40AF" tint="#DBEAFE" title="Update Finance" subtitle="Partner, status, disbursal" icon="◈" />
+          <Row onClick={onSetFollowUp} dotColor="#92400E" tint="#FEF3C7" title="Set Follow-up" subtitle="Schedule next call / message" icon="⏰" />
+          <div className="h-px bg-line my-0.5" />
+          <Row onClick={onOpen} dotColor="#111827" tint="#F3F4F6" title="Open Details" subtitle="Full lead drawer" icon="↗" />
         </div>
       )}
     </div>
   );
 }
+
 
 
 
