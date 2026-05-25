@@ -96,6 +96,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     total: number;
     newCount: number;
     dupCount: number;
+    archivedDupCount: number;
     missingEmail: number;
     invalid: number;
     existingByEmail: Map<string, any>;
@@ -237,7 +238,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           const chunk = emails.slice(i, i + 300);
           const { data } = await supabase
             .from("leads")
-            .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type")
+            .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type, archived_at")
             .in("email", chunk);
           (data || []).forEach((l: any) => {
             const k = normEmail(l.email);
@@ -245,12 +246,17 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           });
         }
         const dupCount = emails.filter((e) => existingByEmail.has(e)).length;
+        const archivedDupCount = emails.filter((e) => {
+          const ex = existingByEmail.get(e);
+          return ex && ex.archived_at;
+        }).length;
         const newCount = emails.length - dupCount;
         if (!cancelled) {
           setPreflight({
             total: rows.length,
             newCount,
             dupCount,
+            archivedDupCount,
             missingEmail,
             invalid,
             existingByEmail,
@@ -390,6 +396,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             program_name: productName,
             deal_value: dealValue,
             lead_source_type: "direct_import",
+            // If existing duplicate is archived, restore it so the fresh import isn't silently blocked.
+            ...(existing.archived_at ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
           };
           if (duplicatePolicy === "update") {
             // Fill missing name/phone/country only
@@ -820,9 +828,15 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                     <div><span className="text-muted-foreground">Total rows:</span> <b>{preflight.total}</b></div>
                     <div><span className="text-muted-foreground">New leads:</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
                     <div><span className="text-muted-foreground">Duplicate emails:</span> <b className="text-amber-700">{preflight.dupCount}</b></div>
+                    <div><span className="text-muted-foreground">Of which archived:</span> <b className="text-[#92400E]">{preflight.archivedDupCount}</b></div>
                     <div><span className="text-muted-foreground">Missing email:</span> <b>{preflight.missingEmail}</b></div>
                     <div><span className="text-muted-foreground">Invalid rows:</span> <b>{preflight.invalid}</b></div>
                   </div>
+                  {preflight.archivedDupCount > 0 && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-[#FEF3C7] border border-[#FDE68A] text-[11px] text-[#92400E]">
+                      {preflight.archivedDupCount} duplicate{preflight.archivedDupCount === 1 ? " is" : "s are"} currently archived. Choosing <b>Move</b> or <b>Update</b> will restore them with the new batch info. <b>Skip</b> leaves them archived.
+                    </div>
+                  )}
                 </>
               )}
             </div>

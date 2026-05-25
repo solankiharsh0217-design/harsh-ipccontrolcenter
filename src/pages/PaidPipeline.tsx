@@ -24,6 +24,8 @@ import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
+import { archivePaidBuyer, restorePaidBuyer } from "@/lib/crmArchive";
+import { ArchiveConfirmModal } from "@/components/crm/ArchiveConfirmModal";
 
 type Lead = {
   id: string;
@@ -109,6 +111,8 @@ export default function PaidPipeline() {
   const [quickPayId, setQuickPayId] = useState<string | null>(null);
   const [quickFuId, setQuickFuId] = useState<string | null>(null);
   const [quickFinanceId, setQuickFinanceId] = useState<string | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string | null } | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const [bulkSend, setBulkSend] = useState(false);
   const [bulkSendIdsOverride, setBulkSendIdsOverride] = useState<string[] | null>(null);
   const [newBatchOpen, setNewBatchOpen] = useState(false);
@@ -118,11 +122,13 @@ export default function PaidPipeline() {
   const [insightFilter, setInsightFilter] = useState<string | null>(null);
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const HIGH_BAL_THRESHOLD = 50000;
 
   const load = async () => {
+    const archivedFilter = (q: any) => showArchived ? q.not("archived_at", "is", null) : q.is("archived_at", null);
     const [{ data: l }, { data: b }, { data: pb }, { data: s }, elig] = await Promise.all([
-      supabase.from("paid_pipeline_leads").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
+      archivedFilter(supabase.from("paid_pipeline_leads").select("*").eq("is_deleted", false)).order("created_at", { ascending: false }),
       supabase.from("webinar_batches").select("id, batch_name, webinar_name, webinar_date").eq("is_deleted", false).order("created_at", { ascending: false }),
       (supabase as any).from("paid_pipeline_batches").select("id, batch_name, batch_status").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("paid_pipeline_settings").select("label").eq("setting_type", "pipeline_stage").eq("is_active", true).eq("is_deleted", false).order("sort_order"),
@@ -137,7 +143,7 @@ export default function PaidPipeline() {
     ((l as any[]) || []).forEach(x => { if (x.onboarding_batch_name) obSet.add(x.onboarding_batch_name); });
     setOnboardingBatches(Array.from(obSet).sort());
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [showArchived]);
 
   // Load tag catalog + per-lead tag map (batched)
   useEffect(() => {
@@ -497,6 +503,11 @@ export default function PaidPipeline() {
           {anyFilterActive && <span className="ml-2 text-[11px] uppercase tracking-wider text-[#2563EB]">Filters active</span>}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowArchived(v => !v)}
+            className={`ipc-btn !h-9 !text-xs ${showArchived ? "!bg-[#FEF3C7] !text-[#92400E] border border-[#FDE68A]" : "ipc-btn-ghost"}`}
+            title={showArchived ? "Viewing archived buyers" : "Show archived buyers"}
+          >{showArchived ? "Showing archived" : "Show archived"}</button>
           <button onClick={() => setSearch(searchInput)} className="ipc-btn ipc-btn-black !h-9">Search</button>
           <button onClick={resetFilters} className="ipc-btn ipc-btn-ghost !h-9">Reset Filters</button>
         </div>
@@ -620,10 +631,19 @@ export default function PaidPipeline() {
                   <td className="px-3 py-2.5 sticky right-0 bg-white">
                     <div className="flex items-center justify-end">
                       <RowActionsMenu
+                        archived={!!(l as any).archived_at}
                         onAddPayment={() => setQuickPayId(l.id)}
                         onUpdateFinance={() => setQuickFinanceId(l.id)}
                         onSetFollowUp={() => setQuickFuId(l.id)}
                         onOpen={() => setOpenId(l.id)}
+                        onArchive={() => setArchiveTarget({ id: l.id, name: l.name })}
+                        onRestore={async () => {
+                          try {
+                            await restorePaidBuyer({ id: l.id, name: l.name });
+                            toast.success("Buyer restored");
+                            await load();
+                          } catch (e: any) { toast.error(e.message || "Restore failed"); }
+                        }}
                       />
                     </div>
                   </td>
@@ -666,6 +686,25 @@ export default function PaidPipeline() {
         selectedIds={Array.from(selected)}
         onAssigned={() => { setSelected(new Set()); load(); }}
       />
+      {archiveTarget && (
+        <ArchiveConfirmModal
+          title={`Archive "${archiveTarget.name || "buyer"}"?`}
+          description="The buyer will be hidden from the active table. Payment history, finance, and activity are preserved."
+          detailLines={["You can restore later from Show archived.", "Reports and conversions remain unaffected."]}
+          busy={archiveBusy}
+          onClose={() => setArchiveTarget(null)}
+          onConfirm={async (reason) => {
+            setArchiveBusy(true);
+            try {
+              await archivePaidBuyer({ id: archiveTarget.id, name: archiveTarget.name }, reason || undefined);
+              toast.success("Buyer archived");
+              setArchiveTarget(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Archive failed"); }
+            finally { setArchiveBusy(false); }
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -727,8 +766,9 @@ function FinanceCell({ lead, onClick }: { lead: any; onClick: () => void }) {
   );
 }
 
-function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }: {
+function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen, onArchive, onRestore, archived }: {
   onAddPayment: () => void; onUpdateFinance: () => void; onSetFollowUp: () => void; onOpen: () => void;
+  onArchive: () => void; onRestore: () => void; archived: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
@@ -797,6 +837,12 @@ function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }
       <Row onClick={onAddPayment} dotColor="#15803D" tint="#DCFCE7" title="Add Payment" subtitle="Record token / balance / EMI" icon="₹" />
       <Row onClick={onUpdateFinance} dotColor="#1E40AF" tint="#DBEAFE" title="Update Finance" subtitle="Partner, status, disbursal" icon="◈" />
       <Row onClick={onSetFollowUp} dotColor="#92400E" tint="#FEF3C7" title="Set Follow-up" subtitle="Schedule next call / message" icon="⏰" />
+      <div className="h-px bg-line my-0.5" />
+      {!archived ? (
+        <Row onClick={onArchive} dotColor="#92400E" tint="#FEF3C7" title="Archive Buyer" subtitle="Hide from active table — payments preserved" icon="📦" />
+      ) : (
+        <Row onClick={onRestore} dotColor="#166534" tint="#DCFCE7" title="Restore Buyer" subtitle="Move back into active table" icon="↺" />
+      )}
     </div>,
     document.body
   ) : null;
