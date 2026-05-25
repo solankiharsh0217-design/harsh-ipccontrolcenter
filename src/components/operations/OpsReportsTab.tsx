@@ -362,11 +362,13 @@ export default function OpsReportsTab({ leads, onOpenLead, isAdmin = false }: Pr
           <option value="assigned">Assigned only</option>
           <option value="unassigned">Unassigned only</option>
         </select>
-        <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={exportOpsLeads} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Leads</button>
-          <button onClick={exportBuyerPerf} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Performance</button>
-          <button onClick={exportConversions} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Conversions</button>
-        </div>
+        {isAdmin && (
+          <div className="ml-auto flex items-center gap-1.5">
+            <button onClick={exportOpsLeads} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Leads</button>
+            <button onClick={exportBuyerPerf} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Performance</button>
+            <button onClick={exportConversions} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Conversions</button>
+          </div>
+        )}
       </div>
 
       {/* Summary cards */}
