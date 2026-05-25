@@ -57,6 +57,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Code of Conduct",
+      desc: "Configure the Diamond Membership agreement template and track every signing request, status, and signed record.",
+      cta: "Open Code of Conduct",
+      to: "/admin-center/code-of-conduct",
+      show: isAdmin,
+    },
+    {
       title: "Media Buyer Dashboard Preview",
       desc: "View each media buyer's work dashboard, pending calls, active ad clients, and overdue tasks.",
       cta: "Open Media Buyer Desk",
