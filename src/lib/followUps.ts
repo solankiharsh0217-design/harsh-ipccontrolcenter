@@ -18,6 +18,8 @@ export type SaveCentralFollowUpInput = {
   auditModuleKey?: string;
   auditModuleLabel?: string;
   metadata?: Record<string, any>;
+  /** When set, force-update this specific follow-up row instead of insert/dedup logic. */
+  editId?: string | null;
 };
 
 export function mapTypeToChannel(t: string | null | undefined): "call" | "whatsapp" | "email" | "sms" | "note" {
@@ -52,30 +54,23 @@ export async function saveCentralFollowUp(input: SaveCentralFollowUpInput) {
     created_by: input.createdBy || null,
   };
 
-  let exactQ = (supabase as any).from("paid_pipeline_followups")
-    .select("id")
-    .eq("follow_up_date", followUpDate)
-    .eq("follow_up_time", followUpTime)
-    .eq("status", "Pending")
-    .eq("is_deleted", false);
-  exactQ = followUpType ? exactQ.eq("follow_up_type", followUpType) : exactQ.is("follow_up_type", null);
-  exactQ = input.paidLeadId
-    ? exactQ.eq("paid_pipeline_lead_id", input.paidLeadId)
-    : exactQ.is("paid_pipeline_lead_id", null).eq("related_crm_lead_id", input.crmLeadId);
-  const { data: exact } = await exactQ.limit(1);
+  let targetId: string | undefined = input.editId || undefined;
 
-  let targetId = exact?.[0]?.id as string | undefined;
-  if (!targetId && status === "Pending") {
-    let latestQ = (supabase as any).from("paid_pipeline_followups")
+  if (!targetId) {
+    // Only collapse on EXACT duplicate (same date + time + type + pending).
+    // Multiple pending follow-ups for same lead at different date/time/type are allowed.
+    let exactQ = (supabase as any).from("paid_pipeline_followups")
       .select("id")
+      .eq("follow_up_date", followUpDate)
+      .eq("follow_up_time", followUpTime)
       .eq("status", "Pending")
       .eq("is_deleted", false);
-    latestQ = followUpType ? latestQ.eq("follow_up_type", followUpType) : latestQ.is("follow_up_type", null);
-    latestQ = input.paidLeadId
-      ? latestQ.eq("paid_pipeline_lead_id", input.paidLeadId)
-      : latestQ.is("paid_pipeline_lead_id", null).eq("related_crm_lead_id", input.crmLeadId);
-    const { data: latest } = await latestQ.order("created_at", { ascending: false }).limit(1);
-    targetId = latest?.[0]?.id as string | undefined;
+    exactQ = followUpType ? exactQ.eq("follow_up_type", followUpType) : exactQ.is("follow_up_type", null);
+    exactQ = input.paidLeadId
+      ? exactQ.eq("paid_pipeline_lead_id", input.paidLeadId)
+      : exactQ.is("paid_pipeline_lead_id", null).eq("related_crm_lead_id", input.crmLeadId);
+    const { data: exact } = await exactQ.limit(1);
+    targetId = exact?.[0]?.id as string | undefined;
   }
 
   if (targetId) await (supabase as any).from("paid_pipeline_followups").update(row).eq("id", targetId);
