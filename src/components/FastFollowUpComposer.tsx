@@ -1,9 +1,8 @@
 import { useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
-import { logActivity } from "@/lib/auditLog";
+import { saveCentralFollowUp } from "@/lib/followUps";
 
 interface Props {
   crmLeadId?: string | null;
@@ -11,6 +10,8 @@ interface Props {
   leadName?: string;
   defaultType?: string;
   defaultPriority?: string;
+  ownerId?: string | null;
+  source?: "calling_crm_drawer" | "paid_pipeline_drawer" | "quick_action";
   onSaved?: () => void;
 }
 
@@ -22,7 +23,7 @@ interface Props {
  * legacy CRM views still work — uniqued on (lead_id, reminder_date, reminder_time, channel).
  */
 export default function FastFollowUpComposer({
-  crmLeadId, paidLeadId, leadName, defaultType, defaultPriority, onSaved,
+  crmLeadId, paidLeadId, leadName, defaultType, defaultPriority, ownerId, source, onSaved,
 }: Props) {
   const { user } = useAuth();
   const now = new Date();
@@ -39,6 +40,7 @@ export default function FastFollowUpComposer({
 
   const setPreset = (days: number) => {
     const d = new Date();
+    d.setHours(12, 0, 0, 0);
     d.setDate(d.getDate() + days);
     // Preserve existing time-of-day if already set, else 11:00
     const currentTime = (when?.split("T")[1] || "11:00").slice(0, 5);
@@ -56,74 +58,20 @@ export default function FastFollowUpComposer({
       const followUpDate = datePart;
       const followUpTime = (timePart || "11:00").slice(0, 5);
 
-      // 1) Unified follow-up store
-      const row: any = {
-        paid_pipeline_lead_id: paidLeadId || null,
-        related_crm_lead_id: crmLeadId || null,
-        follow_up_date: followUpDate,
-        follow_up_time: followUpTime,
-        follow_up_type: type || null,
-        follow_up_reason: type || null,
+      await saveCentralFollowUp({
+        crmLeadId,
+        paidLeadId,
+        leadName,
+        date: followUpDate,
+        time: followUpTime,
+        type,
         priority,
-        status: "Pending",
-        notes: note || null,
-        source_module: paidLeadId ? "paid_pipeline" : "calling_crm",
-        created_by: user?.id,
-      };
-
-      // Dedup guard: skip if an identical pending follow-up already exists
-      let dupQ = (supabase as any).from("paid_pipeline_followups").select("id").eq("follow_up_date", followUpDate).eq("status", "Pending").eq("is_deleted", false);
-      if (paidLeadId) dupQ = dupQ.eq("paid_pipeline_lead_id", paidLeadId);
-      else dupQ = dupQ.is("paid_pipeline_lead_id", null).eq("related_crm_lead_id", crmLeadId);
-      if (followUpTime) dupQ = dupQ.eq("follow_up_time", followUpTime);
-      const { data: dup } = await dupQ.limit(1);
-      if (!dup || dup.length === 0) {
-        await supabase.from("paid_pipeline_followups" as any).insert(row);
-      }
-
-      // 2) Mirror to legacy follow_up_reminders when we have a CRM lead
-      if (crmLeadId) {
-        const ch = mapTypeToChannel(type);
-        const { data: rDup } = await supabase
-          .from("follow_up_reminders")
-          .select("id")
-          .eq("lead_id", crmLeadId)
-          .eq("reminder_date", followUpDate)
-          .eq("channel", ch)
-          .limit(1);
-        if (!rDup || rDup.length === 0) {
-          await supabase.from("follow_up_reminders").insert({
-            lead_id: crmLeadId,
-            agent_id: user?.id || null,
-            reminder_date: followUpDate,
-            reminder_time: followUpTime,
-            channel: ch,
-            note: note || type || null,
-          });
-        }
-      }
-
-      // 3) Update lead's next follow-up snapshot
-      if (paidLeadId) {
-        await supabase.from("paid_pipeline_leads").update({
-          next_follow_up_date: followUpDate,
-          next_follow_up_time: followUpTime,
-          follow_up_reason: type || null,
-          follow_up_priority: priority,
-          follow_up_status: "Pending",
-        } as any).eq("id", paidLeadId);
-      }
-
-      logActivity({
-        module_key: "follow_up_command_center",
-        module_label: "Follow-Up Command Center",
-        action_type: "follow_up_created",
-        action_label: "Follow-up created",
-        entity_type: paidLeadId ? "paid_pipeline_lead" : "crm_lead",
-        entity_id: (paidLeadId || crmLeadId) as string,
-        entity_label: leadName,
-        new_values: { date: followUpDate, time: followUpTime, type, priority, note },
-        summary: `Follow-up set for ${leadName || "lead"} on ${followUpDate} ${followUpTime} (${type || "—"}, ${priority}).`,
+        note,
+        ownerId: ownerId || user?.id || null,
+        createdBy: user?.id || null,
+        sourceModule: paidLeadId ? "paid_pipeline" : "calling_crm",
+        auditActionType: source === "paid_pipeline_drawer" ? "followup_saved_from_paid_pipeline_drawer" : "followup_saved_from_calling_crm_drawer",
+        metadata: { source: source || (paidLeadId ? "paid_pipeline_drawer" : "calling_crm_drawer") },
       });
 
       toast.success("Follow-up saved");
@@ -204,13 +152,4 @@ export default function FastFollowUpComposer({
       </button>
     </div>
   );
-}
-
-function mapTypeToChannel(t: string | undefined): "call" | "whatsapp" | "email" | "sms" | "note" {
-  const v = (t || "").toLowerCase();
-  if (v.includes("whatsapp")) return "whatsapp";
-  if (v.includes("email")) return "email";
-  if (v.includes("sms")) return "sms";
-  if (v.includes("note")) return "note";
-  return "call";
 }
