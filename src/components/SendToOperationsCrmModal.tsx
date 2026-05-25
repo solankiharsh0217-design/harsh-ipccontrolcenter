@@ -127,17 +127,25 @@ export default function SendToOperationsCrmModal({
       const { pipelineId, firstStageId } = await ensureOperationsPipeline();
       const sourceIds = selectedLeads.map((l) => l.id);
 
-      // Check duplicates among active operations leads
-      const { data: existing } = await supabase
-        .from("operations_leads" as any)
-        .select("id, crm_lead_id, assigned_media_buyer_id, service_status, stage_id")
-        .in("crm_lead_id", sourceIds);
+      // Check duplicates among active operations leads (by crm_lead_id OR paid_pipeline_lead_id)
+      const ppIds = selectedLeads.map((l) => l.paid_pipeline_lead_id).filter(Boolean) as string[];
+      const dupQueries: Promise<any>[] = [
+        (supabase as any).from("operations_leads").select("id, crm_lead_id, paid_pipeline_lead_id, assigned_media_buyer_id, service_status, stage_id").in("crm_lead_id", sourceIds),
+      ];
+      if (ppIds.length) {
+        dupQueries.push((supabase as any).from("operations_leads").select("id, crm_lead_id, paid_pipeline_lead_id, assigned_media_buyer_id, service_status, stage_id").in("paid_pipeline_lead_id", ppIds));
+      }
+      const dupResults = await Promise.all(dupQueries);
       const existingByCrm = new Map<string, any>();
-      (existing ?? []).forEach((r: any) => {
-        if (r.crm_lead_id && r.service_status !== "stopped" && r.service_status !== "completed") {
-          existingByCrm.set(r.crm_lead_id, r);
-        }
+      const existingByPp = new Map<string, any>();
+      dupResults.forEach(({ data }) => {
+        (data ?? []).forEach((r: any) => {
+          if (r.service_status === "stopped" || r.service_status === "completed") return;
+          if (r.crm_lead_id) existingByCrm.set(r.crm_lead_id, r);
+          if (r.paid_pipeline_lead_id) existingByPp.set(r.paid_pipeline_lead_id, r);
+        });
       });
+
 
       const daysCommitted = Math.round(monthsFinal * 30);
       const buyerNameById = new Map(assignees.map((a) => [a.id, a.full_name]));
