@@ -52,7 +52,7 @@ export default function OperationsCrm() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [buyerFilter, setBuyerFilter] = useState<string>(params.get("assigned_to") === "me" ? "me" : "all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(params.get("filter") || "all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [buyers, setBuyers] = useState<{ id: string; full_name: string }[]>([]);
   const [openLead, setOpenLead] = useState<string | null>(null);
