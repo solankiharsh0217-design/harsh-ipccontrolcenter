@@ -33,6 +33,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const [paidSnap, setPaidSnap] = useState<any | null>(null);
   const [showStagePicker, setShowStagePicker] = useState(false);
   const [newStageName, setNewStageName] = useState("");
+  const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
+  const [sendOpsOpen, setSendOpsOpen] = useState(false);
 
   const load = async () => {
     const [{ data: l }, { data: a }, { data: r }] = await Promise.all([
