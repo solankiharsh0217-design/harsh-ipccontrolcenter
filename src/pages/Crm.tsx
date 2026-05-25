@@ -629,6 +629,34 @@ export default function Crm() {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-14 z-40 mb-3 flex items-center gap-2 px-3 py-2 rounded-lg border border-gold bg-gold-pale shadow-sm">
+          <div className="text-xs font-medium text-black">{selectedIds.size} lead{selectedIds.size === 1 ? "" : "s"} selected</div>
+          <button
+            onClick={() => {
+              const ids = pipelineLeads.map((l) => l.id);
+              setSelectedIds((p) => {
+                const allSelected = ids.every((id) => p.has(id));
+                if (allSelected) { const n = new Set(p); ids.forEach((id) => n.delete(id)); return n; }
+                return new Set([...p, ...ids]);
+              });
+            }}
+            className="text-[11px] underline text-muted-foreground hover:text-black ml-2"
+          >
+            {pipelineLeads.every((l) => selectedIds.has(l.id)) ? "Deselect view" : "Select all in view"}
+          </button>
+          <div className="flex-1" />
+          <button onClick={() => setBulkMoveOpen(true)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Move Stage</button>
+          <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Assign</button>
+          <button onClick={() => setBulkSendOpsOpen(true)} className="ipc-btn ipc-btn-black !h-8 !text-xs">
+            <ExternalLink className="w-3 h-3" /> Send to Operations
+          </button>
+          <button onClick={clearSelection} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Clear</button>
+        </div>
+      )}
+
+
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
       {sendOpsOpen && (
         <SendToOperationsCrmModal
