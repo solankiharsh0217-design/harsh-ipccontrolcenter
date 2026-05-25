@@ -65,6 +65,8 @@ export default function OperationsCrm() {
   const [hoverStage, setHoverStage] = useState<string | null>(null);
   const [renameStage, setRenameStage] = useState<Stage | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [convCounts, setConvCounts] = useState<Map<string, { approved: number; pending: number; rejected: number; value: number }>>(new Map());
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const load = async () => {
     setLoading(true);
