@@ -1267,15 +1267,25 @@ export default function Crm() {
                         await load();
                       } catch (e: any) { toast.error(e.message || "Restore failed"); }
                     }}
+                    onReset={async () => {
+                      const leadIds = leads
+                        .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date && !l.archived_at)
+                        .map((l) => l.id);
+                      if (!leadIds.length) { toast.info("No active leads in this batch to reset"); return; }
+                      const links = await getLeadLinks(leadIds).catch(() => ({ paid: 0, ops: 0 }));
+                      setBatchChoicesTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds, linkedPaid: links.paid, linkedOps: links.ops });
+                    }}
                     onDelete={async () => {
                       const leadIds = leads
                         .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date)
                         .map((l) => l.id);
                       const links = await getLeadLinks(leadIds).catch(() => ({ paid: 0, ops: 0 }));
+                      if (links.paid > 0 || links.ops > 0) {
+                        setBatchChoicesTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds, linkedPaid: links.paid, linkedOps: links.ops });
+                        return;
+                      }
                       setDeleteBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds });
-                      setDeleteBatchBlocked(links.paid > 0 || links.ops > 0
-                        ? `Cannot permanently delete — ${links.paid} lead(s) linked to Paid Pipeline and ${links.ops} to Operations CRM. Archive instead.`
-                        : null);
+                      setDeleteBatchBlocked(null);
                     }}
                   />
                   <div className="flex items-center gap-2">
