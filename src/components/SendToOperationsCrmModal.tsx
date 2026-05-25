@@ -157,7 +157,8 @@ export default function SendToOperationsCrmModal({
       const buyerCounts: Record<string, number> = {};
 
       for (const lead of selectedLeads) {
-        const dup = existingByCrm.get(lead.id);
+        const dup = existingByCrm.get(lead.id) || (lead.paid_pipeline_lead_id ? existingByPp.get(lead.paid_pipeline_lead_id) : undefined);
+
         let buyerId: string | null = null;
         if (assignMethod === "single") buyerId = singleAssignee;
         else if (assignMethod === "round_robin" && assignees.length) {
