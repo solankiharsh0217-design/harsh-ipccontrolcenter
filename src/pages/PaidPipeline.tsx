@@ -933,6 +933,8 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [crmPickerOpen, setCrmPickerOpen] = useState(false);
   const [crmStageSearch, setCrmStageSearch] = useState("");
   const [linkingCrm, setLinkingCrm] = useState(false);
+  const [newCrmStageName, setNewCrmStageName] = useState("");
+  const [addingStage, setAddingStage] = useState(false);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
