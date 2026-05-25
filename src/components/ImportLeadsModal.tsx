@@ -1059,3 +1059,85 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     </div>
   );
 }
+
+/** Finds Paid pipeline CRM leads with no paid_pipeline_lead_id and backfills them. */
+function PaidSyncCheckButton({ pipelineId, onComplete }: { pipelineId: string; onComplete: (r: { before: number; created: number; linked: number; unlinkedAfter: number }) => void }) {
+  const { profile } = useAuth();
+  const [running, setRunning] = useState(false);
+  const [last, setLast] = useState<{ before: number; created: number; linked: number; unlinkedAfter: number } | null>(null);
+
+  const run = async () => {
+    setRunning(true);
+    try {
+      const { data: crm } = await supabase
+        .from("leads")
+        .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id, archived_at")
+        .eq("pipeline_id", pipelineId)
+        .is("archived_at", null);
+      const unlinked = (crm || []).filter((l: any) => !l.paid_pipeline_lead_id);
+      const before = unlinked.length;
+      let created = 0, linked = 0;
+      for (const lead of unlinked as any[]) {
+        let existing: any = null;
+        if (lead.email) {
+          const { data } = await supabase.from("paid_pipeline_leads")
+            .select("id").eq("email", lead.email).eq("is_deleted", false).maybeSingle();
+          existing = data;
+        }
+        if (!existing && lead.phone) {
+          const { data } = await supabase.from("paid_pipeline_leads")
+            .select("id").eq("phone", lead.phone).eq("is_deleted", false).maybeSingle();
+          existing = data;
+        }
+        if (existing) {
+          await supabase.from("paid_pipeline_leads").update({ crm_lead_id: lead.id } as any).eq("id", existing.id);
+          await supabase.from("leads").update({ paid_pipeline_lead_id: existing.id } as any).eq("id", lead.id);
+          linked++;
+        } else {
+          const { data: ins } = await supabase.from("paid_pipeline_leads").insert({
+            name: lead.full_name, email: lead.email, phone: lead.phone,
+            product_name_snapshot: lead.program_name || null,
+            deal_value_including_gst: Number(lead.deal_value || 0),
+            pipeline_stage: "Payment Confirmed", payment_status: "No Payment",
+            crm_lead_id: lead.id, created_by: profile?.id,
+          } as any).select("id").maybeSingle();
+          if (ins?.id) {
+            await supabase.from("leads").update({ paid_pipeline_lead_id: ins.id } as any).eq("id", lead.id);
+            created++;
+          }
+        }
+      }
+      const { data: after } = await supabase.from("leads")
+        .select("id, paid_pipeline_lead_id").eq("pipeline_id", pipelineId).is("archived_at", null);
+      const unlinkedAfter = (after || []).filter((l: any) => !l.paid_pipeline_lead_id).length;
+      const result = { before, created, linked, unlinkedAfter };
+      setLast(result);
+      onComplete(result);
+      toast.success(`Sync check: ${created} created · ${linked} linked · ${unlinkedAfter} still unlinked`);
+      logActivity({
+        module_key: "paid_pipeline", action_type: "paid_pipeline_sync_check_run",
+        entity_type: "pipeline", entity_id: pipelineId,
+        summary: `Paid Import Sync Check: ${before} unlinked → ${created} created · ${linked} linked · ${unlinkedAfter} still unlinked.`,
+        metadata: { pipeline_id: pipelineId, before, created, linked, unlinked_after: unlinkedAfter },
+      }).catch(() => {});
+    } catch (e: any) {
+      console.error("[PaidSyncCheckButton]", e);
+      toast.error(e?.message || "Sync check failed");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button onClick={run} disabled={running} className="ipc-btn ipc-btn-ghost text-xs self-start disabled:opacity-50">
+        {running ? "Checking…" : "Run Paid Import Sync Check"}
+      </button>
+      {last && (
+        <div className="text-[11px] text-muted-foreground">
+          Before: <b>{last.before}</b> unlinked → After: <b>{last.unlinkedAfter}</b> unlinked (created {last.created}, linked {last.linked})
+        </div>
+      )}
+    </div>
+  );
+}
