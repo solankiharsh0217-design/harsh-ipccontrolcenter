@@ -170,6 +170,7 @@ export default function Team() {
         can_receive_follow_up_tasks: editEligibility.can_receive_follow_up_tasks,
         can_receive_payment_recovery_leads: editEligibility.can_receive_payment_recovery_leads,
         can_receive_media_buyer_cases: editEligibility.can_receive_media_buyer_cases,
+        can_receive_operations_leads: editEligibility.can_receive_operations_leads,
         include_in_round_robin: editEligibility.include_in_round_robin,
         active_for_assignment: editEligibility.active_for_assignment,
       };
