@@ -190,6 +190,52 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     duplicateBehavior: matchingRule.duplicate_behavior,
   } : null;
 
+  const paidLeadId = (lead as any).paid_pipeline_lead_id as string | null;
+  const hasToken = !!paidSnap && Number(paidSnap.token_amount_collected || 0) > 0;
+
+  const openTokenPayment = () => {
+    if (!paidLeadId) { toast.error("This lead is not linked to a Paid Pipeline buyer yet."); return; }
+    setPayPrefill({ type: "First Token", category: "Token Amount", description: "Token payment", isToken: true });
+    setPayHeaderNote("Record token amount to move this buyer to Token Paid.");
+    setPostPayAction("setTokenPaid");
+    setOpenPay(true);
+  };
+  const openAddPayment = () => {
+    if (!paidLeadId) { toast.error("This lead is not linked to a Paid Pipeline buyer yet."); return; }
+    setPayPrefill(null);
+    setPayHeaderNote(undefined);
+    setPostPayAction(null);
+    setOpenPay(true);
+  };
+  const handlePaymentSaved = async () => {
+    if (paidLeadId && postPayAction === "setTokenPaid") {
+      await supabase.from("paid_pipeline_leads").update({ pipeline_stage: "Token Paid" } as any).eq("id", paidLeadId);
+      await recomputePaidLead(paidLeadId);
+      auditLog({
+        module_key: "paid_pipeline", module_label: "Paid Pipeline",
+        action_type: "paid_pipeline_stage_set_after_token_payment",
+        entity_type: "paid_pipeline_lead", entity_id: paidLeadId, entity_label: lead.full_name || undefined,
+        new_values: { pipeline_stage: "Token Paid" },
+        metadata: { crm_lead_id: lead.id, source: "calling_crm_drawer" },
+        summary: `Paid Pipeline stage set to 'Token Paid' after token recorded from Calling CRM.`,
+      });
+      toast.success("Token recorded and stage set to Token Paid");
+    } else {
+      toast.success("Payment recorded");
+    }
+    auditLog({
+      module_key: "calling_crm", module_label: "Calling CRM",
+      action_type: "calling_crm_token_recorded_to_paid_pipeline",
+      entity_type: "lead", entity_id: lead.id, entity_label: lead.full_name || undefined,
+      metadata: { paid_pipeline_lead_id: paidLeadId, post_action: postPayAction },
+      summary: `Payment recorded from Calling CRM drawer.`,
+    });
+    setPostPayAction(null);
+    setOpenPay(false);
+    await load();
+    onChanged();
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
 
