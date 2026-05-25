@@ -29,6 +29,7 @@ import { ArchiveConfirmModal } from "@/components/crm/ArchiveConfirmModal";
 import { stageChip } from "@/lib/stageColors";
 import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
 import CrmStagePicker, { type CrmStagePickerStage } from "@/components/crm/CrmStagePicker";
+import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
 
 type Lead = {
   id: string;
@@ -1377,6 +1378,16 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               </div>
             );
           })()}
+
+          <CodeOfConductPanel
+            paidLeadId={lead.id}
+            crmLeadId={lead.crm_lead_id || null}
+            memberName={lead.name || "Member"}
+            memberEmail={(lead as any).email || null}
+            memberPhone={(lead as any).phone || null}
+            programName={null}
+            dealValue={Number(lead.deal_value_including_gst || 0) || null}
+          />
 
           {/* 2. Next Follow-up — high-visibility, daily-use card */}
           {(() => {

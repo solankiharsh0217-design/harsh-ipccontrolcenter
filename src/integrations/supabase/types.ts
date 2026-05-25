@@ -659,6 +659,214 @@ export type Database = {
         }
         Relationships: []
       }
+      code_of_conduct_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          request_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          request_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_of_conduct_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "code_of_conduct_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      code_of_conduct_requests: {
+        Row: {
+          acknowledgement_checkbox: boolean
+          acknowledgement_email: string | null
+          acknowledgement_ip: string | null
+          acknowledgement_user_agent: string | null
+          cancelled_at: string | null
+          cancelled_reason: string | null
+          created_at: string
+          created_by: string | null
+          crm_lead_id: string | null
+          deal_value: number | null
+          email_error: string | null
+          id: string
+          member_email: string
+          member_name: string
+          member_phone: string | null
+          paid_pipeline_lead_id: string | null
+          program_name: string | null
+          sent_at: string | null
+          signature_data_url: string | null
+          signature_name: string | null
+          signed_at: string | null
+          signed_pdf_url: string | null
+          status: string
+          template_id: string | null
+          template_version: string | null
+          token_expires_at: string | null
+          token_hash: string | null
+          updated_at: string
+          viewed_at: string | null
+          whatsapp_redirect_opened_at: string | null
+        }
+        Insert: {
+          acknowledgement_checkbox?: boolean
+          acknowledgement_email?: string | null
+          acknowledgement_ip?: string | null
+          acknowledgement_user_agent?: string | null
+          cancelled_at?: string | null
+          cancelled_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          deal_value?: number | null
+          email_error?: string | null
+          id?: string
+          member_email: string
+          member_name: string
+          member_phone?: string | null
+          paid_pipeline_lead_id?: string | null
+          program_name?: string | null
+          sent_at?: string | null
+          signature_data_url?: string | null
+          signature_name?: string | null
+          signed_at?: string | null
+          signed_pdf_url?: string | null
+          status?: string
+          template_id?: string | null
+          template_version?: string | null
+          token_expires_at?: string | null
+          token_hash?: string | null
+          updated_at?: string
+          viewed_at?: string | null
+          whatsapp_redirect_opened_at?: string | null
+        }
+        Update: {
+          acknowledgement_checkbox?: boolean
+          acknowledgement_email?: string | null
+          acknowledgement_ip?: string | null
+          acknowledgement_user_agent?: string | null
+          cancelled_at?: string | null
+          cancelled_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          deal_value?: number | null
+          email_error?: string | null
+          id?: string
+          member_email?: string
+          member_name?: string
+          member_phone?: string | null
+          paid_pipeline_lead_id?: string | null
+          program_name?: string | null
+          sent_at?: string | null
+          signature_data_url?: string | null
+          signature_name?: string | null
+          signed_at?: string | null
+          signed_pdf_url?: string | null
+          status?: string
+          template_id?: string | null
+          template_version?: string | null
+          token_expires_at?: string | null
+          token_hash?: string | null
+          updated_at?: string
+          viewed_at?: string | null
+          whatsapp_redirect_opened_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_of_conduct_requests_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "code_of_conduct_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      code_of_conduct_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          document_title: string
+          email_body: string | null
+          email_subject: string | null
+          expiry_days: number
+          from_email: string | null
+          from_name: string | null
+          html_content: string | null
+          id: string
+          is_active: boolean
+          name: string
+          party_a_name: string
+          program_name: string | null
+          success_page_message: string | null
+          template_pdf_url: string | null
+          updated_at: string
+          version: string
+          whatsapp_redirect_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          document_title?: string
+          email_body?: string | null
+          email_subject?: string | null
+          expiry_days?: number
+          from_email?: string | null
+          from_name?: string | null
+          html_content?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          party_a_name?: string
+          program_name?: string | null
+          success_page_message?: string | null
+          template_pdf_url?: string | null
+          updated_at?: string
+          version?: string
+          whatsapp_redirect_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          document_title?: string
+          email_body?: string | null
+          email_subject?: string | null
+          expiry_days?: number
+          from_email?: string | null
+          from_name?: string | null
+          html_content?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          party_a_name?: string
+          program_name?: string | null
+          success_page_message?: string | null
+          template_pdf_url?: string | null
+          updated_at?: string
+          version?: string
+          whatsapp_redirect_url?: string | null
+        }
+        Relationships: []
+      }
       crm_batch_archives: {
         Row: {
           affected_lead_count: number
@@ -1250,6 +1458,10 @@ export type Database = {
           archived_by: string | null
           assigned_agent_id: string | null
           attendance_pct: number
+          code_of_conduct_request_id: string | null
+          code_of_conduct_sent_at: string | null
+          code_of_conduct_signed_at: string | null
+          code_of_conduct_status: string | null
           country: string | null
           created_at: string
           deal_value: number
@@ -1285,6 +1497,10 @@ export type Database = {
           archived_by?: string | null
           assigned_agent_id?: string | null
           attendance_pct?: number
+          code_of_conduct_request_id?: string | null
+          code_of_conduct_sent_at?: string | null
+          code_of_conduct_signed_at?: string | null
+          code_of_conduct_status?: string | null
           country?: string | null
           created_at?: string
           deal_value?: number
@@ -1320,6 +1536,10 @@ export type Database = {
           archived_by?: string | null
           assigned_agent_id?: string | null
           attendance_pct?: number
+          code_of_conduct_request_id?: string | null
+          code_of_conduct_sent_at?: string | null
+          code_of_conduct_signed_at?: string | null
+          code_of_conduct_status?: string | null
           country?: string | null
           created_at?: string
           deal_value?: number
@@ -2772,6 +2992,10 @@ export type Database = {
           balance_description: string | null
           balance_pending: number
           business_unit: string
+          code_of_conduct_request_id: string | null
+          code_of_conduct_sent_at: string | null
+          code_of_conduct_signed_at: string | null
+          code_of_conduct_status: string | null
           created_at: string
           created_by: string | null
           created_from_attribution: boolean
@@ -2844,6 +3068,10 @@ export type Database = {
           balance_description?: string | null
           balance_pending?: number
           business_unit?: string
+          code_of_conduct_request_id?: string | null
+          code_of_conduct_sent_at?: string | null
+          code_of_conduct_signed_at?: string | null
+          code_of_conduct_status?: string | null
           created_at?: string
           created_by?: string | null
           created_from_attribution?: boolean
@@ -2916,6 +3144,10 @@ export type Database = {
           balance_description?: string | null
           balance_pending?: number
           business_unit?: string
+          code_of_conduct_request_id?: string | null
+          code_of_conduct_sent_at?: string | null
+          code_of_conduct_signed_at?: string | null
+          code_of_conduct_status?: string | null
           created_at?: string
           created_by?: string | null
           created_from_attribution?: boolean

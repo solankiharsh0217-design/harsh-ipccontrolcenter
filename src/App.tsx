@@ -37,6 +37,8 @@ import CleanSlate from "./pages/CleanSlate";
 import MediaBuyerOperations from "./pages/MediaBuyerOperations";
 import OperationsCrm from "./pages/OperationsCrm";
 import NotFound from "./pages/NotFound";
+import CodeOfConductSign from "./pages/CodeOfConductSign";
+import CodeOfConductAdmin from "./pages/CodeOfConductAdmin";
 
 import type { ModuleKey } from "@/lib/modules";
 
@@ -58,6 +60,8 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/code-of-conduct/sign/:token" element={<CodeOfConductSign />} />
+            <Route path="/admin-center/code-of-conduct" element={<Shell admin><CodeOfConductAdmin /></Shell>} />
             <Route path="/" element={<Shell moduleKey="dashboard"><Dashboard /></Shell>} />
             <Route path="/founder-dashboard" element={<Shell><FounderDashboard /></Shell>} />
             <Route path="/roas-calculator" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
