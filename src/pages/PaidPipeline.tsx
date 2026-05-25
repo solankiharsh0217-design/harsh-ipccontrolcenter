@@ -1191,7 +1191,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="qsi-label">Pipeline stage</label>
-                <InlineManagedSelect settingType="pipeline_stage" value={stage} onChange={setStage} width="100%"
+                <InlineManagedSelect settingType="pipeline_stage" value={stage} onChange={(v) => changePaidStage(v)} width="100%"
                   triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
               </div>
               <div>
