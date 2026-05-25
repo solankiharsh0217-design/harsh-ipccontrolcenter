@@ -745,6 +745,21 @@ export default function Crm() {
         </div>
       )}
 
+      {opsBanner && (
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg border border-[#86EFAC] bg-[#F0FDF4]">
+          <div className="text-xs text-[#166534] flex-1">
+            <span className="font-medium">{opsBanner.leadIds.length}</span> lead{opsBanner.leadIds.length === 1 ? "" : "s"} are now ready for Operations CRM via <span className="font-medium">{opsBanner.rule.name}</span>.
+          </div>
+          <button
+            onClick={() => { setSelectedIds(new Set(opsBanner.leadIds)); setBulkSendOpsOpen(true); }}
+            className="ipc-btn ipc-btn-black !h-8 !text-xs"
+          >Send Eligible Leads to Operations</button>
+          <button onClick={() => setOpsBanner(null)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Ignore</button>
+        </div>
+      )}
+
+
+
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
       {sendOpsOpen && (
