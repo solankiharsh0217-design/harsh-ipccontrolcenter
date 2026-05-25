@@ -617,8 +617,7 @@ export default function PaidPipeline() {
                     {agents.find(a => a.id === l.assigned_sales_executive)?.full_name || "—"}
                   </td>
                   <td className="px-3 py-2.5 sticky right-0 bg-white">
-                    <div className="flex items-center gap-1 justify-end flex-nowrap">
-                      <button onClick={() => setOpenId(l.id)} className="text-[11px] px-2.5 py-1 rounded bg-black text-white hover:opacity-90">Open</button>
+                    <div className="flex items-center justify-end">
                       <RowActionsMenu
                         onAddPayment={() => setQuickPayId(l.id)}
                         onUpdateFinance={() => setQuickFinanceId(l.id)}
