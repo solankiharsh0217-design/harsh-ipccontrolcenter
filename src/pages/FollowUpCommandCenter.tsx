@@ -822,7 +822,10 @@ function AddFollowUpModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
           </div>
           <div className="col-span-2">
             <label className="qsi-label">Assigned to</label>
-            <input className="qsi-input" value={assignee} onChange={e=>setAssignee(e.target.value)} placeholder="Owner name" />
+            <select className="qsi-input" value={assignee} onChange={e=>setAssignee(e.target.value)}>
+              <option value="">— Unassigned —</option>
+              {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+            </select>
           </div>
         </div>
         <div>
