@@ -62,6 +62,7 @@ export default function MemberActionMenu({ isAdmin, isDeactivated, onManage, onD
       </button>
       {open && pos && createPortal(
         <div
+          ref={menuRef}
           className="fixed z-[9999] w-[200px] rounded-md border border-line bg-white shadow-lg py-1"
           style={{ top: pos.top, left: pos.left }}
         >
