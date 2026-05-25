@@ -3,11 +3,13 @@ import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { X, Plus, Upload } from "lucide-react";
+import { X, Plus, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
 import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type LeadGrade } from "@/lib/crmTypes";
 import { logActivity } from "@/lib/auditLog";
+import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 
 export type DuplicatePolicy = "skip" | "update" | "move" | "new_only";
+export type AssignmentMode = "unassigned" | "assign_to_me" | "assign_to_member" | "round_robin" | "hot_to_top";
 
 export interface ImportResult {
   pipelineId: string;
@@ -19,10 +21,15 @@ export interface ImportResult {
   newImported: number;
   updated: number;
   moved: number;
+  restored: number;
   skippedDuplicates: number;
   failed: number;
   skipped: number;           // back-compat alias = skippedDuplicates + failed
   duplicatePolicy: DuplicatePolicy;
+  paidCreated: number;
+  paidLinked: number;
+  paidUnlinked: number;
+  errors: string[];
 }
 
 interface Props {
