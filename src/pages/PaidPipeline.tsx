@@ -926,9 +926,12 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [showActivity, setShowActivity] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedTpl, setCopiedTpl] = useState<string | null>(null);
-  const [crmStages, setCrmStages] = useState<{ id: string; name: string; pipeline_id: string | null }[]>([]);
+  const [crmStages, setCrmStages] = useState<{ id: string; name: string; pipeline_id: string | null; color?: string | null }[]>([]);
   const [crmStageId, setCrmStageId] = useState<string | null>(null);
   const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
+  const [crmPickerOpen, setCrmPickerOpen] = useState(false);
+  const [crmStageSearch, setCrmStageSearch] = useState("");
+  const [linkingCrm, setLinkingCrm] = useState(false);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
@@ -937,14 +940,33 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     ]);
     setPayments((p as any) || []);
     setActivity((a as any) || []);
+
+    // Resolve CRM pipeline: prefer linked lead's pipeline, else fall back to Paid — Onboarding pipeline.
+    let resolvedPipelineId: string | null = null;
     if (lead.crm_lead_id) {
-      const [{ data: crmLead }, { data: stagesData }] = await Promise.all([
-        supabase.from("leads").select("id, stage_id, pipeline_id").eq("id", lead.crm_lead_id).maybeSingle(),
-        supabase.from("stages").select("id, name, pipeline_id").order("sort_order", { ascending: true }),
-      ]);
+      const { data: crmLead } = await supabase
+        .from("leads").select("id, stage_id, pipeline_id").eq("id", lead.crm_lead_id).maybeSingle();
       setCrmStageId((crmLead as any)?.stage_id || null);
-      setCrmPipelineId((crmLead as any)?.pipeline_id || null);
+      resolvedPipelineId = (crmLead as any)?.pipeline_id || null;
+    } else {
+      setCrmStageId(null);
+    }
+    if (!resolvedPipelineId) {
+      const { data: paidPipe } = await supabase
+        .from("pipelines").select("id").eq("pipeline_type", "paid").order("position").limit(1).maybeSingle();
+      resolvedPipelineId = (paidPipe as any)?.id || null;
+    }
+    setCrmPipelineId(resolvedPipelineId);
+    if (resolvedPipelineId) {
+      const { data: stagesData } = await supabase
+        .from("stages")
+        .select("id, name, pipeline_id, color, is_active")
+        .eq("pipeline_id", resolvedPipelineId)
+        .eq("is_active", true)
+        .order("position", { ascending: true });
       setCrmStages((stagesData as any) || []);
+    } else {
+      setCrmStages([]);
     }
   };
   useEffect(() => { loadInner(); }, [lead.id]);
