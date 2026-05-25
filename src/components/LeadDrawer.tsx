@@ -168,11 +168,22 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
           </div>
-          {(lead as any).paid_pipeline_lead_id && (
-            <div className="mt-3">
-              <Link to={`/paid-pipeline?lead=${(lead as any).paid_pipeline_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
-                <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
-              </Link>
+          {((lead as any).paid_pipeline_lead_id || opsLeadId !== null || lead.lead_type === "paid") && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(lead as any).paid_pipeline_lead_id && (
+                <Link to={`/paid-pipeline?lead=${(lead as any).paid_pipeline_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+                  <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
+                </Link>
+              )}
+              {opsLeadId ? (
+                <Link to={`/operations-crm?lead=${opsLeadId}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#166534] text-white hover:opacity-90">
+                  <ExternalLink className="w-3 h-3" /> Open in Operations CRM
+                </Link>
+              ) : (
+                <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line bg-white hover:bg-off">
+                  <ExternalLink className="w-3 h-3" /> Send to Operations CRM
+                </button>
+              )}
             </div>
           )}
           {/* Payment / Token snapshot */}
