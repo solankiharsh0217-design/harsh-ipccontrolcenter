@@ -26,6 +26,9 @@ import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 import { archivePaidBuyer, restorePaidBuyer } from "@/lib/crmArchive";
 import { ArchiveConfirmModal } from "@/components/crm/ArchiveConfirmModal";
+import { stageChip } from "@/lib/stageColors";
+import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type Lead = {
   id: string;
@@ -924,9 +927,12 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [showActivity, setShowActivity] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedTpl, setCopiedTpl] = useState<string | null>(null);
-  const [crmStages, setCrmStages] = useState<{ id: string; name: string; pipeline_id: string | null }[]>([]);
+  const [crmStages, setCrmStages] = useState<{ id: string; name: string; pipeline_id: string | null; color?: string | null }[]>([]);
   const [crmStageId, setCrmStageId] = useState<string | null>(null);
   const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
+  const [crmPickerOpen, setCrmPickerOpen] = useState(false);
+  const [crmStageSearch, setCrmStageSearch] = useState("");
+  const [linkingCrm, setLinkingCrm] = useState(false);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
@@ -935,14 +941,33 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     ]);
     setPayments((p as any) || []);
     setActivity((a as any) || []);
+
+    // Resolve CRM pipeline: prefer linked lead's pipeline, else fall back to Paid — Onboarding pipeline.
+    let resolvedPipelineId: string | null = null;
     if (lead.crm_lead_id) {
-      const [{ data: crmLead }, { data: stagesData }] = await Promise.all([
-        supabase.from("leads").select("id, stage_id, pipeline_id").eq("id", lead.crm_lead_id).maybeSingle(),
-        supabase.from("stages").select("id, name, pipeline_id").order("sort_order", { ascending: true }),
-      ]);
+      const { data: crmLead } = await supabase
+        .from("leads").select("id, stage_id, pipeline_id").eq("id", lead.crm_lead_id).maybeSingle();
       setCrmStageId((crmLead as any)?.stage_id || null);
-      setCrmPipelineId((crmLead as any)?.pipeline_id || null);
+      resolvedPipelineId = (crmLead as any)?.pipeline_id || null;
+    } else {
+      setCrmStageId(null);
+    }
+    if (!resolvedPipelineId) {
+      const { data: paidPipe } = await supabase
+        .from("pipelines").select("id").eq("type", "paid").order("position").limit(1).maybeSingle();
+      resolvedPipelineId = (paidPipe as any)?.id || null;
+    }
+    setCrmPipelineId(resolvedPipelineId);
+    if (resolvedPipelineId) {
+      const { data: stagesData } = await supabase
+        .from("stages")
+        .select("id, name, pipeline_id, color, is_active")
+        .eq("pipeline_id", resolvedPipelineId)
+        .eq("is_active", true)
+        .order("position", { ascending: true });
       setCrmStages((stagesData as any) || []);
+    } else {
+      setCrmStages([]);
     }
   };
   useEffect(() => { loadInner(); }, [lead.id]);
@@ -1024,22 +1049,72 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   };
 
   const changeCrmStage = async (newStageId: string) => {
-    if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) return;
+    if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) { setCrmPickerOpen(false); return; }
     const oldName = crmStages.find(s => s.id === crmStageId)?.name || "—";
     const newName = crmStages.find(s => s.id === newStageId)?.name || "—";
+    const prevId = crmStageId;
     setCrmStageId(newStageId);
-    await supabase.from("leads").update({ stage_id: newStageId }).eq("id", lead.crm_lead_id);
+    setCrmPickerOpen(false);
+    const { error } = await supabase.from("leads").update({ stage_id: newStageId }).eq("id", lead.crm_lead_id);
+    if (error) {
+      setCrmStageId(prevId);
+      toast.error("Failed to update CRM stage");
+      return;
+    }
     logActivity({
       module_key: "paid_pipeline", module_label: "Paid Pipeline",
-      action_type: "linked_crm_stage_changed_from_paid_pipeline",
+      action_type: "paid_pipeline_updated_linked_crm_stage",
       entity_type: "lead", entity_id: lead.crm_lead_id, entity_label: lead.name || undefined,
       old_values: { stage: oldName },
       new_values: { stage: newName },
-      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id },
+      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, old_stage: oldName, new_stage: newName, changed_by: user?.id || null },
       summary: `Linked CRM stage changed from '${oldName}' to '${newName}' from Paid Pipeline drawer.`,
     });
-    toast.success(`CRM stage → ${newName}`);
+    toast.success("Calling CRM stage updated.");
+
+    // Trigger Operations handoff evaluation for this stage change
+    try {
+      const rules = await getActiveHandoffRules();
+      const stagesById = new Map(crmStages.map(s => [s.id, { id: s.id, name: s.name }]));
+      const rule = findRuleForStage(rules, crmPipelineId, newStageId, stagesById as any);
+      if (rule) {
+        if (rule.mode === "auto" && isRuleAutoReady(rule)) {
+          const res = await applyAutoHandoff(rule, [{
+            id: lead.crm_lead_id, full_name: lead.name, email: lead.email, phone: lead.phone,
+            program_name: lead.product_name_snapshot || null, paid_pipeline_lead_id: lead.id,
+          }], user?.id || null);
+          if (res.inserted > 0) toast.success("Auto-sent to Operations CRM");
+          else if (res.updated > 0) toast.info("Operations CRM record updated");
+        } else if (rule.mode === "suggest") {
+          toast.info(`Operations handoff suggested: ${rule.name}`);
+        }
+      }
+    } catch (e) { /* non-fatal */ }
+
     onChanged();
+  };
+
+  // Backfill: try to link this paid buyer to a Calling CRM lead via email/phone.
+  const linkToCrm = async () => {
+    setLinkingCrm(true);
+    try {
+      const filters: string[] = [];
+      if (lead.email) filters.push(`email.ilike.${lead.email}`);
+      if (lead.phone) filters.push(`phone.eq.${lead.phone}`);
+      if (filters.length === 0) { toast.error("No email/phone on this buyer to match."); return; }
+      const { data: match } = await supabase.from("leads").select("id, full_name").or(filters.join(",")).limit(1).maybeSingle();
+      if (!match) { toast.error("No matching Calling CRM lead found."); return; }
+      await supabase.from("paid_pipeline_leads").update({ crm_lead_id: (match as any).id } as any).eq("id", lead.id);
+      logActivity({
+        module_key: "paid_pipeline", action_type: "paid_buyer_linked_to_crm",
+        entity_type: "paid_pipeline_lead", entity_id: lead.id, entity_label: lead.name || undefined,
+        metadata: { crm_lead_id: (match as any).id }, summary: `Linked paid buyer to Calling CRM lead ${(match as any).full_name || ""}.`,
+      });
+      toast.success("Linked to Calling CRM lead");
+      onChanged();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to link");
+    } finally { setLinkingCrm(false); }
   };
 
 
@@ -1176,6 +1251,80 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           </Section>
 
 
+          {/* 1c. Linked Calling CRM Stage — high in drawer for quick stage sync */}
+          {(() => {
+            const current = crmStages.find(s => s.id === crmStageId) || null;
+            const chip = current ? stageChip(current.name, current.color) : null;
+            const filtered = crmStages
+              .filter(s => !crmStageSearch.trim() || s.name.toLowerCase().includes(crmStageSearch.trim().toLowerCase()));
+            return (
+              <div className="rounded-xl border border-[#C7D2FE] bg-gradient-to-br from-[#EEF2FF] to-white p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[#3730A3]">🔗 Linked Calling CRM Stage</div>
+                    {!lead.crm_lead_id && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]">Not linked</span>
+                    )}
+                  </div>
+                  {lead.crm_lead_id && (
+                    <Link to={`/crm?lead=${lead.crm_lead_id}`} className="text-[11px] text-[#3730A3] hover:underline">Open in CRM ↗</Link>
+                  )}
+                </div>
+
+                {!lead.crm_lead_id ? (
+                  <div className="space-y-2">
+                    <div className="text-[12px] text-[#3730A3]">No linked Calling CRM lead found. Link this buyer so stage changes sync across both pipelines.</div>
+                    <button onClick={linkToCrm} disabled={linkingCrm} className="ipc-btn ipc-btn-black !h-9">
+                      {linkingCrm ? "Linking…" : "Link to Calling CRM lead"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
+                    {chip ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border" style={{ background: chip.bg, color: chip.text, borderColor: chip.border }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: chip.dot }} />
+                        {current!.name}
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-xs bg-off border border-line">—</span>
+                    )}
+                    <Popover open={crmPickerOpen} onOpenChange={(v) => { setCrmPickerOpen(v); if (!v) setCrmStageSearch(""); }}>
+                      <PopoverTrigger asChild>
+                        <button className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-black text-white hover:opacity-90">
+                          Change Stage
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" side="bottom" sideOffset={6} collisionPadding={16} className="z-[1100] w-[320px] p-0 bg-white border border-line rounded-md shadow-lg overflow-hidden">
+                        <div className="px-3 py-2 border-b border-line">
+                          <div className="text-[11px] font-semibold uppercase tracking-wider mb-1.5">Change CRM Stage <span className="text-muted-foreground font-normal">({crmStages.length})</span></div>
+                          <input autoFocus value={crmStageSearch} onChange={(e) => setCrmStageSearch(e.target.value)} placeholder="Search stages…" className="w-full text-xs outline-none bg-transparent" />
+                        </div>
+                        <div className="max-h-[280px] overflow-y-auto">
+                          {filtered.length === 0 && <div className="px-3 py-4 text-[12px] text-muted-foreground">No stages found.</div>}
+                          {filtered.map((s) => {
+                            const ch = stageChip(s.name, s.color);
+                            const isCurrent = s.id === crmStageId;
+                            return (
+                              <button key={s.id} onClick={() => changeCrmStage(s.id)} className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-off ${isCurrent ? "bg-off" : ""}`}>
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: ch.dot }} />
+                                <span className={`flex-1 truncate ${isCurrent ? "font-medium" : ""}`}>{s.name}</span>
+                                {isCurrent && <span className="text-[10px] text-muted-foreground">current</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+                <div className="text-[11px] text-muted-foreground mt-2">
+                  Changes here update the linked Calling CRM lead and trigger Operations handoff rules if matched.
+                </div>
+              </div>
+            );
+          })()}
+
           {/* 2. Next Follow-up — high-visibility, daily-use card */}
           {(() => {
             const todayStr = new Date().toISOString().slice(0, 10);
@@ -1241,33 +1390,6 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             </div>
           </Section>
 
-          {/* 3b. Linked Calling CRM Stage */}
-          {lead.crm_lead_id && (
-            <Section title="Linked Calling CRM Stage">
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="qsi-label">Current CRM stage</label>
-                  <select
-                    className="qsi-input"
-                    value={crmStageId || ""}
-                    onChange={(e) => changeCrmStage(e.target.value)}
-                  >
-                    <option value="">— Select stage —</option>
-                    {crmStages
-                      .filter(s => !crmPipelineId || s.pipeline_id === crmPipelineId)
-                      .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <Link
-                  to={`/crm?lead=${lead.crm_lead_id}`}
-                  className="ipc-btn ipc-btn-ghost !h-9 whitespace-nowrap mt-5"
-                >Open in CRM</Link>
-              </div>
-              <div className="text-[11px] text-muted-foreground mt-2">
-                Changes here update the linked Calling CRM lead's stage. Operations handoff rules still apply.
-              </div>
-            </Section>
-          )}
 
           {/* 4. Batch information — read-only by default */}
           <Section title="Batch information">
