@@ -935,8 +935,113 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     ]);
     setPayments((p as any) || []);
     setActivity((a as any) || []);
+    if (lead.crm_lead_id) {
+      const [{ data: crmLead }, { data: stagesData }] = await Promise.all([
+        supabase.from("leads").select("id, stage_id, pipeline_id").eq("id", lead.crm_lead_id).maybeSingle(),
+        supabase.from("stages").select("id, name, pipeline_id").order("sort_order", { ascending: true }),
+      ]);
+      setCrmStageId((crmLead as any)?.stage_id || null);
+      setCrmPipelineId((crmLead as any)?.pipeline_id || null);
+      setCrmStages((stagesData as any) || []);
+    }
   };
   useEffect(() => { loadInner(); }, [lead.id]);
+
+  const hasToken = Number(lead.token_amount_collected || 0) > 0 ||
+    payments.some((p: any) => p.is_token || /token/i.test(p.payment_type || "") || /token/i.test(p.payment_category || ""));
+  const lastPaymentDate = payments[0]?.payment_date || null;
+
+  const openTokenPayment = () => {
+    setPayPrefill({ type: "First Token", category: "Token Amount", description: "Token payment", isToken: true });
+    setPayHeaderNote("Please record the token amount before moving this buyer to Token Paid.");
+    setPostPayAction("setTokenPaid");
+    setOpenPay(true);
+  };
+  const openAddPayment = () => {
+    setPayPrefill(null);
+    setPayHeaderNote(undefined);
+    setPostPayAction(null);
+    setOpenPay(true);
+  };
+  const openRecordTokenSimple = () => {
+    setPayPrefill({ type: "First Token", category: "Token Amount", description: "Token payment", isToken: true });
+    setPayHeaderNote(undefined);
+    setPostPayAction(null);
+    setOpenPay(true);
+  };
+
+  const handlePaymentSaved = async () => {
+    await loadInner();
+    if (postPayAction === "setTokenPaid") {
+      await supabase.from("paid_pipeline_leads").update({ pipeline_stage: "Token Paid" } as any).eq("id", lead.id);
+      setStage("Token Paid");
+      await recomputePaidLead(lead.id);
+      logActivity({
+        module_key: "paid_pipeline", module_label: "Paid Pipeline",
+        action_type: "paid_pipeline_stage_changed", action_label: "Stage changed via suggestion",
+        entity_type: "paid_pipeline_lead", entity_id: lead.id, entity_label: lead.name || undefined,
+        old_values: { pipeline_stage: lead.pipeline_stage },
+        new_values: { pipeline_stage: "Token Paid" },
+        metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, source: "suggested_action" },
+        summary: `Paid Pipeline stage set to 'Token Paid' after token recorded.`,
+      });
+      toast.success("Token recorded and stage set to Token Paid");
+    }
+    setPostPayAction(null);
+    onChanged();
+  };
+
+  const changePaidStage = async (newStage: string) => {
+    if (!newStage || newStage === stage) { setStage(newStage); return; }
+    const tokenMissing = /token paid/i.test(newStage) && !hasToken;
+    if (tokenMissing) {
+      const ok = confirm("Token amount is not recorded. Move stage to 'Token Paid' anyway?");
+      if (!ok) return;
+      logActivity({
+        module_key: "paid_pipeline", module_label: "Paid Pipeline",
+        action_type: "paid_pipeline_stage_change_without_payment_confirmed",
+        entity_type: "paid_pipeline_lead", entity_id: lead.id, entity_label: lead.name || undefined,
+        metadata: { paid_pipeline_lead_id: lead.id, attempted_stage: newStage },
+        severity: "warning",
+        summary: `User moved to '${newStage}' without recorded token.`,
+      });
+    }
+    const oldStage = stage;
+    setStage(newStage);
+    await supabase.from("paid_pipeline_leads").update({ pipeline_stage: newStage } as any).eq("id", lead.id);
+    await recomputePaidLead(lead.id);
+    logActivity({
+      module_key: "paid_pipeline", module_label: "Paid Pipeline",
+      action_type: "paid_pipeline_stage_changed", action_label: "Stage changed",
+      entity_type: "paid_pipeline_lead", entity_id: lead.id, entity_label: lead.name || undefined,
+      old_values: { pipeline_stage: oldStage },
+      new_values: { pipeline_stage: newStage },
+      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id },
+      summary: `Paid Pipeline stage changed from '${oldStage || "—"}' to '${newStage}'.`,
+    });
+    toast.success(`Stage → ${newStage}`);
+    onChanged();
+  };
+
+  const changeCrmStage = async (newStageId: string) => {
+    if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) return;
+    const oldName = crmStages.find(s => s.id === crmStageId)?.name || "—";
+    const newName = crmStages.find(s => s.id === newStageId)?.name || "—";
+    setCrmStageId(newStageId);
+    await supabase.from("leads").update({ stage_id: newStageId }).eq("id", lead.crm_lead_id);
+    logActivity({
+      module_key: "paid_pipeline", module_label: "Paid Pipeline",
+      action_type: "linked_crm_stage_changed_from_paid_pipeline",
+      entity_type: "lead", entity_id: lead.crm_lead_id, entity_label: lead.name || undefined,
+      old_values: { stage: oldName },
+      new_values: { stage: newName },
+      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id },
+      summary: `Linked CRM stage changed from '${oldName}' to '${newName}' from Paid Pipeline drawer.`,
+    });
+    toast.success(`CRM stage → ${newName}`);
+    onChanged();
+  };
+
 
   const save = async (patch: Partial<Lead>) => {
     await supabase.from("paid_pipeline_leads").update(patch as any).eq("id", lead.id);
