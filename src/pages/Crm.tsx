@@ -712,6 +712,13 @@ export default function Crm() {
           )}
 
           <div className="flex items-center gap-1 ml-auto">
+            <button
+              onClick={() => setShowArchived((v) => !v)}
+              className={`ipc-btn !h-9 !text-xs ${showArchived ? "!bg-[#FEF3C7] !text-[#92400E] border-[#FDE68A]" : "ipc-btn-ghost"}`}
+              title={showArchived ? "Showing archived — click to hide" : "Show archived leads and batches"}
+            >
+              <Archive className="w-3.5 h-3.5" /> {showArchived ? "Showing archived" : "Show archived"}
+            </button>
             <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
             <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
             {(() => {
@@ -1221,27 +1228,63 @@ export default function Crm() {
           <div className="grid grid-cols-3 gap-4">
             {visibleBatches.map((b) => {
               const pipe = pipelines.find((p) => p.id === b.pipelineId);
+              const isArchivedView = showArchived;
               return (
                 <div
                   key={b.key}
-                  className="relative text-left p-5 rounded-xl border border-line bg-white hover:shadow-md hover:border-gold transition-all cursor-pointer"
+                  className={`relative text-left p-5 rounded-xl border bg-white hover:shadow-md transition-all cursor-pointer ${isArchivedView ? "border-[#FDE68A] bg-[#FFFBEB]/40 opacity-80 hover:border-[#F59E0B]" : "border-line hover:border-gold"}`}
                   onClick={() => {
                     if (b.pipelineId) setActivePipeline(b.pipelineId);
                     setBatchFilter(b.name);
                     setView("kanban");
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setEditBatch({ origName: b.name, origDate: b.date, name: b.name, date: b.date || "" }); }}
-                    className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground hover:text-black hover:bg-off"
-                    title="Edit batch"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-black text-white text-[11px] font-medium tracking-wide">
-                    <Calendar className="w-3 h-3" />
-                    {b.date || "No date"}
+                  <BatchActionsMenu
+                    isAdmin={isAdmin}
+                    archived={isArchivedView}
+                    onView={() => {
+                      if (b.pipelineId) setActivePipeline(b.pipelineId);
+                      setBatchFilter(b.name);
+                      setView("kanban");
+                    }}
+                    onRename={() => setEditBatch({ origName: b.name, origDate: b.date, name: b.name, date: b.date || "" })}
+                    onArchive={async () => {
+                      const leadIds = leads
+                        .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date && !l.archived_at)
+                        .map((l) => l.id);
+                      if (!leadIds.length) { toast.info("No active leads to archive in this batch"); return; }
+                      const links = await getLeadLinks(leadIds).catch(() => ({ paid: 0, ops: 0 }));
+                      setArchiveBatchLinks(links);
+                      setArchiveBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds, activeCount: leadIds.length });
+                    }}
+                    onRestore={async () => {
+                      try {
+                        await restoreBatch({ batchName: b.name, batchDate: b.date, pipelineId: b.pipelineId });
+                        toast.success(`Batch "${b.name}" restored`);
+                        await load();
+                      } catch (e: any) { toast.error(e.message || "Restore failed"); }
+                    }}
+                    onDelete={async () => {
+                      const leadIds = leads
+                        .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date)
+                        .map((l) => l.id);
+                      const links = await getLeadLinks(leadIds).catch(() => ({ paid: 0, ops: 0 }));
+                      setDeleteBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds });
+                      setDeleteBatchBlocked(links.paid > 0 || links.ops > 0
+                        ? `Cannot permanently delete — ${links.paid} lead(s) linked to Paid Pipeline and ${links.ops} to Operations CRM. Archive instead.`
+                        : null);
+                    }}
+                  />
+                  <div className="flex items-center gap-2">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-black text-white text-[11px] font-medium tracking-wide">
+                      <Calendar className="w-3 h-3" />
+                      {b.date || "No date"}
+                    </div>
+                    {isArchivedView && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">
+                        <Archive className="w-3 h-3" /> Archived
+                      </span>
+                    )}
                   </div>
                   <div className="font-serif text-lg mt-2 line-clamp-2">{b.name}</div>
                   <div className="text-[11px] text-muted-foreground mt-1">{pipe?.name || "—"}</div>
