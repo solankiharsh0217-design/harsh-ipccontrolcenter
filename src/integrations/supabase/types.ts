@@ -2041,6 +2041,391 @@ export type Database = {
         }
         Relationships: []
       }
+      operations_conversion_reports: {
+        Row: {
+          campaign_name: string | null
+          client_name: string | null
+          conversion_count: number
+          conversion_date: string
+          conversion_value: number | null
+          created_at: string
+          id: string
+          media_buyer_id: string | null
+          notes: string | null
+          operations_lead_id: string
+          proof_url: string | null
+          updated_at: string
+          verification_note: string | null
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          campaign_name?: string | null
+          client_name?: string | null
+          conversion_count?: number
+          conversion_date?: string
+          conversion_value?: number | null
+          created_at?: string
+          id?: string
+          media_buyer_id?: string | null
+          notes?: string | null
+          operations_lead_id: string
+          proof_url?: string | null
+          updated_at?: string
+          verification_note?: string | null
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          campaign_name?: string | null
+          client_name?: string | null
+          conversion_count?: number
+          conversion_date?: string
+          conversion_value?: number | null
+          created_at?: string
+          id?: string
+          media_buyer_id?: string | null
+          notes?: string | null
+          operations_lead_id?: string
+          proof_url?: string | null
+          updated_at?: string
+          verification_note?: string | null
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_conversion_reports_media_buyer_id_fkey"
+            columns: ["media_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_conversion_reports_operations_lead_id_fkey"
+            columns: ["operations_lead_id"]
+            isOneToOne: false
+            referencedRelation: "operations_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_conversion_reports_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operations_leads: {
+        Row: {
+          ad_launch_date: string | null
+          assigned_media_buyer_id: string | null
+          assigned_media_buyer_name: string | null
+          batch_name: string | null
+          created_at: string
+          created_by: string | null
+          crm_lead_id: string | null
+          current_active_start_date: string | null
+          current_stage: string | null
+          deal_value: number | null
+          email: string | null
+          id: string
+          last_paused_at: string | null
+          last_resumed_at: string | null
+          name: string
+          notes: string | null
+          onboarding_batch: string | null
+          paid_pipeline_lead_id: string | null
+          phone: string | null
+          pipeline_id: string | null
+          priority: string | null
+          product_name: string | null
+          service_days_committed: number | null
+          service_end_target_date: string | null
+          service_months: number | null
+          service_package_id: string | null
+          service_package_name: string | null
+          service_status: string
+          sort_order: number
+          source_stage: string | null
+          stage_id: string | null
+          tags: Json
+          total_active_days: number
+          total_paused_days: number
+          updated_at: string
+        }
+        Insert: {
+          ad_launch_date?: string | null
+          assigned_media_buyer_id?: string | null
+          assigned_media_buyer_name?: string | null
+          batch_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          current_active_start_date?: string | null
+          current_stage?: string | null
+          deal_value?: number | null
+          email?: string | null
+          id?: string
+          last_paused_at?: string | null
+          last_resumed_at?: string | null
+          name: string
+          notes?: string | null
+          onboarding_batch?: string | null
+          paid_pipeline_lead_id?: string | null
+          phone?: string | null
+          pipeline_id?: string | null
+          priority?: string | null
+          product_name?: string | null
+          service_days_committed?: number | null
+          service_end_target_date?: string | null
+          service_months?: number | null
+          service_package_id?: string | null
+          service_package_name?: string | null
+          service_status?: string
+          sort_order?: number
+          source_stage?: string | null
+          stage_id?: string | null
+          tags?: Json
+          total_active_days?: number
+          total_paused_days?: number
+          updated_at?: string
+        }
+        Update: {
+          ad_launch_date?: string | null
+          assigned_media_buyer_id?: string | null
+          assigned_media_buyer_name?: string | null
+          batch_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          current_active_start_date?: string | null
+          current_stage?: string | null
+          deal_value?: number | null
+          email?: string | null
+          id?: string
+          last_paused_at?: string | null
+          last_resumed_at?: string | null
+          name?: string
+          notes?: string | null
+          onboarding_batch?: string | null
+          paid_pipeline_lead_id?: string | null
+          phone?: string | null
+          pipeline_id?: string | null
+          priority?: string | null
+          product_name?: string | null
+          service_days_committed?: number | null
+          service_end_target_date?: string | null
+          service_months?: number | null
+          service_package_id?: string | null
+          service_package_name?: string | null
+          service_status?: string
+          sort_order?: number
+          source_stage?: string | null
+          stage_id?: string | null
+          tags?: Json
+          total_active_days?: number
+          total_paused_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_leads_assigned_media_buyer_id_fkey"
+            columns: ["assigned_media_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_leads_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_leads_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_leads_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_leads_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operations_reward_progress: {
+        Row: {
+          achieved_at: string | null
+          approved_conversion_count: number
+          created_at: string
+          id: string
+          media_buyer_id: string
+          month: string
+          paid_at: string | null
+          reward_amount: number
+          reward_status: string
+          rule_id: string | null
+          target_count: number
+          updated_at: string
+        }
+        Insert: {
+          achieved_at?: string | null
+          approved_conversion_count?: number
+          created_at?: string
+          id?: string
+          media_buyer_id: string
+          month: string
+          paid_at?: string | null
+          reward_amount: number
+          reward_status?: string
+          rule_id?: string | null
+          target_count: number
+          updated_at?: string
+        }
+        Update: {
+          achieved_at?: string | null
+          approved_conversion_count?: number
+          created_at?: string
+          id?: string
+          media_buyer_id?: string
+          month?: string
+          paid_at?: string | null
+          reward_amount?: number
+          reward_status?: string
+          rule_id?: string | null
+          target_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_reward_progress_media_buyer_id_fkey"
+            columns: ["media_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_reward_progress_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "operations_reward_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operations_reward_rules: {
+        Row: {
+          active: boolean
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          period: string
+          reward_amount: number
+          role_scope: string
+          rule_name: string
+          target_count: number
+          target_metric: string
+          updated_at: string
+          verification_required: boolean
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          period?: string
+          reward_amount?: number
+          role_scope?: string
+          rule_name: string
+          target_count?: number
+          target_metric?: string
+          updated_at?: string
+          verification_required?: boolean
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          period?: string
+          reward_amount?: number
+          role_scope?: string
+          rule_name?: string
+          target_count?: number
+          target_metric?: string
+          updated_at?: string
+          verification_required?: boolean
+        }
+        Relationships: []
+      }
+      operations_service_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_date: string
+          event_type: string
+          id: string
+          note: string | null
+          operations_lead_id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_date?: string
+          event_type: string
+          id?: string
+          note?: string | null
+          operations_lead_id: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          note?: string | null
+          operations_lead_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_service_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_service_events_operations_lead_id_fkey"
+            columns: ["operations_lead_id"]
+            isOneToOne: false
+            referencedRelation: "operations_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       paid_pipeline_activity_logs: {
         Row: {
           activity_type: string
@@ -2811,6 +3196,7 @@ export type Database = {
           can_receive_calling_crm_leads: boolean
           can_receive_follow_up_tasks: boolean
           can_receive_media_buyer_cases: boolean
+          can_receive_operations_leads: boolean
           can_receive_paid_pipeline_leads: boolean
           can_receive_payment_recovery_leads: boolean
           created_at: string
@@ -2827,6 +3213,7 @@ export type Database = {
           can_receive_calling_crm_leads?: boolean
           can_receive_follow_up_tasks?: boolean
           can_receive_media_buyer_cases?: boolean
+          can_receive_operations_leads?: boolean
           can_receive_paid_pipeline_leads?: boolean
           can_receive_payment_recovery_leads?: boolean
           created_at?: string
@@ -2843,6 +3230,7 @@ export type Database = {
           can_receive_calling_crm_leads?: boolean
           can_receive_follow_up_tasks?: boolean
           can_receive_media_buyer_cases?: boolean
+          can_receive_operations_leads?: boolean
           can_receive_paid_pipeline_leads?: boolean
           can_receive_payment_recovery_leads?: boolean
           created_at?: string
@@ -4764,7 +5152,7 @@ export type Database = {
         | "very-cold"
         | "true-absentee"
       lead_type: "paid" | "unpaid"
-      pipeline_type: "unpaid" | "paid" | "custom"
+      pipeline_type: "unpaid" | "paid" | "custom" | "operations"
       user_status: "pending" | "active"
     }
     CompositeTypes: {
@@ -4906,7 +5294,7 @@ export const Constants = {
         "true-absentee",
       ],
       lead_type: ["paid", "unpaid"],
-      pipeline_type: ["unpaid", "paid", "custom"],
+      pipeline_type: ["unpaid", "paid", "custom", "operations"],
       user_status: ["pending", "active"],
     },
   },
