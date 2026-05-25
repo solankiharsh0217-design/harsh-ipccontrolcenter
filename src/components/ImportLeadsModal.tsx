@@ -238,7 +238,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           const chunk = emails.slice(i, i + 300);
           const { data } = await supabase
             .from("leads")
-            .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type")
+            .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type, archived_at")
             .in("email", chunk);
           (data || []).forEach((l: any) => {
             const k = normEmail(l.email);
@@ -246,12 +246,17 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           });
         }
         const dupCount = emails.filter((e) => existingByEmail.has(e)).length;
+        const archivedDupCount = emails.filter((e) => {
+          const ex = existingByEmail.get(e);
+          return ex && ex.archived_at;
+        }).length;
         const newCount = emails.length - dupCount;
         if (!cancelled) {
           setPreflight({
             total: rows.length,
             newCount,
             dupCount,
+            archivedDupCount,
             missingEmail,
             invalid,
             existingByEmail,
