@@ -110,6 +110,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
             Announcements
           </NavItem>
+          <NavItem to="/notifications" show={canSeeNotifications}>
+            <Icon><><path d="M3 12h10M5 12V7a3 3 0 016 0v5M7 14a1 1 0 002 0"/></></Icon>
+            Notifications
+          </NavItem>
 
           <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">Tools</span>
           <NavItem to="/roas-calculator" show={hasModule("roas")}>
@@ -132,24 +136,40 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><path d="M3 3h10v10H3z"/><path d="M5 7h6M5 9h4"/></></Icon>
             Lead Qualifier
           </NavItem>
-          <NavItem to="/crm" show={hasModule("crm")}>
+          <NavItem to="/crm" show={hasModule("crm") || hasModule("calling_crm")}>
             <Icon><><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M2 14c0-2 1.5-3 3-3s3 1 3 3M8 14c0-2 1.5-3 3-3s3 1 3 3"/></></Icon>
             Calling CRM
           </NavItem>
+          <NavItem to="/paid-pipeline" show={hasModule("paid-pipeline") || hasModule("paid_pipeline")}>
+            <Icon d="M2 4h12v8H2z" />
+            Paid Pipeline
+          </NavItem>
+          <NavItem to="/follow-up-command-center" show={hasModule("follow_up_command_center")}>
+            <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
+            Follow-Up Center
+          </NavItem>
+          <NavItem to="/payment-recovery" show={hasModule("payment_recovery")}>
+            <Icon d="M2 8h12M5 4l-3 4 3 4M11 4l3 4-3 4" />
+            Payment Recovery
+          </NavItem>
 
-          <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">Centers</span>
-          <NavItem to="/revenue-command-center">
-            <Icon><><path d="M2 4h12v8H2z"/><path d="M2 7h12M5 10h2"/></></Icon>
-            Revenue Center
-          </NavItem>
-          <NavItem to="/analytics-center">
-            <Icon d="M2 13l3-4 3 2 5-7" />
-            Analytics Center
-          </NavItem>
-          <NavItem to="/admin-center">
-            <Icon d="M8 1l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9l-3 1.5.5-3.5L3 4.5 6.5 4z" />
-            Admin Center
-          </NavItem>
+          {isAdmin && (
+            <>
+              <span className="block uppercase font-sans text-[9px] tracking-[0.15em] text-[hsl(var(--muted-light))] px-3 mb-[5px] mt-5">Centers</span>
+              <NavItem to="/revenue-command-center">
+                <Icon><><path d="M2 4h12v8H2z"/><path d="M2 7h12M5 10h2"/></></Icon>
+                Revenue Center
+              </NavItem>
+              <NavItem to="/analytics-center">
+                <Icon d="M2 13l3-4 3 2 5-7" />
+                Analytics Center
+              </NavItem>
+              <NavItem to="/admin-center">
+                <Icon d="M8 1l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9l-3 1.5.5-3.5L3 4.5 6.5 4z" />
+                Admin Center
+              </NavItem>
+            </>
+          )}
         </div>
 
         <div className="px-3 py-[14px] border-t border-line">

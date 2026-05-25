@@ -195,6 +195,13 @@ export default function AssignModal(props: Props) {
       });
       // notifications (one grouped per user)
       if (method !== "unassign") {
+        const moduleUrl =
+          moduleKey === "calling_crm" ? "/crm?assigned_to=me"
+          : moduleKey === "paid_pipeline" ? "/paid-pipeline?owner=me"
+          : moduleKey === "payment_recovery" ? "/payment-recovery?owner=me"
+          : moduleKey === "follow_up_command_center" ? "/follow-up-command-center?assigned_to=me"
+          : "/notifications";
+        const { data: { user: actor } } = await supabase.auth.getUser();
         for (const [uid, ids] of buckets) {
           if (!uid) continue;
           try {
@@ -202,9 +209,23 @@ export default function AssignModal(props: Props) {
               recipient_user_id: uid,
               module_key: moduleKey,
               notification_type: "leads_assigned",
-              title: "New leads assigned",
-              message: `${ids.length} ${moduleLabel} lead(s) assigned to you.`,
-              priority: "normal",
+              title: `New ${moduleLabel} leads assigned`,
+              message: `${ids.length} ${moduleLabel} lead(s) ${method === "round_robin" ? "(round-robin) " : ""}assigned to you.`,
+              priority: ids.length >= 10 ? "high" : "normal",
+              action_url: moduleUrl,
+              action_label: `Open ${moduleLabel}`,
+              entity_type: "lead_assignment",
+              triggered_by_user_id: actor?.id ?? null,
+              allowDuplicate: true,
+              metadata: {
+                module_key: moduleKey,
+                lead_ids: ids,
+                assignment_type: method === "round_robin" ? "round_robin" : (scope === "filtered" || scope === "unassigned_filtered" ? "filtered" : (ids.length > 1 ? "bulk" : "single")),
+                assigned_by: actor?.id ?? null,
+                assigned_to: uid,
+                count: ids.length,
+                deep_link: moduleUrl,
+              },
             });
           } catch { /* notifications optional */ }
         }
