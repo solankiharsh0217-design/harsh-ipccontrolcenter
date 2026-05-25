@@ -1234,8 +1234,8 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-full max-w-[720px] bg-white overflow-y-auto pb-44 relative">
-        <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-line flex justify-between items-start">
+      <div className="w-full max-w-[720px] bg-white flex flex-col h-[100dvh] overflow-hidden">
+        <div className="shrink-0 bg-white px-6 py-4 border-b border-line flex justify-between items-start">
           <div>
             <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
             <div className="text-[12px] text-muted-foreground">{lead.email || "—"} · {lead.phone || "—"}</div>
