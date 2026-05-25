@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
+import CodeOfConductRulesTab from "@/components/admin/CodeOfConductRulesTab";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft", ready_to_send: "Ready", sent: "Sent", viewed: "Viewed",
@@ -28,7 +29,7 @@ type ChecklistItem = { key: string; label: string; ok: boolean; required: boolea
 
 export default function CodeOfConductAdmin() {
   const { isAdmin } = useAuth();
-  const [tab, setTab] = useState<"setup" | "template" | "requests" | "diagnostics">("setup");
+  const [tab, setTab] = useState<"setup" | "template" | "rules" | "requests" | "diagnostics">("setup");
   const [tpl, setTpl] = useState<any>(null);
   const [savingTpl, setSavingTpl] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -210,10 +211,10 @@ export default function CodeOfConductAdmin() {
     <div className="max-w-[1200px]">
       <PageHead title="Code of Conduct" sub="Configure the agreement template, set up your sender, and track every signing request." />
       <div className="flex gap-1 border-b border-line mb-5 flex-wrap">
-        {(["setup", "template", "requests", "diagnostics"] as const).map((t) => (
+        {(["setup", "template", "rules", "requests", "diagnostics"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 text-[13px] font-medium border-b-2 -mb-[2px] ${tab === t ? "border-black text-black" : "border-transparent text-muted-foreground hover:text-black"}`}>
-            {t === "setup" ? "Email Setup" : t === "template" ? "Template" : t === "requests" ? `Requests (${requests.length})` : "Diagnostics"}
+            {t === "setup" ? "Email Setup" : t === "template" ? "Template" : t === "rules" ? "Trigger Rules" : t === "requests" ? `Requests (${requests.length})` : "Diagnostics"}
           </button>
         ))}
       </div>
@@ -396,6 +397,8 @@ export default function CodeOfConductAdmin() {
           </div>
         </div>
       )}
+
+      {tab === "rules" && <CodeOfConductRulesTab />}
 
       {tab === "diagnostics" && (
         <div className="bg-white border border-line rounded-xl p-6 space-y-4">

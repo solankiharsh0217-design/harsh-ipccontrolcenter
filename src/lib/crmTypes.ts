@@ -16,6 +16,10 @@ export interface Lead {
   first_join_time: string | null; is_super_hot: boolean; webinar_count: number;
   created_at: string; updated_at: string; sort_order?: number;
   paid_pipeline_lead_id?: string | null;
+  code_of_conduct_status?: string | null;
+  code_of_conduct_request_id?: string | null;
+  code_of_conduct_sent_at?: string | null;
+  code_of_conduct_signed_at?: string | null;
 }
 export interface ActivityLog {
   id: string; lead_id: string; agent_id: string | null; agent_name: string | null;

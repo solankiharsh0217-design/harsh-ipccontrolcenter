@@ -813,6 +813,99 @@ export type Database = {
           },
         ]
       }
+      code_of_conduct_rules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          link_expiry_days: number
+          mode: string
+          name: string
+          notify_admin: boolean
+          notify_owner: boolean
+          pipeline_id: string
+          source: string
+          stage_id: string
+          stage_id_after_signed: string | null
+          tag_id_after_signed: string | null
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          link_expiry_days?: number
+          mode?: string
+          name: string
+          notify_admin?: boolean
+          notify_owner?: boolean
+          pipeline_id: string
+          source: string
+          stage_id: string
+          stage_id_after_signed?: string | null
+          tag_id_after_signed?: string | null
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          link_expiry_days?: number
+          mode?: string
+          name?: string
+          notify_admin?: boolean
+          notify_owner?: boolean
+          pipeline_id?: string
+          source?: string
+          stage_id?: string
+          stage_id_after_signed?: string | null
+          tag_id_after_signed?: string | null
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_of_conduct_rules_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "code_of_conduct_rules_stage_id_after_signed_fkey"
+            columns: ["stage_id_after_signed"]
+            isOneToOne: false
+            referencedRelation: "stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "code_of_conduct_rules_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "code_of_conduct_rules_tag_id_after_signed_fkey"
+            columns: ["tag_id_after_signed"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "code_of_conduct_rules_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "code_of_conduct_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       code_of_conduct_templates: {
         Row: {
           created_at: string
