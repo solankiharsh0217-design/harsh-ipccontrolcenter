@@ -69,7 +69,7 @@ export default function FastFollowUpComposer({
         note,
         ownerId: ownerId || user?.id || null,
         createdBy: user?.id || null,
-        sourceModule: paidLeadId ? "paid_pipeline" : "calling_crm",
+        sourceModule: paidLeadId ? "paid_pipeline" : "crm",
         auditActionType: source === "paid_pipeline_drawer" ? "followup_saved_from_paid_pipeline_drawer" : "followup_saved_from_calling_crm_drawer",
         metadata: { source: source || (paidLeadId ? "paid_pipeline_drawer" : "calling_crm_drawer") },
       });
