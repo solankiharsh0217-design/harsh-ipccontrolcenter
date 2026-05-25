@@ -16,6 +16,7 @@ interface Member {
   full_name: string;
   role: string;
   department: string | null;
+  email: string | null;
   last_login: string | null;
 }
 
