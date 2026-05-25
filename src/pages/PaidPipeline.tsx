@@ -1149,6 +1149,33 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             </div>
           </Section>
 
+          {/* 1b. Token / Payment Recording */}
+          <Section title="Token / Payment Recording">
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              <Field label="Token collected" value={inr(lead.token_amount_collected)} tone={hasToken ? "green" : undefined} />
+              <Field label="Total collected" value={inr(lead.total_collected)} tone={Number(lead.total_collected) > 0 ? "green" : undefined} />
+              <Field label="Balance pending" value={inr(lead.balance_pending)} tone={Number(lead.balance_pending) > 0 ? "amber" : "green"} />
+              <Field label="Last payment" value={lastPaymentDate ? fmtDate(lastPaymentDate) : "—"} />
+            </div>
+            {!hasToken ? (
+              <div className="rounded-md border border-[#F5D78A] bg-gold-pale px-3 py-2.5 flex items-center justify-between gap-3">
+                <div className="text-[12.5px]">
+                  <div className="font-medium">No token recorded yet</div>
+                  <div className="text-[11.5px] text-muted-foreground">Record the token payment before moving this buyer to Token Paid.</div>
+                </div>
+                <button onClick={openRecordTokenSimple} className="ipc-btn ipc-btn-black !h-9 whitespace-nowrap">Record Token Payment</button>
+              </div>
+            ) : (
+              <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] px-3 py-2.5 flex items-center justify-between gap-3">
+                <div className="text-[12.5px] text-[#15803D]">
+                  Token recorded: <b>{inr(lead.token_amount_collected)}</b>
+                </div>
+                <button onClick={openAddPayment} className="ipc-btn ipc-btn-ghost !h-9 whitespace-nowrap">+ Add Another Payment</button>
+              </div>
+            )}
+          </Section>
+
+
           {/* 2. Next action / Follow-up — unified, high in drawer */}
           <Section title="Next action · Follow-up">
             <div className="grid grid-cols-3 gap-2 mb-2">
