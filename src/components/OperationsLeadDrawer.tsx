@@ -178,14 +178,12 @@ export default function OperationsLeadDrawer({
           </Section>
 
           {/* Client Conversions (Phase C) */}
-          <Section title="">
-            <ConversionsSection
-              leadId={lead.id}
-              leadName={lead.name}
-              assignedBuyerId={lead.assigned_media_buyer_id}
-              onChanged={onSaved}
-            />
-          </Section>
+          <ConversionsSection
+            leadId={lead.id}
+            leadName={lead.name}
+            assignedBuyerId={lead.assigned_media_buyer_id}
+            onChanged={onSaved}
+          />
 
           {/* Timeline */}
           <Section title="Service timeline">
