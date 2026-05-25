@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/auditLog";
 import MediaBuyerAliasManager from "@/components/admin/MediaBuyerAliasManager";
 import OperationsHandoffRulesPanel from "@/components/admin/OperationsHandoffRulesPanel";
+import OperationsRewardRulesPanel from "@/components/admin/OperationsRewardRulesPanel";
 
 
 const MS = "master_settings";
@@ -47,6 +48,8 @@ const SECTIONS = [
   { key: "calling_crm", label: "Calling CRM" },
   { key: "stage_sync", label: "Stage Sync Rules" },
   { key: "operations_handoff", label: "Operations Handoff Rules" },
+  { key: "operations_rewards", label: "Operations Reward Rules" },
+  { key: "operations_packages", label: "Operations Packages" },
   { key: "whatsapp", label: "WhatsApp Templates" },
   { key: "followup", label: "Follow-Up" },
   { key: "recovery", label: "Payment Recovery" },
@@ -151,6 +154,14 @@ export default function MasterSettings() {
           )}
           {activeSection === "calling_crm" && <CrmPipelinesSection />}
           {activeSection === "operations_handoff" && <OperationsHandoffRulesPanel />}
+          {activeSection === "operations_rewards" && <OperationsRewardRulesPanel />}
+          {activeSection === "operations_packages" && (
+            <PPSettingsGroup
+              title="Operations Packages"
+              subtitle="Service packages offered to operations clients (e.g. Ads Management, Lead Generation Support). These appear in the Send to Operations modal."
+              groups={[{ type: "operations_package", label: "Packages" }]}
+            />
+          )}
           {activeSection === "followup" && (
             <PPSettingsGroup
               title="Follow-Up Settings"

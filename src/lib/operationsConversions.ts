@@ -480,3 +480,108 @@ export async function checkAndCreateRewardAchievement(
     return null;
   }
 }
+
+// ============================================================
+// Phase D additions: bulk approvals, rules CRUD, monthly progress queries
+// ============================================================
+
+export async function bulkApproveConversions(
+  conversions: ConversionReport[],
+  actor: { id: string; name: string | null },
+  note?: string,
+): Promise<{ ok: number; failed: number }> {
+  let ok = 0, failed = 0;
+  for (const c of conversions) {
+    try { await approveConversion(c, actor, note); ok++; }
+    catch { failed++; }
+  }
+  return { ok, failed };
+}
+
+export async function bulkRejectConversions(
+  conversions: ConversionReport[],
+  actor: { id: string; name: string | null },
+  note?: string,
+): Promise<{ ok: number; failed: number }> {
+  let ok = 0, failed = 0;
+  for (const c of conversions) {
+    try { await rejectConversion(c, actor, note); ok++; }
+    catch { failed++; }
+  }
+  return { ok, failed };
+}
+
+export async function listRewardRules(): Promise<RewardRule[]> {
+  const { data } = await (supabase as any)
+    .from("operations_reward_rules")
+    .select("*")
+    .order("active", { ascending: false })
+    .order("created_at", { ascending: true });
+  return (data ?? []) as RewardRule[];
+}
+
+export async function upsertRewardRule(rule: Partial<RewardRule> & { id?: string }): Promise<RewardRule> {
+  if (rule.id) {
+    const { data, error } = await (supabase as any)
+      .from("operations_reward_rules")
+      .update({
+        rule_name: rule.rule_name,
+        period: rule.period,
+        target_metric: rule.target_metric,
+        target_count: rule.target_count,
+        reward_amount: rule.reward_amount,
+        currency: rule.currency,
+        active: rule.active,
+        description: rule.description,
+        role_scope: rule.role_scope,
+      })
+      .eq("id", rule.id)
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    return data as RewardRule;
+  }
+  const { data, error } = await (supabase as any)
+    .from("operations_reward_rules")
+    .insert({
+      rule_name: rule.rule_name ?? "New reward rule",
+      role_scope: rule.role_scope ?? "media_buyer",
+      period: rule.period ?? "monthly",
+      target_metric: rule.target_metric ?? "approved_conversions",
+      target_count: rule.target_count ?? 10,
+      reward_amount: rule.reward_amount ?? 3000,
+      currency: rule.currency ?? "INR",
+      active: rule.active ?? true,
+      description: rule.description ?? null,
+    })
+    .select("*")
+    .maybeSingle();
+  if (error) throw error;
+  return data as RewardRule;
+}
+
+export async function deleteRewardRule(id: string): Promise<void> {
+  const { error } = await (supabase as any).from("operations_reward_rules").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function listAllRewardProgressForMonth(month: string): Promise<RewardProgress[]> {
+  const { data } = await (supabase as any)
+    .from("operations_reward_progress")
+    .select("*")
+    .eq("month", month);
+  return (data ?? []) as RewardProgress[];
+}
+
+export async function listConversionsBetween(startDate: string, endDate: string): Promise<ConversionReport[]> {
+  const { data } = await (supabase as any)
+    .from("operations_conversion_reports")
+    .select("*")
+    .gte("conversion_date", startDate)
+    .lte("conversion_date", endDate)
+    .order("conversion_date", { ascending: true });
+  const rows = (data ?? []) as ConversionReport[];
+  await enrichNames(rows);
+  return rows;
+}
+
