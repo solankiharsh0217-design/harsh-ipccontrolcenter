@@ -1234,8 +1234,8 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-full max-w-[720px] bg-white overflow-y-auto pb-44 relative">
-        <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-line flex justify-between items-start">
+      <div className="w-full max-w-[720px] bg-white flex flex-col h-[100dvh] overflow-hidden">
+        <div className="shrink-0 bg-white px-6 py-4 border-b border-line flex justify-between items-start">
           <div>
             <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
             <div className="text-[12px] text-muted-foreground">{lead.email || "—"} · {lead.phone || "—"}</div>
@@ -1259,6 +1259,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           <button onClick={onClose} className="text-[20px] leading-none">×</button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="px-6 pt-4">
           <div className="rounded-lg border border-line bg-off/40 px-3 py-2.5">
             <div className="flex items-center justify-between mb-2">
@@ -1579,9 +1580,10 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             )}
           </Section>
         </div>
+        </div>
 
         {/* Sticky footer */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex justify-end gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <div className="shrink-0 bg-white border-t border-line px-6 py-3 flex justify-end gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Close</button>
           <button onClick={saveAll} className="ipc-btn ipc-btn-ghost">Save</button>
           <button
@@ -1592,6 +1594,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           </button>
         </div>
       </div>
+
 
       {openPay && <QuickAddPaymentModal leadId={lead.id} leadName={lead.name || undefined} prefill={payPrefill || undefined} headerNote={payHeaderNote} onClose={() => { setOpenPay(false); setPostPayAction(null); }} onSaved={handlePaymentSaved} />}
       {openFu && <QuickFollowUpModal leadId={lead.id} leadName={lead.name || undefined} crmLeadId={lead.crm_lead_id || null} defaults={{ priority: temperature || "Normal" }} onClose={() => setOpenFu(false)} onSaved={() => { loadInner(); onChanged(); }} />}

@@ -275,7 +275,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
 
-        <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line overflow-y-auto pb-44" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex-1 min-h-0 overflow-y-auto">
         {/* Header */}
         <div className="px-6 py-5 border-b border-line">
           <div className="flex items-start justify-between gap-3">
@@ -639,8 +640,9 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           </div>
         </div>
 
+        </div>
         {/* Sticky Save / Save & Close */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex items-center justify-between gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <div className="shrink-0 bg-white border-t border-line px-6 py-3 flex items-center justify-between gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
           <div className="flex items-center gap-2">
             <button
