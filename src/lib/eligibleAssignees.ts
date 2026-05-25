@@ -106,13 +106,15 @@ export async function getEligibleAssignees(
     "id", "full_name", "role", "status",
     "active_for_assignment",
     "include_in_round_robin",
+    "deactivated_at",
     ...flags,
   ].join(", ");
 
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select(cols)
-    .eq("status", "active");
+    .eq("status", "active")
+    .is("deactivated_at", null);
 
   if (error) {
     console.error("getEligibleAssignees failed", error);
@@ -131,7 +133,8 @@ export async function getEligibleAssignees(
   const includesOps = ctxs.some((c) => c === "operations_crm" || c === "round_robin_operations_crm");
 
   return ((profiles ?? []) as any[])
-    .filter((p) => p.active_for_assignment !== false)
+    .filter((p) => p.active_for_assignment !== false && p.deactivated_at == null)
+
     .filter((p) => {
       const flagMatch = flags.some((f) => p[f] === true);
       const opsRoleMatch = includesOps && typeof p.role === "string" && p.role.toLowerCase().includes("media buyer");
@@ -181,8 +184,10 @@ export interface OpsEligibilityDiagnostics {
 export async function getOperationsEligibilityDiagnostics(): Promise<OpsEligibilityDiagnostics> {
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, role, status, active_for_assignment, can_receive_operations_leads")
-    .eq("status", "active");
+    .select("id, full_name, role, status, active_for_assignment, can_receive_operations_leads, deactivated_at")
+    .eq("status", "active")
+    .is("deactivated_at", null);
+
 
   const { data: modAccess } = await supabase
     .from("user_module_access")
