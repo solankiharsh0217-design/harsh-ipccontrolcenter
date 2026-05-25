@@ -1684,9 +1684,9 @@ function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight,
   );
 }
 
-function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRestore, onDelete }: {
+function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRestore, onReset, onDelete }: {
   isAdmin: boolean; archived: boolean;
-  onView: () => void; onRename: () => void; onArchive: () => void; onRestore: () => void; onDelete: () => void;
+  onView: () => void; onRename: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -1707,12 +1707,15 @@ function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRe
         title="Batch actions" aria-label="Batch actions"
       >⋯</button>
       {open && (
-        <div className="absolute right-0 mt-1 w-52 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
+        <div className="absolute right-0 mt-1 w-56 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
           {item(<><ExternalLink className="w-3 h-3" /> View leads</>, onView)}
           {!archived && item(<><Pencil className="w-3 h-3" /> Rename batch</>, onRename)}
           <div className="h-px bg-line my-1" />
           {!archived
-            ? item(<><Archive className="w-3 h-3" /> Archive batch</>, onArchive, "text-[#92400E]")
+            ? <>
+                {item(<><Archive className="w-3 h-3" /> Archive batch</>, onArchive, "text-[#92400E]")}
+                {isAdmin && item(<><RotateCcw className="w-3 h-3" /> Reset for re-import</>, onReset, "text-[#1D4ED8]")}
+              </>
             : item(<><RotateCcw className="w-3 h-3" /> Restore batch</>, onRestore, "text-[#15803D]")
           }
           {isAdmin && (
@@ -1726,4 +1729,5 @@ function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRe
     </div>
   );
 }
+
 
