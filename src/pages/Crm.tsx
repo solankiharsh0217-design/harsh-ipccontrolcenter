@@ -14,6 +14,10 @@ import { logActivity } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
 import SendToOperationsCrmModal from "@/components/SendToOperationsCrmModal";
 import { createNotification } from "@/lib/notifications";
+import {
+  getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff,
+  type HandoffRule, type AutoHandoffLeadInput,
+} from "@/lib/operationsCrm";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
 import ManagedStageFilter from "@/components/crm/ManagedStageFilter";
