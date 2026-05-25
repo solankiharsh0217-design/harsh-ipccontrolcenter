@@ -363,60 +363,14 @@ export default function OperationsCrm() {
         </div>
       )}
 
-      {/* Lead drawer (Phase A placeholder — Phase B will add full controls) */}
+      {/* Lead drawer — Phase B */}
       {drawerLead && (
-        <div className="fixed inset-0 z-[1100] bg-black/40 flex justify-end" onClick={() => setOpenLead(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-white h-full overflow-y-auto">
-            <div className="px-5 py-4 border-b border-line flex items-center justify-between">
-              <div className="min-w-0">
-                <div className="font-serif text-lg text-black truncate">{drawerLead.name}</div>
-                <div className="text-[11px] text-muted-foreground truncate">{drawerLead.product_name || "—"}</div>
-              </div>
-              <button onClick={() => setOpenLead(null)} className="w-7 h-7 rounded hover:bg-off flex items-center justify-center"><XIcon className="w-4 h-4" /></button>
-            </div>
-            <div className="p-5 space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Email" value={drawerLead.email || "—"} />
-                <Field label="Phone" value={drawerLead.phone || "—"} />
-                <Field label="Batch" value={drawerLead.batch_name || "—"} />
-                <Field label="Package" value={drawerLead.service_package_name || "—"} />
-                <Field label="Duration" value={drawerLead.service_months ? `${drawerLead.service_months} months` : "—"} />
-                <Field label="Status" value={SERVICE_STATUS_LABELS[drawerLead.service_status] || drawerLead.service_status} />
-                <Field label="Assigned" value={drawerLead.assigned_media_buyer_name || "Unassigned"} />
-                <Field label="Ad launch" value={drawerLead.ad_launch_date || "—"} />
-              </div>
-              {drawerLead.notes && (
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Notes</div>
-                  <div className="text-xs whitespace-pre-wrap text-foreground">{drawerLead.notes}</div>
-                </div>
-              )}
-              <div className="border-t border-line pt-3">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Linked records</div>
-                {drawerLead.crm_lead_id ? (
-                  <button onClick={() => openCrmLink(drawerLead)} className="ipc-btn ipc-btn-ghost !text-xs">
-                    <ExternalLink className="w-3 h-3" /> Open in Calling CRM
-                  </button>
-                ) : (
-                  <div className="text-[11px] text-muted-foreground">No linked Calling CRM record.</div>
-                )}
-              </div>
-              <div className="bg-off border border-line rounded-md p-3 text-[11px] text-muted-foreground">
-                Service tracking, conversion reporting, and reward progress are coming in the next update. Stage drag/drop and assignment are live now.
-              </div>
-            </div>
-          </div>
-        </div>
+        <OperationsLeadDrawer
+          lead={drawerLead as unknown as OpsLeadFull}
+          onClose={() => setOpenLead(null)}
+          onSaved={() => load()}
+        />
       )}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-xs text-foreground truncate" title={value}>{value}</div>
     </div>
   );
 }
