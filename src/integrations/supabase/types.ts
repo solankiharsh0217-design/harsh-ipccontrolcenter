@@ -829,8 +829,10 @@ export type Database = {
           name: string
           party_a_name: string
           program_name: string | null
+          reply_to_email: string | null
           success_page_message: string | null
           template_pdf_url: string | null
+          test_recipient_email: string | null
           updated_at: string
           version: string
           whatsapp_redirect_url: string | null
@@ -850,8 +852,10 @@ export type Database = {
           name: string
           party_a_name?: string
           program_name?: string | null
+          reply_to_email?: string | null
           success_page_message?: string | null
           template_pdf_url?: string | null
+          test_recipient_email?: string | null
           updated_at?: string
           version?: string
           whatsapp_redirect_url?: string | null
@@ -871,8 +875,10 @@ export type Database = {
           name?: string
           party_a_name?: string
           program_name?: string | null
+          reply_to_email?: string | null
           success_page_message?: string | null
           template_pdf_url?: string | null
+          test_recipient_email?: string | null
           updated_at?: string
           version?: string
           whatsapp_redirect_url?: string | null
