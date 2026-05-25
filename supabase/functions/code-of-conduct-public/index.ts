@@ -100,7 +100,8 @@ Deno.serve(async (req) => {
         reqRow.status = 'viewed';
         reqRow.viewed_at = now;
       }
-      return new Response(JSON.stringify(publicRequestPayload(reqRow, tpl)), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+      return new Response(JSON.stringify(publicRequestPayload(reqRow, tpl, signedPdf)), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (action === 'whatsapp_click') {
