@@ -29,6 +29,7 @@ import { Archive, RotateCcw, MoreVertical } from "lucide-react";
 type View = "kanban" | "list" | "stages" | "batches";
 
 export default function Crm() {
+  const { isAdmin } = useAuth();
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
