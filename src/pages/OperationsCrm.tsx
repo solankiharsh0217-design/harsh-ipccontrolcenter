@@ -260,7 +260,7 @@ export default function OperationsCrm() {
         <div className="mb-3"><RewardWidget buyerId={profile.id} /></div>
       )}
       {tab === "reports" && (
-        <OpsReportsTab leads={leads as any} onOpenLead={(id) => setOpenLead(id)} />
+        <OpsReportsTab leads={leads as any} onOpenLead={(id) => setOpenLead(id)} isAdmin={isAdmin} />
       )}
       {tab === "conversions" && (
         <OpsConversionsTab isAdmin={isAdmin} onOpenLead={(id) => setOpenLead(id)} onChanged={() => setRefreshKey((k) => k + 1)} />
