@@ -221,22 +221,26 @@ export function findRuleForStage(
   stageId: string | null,
   stagesById?: Map<string, { id: string; name: string | null }>,
 ): HandoffRule | null {
-  if (!pipelineId || !stageId) return null;
-  const currentName = stagesById?.get(stageId)?.name?.trim().toLowerCase() ?? null;
-  return rules.find((r) => {
-    if (!r.is_active || r.source_pipeline_id !== pipelineId) return false;
-    const ids = r.eligible_stage_ids || [];
-    // 1) Match by stage ID (primary)
-    if (ids.includes(stageId)) return true;
-    // 2) Fallback: match by stage name (handles stage rebuilds/renames where IDs drift)
-    if (currentName && stagesById) {
-      for (const eid of ids) {
-        const n = stagesById.get(eid)?.name?.trim().toLowerCase();
-        if (n && n === currentName) return true;
+  try {
+    if (!pipelineId || !stageId) return null;
+    const safeRules = Array.isArray(rules) ? rules : [];
+    const currentName = stagesById?.get(stageId)?.name?.trim().toLowerCase() ?? null;
+    return safeRules.find((r) => {
+      if (!r || !r.is_active || r.source_pipeline_id !== pipelineId) return false;
+      const ids = Array.isArray(r.eligible_stage_ids) ? r.eligible_stage_ids : [];
+      if (ids.includes(stageId)) return true;
+      if (currentName && stagesById) {
+        for (const eid of ids) {
+          const n = stagesById.get(eid)?.name?.trim().toLowerCase();
+          if (n && n === currentName) return true;
+        }
       }
-    }
-    return false;
-  }) ?? null;
+      return false;
+    }) ?? null;
+  } catch (e) {
+    console.warn("[handoff] findRuleForStage failed", e);
+    return null;
+  }
 }
 
 export function isRuleAutoReady(r: HandoffRule): boolean {

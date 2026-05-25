@@ -72,81 +72,100 @@ export default function Crm() {
   const clearSelection = () => setSelectedIds(new Set());
 
   const refreshOpsState = async () => {
-    const [rules, ops] = await Promise.all([
-      getActiveHandoffRules().catch(() => []),
-      (supabase as any).from("operations_leads").select("crm_lead_id, service_status").not("crm_lead_id", "is", null),
-    ]);
-    setOpsRules(rules);
-    const set = new Set<string>();
-    (ops.data ?? []).forEach((r: any) => {
-      if (r.crm_lead_id && r.service_status !== "stopped" && r.service_status !== "completed") set.add(r.crm_lead_id);
-    });
-    setOpsLeadCrmIds(set);
+    try {
+      const [rules, ops] = await Promise.all([
+        getActiveHandoffRules().catch(() => [] as HandoffRule[]),
+        (supabase as any)
+          .from("operations_leads")
+          .select("crm_lead_id, service_status")
+          .not("crm_lead_id", "is", null)
+          .then((r: any) => r, () => ({ data: [] })),
+      ]);
+      setOpsRules(Array.isArray(rules) ? rules : []);
+      const set = new Set<string>();
+      (ops?.data ?? []).forEach((r: any) => {
+        if (r?.crm_lead_id && r.service_status !== "stopped" && r.service_status !== "completed") set.add(r.crm_lead_id);
+      });
+      setOpsLeadCrmIds(set);
+    } catch (e) {
+      console.warn("[crm] refreshOpsState failed", e);
+      setOpsRules([]);
+      setOpsLeadCrmIds(new Set());
+    }
   };
-  useEffect(() => { refreshOpsState(); }, []);
+  useEffect(() => { refreshOpsState().catch(() => {}); }, []);
 
   /** After any CRM stage change, evaluate handoff rules. Returns true if auto-handoff fired. */
   const evaluateHandoffForLeads = async (leadIds: string[], pipelineId: string | null, newStageId: string | null): Promise<boolean> => {
-    const stagesById = new Map(stages.map((s) => [s.id, { id: s.id, name: s.name }]));
-    const rule = findRuleForStage(opsRules, pipelineId, newStageId, stagesById);
-    if (!rule) return false;
-    const eligibleLeads = leadIds
-      .map((id) => leads.find((l) => l.id === id))
-      .filter((l): l is Lead => !!l && !opsLeadCrmIds.has(l.id));
-    if (eligibleLeads.length === 0) return false;
+    try {
+      const stagesById = new Map((stages || []).map((s) => [s.id, { id: s.id, name: s.name }]));
+      const rule = findRuleForStage(opsRules || [], pipelineId, newStageId, stagesById);
+      if (!rule) return false;
+      const eligibleLeads = (leadIds || [])
+        .map((id) => leads.find((l) => l.id === id))
+        .filter((l): l is Lead => !!l && !opsLeadCrmIds.has(l.id));
+      if (eligibleLeads.length === 0) return false;
 
-    // Auto mode (only if ready) → send now
-    if (rule.mode === "auto" && isRuleAutoReady(rule)) {
-      const payload: AutoHandoffLeadInput[] = eligibleLeads.map((l) => ({
-        id: l.id,
-        full_name: l.full_name,
-        email: l.email,
-        phone: l.phone,
-        program_name: (l as any).program_name ?? null,
-        webinar_source: l.webinar_source,
-        deal_value: (l as any).deal_value ?? null,
-        paid_pipeline_lead_id: (l as any).paid_pipeline_lead_id ?? null,
-      }));
-      const res = await applyAutoHandoff(rule, payload, null);
-      await logActivity({
-        module_key: "operations_crm",
-        action_type: "operations_auto_handoff_completed",
-        entity_type: "operations_leads",
-        summary: `Auto-handoff "${rule.name}" · ${res.inserted} created · ${res.updated} updated · ${res.skipped} skipped`,
-        metadata: { rule_id: rule.id, ...res, lead_ids: eligibleLeads.map((l) => l.id) },
-      }).catch(() => {});
-      await Promise.all(Object.entries(res.buyerCounts).map(([buyerId, count]) =>
-        createNotification({
-          recipient_user_id: buyerId,
+      // Auto mode (only if ready) → send now
+      if (rule.mode === "auto" && isRuleAutoReady(rule)) {
+        const payload: AutoHandoffLeadInput[] = eligibleLeads.map((l) => ({
+          id: l.id,
+          full_name: l.full_name,
+          email: l.email,
+          phone: l.phone,
+          program_name: (l as any).program_name ?? null,
+          webinar_source: l.webinar_source,
+          deal_value: (l as any).deal_value ?? null,
+          paid_pipeline_lead_id: (l as any).paid_pipeline_lead_id ?? null,
+        }));
+        const res = await applyAutoHandoff(rule, payload, null).catch((e) => {
+          console.warn("[handoff] applyAutoHandoff failed", e);
+          return null;
+        });
+        if (!res) { toast.error("Auto-handoff failed — please try Send to Operations manually"); return false; }
+        logActivity({
           module_key: "operations_crm",
-          notification_type: "operations_leads_assigned",
-          title: `${count} new Operations CRM ${count === 1 ? "client" : "clients"} assigned to you`,
-          message: `${rule.default_service_package ?? "Service"} · auto-handoff via "${rule.name}"`,
-          priority: "high",
+          action_type: "operations_auto_handoff_completed",
           entity_type: "operations_leads",
-          entity_label: `${count} clients`,
-          action_url: `/operations-crm?assigned_to=me`,
-          action_label: "Open Operations CRM",
-          metadata: { rule_id: rule.id, count, auto: true },
-          allowDuplicate: true,
-        }).catch(() => {})
-      ));
-      toast.success(`Auto-handoff: ${res.inserted + res.updated} sent to Operations CRM`);
-      await refreshOpsState();
-      return true;
-    }
+          summary: `Auto-handoff "${rule.name}" · ${res.inserted} created · ${res.updated} updated · ${res.skipped} skipped`,
+          metadata: { rule_id: rule.id, ...res, lead_ids: eligibleLeads.map((l) => l.id) },
+        }).catch(() => {});
+        Object.entries(res.buyerCounts || {}).forEach(([buyerId, count]) => {
+          createNotification({
+            recipient_user_id: buyerId,
+            module_key: "operations_crm",
+            notification_type: "operations_leads_assigned",
+            title: `${count} new Operations CRM ${count === 1 ? "client" : "clients"} assigned to you`,
+            message: `${rule.default_service_package ?? "Service"} · auto-handoff via "${rule.name}"`,
+            priority: "high",
+            entity_type: "operations_leads",
+            entity_label: `${count} clients`,
+            action_url: `/operations-crm?assigned_to=me`,
+            action_label: "Open Operations CRM",
+            metadata: { rule_id: rule.id, count, auto: true },
+            allowDuplicate: true,
+          }).catch(() => {});
+        });
+        toast.success(`Auto-handoff: ${res.inserted + res.updated} sent to Operations CRM`);
+        refreshOpsState().catch(() => {});
+        return true;
+      }
 
-    // Suggest mode (or auto-but-incomplete) → banner
-    if (rule.mode === "suggest" || (rule.mode === "auto" && !isRuleAutoReady(rule))) {
-      setOpsBanner({ rule, leadIds: eligibleLeads.map((l) => l.id) });
-      await logActivity({
-        module_key: "operations_crm",
-        action_type: "operations_handoff_suggested",
-        summary: `${eligibleLeads.length} lead(s) eligible for Operations via "${rule.name}"`,
-        metadata: { rule_id: rule.id, lead_ids: eligibleLeads.map((l) => l.id), mode: rule.mode, fallback: rule.mode === "auto" },
-      }).catch(() => {});
+      // Suggest mode (or auto-but-incomplete) → banner
+      if (rule.mode === "suggest" || (rule.mode === "auto" && !isRuleAutoReady(rule))) {
+        setOpsBanner({ rule, leadIds: eligibleLeads.map((l) => l.id) });
+        logActivity({
+          module_key: "operations_crm",
+          action_type: "operations_handoff_suggested",
+          summary: `${eligibleLeads.length} lead(s) eligible for Operations via "${rule.name}"`,
+          metadata: { rule_id: rule.id, lead_ids: eligibleLeads.map((l) => l.id), mode: rule.mode, fallback: rule.mode === "auto" },
+        }).catch(() => {});
+      }
+      return false;
+    } catch (e) {
+      console.warn("[crm] evaluateHandoffForLeads crashed (non-fatal)", e);
+      return false;
     }
-    return false;
   };
 
 
