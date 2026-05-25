@@ -28,8 +28,7 @@ import { archivePaidBuyer, restorePaidBuyer } from "@/lib/crmArchive";
 import { ArchiveConfirmModal } from "@/components/crm/ArchiveConfirmModal";
 import { stageChip } from "@/lib/stageColors";
 import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
-import { Trash2 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import CrmStagePicker, { type CrmStagePickerStage } from "@/components/crm/CrmStagePicker";
 
 type Lead = {
   id: string;
@@ -928,11 +927,10 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [showActivity, setShowActivity] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedTpl, setCopiedTpl] = useState<string | null>(null);
-  const [crmStages, setCrmStages] = useState<{ id: string; name: string; pipeline_id: string | null; color?: string | null }[]>([]);
+  const [crmStages, setCrmStages] = useState<CrmStagePickerStage[]>([]);
   const [crmStageId, setCrmStageId] = useState<string | null>(null);
   const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
   const [crmPickerOpen, setCrmPickerOpen] = useState(false);
-  const [crmStageSearch, setCrmStageSearch] = useState("");
   const [linkingCrm, setLinkingCrm] = useState(false);
   const [newCrmStageName, setNewCrmStageName] = useState("");
   const [addingStage, setAddingStage] = useState(false);
