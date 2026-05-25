@@ -640,8 +640,9 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           </div>
         </div>
 
+        </div>
         {/* Sticky Save / Save & Close */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex items-center justify-between gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <div className="shrink-0 bg-white border-t border-line px-6 py-3 flex items-center justify-between gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
           <div className="flex items-center gap-2">
             <button
