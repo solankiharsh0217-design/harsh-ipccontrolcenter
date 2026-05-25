@@ -902,6 +902,81 @@ export default function Crm() {
           </div>
         </div>
       )}
+      {bulkArchiveOpen && (
+        <ArchiveConfirmModal
+          title={`Archive ${selectedIds.size} selected lead${selectedIds.size === 1 ? "" : "s"}?`}
+          description="This hides them from active CRM views but keeps reports, payment links, Operations CRM records, and history safe."
+          detailLines={["Linked Paid Pipeline records are preserved.", "Linked Operations CRM records remain active.", "You can restore from Show archived."]}
+          busy={bulkArchiveBusy}
+          onClose={() => setBulkArchiveOpen(false)}
+          onConfirm={async (reason) => {
+            setBulkArchiveBusy(true);
+            try {
+              const ids = Array.from(selectedIds);
+              await bulkArchiveLeads(ids, reason || undefined, activePipeline);
+              toast.success(`Archived ${ids.length} lead${ids.length === 1 ? "" : "s"}`);
+              setBulkArchiveOpen(false);
+              clearSelection();
+              await load();
+            } catch (e: any) { toast.error(e.message || "Archive failed"); }
+            finally { setBulkArchiveBusy(false); }
+          }}
+        />
+      )}
+      {archiveBatchTarget && (
+        <ArchiveConfirmModal
+          title={`Archive batch "${archiveBatchTarget.name}"?`}
+          description={`This will hide ${archiveBatchTarget.activeCount} active lead${archiveBatchTarget.activeCount === 1 ? "" : "s"} from Calling CRM. Payment and Operations CRM records remain untouched.`}
+          detailLines={archiveBatchLinks ? [
+            `${archiveBatchLinks.paid} linked to Paid Pipeline (preserved).`,
+            `${archiveBatchLinks.ops} linked to Operations CRM (preserved).`,
+          ] : undefined}
+          busy={archiveBatchBusy}
+          onClose={() => { setArchiveBatchTarget(null); setArchiveBatchLinks(null); }}
+          onConfirm={async (reason) => {
+            setArchiveBatchBusy(true);
+            try {
+              await archiveBatch({
+                batchName: archiveBatchTarget.name,
+                batchDate: archiveBatchTarget.date,
+                pipelineId: archiveBatchTarget.pipelineId,
+                leadIds: archiveBatchTarget.leadIds,
+                reason: reason || undefined,
+              });
+              toast.success(`Batch "${archiveBatchTarget.name}" archived`);
+              setArchiveBatchTarget(null);
+              setArchiveBatchLinks(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Archive failed"); }
+            finally { setArchiveBatchBusy(false); }
+          }}
+        />
+      )}
+      {deleteBatchTarget && (
+        <PermanentDeleteModal
+          title={`Permanently delete batch "${deleteBatchTarget.name}"?`}
+          description="This cannot be undone. Only allowed when no lead in this batch is linked to Paid Pipeline or Operations CRM."
+          blocked={deleteBatchBlocked}
+          busy={deleteBatchBusy}
+          onClose={() => { setDeleteBatchTarget(null); setDeleteBatchBlocked(null); }}
+          onConfirm={async (reason) => {
+            setDeleteBatchBusy(true);
+            try {
+              await permanentlyDeleteBatch({
+                batchName: deleteBatchTarget.name,
+                batchDate: deleteBatchTarget.date,
+                pipelineId: deleteBatchTarget.pipelineId,
+                leadIds: deleteBatchTarget.leadIds,
+                reason: reason || undefined,
+              });
+              toast.success(`Batch "${deleteBatchTarget.name}" permanently deleted`);
+              setDeleteBatchTarget(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Delete failed"); }
+            finally { setDeleteBatchBusy(false); }
+          }}
+        />
+      )}
       {renameStageTarget && (
         <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-sm p-5">
