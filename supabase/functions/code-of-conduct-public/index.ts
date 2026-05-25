@@ -115,7 +115,8 @@ Deno.serve(async (req) => {
 
     // action === 'sign'
     if (reqRow.status === 'signed') {
-      return new Response(JSON.stringify({ ok: true, already_signed: true, ...publicRequestPayload(reqRow, tpl) }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+      return new Response(JSON.stringify({ ok: true, already_signed: true, ...publicRequestPayload(reqRow, tpl, signedPdf) }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { signature_name, signature_data_url, acknowledgements } = body;
