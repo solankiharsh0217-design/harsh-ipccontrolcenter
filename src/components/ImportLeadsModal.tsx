@@ -96,6 +96,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     total: number;
     newCount: number;
     dupCount: number;
+    archivedDupCount: number;
     missingEmail: number;
     invalid: number;
     existingByEmail: Map<string, any>;
