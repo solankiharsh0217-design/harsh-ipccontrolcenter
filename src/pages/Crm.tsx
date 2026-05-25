@@ -88,6 +88,8 @@ export default function Crm() {
   const [deleteBatchTarget, setDeleteBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[] } | null>(null);
   const [deleteBatchBusy, setDeleteBatchBusy] = useState(false);
   const [deleteBatchBlocked, setDeleteBatchBlocked] = useState<string | null>(null);
+  const [batchChoicesTarget, setBatchChoicesTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[]; linkedPaid: number; linkedOps: number } | null>(null);
+  const [batchChoicesBusy, setBatchChoicesBusy] = useState(false);
   const toggleSelect = (id: string) => setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelectedIds(new Set());
 
