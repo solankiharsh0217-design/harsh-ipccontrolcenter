@@ -677,6 +677,67 @@ export default function Crm() {
         />
       )}
       {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
+      {bulkSendOpsOpen && (
+        <SendToOperationsCrmModal
+          candidateLeads={pipelineLeads.filter((l) => selectedIds.has(l.id)).map((l) => ({
+            id: l.id,
+            full_name: l.full_name,
+            email: l.email,
+            phone: l.phone,
+            program_name: (l as any).program_name ?? null,
+            webinar_source: l.webinar_source,
+            deal_value: (l as any).deal_value ?? null,
+            stage_id: l.stage_id,
+            paid_pipeline_lead_id: (l as any).paid_pipeline_lead_id ?? null,
+          }))}
+          sourceStages={pipelineStages.map((s) => ({ id: s.id, name: s.name }))}
+          preSelectedIds={Array.from(selectedIds)}
+          onClose={() => setBulkSendOpsOpen(false)}
+          onDone={() => { setBulkSendOpsOpen(false); clearSelection(); }}
+        />
+      )}
+      {bulkMoveOpen && (
+        <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setBulkMoveOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-md p-5">
+            <div className="font-serif text-lg mb-1">Move {selectedIds.size} lead{selectedIds.size === 1 ? "" : "s"} to a stage</div>
+            <div className="text-[11px] text-muted-foreground mb-3">Pick the destination stage in the current pipeline.</div>
+            <select
+              className="ipc-input"
+              value={bulkMoveStageId}
+              onChange={(e) => setBulkMoveStageId(e.target.value)}
+            >
+              <option value="">Select stage…</option>
+              {pipelineStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setBulkMoveOpen(false)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs">Cancel</button>
+              <button
+                disabled={!bulkMoveStageId}
+                onClick={async () => {
+                  const ids = Array.from(selectedIds);
+                  const stageId = bulkMoveStageId;
+                  const newName = pipelineStages.find((s) => s.id === stageId)?.name ?? "—";
+                  const { error } = await supabase.from("leads").update({ stage_id: stageId }).in("id", ids);
+                  if (error) { toast.error(error.message); return; }
+                  setLeads((prev) => prev.map((l) => ids.includes(l.id) ? { ...l, stage_id: stageId } as any : l));
+                  logActivity({
+                    module_key: "calling_crm",
+                    action_type: "bulk_crm_stage_changed",
+                    entity_type: "crm_lead",
+                    summary: `Moved ${ids.length} lead${ids.length === 1 ? "" : "s"} to ${newName}.`,
+                    metadata: { lead_ids: ids, new_stage: newName },
+                  }).catch(() => {});
+                  toast.success(`Moved ${ids.length} lead${ids.length === 1 ? "" : "s"} to ${newName}`);
+                  setBulkMoveOpen(false);
+                  setBulkMoveStageId("");
+                  clearSelection();
+                }}
+                className="ipc-btn ipc-btn-black !h-9 !text-xs disabled:opacity-50"
+              >Move</button>
+            </div>
+          </div>
+        </div>
+      )}
       {renameStageTarget && (
         <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-sm p-5">
