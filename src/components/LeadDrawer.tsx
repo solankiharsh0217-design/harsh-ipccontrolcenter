@@ -9,6 +9,7 @@ import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { createNotification } from "@/lib/notifications";
+import SendToOperationsCrmModal from "@/components/SendToOperationsCrmModal";
 
 interface Props {
   leadId: string;
@@ -32,6 +33,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const [paidSnap, setPaidSnap] = useState<any | null>(null);
   const [showStagePicker, setShowStagePicker] = useState(false);
   const [newStageName, setNewStageName] = useState("");
+  const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
+  const [sendOpsOpen, setSendOpsOpen] = useState(false);
 
   const load = async () => {
     const [{ data: l }, { data: a }, { data: r }] = await Promise.all([
@@ -47,6 +50,14 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
         .eq("id", ppid).maybeSingle();
       setPaidSnap(pp || null);
     } else setPaidSnap(null);
+    // Check whether this lead is already in Operations CRM (active record)
+    const { data: ops } = await (supabase as any)
+      .from("operations_leads")
+      .select("id, service_status")
+      .eq("crm_lead_id", leadId)
+      .not("service_status", "in", "(stopped,completed)")
+      .maybeSingle();
+    setOpsLeadId(ops?.id ?? null);
   };
   useEffect(() => { load(); }, [leadId]);
 
@@ -157,11 +168,22 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
           </div>
-          {(lead as any).paid_pipeline_lead_id && (
-            <div className="mt-3">
-              <Link to={`/paid-pipeline?lead=${(lead as any).paid_pipeline_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
-                <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
-              </Link>
+          {((lead as any).paid_pipeline_lead_id || opsLeadId !== null || lead.lead_type === "paid") && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(lead as any).paid_pipeline_lead_id && (
+                <Link to={`/paid-pipeline?lead=${(lead as any).paid_pipeline_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+                  <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
+                </Link>
+              )}
+              {opsLeadId ? (
+                <Link to={`/operations-crm?lead=${opsLeadId}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#166534] text-white hover:opacity-90">
+                  <ExternalLink className="w-3 h-3" /> Open in Operations CRM
+                </Link>
+              ) : (
+                <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line bg-white hover:bg-off">
+                  <ExternalLink className="w-3 h-3" /> Send to Operations CRM
+                </button>
+              )}
             </div>
           )}
           {/* Payment / Token snapshot */}
@@ -357,6 +379,25 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
           </button>
         </div>
       </div>
+      {sendOpsOpen && (
+        <SendToOperationsCrmModal
+          candidateLeads={[{
+            id: lead.id,
+            full_name: lead.full_name,
+            email: lead.email,
+            phone: lead.phone,
+            program_name: (lead as any).program_name ?? null,
+            webinar_source: lead.webinar_source,
+            deal_value: (lead as any).deal_value ?? null,
+            stage_id: lead.stage_id,
+            paid_pipeline_lead_id: (lead as any).paid_pipeline_lead_id ?? null,
+          }]}
+          sourceStages={[]}
+          preSelectedIds={[lead.id]}
+          onClose={() => setSendOpsOpen(false)}
+          onDone={() => { setSendOpsOpen(false); load(); }}
+        />
+      )}
     </div>
   );
 }

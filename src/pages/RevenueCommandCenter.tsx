@@ -43,6 +43,13 @@ export default function RevenueCommandCenter() {
       to: "/media-buyer-operations",
       show: isAdmin || hasModule("media_buyer_operations"),
     },
+    {
+      title: "Operations CRM",
+      desc: "Service delivery board for paid clients — assign media buyers, track ad days, pause/resume, and manage active service.",
+      cta: "Open Operations CRM",
+      to: "/operations-crm",
+      show: isAdmin || hasModule("operations_crm"),
+    },
   ];
 
   const visible = cards.filter((c) => c.show);

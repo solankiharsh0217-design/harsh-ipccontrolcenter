@@ -57,6 +57,12 @@ export default function Crm() {
   const [stageHoverId, setStageHoverId] = useState<string | null>(null);
   const [renameStageTarget, setRenameStageTarget] = useState<Stage | null>(null);
   const [renameStageValue, setRenameStageValue] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkMoveStageId, setBulkMoveStageId] = useState<string>("");
+  const [bulkSendOpsOpen, setBulkSendOpsOpen] = useState(false);
+  const toggleSelect = (id: string) => setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const clearSelection = () => setSelectedIds(new Set());
 
   const handleImportDone = async (result?: ImportResult) => {
     setImportOpen(false);
@@ -623,6 +629,34 @@ export default function Crm() {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-14 z-40 mb-3 flex items-center gap-2 px-3 py-2 rounded-lg border border-gold bg-gold-pale shadow-sm">
+          <div className="text-xs font-medium text-black">{selectedIds.size} lead{selectedIds.size === 1 ? "" : "s"} selected</div>
+          <button
+            onClick={() => {
+              const ids = pipelineLeads.map((l) => l.id);
+              setSelectedIds((p) => {
+                const allSelected = ids.every((id) => p.has(id));
+                if (allSelected) { const n = new Set(p); ids.forEach((id) => n.delete(id)); return n; }
+                return new Set([...p, ...ids]);
+              });
+            }}
+            className="text-[11px] underline text-muted-foreground hover:text-black ml-2"
+          >
+            {pipelineLeads.every((l) => selectedIds.has(l.id)) ? "Deselect view" : "Select all in view"}
+          </button>
+          <div className="flex-1" />
+          <button onClick={() => setBulkMoveOpen(true)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Move Stage</button>
+          <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Assign</button>
+          <button onClick={() => setBulkSendOpsOpen(true)} className="ipc-btn ipc-btn-black !h-8 !text-xs">
+            <ExternalLink className="w-3 h-3" /> Send to Operations
+          </button>
+          <button onClick={clearSelection} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Clear</button>
+        </div>
+      )}
+
+
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
       {sendOpsOpen && (
         <SendToOperationsCrmModal
@@ -643,6 +677,67 @@ export default function Crm() {
         />
       )}
       {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
+      {bulkSendOpsOpen && (
+        <SendToOperationsCrmModal
+          candidateLeads={pipelineLeads.filter((l) => selectedIds.has(l.id)).map((l) => ({
+            id: l.id,
+            full_name: l.full_name,
+            email: l.email,
+            phone: l.phone,
+            program_name: (l as any).program_name ?? null,
+            webinar_source: l.webinar_source,
+            deal_value: (l as any).deal_value ?? null,
+            stage_id: l.stage_id,
+            paid_pipeline_lead_id: (l as any).paid_pipeline_lead_id ?? null,
+          }))}
+          sourceStages={pipelineStages.map((s) => ({ id: s.id, name: s.name }))}
+          preSelectedIds={Array.from(selectedIds)}
+          onClose={() => setBulkSendOpsOpen(false)}
+          onDone={() => { setBulkSendOpsOpen(false); clearSelection(); }}
+        />
+      )}
+      {bulkMoveOpen && (
+        <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setBulkMoveOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-md p-5">
+            <div className="font-serif text-lg mb-1">Move {selectedIds.size} lead{selectedIds.size === 1 ? "" : "s"} to a stage</div>
+            <div className="text-[11px] text-muted-foreground mb-3">Pick the destination stage in the current pipeline.</div>
+            <select
+              className="ipc-input"
+              value={bulkMoveStageId}
+              onChange={(e) => setBulkMoveStageId(e.target.value)}
+            >
+              <option value="">Select stage…</option>
+              {pipelineStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setBulkMoveOpen(false)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs">Cancel</button>
+              <button
+                disabled={!bulkMoveStageId}
+                onClick={async () => {
+                  const ids = Array.from(selectedIds);
+                  const stageId = bulkMoveStageId;
+                  const newName = pipelineStages.find((s) => s.id === stageId)?.name ?? "—";
+                  const { error } = await supabase.from("leads").update({ stage_id: stageId }).in("id", ids);
+                  if (error) { toast.error(error.message); return; }
+                  setLeads((prev) => prev.map((l) => ids.includes(l.id) ? { ...l, stage_id: stageId } as any : l));
+                  logActivity({
+                    module_key: "calling_crm",
+                    action_type: "bulk_crm_stage_changed",
+                    entity_type: "crm_lead",
+                    summary: `Moved ${ids.length} lead${ids.length === 1 ? "" : "s"} to ${newName}.`,
+                    metadata: { lead_ids: ids, new_stage: newName },
+                  }).catch(() => {});
+                  toast.success(`Moved ${ids.length} lead${ids.length === 1 ? "" : "s"} to ${newName}`);
+                  setBulkMoveOpen(false);
+                  setBulkMoveStageId("");
+                  clearSelection();
+                }}
+                className="ipc-btn ipc-btn-black !h-9 !text-xs disabled:opacity-50"
+              >Move</button>
+            </div>
+          </div>
+        </div>
+      )}
       {renameStageTarget && (
         <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-sm p-5">
@@ -712,6 +807,21 @@ export default function Crm() {
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <div className="text-xs text-muted-foreground">{items.length}</div>
+                        <input
+                          type="checkbox"
+                          checked={items.length > 0 && items.every((l) => selectedIds.has(l.id))}
+                          onChange={(e) => {
+                            const ids = items.map((l) => l.id);
+                            setSelectedIds((p) => {
+                              const n = new Set(p);
+                              if (e.target.checked) ids.forEach((id) => n.add(id));
+                              else ids.forEach((id) => n.delete(id));
+                              return n;
+                            });
+                          }}
+                          title="Select all in stage"
+                          className="w-3.5 h-3.5 cursor-pointer accent-black"
+                        />
                         <StageHeaderMenu
                           stage={s}
                           idx={idx}
@@ -762,9 +872,20 @@ export default function Crm() {
                               const beforeId = hoverBefore === "__end__" ? "__end__" : (hoverBefore || l.id);
                               onDrop(e, s.id, beforeId);
                             }}
-                            onClick={() => setOpenLead(l.id)}
-                            className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${isDragging ? "opacity-30 shadow-lg" : ""}`}
+                            onClick={(e) => {
+                              if (selectedIds.size > 0) { toggleSelect(l.id); return; }
+                              setOpenLead(l.id);
+                            }}
+                            className={`relative p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${isDragging ? "opacity-30 shadow-lg" : ""} ${selectedIds.has(l.id) ? "ring-2 ring-gold" : ""}`}
                             style={{ background: cardBg, borderColor: cardBorder }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(l.id)}
+                              onClick={(e) => { e.stopPropagation(); toggleSelect(l.id); }}
+                              onChange={() => {}}
+                              className="absolute top-2 right-2 w-3.5 h-3.5 cursor-pointer accent-black"
+                              title="Select lead"
+                            />
                             {l.webinar_source && <div className="uppercase-label !text-[8px] mb-1">{l.webinar_source}</div>}
                             <div className="font-serif text-sm">{l.full_name || "Unnamed"}</div>
                             <div className="text-[11px] text-muted-foreground">{l.program_name}</div>
