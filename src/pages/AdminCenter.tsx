@@ -95,16 +95,16 @@ export default function AdminCenter() {
           <SectionLabel>Danger Zone</SectionLabel>
           <div className="rounded-xl border border-red-300 bg-red-50 pt-[26px] px-[22px] pb-5 flex flex-col max-w-[420px]">
             <div className="font-serif text-xl font-medium text-red-900 mb-2 leading-tight">
-              Clean Slate: Remove Imported Demo Lead Data
+              Hard Wipe All Lead Data
             </div>
             <div className="font-sans text-xs font-light text-red-900/80 leading-[1.7] mb-5 flex-1">
-              Permanently wipe imported CRM leads, paid pipeline buyers, payments, operations records, follow-ups, and linked notifications. Settings, team, stages, and templates are preserved.
+              Permanently delete all CRM leads, batches, paid pipeline buyers, payments, operations clients, follow-ups, tag assignments, and lead-linked notifications — including active, archived, and soft-deleted records. Team, settings, stages, tags, templates, and rules are preserved.
             </div>
             <button
               onClick={() => nav("/admin-center/clean-slate")}
               className="font-sans text-[12px] font-medium text-white bg-red-600 hover:bg-red-700 transition-colors rounded-md px-4 py-2.5 self-start"
             >
-              Open Clean Slate →
+              Open Hard Wipe →
             </button>
           </div>
         </div>
