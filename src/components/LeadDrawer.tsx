@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { GRADE_STYLES, type Lead, type Stage, type ActivityLog, type Reminder } from "@/lib/crmTypes";
-import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink, ArrowRightCircle, Sparkles, ChevronDown, Search, Archive, RotateCcw, Plus, CreditCard } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink, Sparkles, ChevronDown, Archive, RotateCcw, Plus, CreditCard } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -19,6 +18,7 @@ import QuickAddPaymentModal from "@/components/paid-pipeline/QuickAddPaymentModa
 import { recomputePaidLead } from "@/lib/paidPipeline";
 import { logActivity as auditLog } from "@/lib/auditLog";
 import { stageChip } from "@/lib/stageColors";
+import CrmStagePicker from "@/components/crm/CrmStagePicker";
 
 interface Props {
   leadId: string;
@@ -43,8 +43,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [activityChannel, setActivityChannel] = useState<ActivityLog["channel"]>("call");
   const [paidSnap, setPaidSnap] = useState<any | null>(null);
   const [showStagePicker, setShowStagePicker] = useState(false);
-  const [stageSearch, setStageSearch] = useState("");
   const [newStageName, setNewStageName] = useState("");
+  const [addingStage, setAddingStage] = useState(false);
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
@@ -96,7 +96,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   );
 
   const g = GRADE_STYLES[lead.grade];
-  const pipelineStages = stages.filter((s) => s.pipeline_id === lead.pipeline_id).sort((a, b) => a.position - b.position);
+  const pipelineAllStages = stages.filter((s) => s.pipeline_id === lead.pipeline_id).sort((a, b) => a.position - b.position);
+  const pipelineStages = pipelineAllStages.filter((s) => (s as any).is_active !== false || s.id === lead.stage_id);
 
   const moveStage = async (stageId: string) => {
     const prev = lead.stage_id;
@@ -155,25 +156,59 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const addStageInline = async () => {
     const name = newStageName.trim();
     if (!name) return;
-    const dup = pipelineStages.some((s) => s.name.toLowerCase() === name.toLowerCase());
+    const dup = pipelineAllStages.some((s) => s.name.toLowerCase() === name.toLowerCase());
     if (dup) { toast.error("Stage already exists"); return; }
-    const { data, error } = await supabase.from("stages").insert({
-      pipeline_id: lead.pipeline_id, name, color: "#E8E5DE", position: pipelineStages.length,
-    } as any).select("id").maybeSingle();
-    if (error) { toast.error(error.message); return; }
-    setNewStageName("");
-    toast.success("Stage added");
-    if (data?.id) await moveStage(data.id);
-    onChanged();
+    setAddingStage(true);
+    try {
+      const { data, error } = await supabase.from("stages").insert({
+        pipeline_id: lead.pipeline_id, name, color: "gray", position: pipelineAllStages.length,
+      } as any).select("id, name, pipeline_id, color").maybeSingle();
+      if (error) { toast.error(error.message); return; }
+      setNewStageName("");
+      toast.success("Stage added");
+      auditLog({
+        module_key: "calling_crm", module_label: "Calling CRM",
+        action_type: "crm_stage_created_from_calling_crm_drawer",
+        entity_type: "crm_stage", entity_id: (data as any)?.id, entity_label: name,
+        metadata: { crm_lead_id: lead.id, pipeline_id: lead.pipeline_id, stage_id: (data as any)?.id, stage_name: name, changed_by: profile?.id || null },
+        summary: `Created CRM stage '${name}' from Calling CRM drawer.`,
+      });
+      if (data?.id) await moveStage(data.id);
+      onChanged();
+    } finally { setAddingStage(false); }
   };
-  const deactivateStage = async (s: Stage) => {
-    if ((s as any).is_protected) { toast.error("Protected stage"); return; }
-    const used = false; // we don't have a count here; defer to Stages view for delete safety
-    if (used) { toast.error("Stage in use"); return; }
-    if (!confirm(`Delete stage "${s.name}"?`)) return;
+  const deleteOrDeactivateStage = async (s: Stage) => {
+    const { count } = await supabase.from("leads").select("id", { count: "exact", head: true }).eq("stage_id", s.id);
+    const used = (count ?? 0) > 0;
+    if (used || (s as any).is_protected) {
+      const reason = used ? `has ${count} lead(s)` : "is protected";
+      if (!confirm(`Stage "${s.name}" ${reason}. Deactivate it instead?`)) return;
+      const { error } = await supabase.from("stages").update({ is_active: false } as any).eq("id", s.id);
+      if (error) { toast.error(error.message); return; }
+      toast.success("Stage deactivated");
+      auditLog({
+        module_key: "calling_crm", module_label: "Calling CRM",
+        action_type: "crm_stage_deactivated_from_calling_crm_drawer",
+        entity_type: "crm_stage", entity_id: s.id, entity_label: s.name,
+        metadata: { crm_lead_id: lead.id, pipeline_id: lead.pipeline_id, stage_id: s.id, stage_name: s.name, used_count: count, changed_by: profile?.id || null },
+        severity: "warning",
+        summary: `Deactivated CRM stage '${s.name}' from Calling CRM drawer.`,
+      });
+      onChanged();
+      return;
+    }
+    if (!confirm(`Delete stage "${s.name}"? This cannot be undone.`)) return;
     const { error } = await supabase.from("stages").delete().eq("id", s.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Stage deleted");
+    auditLog({
+      module_key: "calling_crm", module_label: "Calling CRM",
+      action_type: "crm_stage_deleted_from_calling_crm_drawer",
+      entity_type: "crm_stage", entity_id: s.id, entity_label: s.name,
+      metadata: { crm_lead_id: lead.id, pipeline_id: lead.pipeline_id, stage_id: s.id, stage_name: s.name, changed_by: profile?.id || null },
+      severity: "warning",
+      summary: `Deleted CRM stage '${s.name}' from Calling CRM drawer.`,
+    });
     onChanged();
   };
 
@@ -240,7 +275,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
 
-      <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line overflow-y-auto pb-32" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line overflow-y-auto pb-44" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="px-6 py-5 border-b border-line">
           <div className="flex items-start justify-between gap-3">
@@ -354,69 +389,18 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                   </span>
                 )}
               </div>
-              <Popover open={showStagePicker} onOpenChange={(v) => { setShowStagePicker(v); if (!v) { setStageSearch(""); setNewStageName(""); } }}>
-                <PopoverTrigger asChild>
-                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-black text-white hover:opacity-90">
-                    <ArrowRightCircle className="w-3.5 h-3.5" />
-                    Change Stage
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="end"
-                  side="bottom"
-                  sideOffset={6}
-                  collisionPadding={16}
-                  className="z-[1100] w-[320px] p-0 bg-white border border-line rounded-md shadow-lg overflow-hidden"
-                >
-                  <div className="px-3 py-2 border-b border-line">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground mb-1.5">Change CRM Stage</div>
-                    <div className="flex items-center gap-1.5">
-                      <Search className="w-3.5 h-3.5 text-muted-foreground" />
-                      <input
-                        autoFocus
-                        value={stageSearch}
-                        onChange={(e) => setStageSearch(e.target.value)}
-                        placeholder="Search stages…"
-                        className="flex-1 text-xs outline-none bg-transparent"
-                      />
-                    </div>
-                  </div>
-                  <div className="max-h-[260px] overflow-y-auto">
-                    {pipelineStages
-                      .filter((s) => !stageSearch.trim() || s.name.toLowerCase().includes(stageSearch.trim().toLowerCase()))
-                      .map((s) => (
-                        <div key={s.id} className="group flex items-center hover:bg-off">
-                          <button
-                            onClick={() => { moveStage(s.id); setShowStagePicker(false); }}
-                            className={`flex-1 text-left px-3 py-1.5 text-xs truncate ${s.id === lead.stage_id ? "bg-off font-medium" : ""}`}
-                          >
-                            {s.name}
-                          </button>
-                          {!(s as any).is_protected && s.id !== lead.stage_id && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deactivateStage(s); }}
-                              className="opacity-0 group-hover:opacity-100 px-2 text-muted-foreground hover:text-[#DC2626]"
-                              title="Delete stage (only if unused)"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                  <div className="border-t border-line p-2 flex items-center gap-1.5">
-                    <input
-                      value={newStageName}
-                      onChange={(e) => setNewStageName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") addStageInline(); }}
-                      placeholder="+ Add new stage…"
-                      className="ipc-input !h-8 !text-xs flex-1"
-                    />
-                    <button onClick={addStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">Add</button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <CrmStagePicker
+                stages={pipelineStages as any}
+                currentStageId={lead.stage_id}
+                open={showStagePicker}
+                onOpenChange={(v) => { setShowStagePicker(v); if (!v) setNewStageName(""); }}
+                newStageName={newStageName}
+                onNewStageNameChange={setNewStageName}
+                onChangeStage={(id) => { moveStage(id); setShowStagePicker(false); }}
+                onAddStage={addStageInline}
+                onDeleteStage={(s) => deleteOrDeactivateStage(s as Stage)}
+                addingStage={addingStage}
+              />
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
@@ -509,6 +493,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                   crmLeadId={lead.id}
                   paidLeadId={(lead as any).paid_pipeline_lead_id || null}
                   leadName={lead.full_name || undefined}
+                  ownerId={lead.assigned_agent_id || profile?.id || null}
+                  source="calling_crm_drawer"
                   onSaved={load}
                 />
               </div>
