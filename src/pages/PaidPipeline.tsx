@@ -945,10 +945,12 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
 
     // Resolve CRM pipeline: prefer linked lead's pipeline, else fall back to Paid — Onboarding pipeline.
     let resolvedPipelineId: string | null = null;
+    let currentCrmStageId: string | null = null;
     if (lead.crm_lead_id) {
       const { data: crmLead } = await supabase
         .from("leads").select("id, stage_id, pipeline_id").eq("id", lead.crm_lead_id).maybeSingle();
-      setCrmStageId((crmLead as any)?.stage_id || null);
+      currentCrmStageId = (crmLead as any)?.stage_id || null;
+      setCrmStageId(currentCrmStageId);
       resolvedPipelineId = (crmLead as any)?.pipeline_id || null;
     } else {
       setCrmStageId(null);
@@ -962,11 +964,10 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     if (resolvedPipelineId) {
       const { data: stagesData } = await supabase
         .from("stages")
-        .select("id, name, pipeline_id, color, is_active")
+        .select("id, name, pipeline_id, color, position, is_active, is_protected")
         .eq("pipeline_id", resolvedPipelineId)
-        .eq("is_active", true)
         .order("position", { ascending: true });
-      setCrmStages((stagesData as any) || []);
+      setCrmStages(((stagesData as any[]) || []).filter((s) => s.is_active !== false || s.id === currentCrmStageId));
     } else {
       setCrmStages([]);
     }
@@ -1129,8 +1130,8 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     setAddingStage(true);
     try {
       const { data, error } = await supabase.from("stages").insert({
-        pipeline_id: crmPipelineId, name, color: "#E8E5DE", position: crmStages.length,
-      } as any).select("id, name, pipeline_id, color, is_active").maybeSingle();
+        pipeline_id: crmPipelineId, name, color: "gray", position: crmStages.length,
+      } as any).select("id, name, pipeline_id, color, position, is_active, is_protected").maybeSingle();
       if (error) { toast.error(error.message); return; }
       setNewCrmStageName("");
       toast.success("Stage added to Calling CRM");
@@ -1146,13 +1147,14 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   };
 
   // Delete/deactivate a stage with lead-safety guard.
-  const deleteCrmStageInline = async (s: { id: string; name: string }) => {
+  const deleteCrmStageInline = async (s: CrmStagePickerStage) => {
     // Check usage in leads table
     const { count } = await supabase.from("leads").select("id", { count: "exact", head: true }).eq("stage_id", s.id);
     const used = (count ?? 0) > 0;
-    if (used) {
+    if (used || s.is_protected) {
       // Soft-deactivate
-      const ok = confirm(`Stage "${s.name}" has ${count} lead(s). Deactivate (hide from selectors) instead?`);
+      const reason = used ? `has ${count} lead(s)` : "is protected";
+      const ok = confirm(`Stage "${s.name}" ${reason}. Deactivate (hide from selectors) instead?`);
       if (!ok) return;
       const { error } = await supabase.from("stages").update({ is_active: false } as any).eq("id", s.id);
       if (error) { toast.error(error.message); return; }
@@ -1162,7 +1164,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
         module_key: "paid_pipeline", module_label: "Paid Pipeline",
         action_type: "crm_stage_deactivated_from_paid_pipeline_drawer",
         entity_type: "stage", entity_id: s.id, entity_label: s.name,
-        metadata: { paid_pipeline_lead_id: lead.id, pipeline_id: crmPipelineId, stage_name: s.name, used_count: count, changed_by: user?.id || null },
+        metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, pipeline_id: crmPipelineId, stage_id: s.id, stage_name: s.name, used_count: count, changed_by: user?.id || null },
         summary: `Deactivated Calling CRM stage '${s.name}' (had ${count} leads) from Paid Pipeline drawer.`,
       });
       return;
@@ -1176,7 +1178,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
       module_key: "paid_pipeline", module_label: "Paid Pipeline",
       action_type: "crm_stage_deleted_from_paid_pipeline_drawer",
       entity_type: "stage", entity_id: s.id, entity_label: s.name,
-      metadata: { paid_pipeline_lead_id: lead.id, pipeline_id: crmPipelineId, stage_name: s.name, changed_by: user?.id || null },
+      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, pipeline_id: crmPipelineId, stage_id: s.id, stage_name: s.name, changed_by: user?.id || null },
       summary: `Deleted Calling CRM stage '${s.name}' from Paid Pipeline drawer.`,
     });
   };
