@@ -220,21 +220,23 @@ export default function Crm() {
   const onDrop = async (e: React.DragEvent, stageId: string, beforeLeadId?: string) => {
     e.preventDefault();
     e.stopPropagation();
-    const id = e.dataTransfer.getData("text/plain") || dragId;
+    const raw = e.dataTransfer.getData("text/plain") || dragId || "";
+    const id = raw.startsWith("stage:") ? "" : raw;
     setDragId(null); setHoverStage(null); setHoverBefore(null);
     if (!id) return;
-    if (beforeLeadId === id) return; // dropped on self, no-op
+    const effectiveBefore = beforeLeadId === "__end__" ? undefined : beforeLeadId;
+    if (effectiveBefore === id) return; // dropped on self, no-op
     const current = leads.find(l => l.id === id);
-    if (current && current.stage_id === stageId && !beforeLeadId) {
-      // dropped on same stage's empty area — no-op
+    if (current && current.stage_id === stageId && !effectiveBefore && beforeLeadId !== "__end__") {
+      // dropped on same stage's empty area with no specific target — no-op
       return;
     }
     // Compute new sort_order based on neighbors in target stage
     const targetList = leads.filter((l) => l.pipeline_id === activePipeline && l.stage_id === stageId && l.id !== id)
       .slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     let newOrder = 0;
-    if (beforeLeadId) {
-      const idx = targetList.findIndex((l) => l.id === beforeLeadId);
+    if (effectiveBefore) {
+      const idx = targetList.findIndex((l) => l.id === effectiveBefore);
       const before: any = targetList[idx - 1];
       const after: any = targetList[idx];
       const a = before ? Number(before.sort_order || 0) : (after ? Number(after.sort_order || 0) - 1000 : 0);
@@ -242,14 +244,19 @@ export default function Crm() {
       newOrder = (a + b) / 2;
     } else {
       const last: any = targetList[targetList.length - 1];
-      newOrder = last ? Number(last.sort_order || 0) + 1000 : 0;
+      newOrder = last ? Number(last.sort_order || 0) + 1000 : 100;
     }
     const oldStageId = leads.find(l => l.id === id)?.stage_id;
+    const oldSort = (leads.find(l => l.id === id) as any)?.sort_order;
     await supabase.from("leads").update({ stage_id: stageId, sort_order: newOrder }).eq("id", id);
     const lead = leads.find(l => l.id === id);
     const oldName = stages.find(s => s.id === oldStageId)?.name ?? "—";
     const newName = stages.find(s => s.id === stageId)?.name ?? "—";
-    if (oldStageId !== stageId) logActivity({ module_key: "calling_crm", action_type: "crm_stage_changed", entity_type: "crm_lead", entity_id: id, entity_label: lead?.full_name ?? undefined, old_values: { stage: oldName }, new_values: { stage: newName }, summary: `${lead?.full_name ?? "Lead"} moved from ${oldName} to ${newName}.` });
+    if (oldStageId !== stageId) {
+      logActivity({ module_key: "calling_crm", action_type: "crm_card_moved", entity_type: "crm_lead", entity_id: id, entity_label: lead?.full_name ?? undefined, old_values: { stage: oldName, sort_order: oldSort }, new_values: { stage: newName, sort_order: newOrder }, summary: `${lead?.full_name ?? "Lead"} moved from ${oldName} to ${newName}.` });
+    } else {
+      logActivity({ module_key: "calling_crm", action_type: "crm_card_reordered", entity_type: "crm_lead", entity_id: id, entity_label: lead?.full_name ?? undefined, old_values: { sort_order: oldSort }, new_values: { sort_order: newOrder }, summary: `${lead?.full_name ?? "Lead"} reordered within ${newName}.` });
+    }
     setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage_id: stageId, sort_order: newOrder } as any : l));
   };
 
