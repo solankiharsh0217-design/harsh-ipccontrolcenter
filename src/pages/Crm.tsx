@@ -21,10 +21,15 @@ import {
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
 import ManagedStageFilter from "@/components/crm/ManagedStageFilter";
+import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/ArchiveConfirmModal";
+import { archiveBatch, restoreBatch, permanentlyDeleteBatch, bulkArchiveLeads, getLeadLinks } from "@/lib/crmArchive";
+import { useAuth } from "@/context/AuthContext";
+import { Archive, RotateCcw } from "lucide-react";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
 export default function Crm() {
+  const { isAdmin } = useAuth();
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -73,6 +78,15 @@ export default function Crm() {
   const [assignAgentId, setAssignAgentId] = useState<string>("");
   const [assignScope, setAssignScope] = useState<"unassigned"|"all">("unassigned");
   const [assignBusy, setAssignBusy] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false);
+  const [bulkArchiveBusy, setBulkArchiveBusy] = useState(false);
+  const [archiveBatchTarget, setArchiveBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[]; activeCount: number } | null>(null);
+  const [archiveBatchBusy, setArchiveBatchBusy] = useState(false);
+  const [archiveBatchLinks, setArchiveBatchLinks] = useState<{ paid: number; ops: number } | null>(null);
+  const [deleteBatchTarget, setDeleteBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[] } | null>(null);
+  const [deleteBatchBusy, setDeleteBatchBusy] = useState(false);
+  const [deleteBatchBlocked, setDeleteBatchBlocked] = useState<string | null>(null);
   const toggleSelect = (id: string) => setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelectedIds(new Set());
 
@@ -253,6 +267,7 @@ export default function Crm() {
   }, [stages, activePipeline, leads]);
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
+    list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at);
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
     if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
     if (tagFilter !== "all") list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => t.id === tagFilter));
@@ -265,12 +280,13 @@ export default function Crm() {
       return hay.includes(q);
     });
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery]);
+  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
+    const filteredForBatches = leads.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at);
     const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null }>();
-    for (const l of leads) {
+    for (const l of filteredForBatches) {
       const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
       const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at };
       cur.total++;
@@ -283,7 +299,7 @@ export default function Crm() {
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
-  }, [leads]);
+  }, [leads, showArchived]);
 
   // Tag each batch with the pipeline type for the Batches view tabs and apply the active tab filter.
   const pipelineTypeById = useMemo(() => {
@@ -774,6 +790,9 @@ export default function Crm() {
           <button onClick={() => setBulkSendOpsOpen(true)} className="ipc-btn ipc-btn-black !h-8 !text-xs">
             <ExternalLink className="w-3 h-3" /> Send to Operations
           </button>
+          <button onClick={() => setBulkArchiveOpen(true)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs !text-[#92400E] hover:!bg-[#FEF3C7]">
+            <Archive className="w-3 h-3" /> Archive Selected
+          </button>
           <button onClick={clearSelection} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Clear</button>
         </div>
       )}
@@ -882,6 +901,81 @@ export default function Crm() {
             </div>
           </div>
         </div>
+      )}
+      {bulkArchiveOpen && (
+        <ArchiveConfirmModal
+          title={`Archive ${selectedIds.size} selected lead${selectedIds.size === 1 ? "" : "s"}?`}
+          description="This hides them from active CRM views but keeps reports, payment links, Operations CRM records, and history safe."
+          detailLines={["Linked Paid Pipeline records are preserved.", "Linked Operations CRM records remain active.", "You can restore from Show archived."]}
+          busy={bulkArchiveBusy}
+          onClose={() => setBulkArchiveOpen(false)}
+          onConfirm={async (reason) => {
+            setBulkArchiveBusy(true);
+            try {
+              const ids = Array.from(selectedIds);
+              await bulkArchiveLeads(ids, reason || undefined, activePipeline);
+              toast.success(`Archived ${ids.length} lead${ids.length === 1 ? "" : "s"}`);
+              setBulkArchiveOpen(false);
+              clearSelection();
+              await load();
+            } catch (e: any) { toast.error(e.message || "Archive failed"); }
+            finally { setBulkArchiveBusy(false); }
+          }}
+        />
+      )}
+      {archiveBatchTarget && (
+        <ArchiveConfirmModal
+          title={`Archive batch "${archiveBatchTarget.name}"?`}
+          description={`This will hide ${archiveBatchTarget.activeCount} active lead${archiveBatchTarget.activeCount === 1 ? "" : "s"} from Calling CRM. Payment and Operations CRM records remain untouched.`}
+          detailLines={archiveBatchLinks ? [
+            `${archiveBatchLinks.paid} linked to Paid Pipeline (preserved).`,
+            `${archiveBatchLinks.ops} linked to Operations CRM (preserved).`,
+          ] : undefined}
+          busy={archiveBatchBusy}
+          onClose={() => { setArchiveBatchTarget(null); setArchiveBatchLinks(null); }}
+          onConfirm={async (reason) => {
+            setArchiveBatchBusy(true);
+            try {
+              await archiveBatch({
+                batchName: archiveBatchTarget.name,
+                batchDate: archiveBatchTarget.date,
+                pipelineId: archiveBatchTarget.pipelineId,
+                leadIds: archiveBatchTarget.leadIds,
+                reason: reason || undefined,
+              });
+              toast.success(`Batch "${archiveBatchTarget.name}" archived`);
+              setArchiveBatchTarget(null);
+              setArchiveBatchLinks(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Archive failed"); }
+            finally { setArchiveBatchBusy(false); }
+          }}
+        />
+      )}
+      {deleteBatchTarget && (
+        <PermanentDeleteModal
+          title={`Permanently delete batch "${deleteBatchTarget.name}"?`}
+          description="This cannot be undone. Only allowed when no lead in this batch is linked to Paid Pipeline or Operations CRM."
+          blocked={deleteBatchBlocked}
+          busy={deleteBatchBusy}
+          onClose={() => { setDeleteBatchTarget(null); setDeleteBatchBlocked(null); }}
+          onConfirm={async (reason) => {
+            setDeleteBatchBusy(true);
+            try {
+              await permanentlyDeleteBatch({
+                batchName: deleteBatchTarget.name,
+                batchDate: deleteBatchTarget.date,
+                pipelineId: deleteBatchTarget.pipelineId,
+                leadIds: deleteBatchTarget.leadIds,
+                reason: reason || undefined,
+              });
+              toast.success(`Batch "${deleteBatchTarget.name}" permanently deleted`);
+              setDeleteBatchTarget(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Delete failed"); }
+            finally { setDeleteBatchBusy(false); }
+          }}
+        />
       )}
       {renameStageTarget && (
         <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>
