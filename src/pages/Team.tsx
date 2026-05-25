@@ -77,7 +77,7 @@ export default function Team() {
         supabase.from("user_roles").select("role").eq("user_id", m.id),
         supabase.from("user_module_access").select("module_key").eq("user_id", m.id),
         supabase.from("team_payroll_profiles").select("*").eq("team_member_id", m.id).maybeSingle(),
-        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, can_receive_media_buyer_cases, include_in_round_robin, active_for_assignment").eq("id", m.id).maybeSingle(),
+        supabase.from("profiles").select("can_receive_calling_crm_leads, can_receive_paid_pipeline_leads, can_receive_follow_up_tasks, can_receive_payment_recovery_leads, can_receive_media_buyer_cases, can_receive_operations_leads, include_in_round_robin, active_for_assignment").eq("id", m.id).maybeSingle(),
       ]);
       if (rolesRes.error) throw rolesRes.error;
       if (modsRes.error) throw modsRes.error;
@@ -91,6 +91,7 @@ export default function Team() {
         can_receive_follow_up_tasks: !!(eligRes.data as any).can_receive_follow_up_tasks,
         can_receive_payment_recovery_leads: !!(eligRes.data as any).can_receive_payment_recovery_leads,
         can_receive_media_buyer_cases: !!(eligRes.data as any).can_receive_media_buyer_cases,
+        can_receive_operations_leads: !!(eligRes.data as any).can_receive_operations_leads,
         include_in_round_robin: !!(eligRes.data as any).include_in_round_robin,
         active_for_assignment: (eligRes.data as any).active_for_assignment !== false,
       } : emptyEligibility());
