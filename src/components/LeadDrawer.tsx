@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import TagPicker from "@/components/TagPicker";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 import SuggestedNextActions from "@/components/SuggestedNextActions";
+import { createNotification } from "@/lib/notifications";
 
 interface Props {
   leadId: string;
