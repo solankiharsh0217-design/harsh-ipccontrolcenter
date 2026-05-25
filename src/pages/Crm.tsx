@@ -790,6 +790,9 @@ export default function Crm() {
           <button onClick={() => setBulkSendOpsOpen(true)} className="ipc-btn ipc-btn-black !h-8 !text-xs">
             <ExternalLink className="w-3 h-3" /> Send to Operations
           </button>
+          <button onClick={() => setBulkArchiveOpen(true)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs !text-[#92400E] hover:!bg-[#FEF3C7]">
+            <Archive className="w-3 h-3" /> Archive Selected
+          </button>
           <button onClick={clearSelection} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Clear</button>
         </div>
       )}
