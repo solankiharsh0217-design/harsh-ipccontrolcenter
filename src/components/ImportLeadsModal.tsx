@@ -372,10 +372,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         newRows.push(r);
       }
 
-      // Assignment helper
+      // Assignment helper — applies to BOTH new rows and dup moves/updates.
       const activeAgents = agents;
       let rr = 0;
       const assign = (grade: LeadGrade, isSH: boolean): string | null => {
+        if (assignment === "assign_to_me") return profile?.id || null;
+        if (assignment === "assign_to_member") return selectedAssigneeId || null;
         if (assignment === "round_robin" && activeAgents.length) {
           const id = activeAgents[rr % activeAgents.length].id; rr++; return id;
         }
@@ -388,6 +390,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let newImported = 0;
       let updated = 0;
       let moved = 0;
+      let restored = 0;
       let skippedDuplicates = 0;
       let failed = 0;
       const errors: string[] = [];
@@ -400,6 +403,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         for (const { row, existing } of dupRows) {
           const isSH = true; // existing email match → super-hot per original logic
           const grade = (isSH ? "super-hot" : defaultGrade) as LeadGrade;
+          const wasArchived = !!existing.archived_at;
+          const agentId = assign(grade, isSH);
           const base: any = {
             pipeline_id: pipelineId,
             stage_id: firstStageId,
@@ -412,16 +417,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             program_name: productName,
             deal_value: dealValue,
             lead_source_type: "direct_import",
-            // If existing duplicate is archived, restore it so the fresh import isn't silently blocked.
-            ...(existing.archived_at ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
+            ...(wasArchived ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
+            ...(agentId ? { assigned_agent_id: agentId } : {}),
           };
           if (duplicatePolicy === "update") {
-            // Fill missing name/phone/country only
             if (!existing.full_name && row.full_name) base.full_name = row.full_name;
             if (!existing.phone && row.phone) base.phone = row.phone;
             if (row.country) base.country = row.country;
           } else {
-            // move — only fill missing name/phone, never overwrite
             if (!existing.full_name && row.full_name) base.full_name = row.full_name;
             if (!existing.phone && row.phone) base.phone = row.phone;
           }
@@ -433,9 +436,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           } else {
             if (duplicatePolicy === "update") updated++;
             else moved++;
+            if (wasArchived) restored++;
           }
         }
       }
+
 
       // --- Insert new rows in chunks ---
       const newPayloads = newRows.map((r) => {
