@@ -146,6 +146,85 @@ export async function permanentlyDeleteBatch(args: {
   }).catch(() => {});
 }
 
+/** Reset = soft-archive all active leads in the batch and mark them reimport-safe. Linked Paid Pipeline / Operations records stay intact. */
+export async function resetBatchForReimport(args: {
+  batchName: string; batchDate: string | null; pipelineId: string | null; leadIds: string[]; reason?: string;
+}) {
+  const { batchName, batchDate, pipelineId, leadIds, reason } = args;
+  if (!leadIds.length) throw new Error("Batch has no active leads to reset.");
+  const links = await getLeadLinks(leadIds);
+  const uid = await getActorId();
+  const now = new Date().toISOString();
+  const archiveReason = `[RESET FOR RE-IMPORT] ${reason || `Batch "${batchName}" reset`}`;
+  const { error } = await supabase.from("leads").update({
+    archived_at: now, archived_by: uid, archive_reason: archiveReason,
+  } as any).in("id", leadIds);
+  if (error) throw error;
+  await (supabase as any).from("crm_batch_archives").insert({
+    pipeline_id: pipelineId, batch_name: batchName, batch_date: batchDate,
+    archived_by: uid, archive_reason: archiveReason, affected_lead_count: leadIds.length,
+  });
+  logActivity({
+    module_key: "calling_crm", action_type: "crm_batch_reset_for_reimport",
+    entity_type: "crm_batch", entity_label: batchName, severity: "warning",
+    summary: `Batch "${batchName}" reset for re-import (${leadIds.length} leads archived).`,
+    metadata: {
+      batch_name: batchName, pipeline_id: pipelineId, affected_lead_count: leadIds.length,
+      linked_paid_pipeline_count: links.paid, linked_operations_count: links.ops,
+      reset_by: uid, reason: reason ?? null,
+    },
+  }).catch(() => {});
+  return { affected: leadIds.length, linkedPaid: links.paid, linkedOps: links.ops };
+}
+
+/** Permanently delete only leads with no Paid Pipeline / Operations link. Unsafe active leads are archived instead. */
+export async function safePermanentDeleteBatch(args: {
+  batchName: string; batchDate: string | null; pipelineId: string | null; leadIds: string[]; reason?: string;
+}) {
+  const { batchName, batchDate, pipelineId, leadIds, reason } = args;
+  if (!leadIds.length) throw new Error("Batch has no leads.");
+  const { data: ll } = await supabase.from("leads").select("id, paid_pipeline_lead_id, archived_at").in("id", leadIds);
+  const { data: opsRows } = await (supabase as any).from("operations_leads")
+    .select("crm_lead_id, service_status").in("crm_lead_id", leadIds);
+  const opsLinked = new Set<string>((opsRows || [])
+    .filter((x: any) => x.service_status !== "stopped" && x.service_status !== "completed")
+    .map((x: any) => x.crm_lead_id));
+  const safeIds: string[] = [];
+  const unsafeActiveIds: string[] = [];
+  let alreadyArchivedLinked = 0;
+  (ll || []).forEach((l: any) => {
+    const linked = !!l.paid_pipeline_lead_id || opsLinked.has(l.id);
+    if (linked) { if (!l.archived_at) unsafeActiveIds.push(l.id); else alreadyArchivedLinked++; }
+    else safeIds.push(l.id);
+  });
+
+  let deleted = 0, archived = 0;
+  if (safeIds.length) {
+    const { error } = await supabase.from("leads").delete().in("id", safeIds);
+    if (error) throw error;
+    deleted = safeIds.length;
+  }
+  if (unsafeActiveIds.length) {
+    const uid = await getActorId();
+    await supabase.from("leads").update({
+      archived_at: new Date().toISOString(), archived_by: uid,
+      archive_reason: `[SAFE DELETE - LINKED] Batch ${batchName} cleanup`,
+    } as any).in("id", unsafeActiveIds);
+    archived = unsafeActiveIds.length;
+  }
+  logActivity({
+    module_key: "calling_crm", action_type: "crm_batch_safe_permanent_delete_completed",
+    entity_type: "crm_batch", entity_label: batchName, severity: "critical",
+    summary: `Batch "${batchName}" safe-cleanup: ${deleted} deleted, ${archived} archived, ${alreadyArchivedLinked} already archived.`,
+    metadata: {
+      batch_name: batchName, batch_date: batchDate, pipeline_id: pipelineId,
+      deleted_count: deleted, archived_count: archived, skipped_already_archived: alreadyArchivedLinked,
+      total: leadIds.length, reason: reason ?? null,
+    },
+  }).catch(() => {});
+  return { deleted, archived, alreadyArchivedLinked, total: leadIds.length };
+}
+
 // ─────────── Paid Pipeline ───────────
 export async function archivePaidBuyer(lead: { id: string; name?: string | null }, reason?: string) {
   const uid = await getActorId();
