@@ -486,6 +486,41 @@ export default function Crm() {
     await load();
   };
 
+  // Pipeline tab reorder (admin only, global)
+  const [pipeDragId, setPipeDragId] = useState<string | null>(null);
+  const [pipeHoverId, setPipeHoverId] = useState<string | null>(null);
+  const reorderPipelineDrop = async (target: any) => {
+    const dragId = pipeDragId;
+    setPipeDragId(null); setPipeHoverId(null);
+    if (!isAdmin || !dragId || dragId === target.id) return;
+    const drag = pipelines.find((p) => p.id === dragId);
+    if (!drag) return;
+    const prevFirstId = pipelines[0]?.id;
+    const ordered = pipelines.filter((p) => p.id !== dragId);
+    const targetIdx = ordered.findIndex((p) => p.id === target.id);
+    const dragIdx = pipelines.findIndex((p) => p.id === dragId);
+    const insertIdx = dragIdx < targetIdx ? targetIdx + 1 : targetIdx;
+    ordered.splice(insertIdx, 0, drag);
+    try {
+      for (let i = 0; i < ordered.length; i++) {
+        if ((ordered[i] as any).position !== i) {
+          const { error } = await supabase.from("pipelines").update({ position: i }).eq("id", ordered[i].id);
+          if (error) throw error;
+        }
+      }
+      logActivity({ module_key: "calling_crm", action_type: "pipeline_tabs_reordered", entity_type: "pipeline", entity_id: drag.id, entity_label: (drag as any).name, summary: `Pipeline tabs reordered: "${(drag as any).name}" moved.` });
+      const newFirstId = ordered[0]?.id;
+      if (newFirstId && newFirstId !== prevFirstId) {
+        const newFirst: any = ordered[0];
+        logActivity({ module_key: "calling_crm", action_type: "default_pipeline_changed", entity_type: "pipeline", entity_id: newFirst.id, entity_label: newFirst.name, new_values: { default_pipeline: newFirst.name }, summary: `Default pipeline changed to "${newFirst.name}".` });
+      }
+      toast.success("Pipeline order saved");
+      await load();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to reorder pipelines");
+    }
+  };
+
   const renameStage = async (s: Stage, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed) { toast.error("Name required"); return; }
