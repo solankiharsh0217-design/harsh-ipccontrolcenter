@@ -10,6 +10,10 @@ import {
 import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, computeServiceCalc } from "@/lib/operationsCrm";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import OperationsLeadDrawer, { type OpsLeadFull } from "@/components/OperationsLeadDrawer";
+import RewardWidget from "@/components/operations/RewardWidget";
+import PendingApprovalsPanel from "@/components/operations/PendingApprovalsPanel";
+import MediaBuyerPerformancePanel from "@/components/operations/MediaBuyerPerformancePanel";
+import { getMonthlyCountsByBuyer, currentMonthStr } from "@/lib/operationsConversions";
 import type { Pipeline, Stage } from "@/lib/crmTypes";
 
 interface OpsLead {
