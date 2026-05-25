@@ -1140,7 +1140,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
         module_key: "paid_pipeline", module_label: "Paid Pipeline",
         action_type: "crm_stage_created_from_paid_pipeline_drawer",
         entity_type: "stage", entity_id: (data as any)?.id, entity_label: name,
-        metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, pipeline_id: crmPipelineId, stage_name: name, changed_by: user?.id || null },
+        metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, pipeline_id: crmPipelineId, stage_id: (data as any)?.id, stage_name: name, changed_by: user?.id || null },
         summary: `Created Calling CRM stage '${name}' from Paid Pipeline drawer.`,
       });
     } finally { setAddingStage(false); }
@@ -1201,6 +1201,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     await save(patch);
     logPaidLeadDiff(lead as any, patch, { leadId: lead.id, leadName: lead.name || undefined });
     await recomputePaidLead(lead.id);
+    await loadInner();
     toast.success("Saved");
     onChanged();
   };
