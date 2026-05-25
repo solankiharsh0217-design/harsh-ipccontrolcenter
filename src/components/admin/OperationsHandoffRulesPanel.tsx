@@ -151,6 +151,28 @@ export default function OperationsHandoffRulesPanel() {
     await load();
   };
 
+  const validate = (r: HandoffRule) => {
+    const issues: string[] = [];
+    const pipe = pipelines.find((p) => p.id === r.source_pipeline_id);
+    if (!pipe) issues.push("Source pipeline no longer exists.");
+    const liveStages = stagesFor(r.source_pipeline_id);
+    const liveStageIds = new Set(liveStages.map((s) => s.id));
+    const missingStages = (r.eligible_stage_ids ?? []).filter((id) => !liveStageIds.has(id));
+    if (missingStages.length) issues.push(`${missingStages.length} selected stage(s) no longer match live CRM stages. Re-select them.`);
+    if (!r.eligible_stage_ids || r.eligible_stage_ids.length === 0) issues.push("No eligible stages selected.");
+    if (!r.default_service_package) issues.push("Default service package missing.");
+    if (!r.default_service_days || r.default_service_days <= 0) issues.push("Default service duration missing.");
+    if (r.default_assignment_method === "single" && !r.default_single_buyer_id) issues.push("Single assignment needs a media buyer.");
+    if (r.default_assignment_method === "round_robin" && (!r.eligible_buyer_ids || r.eligible_buyer_ids.length === 0)) issues.push("Round robin needs at least one media buyer in the pool.");
+    if (r.mode === "auto" && !isRuleAutoReady(r)) issues.push("Auto-send requires complete settings — will fall back to suggest.");
+    if (issues.length === 0) {
+      toast.success(`Rule "${r.name}" is ready. Mode: ${r.mode}.`);
+    } else {
+      toast.error(issues.join(" "), { duration: 8000 });
+    }
+  };
+
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -173,7 +195,9 @@ export default function OperationsHandoffRulesPanel() {
         <div className="border border-line rounded-lg bg-white divide-y">
           {rules.map((r) => {
             const pipe = pipelines.find((p) => p.id === r.source_pipeline_id);
+            const liveStageIds = new Set(stagesFor(r.source_pipeline_id).map((s) => s.id));
             const stgs = stagesFor(r.source_pipeline_id).filter((s) => r.eligible_stage_ids?.includes(s.id));
+            const missingStageCount = (r.eligible_stage_ids ?? []).filter((id) => !liveStageIds.has(id)).length;
             const needsCompletion = r.mode === "auto" && !isRuleAutoReady(r);
             return (
               <div key={r.id} className="p-3 flex items-start gap-3">
@@ -187,20 +211,35 @@ export default function OperationsHandoffRulesPanel() {
                         <AlertTriangle className="w-3 h-3" /> Incomplete · falls back to suggest
                       </span>
                     )}
+                    {missingStageCount > 0 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-red-50 text-red-800 border border-red-200 inline-flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> {missingStageCount} stale stage{missingStageCount === 1 ? "" : "s"}
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-1">
                     <span className="font-medium text-foreground">{pipe?.name ?? "—"}</span>
-                    {stgs.length > 0 && <> · {stgs.map((s) => s.name).join(", ")}</>}
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                  {stgs.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {stgs.map((s) => (
+                        <span key={s.id} className="text-[10px] px-2 py-0.5 rounded-full bg-off border border-line text-foreground">{s.name}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="text-[11px] text-muted-foreground mt-1.5">
                     {r.default_service_package ?? "—"} · {r.default_service_days ?? "—"} days · {r.default_assignment_method.replace("_", " ")} · {r.duplicate_behavior === "skip" ? "Skip duplicates" : "Update existing"}
+                    {r.default_assignment_method === "round_robin" && <> · {(r.eligible_buyer_ids ?? []).length} buyer{(r.eligible_buyer_ids ?? []).length === 1 ? "" : "s"} in pool</>}
                   </div>
                 </div>
+
                 <div className="flex items-center gap-1">
+                  <button onClick={() => validate(r)} className="ipc-btn ipc-btn-ghost !h-8 !text-[11px]">Validate</button>
                   <button onClick={() => toggleActive(r)} className="ipc-btn ipc-btn-ghost !h-8 !text-[11px]">{r.is_active ? "Deactivate" : "Activate"}</button>
                   <button onClick={() => setEditing(r)} className="w-8 h-8 rounded hover:bg-off flex items-center justify-center" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={() => remove(r)} className="w-8 h-8 rounded hover:bg-off flex items-center justify-center text-[#DC2626]" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
+
               </div>
             );
           })}

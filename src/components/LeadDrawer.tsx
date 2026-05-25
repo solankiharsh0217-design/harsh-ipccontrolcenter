@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { GRADE_STYLES, type Lead, type Stage, type ActivityLog, type Reminder } from "@/lib/crmTypes";
-import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink } from "lucide-react";
+import { X, Phone, MessageCircle, Mail, MessageSquare, Trash2, ExternalLink, ArrowRightCircle, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import TagPicker from "@/components/TagPicker";
@@ -10,6 +10,7 @@ import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { createNotification } from "@/lib/notifications";
 import SendToOperationsCrmModal from "@/components/SendToOperationsCrmModal";
+import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, type HandoffRule } from "@/lib/operationsCrm";
 
 interface Props {
   leadId: string;
@@ -17,13 +18,15 @@ interface Props {
   agents: { id: string; full_name: string }[];
   onClose: () => void;
   onChanged: () => void;
+  onStageChanged?: (leadId: string, newStageId: string) => void;
 }
+
 
 const channelStyle: Record<string, string> = {
   call: "#16A34A", whatsapp: "#22C55E", email: "#2563EB", sms: "#7C3AED", note: "#888888", system: "#0a0a0a",
 };
 
-export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged }: Props) {
+export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged, onStageChanged }: Props) {
   const { profile } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
@@ -35,6 +38,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const [newStageName, setNewStageName] = useState("");
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
+  const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
+
 
   const load = async () => {
     const [{ data: l }, { data: a }, { data: r }] = await Promise.all([
@@ -60,6 +65,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
     setOpsLeadId(ops?.id ?? null);
   };
   useEffect(() => { load(); }, [leadId]);
+  useEffect(() => { getActiveHandoffRules().then(setOpsRules).catch(() => setOpsRules([])); }, []);
 
   if (!lead) return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
@@ -71,10 +77,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const pipelineStages = stages.filter((s) => s.pipeline_id === lead.pipeline_id).sort((a, b) => a.position - b.position);
 
   const moveStage = async (stageId: string) => {
+    const prev = lead.stage_id;
     await supabase.from("leads").update({ stage_id: stageId }).eq("id", lead.id);
     toast.success("Stage updated");
     await load(); onChanged();
+    if (prev !== stageId) onStageChanged?.(lead.id, stageId);
   };
+
   const setAgent = async (agentId: string | null) => {
     await supabase.from("leads").update({ assigned_agent_id: agentId }).eq("id", lead.id);
     toast.success("Agent updated");
@@ -149,9 +158,20 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const today = new Date().toISOString().slice(0, 10);
   const currentStage = pipelineStages.find((s) => s.id === lead.stage_id);
   const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+  const matchingRule = findRuleForStage(opsRules, lead.pipeline_id, lead.stage_id);
+  const isOpsEligible = !!matchingRule;
+  const inOps = opsLeadId !== null;
+  const rulePrefill = matchingRule ? {
+    serviceDays: matchingRule.default_service_days ?? null,
+    packageName: matchingRule.default_service_package ?? null,
+    assignMethod: matchingRule.default_assignment_method,
+    singleBuyerId: matchingRule.default_single_buyer_id,
+    duplicateBehavior: matchingRule.duplicate_behavior,
+  } : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
+
       <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line overflow-y-auto pb-24" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="px-6 py-5 border-b border-line">
@@ -226,46 +246,96 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
           />
         </div>
 
-        {/* CRM Stage — visible high up so it's never hidden */}
-        <div className="px-6 py-4 border-b border-line bg-gold-pale/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground">CRM Stage</div>
-            <button onClick={() => setShowStagePicker((v) => !v)} className="text-[11px] px-2 py-1 rounded border border-line bg-white hover:bg-off">
-              {showStagePicker ? "Close" : "Change stage"}
-            </button>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
-            <span className="px-2.5 py-1 rounded-full text-xs bg-black text-white">{currentStage?.name || "—"}</span>
-          </div>
-          {showStagePicker && (
-            <div className="mt-3 border border-line rounded-lg p-2 bg-white space-y-0.5 max-h-[260px] overflow-y-auto">
-              {pipelineStages.map((s) => (
-                <div key={s.id} className="group flex items-center gap-2">
-                  <button onClick={() => { moveStage(s.id); setShowStagePicker(false); }}
-                    className={`flex-1 text-left px-2.5 py-1.5 rounded text-xs ${s.id === lead.stage_id ? "bg-off font-medium" : "hover:bg-off"}`}>
-                    {s.name}
-                  </button>
-                  {!(s as any).is_protected && s.id !== lead.stage_id && (
-                    <button onClick={() => deactivateStage(s)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[#DC2626] p-1" title="Delete stage (only if unused)">
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <div className="flex items-center gap-1.5 pt-2 border-t border-line mt-2">
-                <input
-                  value={newStageName}
-                  onChange={(e) => setNewStageName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") addStageInline(); }}
-                  placeholder="+ Add new stage…"
-                  className="ipc-input !h-8 !text-xs flex-1"
-                />
-                <button onClick={addStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">Add</button>
+        {/* CRM Stage — prominent card with Ops eligibility */}
+        <div className="px-6 py-4 border-b border-line bg-gold-pale/10">
+          <div className="rounded-xl border border-line bg-white p-4">
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground">CRM Stage</div>
+                {isOpsEligible && !inOps && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]">
+                    <Sparkles className="w-3 h-3" /> Ops Eligible
+                  </span>
+                )}
+                {inOps && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#E0E7FF] text-[#3730A3] border border-[#C7D2FE]">
+                    In Operations
+                  </span>
+                )}
               </div>
+              <button
+                onClick={() => setShowStagePicker((v) => !v)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-black text-white hover:opacity-90"
+              >
+                <ArrowRightCircle className="w-3.5 h-3.5" />
+                {showStagePicker ? "Close" : "Change Stage"}
+              </button>
             </div>
-          )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
+              <span className="px-2.5 py-1 rounded-full text-xs bg-off border border-line font-medium">{currentStage?.name || "—"}</span>
+            </div>
+
+            {/* Drawer-level Operations suggestion */}
+            {matchingRule && !inOps && (
+              <div className="mt-3 rounded-lg border border-[#86EFAC] bg-[#F0FDF4] p-3">
+                {matchingRule.mode === "auto" && !isRuleAutoReady(matchingRule) ? (
+                  <div className="text-[12px] text-amber-900">
+                    <div className="font-medium mb-1">Operations handoff rule is incomplete.</div>
+                    <div className="text-[11px]">Add package, duration, assignment method, and media buyer pool in Master Settings → Operations Handoff Rules.</div>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <div>
+                      <div className="text-[12px] font-medium text-[#166534]">This lead is ready for Operations CRM.</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">Rule: {matchingRule.name} · {matchingRule.default_service_package ?? "—"} · {matchingRule.default_service_days ?? "—"} days</div>
+                    </div>
+                    <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] bg-[#16A34A] text-white hover:opacity-90">
+                      Send to Operations CRM
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {inOps && opsLeadId && (
+              <div className="mt-3 rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] p-3 flex items-center justify-between gap-2 flex-wrap">
+                <div className="text-[12px] text-[#3730A3]">This lead is already in Operations CRM.</div>
+                <Link to={`/operations-crm?lead=${opsLeadId}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] bg-[#3730A3] text-white hover:opacity-90">
+                  <ExternalLink className="w-3 h-3" /> Open in Operations CRM
+                </Link>
+              </div>
+            )}
+
+            {showStagePicker && (
+              <div className="mt-3 border border-line rounded-lg p-2 bg-white space-y-0.5 max-h-[260px] overflow-y-auto">
+                {pipelineStages.map((s) => (
+                  <div key={s.id} className="group flex items-center gap-2">
+                    <button onClick={() => { moveStage(s.id); setShowStagePicker(false); }}
+                      className={`flex-1 text-left px-2.5 py-1.5 rounded text-xs ${s.id === lead.stage_id ? "bg-off font-medium" : "hover:bg-off"}`}>
+                      {s.name}
+                    </button>
+                    {!(s as any).is_protected && s.id !== lead.stage_id && (
+                      <button onClick={() => deactivateStage(s)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[#DC2626] p-1" title="Delete stage (only if unused)">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <div className="flex items-center gap-1.5 pt-2 border-t border-line mt-2">
+                  <input
+                    value={newStageName}
+                    onChange={(e) => setNewStageName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") addStageInline(); }}
+                    placeholder="+ Add new stage…"
+                    className="ipc-input !h-8 !text-xs flex-1"
+                  />
+                  <button onClick={addStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">Add</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+
 
 
 
@@ -438,6 +508,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
           }]}
           sourceStages={[]}
           preSelectedIds={[lead.id]}
+          prefill={rulePrefill}
+
           onClose={() => setSendOpsOpen(false)}
           onDone={() => { setSendOpsOpen(false); load(); }}
         />
