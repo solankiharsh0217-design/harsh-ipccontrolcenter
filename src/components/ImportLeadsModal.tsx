@@ -1018,12 +1018,26 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   <span className="text-muted-foreground">Unlinked (CRM leads with no Paid Pipeline row):</span>{" "}
                   <b className={result.paidUnlinked > 0 ? "text-amber-700" : "text-emerald-700"}>{result.paidUnlinked}</b>
                 </div>
+                <div className="col-span-2 pt-1">
+                  <PaidSyncCheckButton pipelineId={result.pipelineId} onComplete={(r) => {
+                    setResult((prev) => prev ? { ...prev, paidCreated: prev.paidCreated + r.created, paidLinked: prev.paidLinked + r.linked, paidUnlinked: r.unlinkedAfter } : prev);
+                  }} />
+                </div>
                 {result.paidUnlinked > 0 && (
                   <div className="col-span-2 flex items-start gap-2 mt-1 p-2.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5" />
-                    <span>Some paid CRM leads are not linked to Paid Pipeline. Re-running the import will retry the link/backfill.</span>
+                    <span>Some paid CRM leads are not linked to Paid Pipeline. Click "Run Paid Import Sync Check" above to backfill.</span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {result.failureReasons.length > 0 && (
+              <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 text-xs">
+                <div className="font-medium text-amber-900 mb-1">Failure reasons</div>
+                <ul className="list-disc pl-4 space-y-0.5 text-amber-800">
+                  {result.failureReasons.map((r, i) => <li key={i}>{r.reason} — <b>{r.count}</b></li>)}
+                </ul>
               </div>
             )}
 
