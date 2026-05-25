@@ -48,6 +48,8 @@ const SECTIONS = [
   { key: "calling_crm", label: "Calling CRM" },
   { key: "stage_sync", label: "Stage Sync Rules" },
   { key: "operations_handoff", label: "Operations Handoff Rules" },
+  { key: "operations_rewards", label: "Operations Reward Rules" },
+  { key: "operations_packages", label: "Operations Packages" },
   { key: "whatsapp", label: "WhatsApp Templates" },
   { key: "followup", label: "Follow-Up" },
   { key: "recovery", label: "Payment Recovery" },
