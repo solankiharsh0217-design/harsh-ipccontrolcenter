@@ -18,6 +18,8 @@ export type SaveCentralFollowUpInput = {
   auditModuleKey?: string;
   auditModuleLabel?: string;
   metadata?: Record<string, any>;
+  /** When set, force-update this specific follow-up row instead of insert/dedup logic. */
+  editId?: string | null;
 };
 
 export function mapTypeToChannel(t: string | null | undefined): "call" | "whatsapp" | "email" | "sms" | "note" {
