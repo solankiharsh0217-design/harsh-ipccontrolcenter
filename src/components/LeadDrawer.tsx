@@ -65,6 +65,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     setOpsLeadId(ops?.id ?? null);
   };
   useEffect(() => { load(); }, [leadId]);
+  useEffect(() => { getActiveHandoffRules().then(setOpsRules).catch(() => setOpsRules([])); }, []);
 
   if (!lead) return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
@@ -76,10 +77,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const pipelineStages = stages.filter((s) => s.pipeline_id === lead.pipeline_id).sort((a, b) => a.position - b.position);
 
   const moveStage = async (stageId: string) => {
+    const prev = lead.stage_id;
     await supabase.from("leads").update({ stage_id: stageId }).eq("id", lead.id);
     toast.success("Stage updated");
     await load(); onChanged();
+    if (prev !== stageId) onStageChanged?.(lead.id, stageId);
   };
+
   const setAgent = async (agentId: string | null) => {
     await supabase.from("leads").update({ assigned_agent_id: agentId }).eq("id", lead.id);
     toast.success("Agent updated");
