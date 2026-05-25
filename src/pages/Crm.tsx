@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
+import SendToOperationsCrmModal from "@/components/SendToOperationsCrmModal";
 import { createNotification } from "@/lib/notifications";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
