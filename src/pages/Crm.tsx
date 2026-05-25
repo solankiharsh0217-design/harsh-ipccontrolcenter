@@ -624,6 +624,24 @@ export default function Crm() {
       )}
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
+      {sendOpsOpen && (
+        <SendToOperationsCrmModal
+          candidateLeads={pipelineLeads.map((l) => ({
+            id: l.id,
+            full_name: l.full_name,
+            email: l.email,
+            phone: l.phone,
+            program_name: (l as any).program_name ?? null,
+            webinar_source: l.webinar_source,
+            deal_value: (l as any).deal_value ?? null,
+            stage_id: l.stage_id,
+            paid_pipeline_lead_id: (l as any).paid_pipeline_lead_id ?? null,
+          }))}
+          sourceStages={pipelineStages.map((s) => ({ id: s.id, name: s.name }))}
+          onClose={() => setSendOpsOpen(false)}
+          onDone={() => { /* leads remain in Calling CRM */ }}
+        />
+      )}
       {addStageOpen && <AddCrmStageModal pipelines={pipelines} stages={stages} defaultPipelineId={activePipeline} onClose={() => setAddStageOpen(false)} onCreated={() => load()} />}
       {renameStageTarget && (
         <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>
