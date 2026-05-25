@@ -305,6 +305,16 @@ export default function Team() {
             <div className="px-7 py-5 border-b border-line space-y-3">
               <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Profile</div>
               <div>
+                <label className="font-sans text-[11px] text-muted-foreground block mb-1">Login email</label>
+                <input
+                  value={editing.email || ""}
+                  readOnly
+                  placeholder="Email not available"
+                  className="w-full h-9 px-3 rounded-md border border-line bg-off font-sans text-sm text-muted-foreground cursor-not-allowed"
+                  title="Login email is read-only"
+                />
+              </div>
+              <div>
                 <label className="font-sans text-[11px] text-muted-foreground block mb-1">Full name</label>
                 <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full h-9 px-3 rounded-md border border-line bg-white font-sans text-sm" />
               </div>
