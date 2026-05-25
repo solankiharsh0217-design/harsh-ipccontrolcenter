@@ -87,10 +87,13 @@ export default function InlineManagedSelect({
     } as any);
     if (error) { toast.error(error.message); return; }
     toast.success("Added");
+    const at = settingType === "pipeline_stage" ? "stage_created"
+      : settingType === "lead_priority" ? "lead_priority_created"
+      : `${settingType}_created`;
     logActivity({
       module_key: "paid_pipeline", module_label: "Paid Pipeline",
-      action_type: settingType === "pipeline_stage" ? "stage_created" : "lead_priority_created",
-      action_label: settingType === "pipeline_stage" ? "Stage created" : "Priority created",
+      action_type: at,
+      action_label: `${NOUN[settingType] || settingType} created`,
       summary: `${trimmed} added`,
     });
     setNewLabel(""); setNewColor(""); setAdding(false);
@@ -105,10 +108,13 @@ export default function InlineManagedSelect({
       .update({ is_active: false } as any).eq("id", o.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Deactivated");
+    const at = settingType === "pipeline_stage" ? "stage_deactivated"
+      : settingType === "lead_priority" ? "lead_priority_deactivated"
+      : `${settingType}_deactivated`;
     logActivity({
       module_key: "paid_pipeline", module_label: "Paid Pipeline",
-      action_type: settingType === "pipeline_stage" ? "stage_deactivated" : "lead_priority_deactivated",
-      action_label: settingType === "pipeline_stage" ? "Stage deactivated" : "Priority deactivated",
+      action_type: at,
+      action_label: `${NOUN[settingType] || settingType} deactivated`,
       summary: `${o.label} deactivated`, severity: "warning",
     });
     await load();
@@ -123,7 +129,7 @@ export default function InlineManagedSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full h-7 border border-line rounded px-2 text-[11px] text-left bg-white truncate flex items-center justify-between gap-1 hover:bg-off"
+        className={triggerClassName || "w-full h-7 border border-line rounded px-2 text-[11px] text-left bg-white truncate flex items-center justify-between gap-1 hover:bg-off"}
         style={{ color: currentColor }}
         title={value || placeholder}
       >
