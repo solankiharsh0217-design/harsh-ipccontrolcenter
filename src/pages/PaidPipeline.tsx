@@ -818,6 +818,12 @@ function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen, 
       <Row onClick={onAddPayment} dotColor="#15803D" tint="#DCFCE7" title="Add Payment" subtitle="Record token / balance / EMI" icon="₹" />
       <Row onClick={onUpdateFinance} dotColor="#1E40AF" tint="#DBEAFE" title="Update Finance" subtitle="Partner, status, disbursal" icon="◈" />
       <Row onClick={onSetFollowUp} dotColor="#92400E" tint="#FEF3C7" title="Set Follow-up" subtitle="Schedule next call / message" icon="⏰" />
+      <div className="h-px bg-line my-0.5" />
+      {!archived ? (
+        <Row onClick={onArchive} dotColor="#92400E" tint="#FEF3C7" title="Archive Buyer" subtitle="Hide from active table — payments preserved" icon="📦" />
+      ) : (
+        <Row onClick={onRestore} dotColor="#166534" tint="#DCFCE7" title="Restore Buyer" subtitle="Move back into active table" icon="↺" />
+      )}
     </div>,
     document.body
   ) : null;
