@@ -423,14 +423,16 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       if (failedNoKey > 0) reasonCounts.set("Row has neither email nor phone", failedNoKey);
 
       // --- Handle duplicates per policy ---
+      const addReason = (msg: string) => reasonCounts.set(msg, (reasonCounts.get(msg) || 0) + 1);
       if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") {
         skippedDuplicates += dupRows.length;
       } else {
         // update / move
-        for (const { row, existing } of dupRows) {
-          const isSH = true; // existing email match → super-hot per original logic
+        for (const { row, existing, matchedBy } of dupRows) {
+          const isSH = true; // existing match → super-hot per original logic
           const grade = (isSH ? "super-hot" : defaultGrade) as LeadGrade;
           const wasArchived = !!existing.archived_at;
+          const wasSoftDeleted = !!(existing as any).deleted_at;
           const agentId = assign(grade, isSH);
           const base: any = {
             pipeline_id: pipelineId,
@@ -445,25 +447,26 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             deal_value: dealValue,
             lead_source_type: "direct_import",
             ...(wasArchived ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
+            ...(wasSoftDeleted ? { deleted_at: null, deleted_by: null, delete_reason: null } : {}),
             ...(agentId ? { assigned_agent_id: agentId } : {}),
           };
-          if (duplicatePolicy === "update") {
-            if (!existing.full_name && row.full_name) base.full_name = row.full_name;
-            if (!existing.phone && row.phone) base.phone = row.phone;
-            if (row.country) base.country = row.country;
-          } else {
-            if (!existing.full_name && row.full_name) base.full_name = row.full_name;
-            if (!existing.phone && row.phone) base.phone = row.phone;
-          }
+          // Always fill missing fields; for "update" also overwrite country.
+          if (!existing.full_name && row.full_name) base.full_name = row.full_name;
+          if (!existing.phone && row.phone) base.phone = row.phone;
+          if (!existing.email && row.email) base.email = row.email;
+          if (duplicatePolicy === "update" && row.country) base.country = row.country;
+
           const { error } = await supabase.from("leads").update(base).eq("id", existing.id);
           if (error) {
             console.error("[ImportLeadsModal] update existing failed", error, existing.id);
             failed++;
+            addReason(`Update existing failed: ${error.message}`);
             if (!errors.includes(error.message)) errors.push(error.message);
           } else {
             if (duplicatePolicy === "update") updated++;
             else moved++;
             if (wasArchived) restored++;
+            if (matchedBy === "phone" && !row.email) phoneOnlyImported++;
           }
         }
       }
