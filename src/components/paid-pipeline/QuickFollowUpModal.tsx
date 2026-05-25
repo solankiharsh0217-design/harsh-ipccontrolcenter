@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import { logActivity } from "@/lib/auditLog";
+import { saveCentralFollowUp } from "@/lib/followUps";
 
 export default function QuickFollowUpModal({
   leadId, leadName, crmLeadId, defaults, onClose, onSaved,
@@ -26,19 +27,22 @@ export default function QuickFollowUpModal({
     if (!date) { toast.error("Date required"); return; }
     setBusy(true);
     try {
-      await supabase.from("paid_pipeline_followups").insert({
-        paid_pipeline_lead_id: leadId, follow_up_date: date, follow_up_time: time,
-        follow_up_reason: reason || null, follow_up_type: reason || null,
-        priority, status, assigned_to: assignee || null,
-        notes: notes || null, created_by: user?.id,
-        related_crm_lead_id: crmLeadId || null,
-        source_module: "paid_pipeline",
-      } as any);
-      await supabase.from("paid_pipeline_leads").update({
-        next_follow_up_date: date, next_follow_up_time: time,
-        follow_up_reason: reason || null, follow_up_priority: priority,
-        follow_up_status: status,
-      } as any).eq("id", leadId);
+      await saveCentralFollowUp({
+        paidLeadId: leadId,
+        crmLeadId: crmLeadId || null,
+        leadName,
+        date,
+        time,
+        type: reason || null,
+        priority,
+        note: notes || null,
+        status,
+        ownerId: assignee || user?.id || null,
+        createdBy: user?.id || null,
+        sourceModule: "paid_pipeline",
+        auditActionType: "followup_saved_from_paid_pipeline_drawer",
+        metadata: { source: "quick_followup_modal" },
+      });
       await supabase.from("paid_pipeline_activity_logs").insert({
         paid_pipeline_lead_id: leadId, activity_type: "followup_set",
         note: `${date} ${time} · ${reason || "Follow-up"} · ${priority}`, created_by: user?.id,
