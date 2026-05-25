@@ -943,42 +943,6 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Timeline & Follow-up */}
-          <Section title="Timeline & Follow-up">
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Created / Imported" value={lead.created_at ? fmtDate(lead.created_at) : "—"} />
-              <Field label="Paid Batch" value={lead.paid_batch_name || "—"} />
-              <Field label="Onboarding Batch" value={lead.onboarding_batch_name || "—"} />
-              <Field label="Last Payment Date" value={payments[0]?.payment_date ? fmtDate(payments[0].payment_date) : "—"} />
-              <Field label="Last Contacted" value={activity[0]?.created_at ? fmtDate(activity[0].created_at) : "—"} />
-              <Field label="Next Follow-up Date" value={lead.next_follow_up_date ? fmtDate(lead.next_follow_up_date) : "—"} />
-              <Field label="Next Follow-up Time" value={lead.next_follow_up_time ? String(lead.next_follow_up_time).slice(0,5) : "—"} />
-              <Field label="Follow-up Type" value={lead.follow_up_reason || "—"} />
-              <Field label="Assigned Owner" value={agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"} />
-            </div>
-            <div className="mt-3">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Fast Follow-up</div>
-              <FastFollowUpComposer
-                paidLeadId={lead.id}
-                crmLeadId={lead.crm_lead_id || null}
-                leadName={lead.name || undefined}
-                defaultPriority={temperature || "Normal"}
-                onSaved={() => { loadInner(); onChanged(); }}
-              />
-            </div>
-          </Section>
-
-          {/* Payment Summary */}
-          <Section title="Payment summary">
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Deal value" value={inr(lead.deal_value_including_gst)} />
-              <Field label="Token collected" value={inr(lead.token_amount_collected)} />
-              <Field label="Total collected" value={inr(lead.total_collected)} />
-              <Field label="Balance pending" value={inr(lead.balance_pending)} accent />
-              <Field label="Realized revenue" value={inr(lead.final_revenue_realized || 0)} />
-              <Field label="To be realized" value={inr(lead.revenue_to_be_realized ?? lead.balance_pending)} />
-            </div>
-          </Section>
 
           {/* 1. Payment Summary — top priority */}
           <Section title="Revenue snapshot">
