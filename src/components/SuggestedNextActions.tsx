@@ -43,6 +43,8 @@ export default function SuggestedNextActions({ crmLeadId, paidLeadId, onApplied,
       const result = await s.apply();
       if (result === "OPEN_FOLLOWUP" && onOpenFollowUp) {
         onOpenFollowUp();
+      } else if (result === "OPEN_TOKEN_PAYMENT" && onOpenTokenPayment) {
+        onOpenTokenPayment();
       } else {
         toast.success(result || "Suggestion applied");
       }
