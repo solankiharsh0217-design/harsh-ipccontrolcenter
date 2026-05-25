@@ -915,12 +915,18 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [financeNotes, setFinanceNotes] = useState(lead.finance_notes || "");
   const [financeFu, setFinanceFu] = useState(lead.finance_follow_up_date || "");
   const [openPay, setOpenPay] = useState(false);
+  const [payPrefill, setPayPrefill] = useState<any | null>(null);
+  const [payHeaderNote, setPayHeaderNote] = useState<string | undefined>(undefined);
+  const [postPayAction, setPostPayAction] = useState<null | "setTokenPaid">(null);
   const [openFu, setOpenFu] = useState(false);
   const [openFin, setOpenFin] = useState(false);
   const [editBatch, setEditBatch] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedTpl, setCopiedTpl] = useState<string | null>(null);
+  const [crmStages, setCrmStages] = useState<{ id: string; name: string; pipeline_id: string | null }[]>([]);
+  const [crmStageId, setCrmStageId] = useState<string | null>(null);
+  const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
