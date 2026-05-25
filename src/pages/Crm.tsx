@@ -68,6 +68,11 @@ export default function Crm() {
   const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
   const [opsLeadCrmIds, setOpsLeadCrmIds] = useState<Set<string>>(new Set());
   const [opsBanner, setOpsBanner] = useState<{ rule: HandoffRule; leadIds: string[] } | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignMode, setAssignMode] = useState<"round_robin"|"manual"|"unassign">("round_robin");
+  const [assignAgentId, setAssignAgentId] = useState<string>("");
+  const [assignScope, setAssignScope] = useState<"unassigned"|"all">("unassigned");
+  const [assignBusy, setAssignBusy] = useState(false);
   const toggleSelect = (id: string) => setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelectedIds(new Set());
 
@@ -513,12 +518,6 @@ export default function Crm() {
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `crm-leads-${Date.now()}.csv`; a.click();
   };
-
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [assignMode, setAssignMode] = useState<"round_robin"|"manual"|"unassign">("round_robin");
-  const [assignAgentId, setAssignAgentId] = useState<string>("");
-  const [assignScope, setAssignScope] = useState<"unassigned"|"all">("unassigned");
-  const [assignBusy, setAssignBusy] = useState(false);
 
   const runAssignment = async () => {
     setAssignBusy(true);
