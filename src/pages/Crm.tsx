@@ -791,7 +791,23 @@ export default function Crm() {
                 >
                   <div className="px-3 pt-3 pb-2 border-b-2" style={{ borderBottomColor: color }}>
                     <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={items.length > 0 && items.every((l) => selectedIds.has(l.id))}
+                          ref={(el) => { if (el) { const some = items.some((l) => selectedIds.has(l.id)); const all = items.length > 0 && items.every((l) => selectedIds.has(l.id)); el.indeterminate = some && !all; } }}
+                          onChange={(e) => {
+                            const ids = items.map((l) => l.id);
+                            setSelectedIds((p) => {
+                              const n = new Set(p);
+                              if (e.target.checked) ids.forEach((id) => n.add(id));
+                              else ids.forEach((id) => n.delete(id));
+                              return n;
+                            });
+                          }}
+                          title="Select all in stage"
+                          className="w-3.5 h-3.5 cursor-pointer accent-black flex-shrink-0"
+                        />
                         <span
                           draggable
                           onDragStart={(e) => { e.dataTransfer.setData("text/plain", `stage:${s.id}`); e.dataTransfer.effectAllowed = "move"; setStageDragId(s.id); }}
@@ -807,21 +823,6 @@ export default function Crm() {
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <div className="text-xs text-muted-foreground">{items.length}</div>
-                        <input
-                          type="checkbox"
-                          checked={items.length > 0 && items.every((l) => selectedIds.has(l.id))}
-                          onChange={(e) => {
-                            const ids = items.map((l) => l.id);
-                            setSelectedIds((p) => {
-                              const n = new Set(p);
-                              if (e.target.checked) ids.forEach((id) => n.add(id));
-                              else ids.forEach((id) => n.delete(id));
-                              return n;
-                            });
-                          }}
-                          title="Select all in stage"
-                          className="w-3.5 h-3.5 cursor-pointer accent-black"
-                        />
                         <StageHeaderMenu
                           stage={s}
                           idx={idx}
@@ -837,6 +838,7 @@ export default function Crm() {
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">₹{total.toLocaleString("en-IN")}</div>
                   </div>
+
                   <div className="p-2 space-y-2 flex-1 min-h-[120px]">
                     {items.map((l, cardIdx) => {
                       const g = GRADE_STYLES[l.grade];
