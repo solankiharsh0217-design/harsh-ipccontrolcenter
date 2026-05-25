@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { supabase } from "@/integrations/supabase/client";
 import { GRADE_STYLES, STAGE_COLORS, STAGE_COLOR_OPTIONS, DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, type Lead, type Pipeline, type Stage } from "@/lib/crmTypes";
 import LeadDrawer from "@/components/LeadDrawer";
-import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload, Pencil, Calendar, ExternalLink } from "lucide-react";
+import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload, Pencil, Calendar, ExternalLink, GripVertical } from "lucide-react";
 import ImportLeadsModal, { type ImportResult } from "@/components/ImportLeadsModal";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import { toast } from "sonner";
@@ -220,21 +220,23 @@ export default function Crm() {
   const onDrop = async (e: React.DragEvent, stageId: string, beforeLeadId?: string) => {
     e.preventDefault();
     e.stopPropagation();
-    const id = e.dataTransfer.getData("text/plain") || dragId;
+    const raw = e.dataTransfer.getData("text/plain") || dragId || "";
+    const id = raw.startsWith("stage:") ? "" : raw;
     setDragId(null); setHoverStage(null); setHoverBefore(null);
     if (!id) return;
-    if (beforeLeadId === id) return; // dropped on self, no-op
+    const effectiveBefore = beforeLeadId === "__end__" ? undefined : beforeLeadId;
+    if (effectiveBefore === id) return; // dropped on self, no-op
     const current = leads.find(l => l.id === id);
-    if (current && current.stage_id === stageId && !beforeLeadId) {
-      // dropped on same stage's empty area — no-op
+    if (current && current.stage_id === stageId && !effectiveBefore && beforeLeadId !== "__end__") {
+      // dropped on same stage's empty area with no specific target — no-op
       return;
     }
     // Compute new sort_order based on neighbors in target stage
     const targetList = leads.filter((l) => l.pipeline_id === activePipeline && l.stage_id === stageId && l.id !== id)
       .slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     let newOrder = 0;
-    if (beforeLeadId) {
-      const idx = targetList.findIndex((l) => l.id === beforeLeadId);
+    if (effectiveBefore) {
+      const idx = targetList.findIndex((l) => l.id === effectiveBefore);
       const before: any = targetList[idx - 1];
       const after: any = targetList[idx];
       const a = before ? Number(before.sort_order || 0) : (after ? Number(after.sort_order || 0) - 1000 : 0);
@@ -242,14 +244,19 @@ export default function Crm() {
       newOrder = (a + b) / 2;
     } else {
       const last: any = targetList[targetList.length - 1];
-      newOrder = last ? Number(last.sort_order || 0) + 1000 : 0;
+      newOrder = last ? Number(last.sort_order || 0) + 1000 : 100;
     }
     const oldStageId = leads.find(l => l.id === id)?.stage_id;
+    const oldSort = (leads.find(l => l.id === id) as any)?.sort_order;
     await supabase.from("leads").update({ stage_id: stageId, sort_order: newOrder }).eq("id", id);
     const lead = leads.find(l => l.id === id);
     const oldName = stages.find(s => s.id === oldStageId)?.name ?? "—";
     const newName = stages.find(s => s.id === stageId)?.name ?? "—";
-    if (oldStageId !== stageId) logActivity({ module_key: "calling_crm", action_type: "crm_stage_changed", entity_type: "crm_lead", entity_id: id, entity_label: lead?.full_name ?? undefined, old_values: { stage: oldName }, new_values: { stage: newName }, summary: `${lead?.full_name ?? "Lead"} moved from ${oldName} to ${newName}.` });
+    if (oldStageId !== stageId) {
+      logActivity({ module_key: "calling_crm", action_type: "crm_card_moved", entity_type: "crm_lead", entity_id: id, entity_label: lead?.full_name ?? undefined, old_values: { stage: oldName, sort_order: oldSort }, new_values: { stage: newName, sort_order: newOrder }, summary: `${lead?.full_name ?? "Lead"} moved from ${oldName} to ${newName}.` });
+    } else {
+      logActivity({ module_key: "calling_crm", action_type: "crm_card_reordered", entity_type: "crm_lead", entity_id: id, entity_label: lead?.full_name ?? undefined, old_values: { sort_order: oldSort }, new_values: { sort_order: newOrder }, summary: `${lead?.full_name ?? "Lead"} reordered within ${newName}.` });
+    }
     setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage_id: stageId, sort_order: newOrder } as any : l));
   };
 
@@ -610,17 +617,20 @@ export default function Crm() {
               const isStageDragTarget = stageDragId && stageDragId !== s.id && stageHoverId === s.id;
               const isStageBeingDragged = stageDragId === s.id;
               return (
-                <div
-                  key={s.id}
-                  className={`w-[270px] flex-shrink-0 rounded-xl border flex flex-col transition-all ${hoverStage === s.id ? "bg-gold-pale border-gold" : "bg-off border-line"} ${isStageDragTarget ? "ring-2 ring-gold ring-offset-2" : ""} ${isStageBeingDragged ? "opacity-50" : ""} ${isInactive ? "opacity-70" : ""}`}
+                <div key={s.id} className="flex items-stretch flex-shrink-0">
+                  {/* Vertical placeholder shown when a stage is dragged over this column from the right side */}
+                  {isStageDragTarget && (
+                    <div className="w-1 my-2 mr-2 rounded-full bg-gold animate-pulse" aria-hidden />
+                  )}
+                  <div
+                  className={`w-[270px] flex-shrink-0 rounded-xl border flex flex-col transition-colors ${hoverStage === s.id && !stageDragId ? "bg-gold-pale/60 border-gold" : "bg-off border-line"} ${isStageBeingDragged ? "opacity-40" : ""} ${isInactive ? "opacity-70" : ""}`}
                   onDragOver={(e) => {
                     e.preventDefault();
                     if (stageDragId) { if (stageHoverId !== s.id) setStageHoverId(s.id); return; }
                     if (hoverStage !== s.id) setHoverStage(s.id);
-                    if (hoverBefore !== null) setHoverBefore(null);
                   }}
                   onDragLeave={(e) => { if (e.currentTarget === e.target) { setHoverStage((h) => h === s.id ? null : h); setStageHoverId((h) => h === s.id ? null : h); } }}
-                  onDrop={(e) => { if (stageDragId) { e.preventDefault(); e.stopPropagation(); reorderStageDrop(s); return; } onDrop(e, s.id); }}
+                  onDrop={(e) => { if (stageDragId) { e.preventDefault(); e.stopPropagation(); reorderStageDrop(s); return; } onDrop(e, s.id, hoverBefore || undefined); }}
                 >
                   <div className="px-3 pt-3 pb-2 border-b-2" style={{ borderBottomColor: color }}>
                     <div className="flex items-center justify-between gap-1">
@@ -629,9 +639,10 @@ export default function Crm() {
                           draggable
                           onDragStart={(e) => { e.dataTransfer.setData("text/plain", `stage:${s.id}`); e.dataTransfer.effectAllowed = "move"; setStageDragId(s.id); }}
                           onDragEnd={() => { setStageDragId(null); setStageHoverId(null); }}
-                          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-black text-[10px] select-none"
+                          className="cursor-grab active:cursor-grabbing text-muted-foreground/70 hover:text-black hover:bg-gold-pale rounded p-0.5 flex items-center justify-center transition-colors"
                           title="Drag to reorder stage"
-                        >⋮⋮</span>
+                          aria-label="Drag to reorder stage"
+                        ><GripVertical className="w-3.5 h-3.5" /></span>
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
                         <div className="font-sans text-[11px] uppercase tracking-wider font-medium truncate" title={s.name}>
                           {s.name}{isInactive && <span className="ml-1 text-[9px] text-muted-foreground normal-case tracking-normal">(inactive)</span>}
@@ -655,7 +666,7 @@ export default function Crm() {
                     <div className="text-[10px] text-muted-foreground mt-0.5">₹{total.toLocaleString("en-IN")}</div>
                   </div>
                   <div className="p-2 space-y-2 flex-1 min-h-[120px]">
-                    {items.map((l) => {
+                    {items.map((l, cardIdx) => {
                       const g = GRADE_STYLES[l.grade];
                       const ag = agents.find((a) => a.id === l.assigned_agent_id);
                       const cardBg = l.is_super_hot ? "#FDF2F8" : l.lead_type === "paid" ? "#F0FDF4" : "white";
@@ -665,16 +676,32 @@ export default function Crm() {
                       return (
                         <div key={l.id}>
                           {showPlaceholderBefore && (
-                            <div className="mb-2 rounded-lg border-2 border-dashed border-gold bg-gold-pale/50 h-[88px] flex items-center justify-center text-[10px] uppercase tracking-wider text-gold-deep">Drop here</div>
+                            <div className="mb-2 rounded-lg border-2 border-dashed border-gold bg-gold-pale/60 h-[88px]" aria-hidden />
                           )}
                           <div
                             draggable
                             onDragStart={(e) => { e.dataTransfer.setData("text/plain", l.id); e.dataTransfer.effectAllowed = "move"; setDragId(l.id); }}
                             onDragEnd={() => { setDragId(null); setHoverStage(null); setHoverBefore(null); }}
-                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (dragId === l.id) return; if (hoverStage !== s.id) setHoverStage(s.id); if (hoverBefore !== l.id) setHoverBefore(l.id); }}
-                            onDrop={(e) => onDrop(e, s.id, l.id)}
+                            onDragOver={(e) => {
+                              e.preventDefault(); e.stopPropagation();
+                              if (!dragId || dragId === l.id || stageDragId) return;
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              const isLower = e.clientY > rect.top + rect.height / 2;
+                              if (hoverStage !== s.id) setHoverStage(s.id);
+                              if (isLower) {
+                                const next = items[cardIdx + 1];
+                                const target = next ? next.id : "__end__";
+                                if (hoverBefore !== target) setHoverBefore(target);
+                              } else {
+                                if (hoverBefore !== l.id) setHoverBefore(l.id);
+                              }
+                            }}
+                            onDrop={(e) => {
+                              const beforeId = hoverBefore === "__end__" ? "__end__" : (hoverBefore || l.id);
+                              onDrop(e, s.id, beforeId);
+                            }}
                             onClick={() => setOpenLead(l.id)}
-                            className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-all ${isDragging ? "opacity-40 scale-95 shadow-lg rotate-1" : ""}`}
+                            className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${isDragging ? "opacity-30 shadow-lg" : ""}`}
                             style={{ background: cardBg, borderColor: cardBorder }}>
                             {l.webinar_source && <div className="uppercase-label !text-[8px] mb-1">{l.webinar_source}</div>}
                             <div className="font-serif text-sm">{l.full_name || "Unnamed"}</div>
@@ -702,10 +729,25 @@ export default function Crm() {
                         </div>
                       );
                     })}
+                    {/* End-of-column drop slot */}
+                    {items.length > 0 && (
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault(); e.stopPropagation();
+                          if (!dragId || stageDragId) return;
+                          if (hoverStage !== s.id) setHoverStage(s.id);
+                          if (hoverBefore !== "__end__") setHoverBefore("__end__");
+                        }}
+                        onDrop={(e) => onDrop(e, s.id, "__end__")}
+                        className={`rounded-lg transition-all ${hoverStage === s.id && hoverBefore === "__end__" && dragId ? "h-[60px] border-2 border-dashed border-gold bg-gold-pale/60" : "h-3"}`}
+                        aria-hidden
+                      />
+                    )}
                     {items.length === 0 && (
-                      <div className={`text-[10px] text-center py-6 rounded-lg border-2 border-dashed transition-colors ${hoverStage === s.id ? "border-gold bg-gold-pale/50 text-gold-deep uppercase tracking-wider" : "border-transparent text-muted-foreground"}`}>{hoverStage === s.id ? "Drop here" : "Drop leads here"}</div>
+                      <div className={`text-[10px] text-center py-6 rounded-lg border-2 border-dashed transition-colors ${hoverStage === s.id && dragId ? "border-gold bg-gold-pale/50 text-gold-deep uppercase tracking-wider" : "border-transparent text-muted-foreground"}`}>{hoverStage === s.id && dragId ? "Drop here" : "Drop leads here"}</div>
                     )}
                   </div>
+                </div>
                 </div>
               );
             })}
