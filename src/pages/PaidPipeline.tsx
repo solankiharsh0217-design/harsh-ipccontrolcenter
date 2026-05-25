@@ -118,11 +118,13 @@ export default function PaidPipeline() {
   const [insightFilter, setInsightFilter] = useState<string | null>(null);
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const HIGH_BAL_THRESHOLD = 50000;
 
   const load = async () => {
+    const archivedFilter = (q: any) => showArchived ? q.not("archived_at", "is", null) : q.is("archived_at", null);
     const [{ data: l }, { data: b }, { data: pb }, { data: s }, elig] = await Promise.all([
-      supabase.from("paid_pipeline_leads").select("*").eq("is_deleted", false).order("created_at", { ascending: false }),
+      archivedFilter(supabase.from("paid_pipeline_leads").select("*").eq("is_deleted", false)).order("created_at", { ascending: false }),
       supabase.from("webinar_batches").select("id, batch_name, webinar_name, webinar_date").eq("is_deleted", false).order("created_at", { ascending: false }),
       (supabase as any).from("paid_pipeline_batches").select("id, batch_name, batch_status").eq("is_deleted", false).order("created_at", { ascending: false }),
       supabase.from("paid_pipeline_settings").select("label").eq("setting_type", "pipeline_stage").eq("is_active", true).eq("is_deleted", false).order("sort_order"),
