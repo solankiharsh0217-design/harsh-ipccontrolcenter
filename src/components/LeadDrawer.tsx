@@ -39,6 +39,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
+  const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, { id: s.id, name: s.name }])), [stages]);
 
 
   const load = async () => {
@@ -158,7 +159,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const today = new Date().toISOString().slice(0, 10);
   const currentStage = pipelineStages.find((s) => s.id === lead.stage_id);
   const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
-  const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, { id: s.id, name: s.name }])), [stages]);
   const matchingRule = findRuleForStage(opsRules, lead.pipeline_id, lead.stage_id, stagesById);
   const isOpsEligible = !!matchingRule;
   const inOps = opsLeadId !== null;
