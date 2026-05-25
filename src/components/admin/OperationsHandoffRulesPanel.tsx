@@ -233,10 +233,6 @@ export default function OperationsHandoffRulesPanel() {
                   </div>
                 </div>
 
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    {r.default_service_package ?? "—"} · {r.default_service_days ?? "—"} days · {r.default_assignment_method.replace("_", " ")} · {r.duplicate_behavior === "skip" ? "Skip duplicates" : "Update existing"}
-                  </div>
-                </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => validate(r)} className="ipc-btn ipc-btn-ghost !h-8 !text-[11px]">Validate</button>
                   <button onClick={() => toggleActive(r)} className="ipc-btn ipc-btn-ghost !h-8 !text-[11px]">{r.is_active ? "Deactivate" : "Activate"}</button>
