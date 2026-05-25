@@ -26,6 +26,7 @@ type EligibilityFlags = {
   can_receive_follow_up_tasks: boolean;
   can_receive_payment_recovery_leads: boolean;
   can_receive_media_buyer_cases: boolean;
+  can_receive_operations_leads: boolean;
   include_in_round_robin: boolean;
   active_for_assignment: boolean;
 };
@@ -35,6 +36,7 @@ const emptyEligibility = (): EligibilityFlags => ({
   can_receive_follow_up_tasks: false,
   can_receive_payment_recovery_leads: false,
   can_receive_media_buyer_cases: false,
+  can_receive_operations_leads: false,
   include_in_round_robin: false,
   active_for_assignment: true,
 });
