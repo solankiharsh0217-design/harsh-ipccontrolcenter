@@ -226,6 +226,47 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
           />
         </div>
 
+        {/* CRM Stage — visible high up so it's never hidden */}
+        <div className="px-6 py-4 border-b border-line bg-gold-pale/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground">CRM Stage</div>
+            <button onClick={() => setShowStagePicker((v) => !v)} className="text-[11px] px-2 py-1 rounded border border-line bg-white hover:bg-off">
+              {showStagePicker ? "Close" : "Change stage"}
+            </button>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
+            <span className="px-2.5 py-1 rounded-full text-xs bg-black text-white">{currentStage?.name || "—"}</span>
+          </div>
+          {showStagePicker && (
+            <div className="mt-3 border border-line rounded-lg p-2 bg-white space-y-0.5 max-h-[260px] overflow-y-auto">
+              {pipelineStages.map((s) => (
+                <div key={s.id} className="group flex items-center gap-2">
+                  <button onClick={() => { moveStage(s.id); setShowStagePicker(false); }}
+                    className={`flex-1 text-left px-2.5 py-1.5 rounded text-xs ${s.id === lead.stage_id ? "bg-off font-medium" : "hover:bg-off"}`}>
+                    {s.name}
+                  </button>
+                  {!(s as any).is_protected && s.id !== lead.stage_id && (
+                    <button onClick={() => deactivateStage(s)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[#DC2626] p-1" title="Delete stage (only if unused)">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex items-center gap-1.5 pt-2 border-t border-line mt-2">
+                <input
+                  value={newStageName}
+                  onChange={(e) => setNewStageName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addStageInline(); }}
+                  placeholder="+ Add new stage…"
+                  className="ipc-input !h-8 !text-xs flex-1"
+                />
+                <button onClick={addStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">Add</button>
+              </div>
+            </div>
+          )}
+
+
         {/* Score + signals */}
         <div className="px-6 py-5 border-b border-line">
           <div className="flex items-center gap-4 mb-4">
