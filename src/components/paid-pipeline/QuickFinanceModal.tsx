@@ -2,8 +2,9 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { recomputePaidLead, DEFAULT_FINANCE_PARTNERS, DEFAULT_FINANCE_STATUSES, inr } from "@/lib/paidPipeline";
+import { recomputePaidLead, inr } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
+import InlineManagedSelect from "./InlineManagedSelect";
 
 type Lead = {
   id: string;
