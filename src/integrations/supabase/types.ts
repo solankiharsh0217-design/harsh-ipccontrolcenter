@@ -3328,6 +3328,9 @@ export type Database = {
           can_receive_paid_pipeline_leads: boolean
           can_receive_payment_recovery_leads: boolean
           created_at: string
+          deactivated_at: string | null
+          deactivated_by: string | null
+          deactivation_reason: string | null
           department: string | null
           email: string
           full_name: string
@@ -3345,6 +3348,9 @@ export type Database = {
           can_receive_paid_pipeline_leads?: boolean
           can_receive_payment_recovery_leads?: boolean
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
           department?: string | null
           email: string
           full_name: string
@@ -3362,6 +3368,9 @@ export type Database = {
           can_receive_paid_pipeline_leads?: boolean
           can_receive_payment_recovery_leads?: boolean
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deactivation_reason?: string | null
           department?: string | null
           email?: string
           full_name?: string
