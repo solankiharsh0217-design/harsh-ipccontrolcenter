@@ -124,11 +124,30 @@ export default function OpsReportsTab({ leads, onOpenLead, isAdmin = false }: Pr
     });
   }, [leads, buyerFilter, statusFilter, packageFilter, assignedFilter]);
 
-  // Top metrics
+  // Counts honoring the buyer filter (used by both metrics and buyer table)
+  const filteredBuyerCounts = useMemo(() => {
+    const m = new Map<string, { approved: number; pending: number; rejected: number; value: number }>();
+    for (const [bId, v] of counts.entries()) {
+      if (buyerFilter !== "all" && bId !== buyerFilter) continue;
+      m.set(bId, v);
+    }
+    return m;
+  }, [counts, buyerFilter]);
+
+  // Top metrics — respect buyer + conversion-status filters
   const metrics = useMemo(() => {
-    let totalApproved = 0, totalPending = 0;
-    for (const c of counts.values()) { totalApproved += c.approved; totalPending += c.pending; }
-    const totalConvThisMonth = Array.from(counts.values()).reduce((s, v) => s + v.approved + v.pending + v.rejected, 0);
+    let totalApproved = 0, totalPending = 0, totalRejected = 0;
+    for (const c of filteredBuyerCounts.values()) {
+      totalApproved += c.approved; totalPending += c.pending; totalRejected += c.rejected;
+    }
+    const includeApproved = convStatusFilter === "all" || convStatusFilter === "approved";
+    const includePending  = convStatusFilter === "all" || convStatusFilter === "pending";
+    const includeRejected = convStatusFilter === "all" || convStatusFilter === "rejected";
+    const totalConvThisMonth =
+      (includeApproved ? totalApproved : 0) +
+      (includePending ? totalPending : 0) +
+      (includeRejected ? totalRejected : 0);
+
     let activeDaysSum = 0, activeCount = 0;
     const today = new Date();
     let endingSoon = 0;
@@ -141,6 +160,12 @@ export default function OpsReportsTab({ leads, onOpenLead, isAdmin = false }: Pr
         if (diff >= 0 && diff <= 14) endingSoon++;
       }
     }
+    // Rewards achieved — respect buyer filter
+    let rewards = 0;
+    for (const id of achievedSet) {
+      if (buyerFilter !== "all" && id !== buyerFilter) continue;
+      rewards++;
+    }
     return {
       total: filtered.length,
       active: filtered.filter((l) => l.service_status === "active").length,
@@ -149,23 +174,14 @@ export default function OpsReportsTab({ leads, onOpenLead, isAdmin = false }: Pr
       completed: filtered.filter((l) => l.service_status === "completed").length,
       notStarted: filtered.filter((l) => l.service_status === "not_started").length,
       convThisMonth: totalConvThisMonth,
-      approved: totalApproved,
-      pending: totalPending,
-      rewards: achievedSet.size,
+      approved: includeApproved ? totalApproved : 0,
+      pending: includePending ? totalPending : 0,
+      rewards,
       avgActiveDays: activeCount > 0 ? Math.round(activeDaysSum / activeCount) : 0,
       endingSoon,
     };
-  }, [filtered, counts, achievedSet]);
+  }, [filtered, filteredBuyerCounts, achievedSet, buyerFilter, convStatusFilter]);
 
-  const filteredBuyerCounts = useMemo(() => {
-    const m = new Map<string, { approved: number; pending: number; rejected: number; value: number }>();
-    for (const [bId, v] of counts.entries()) {
-      if (buyerFilter !== "all" && bId !== buyerFilter) continue;
-      // also restrict by conv status filter (informational)
-      m.set(bId, v);
-    }
-    return m;
-  }, [counts, buyerFilter]);
 
   // Buyer comparison rows (PART 2)
   const buyerRows = useMemo(() => {
