@@ -36,6 +36,7 @@ export const NOTIFICATION_MODULE_LABELS: Record<string, string> = {
   team: "Team",
   admin: "Admin",
   reports: "Reports",
+  operations_crm: "Operations CRM",
 };
 
 export async function createNotification(input: CreateNotificationInput): Promise<void> {
