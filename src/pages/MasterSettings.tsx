@@ -150,6 +150,7 @@ export default function MasterSettings() {
             />
           )}
           {activeSection === "calling_crm" && <CrmPipelinesSection />}
+          {activeSection === "operations_handoff" && <OperationsHandoffRulesPanel />}
           {activeSection === "followup" && (
             <PPSettingsGroup
               title="Follow-Up Settings"
