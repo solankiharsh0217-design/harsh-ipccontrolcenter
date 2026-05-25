@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
+import CodeOfConductRulesTab from "@/components/admin/CodeOfConductRulesTab";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft", ready_to_send: "Ready", sent: "Sent", viewed: "Viewed",
