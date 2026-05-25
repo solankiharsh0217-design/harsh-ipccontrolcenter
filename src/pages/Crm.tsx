@@ -57,6 +57,12 @@ export default function Crm() {
   const [stageHoverId, setStageHoverId] = useState<string | null>(null);
   const [renameStageTarget, setRenameStageTarget] = useState<Stage | null>(null);
   const [renameStageValue, setRenameStageValue] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkMoveStageId, setBulkMoveStageId] = useState<string>("");
+  const [bulkSendOpsOpen, setBulkSendOpsOpen] = useState(false);
+  const toggleSelect = (id: string) => setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const clearSelection = () => setSelectedIds(new Set());
 
   const handleImportDone = async (result?: ImportResult) => {
     setImportOpen(false);
