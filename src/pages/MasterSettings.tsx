@@ -45,7 +45,9 @@ const SECTIONS = [
   { key: "payments", label: "Payment Settings" },
   { key: "paid_pipeline", label: "Paid Pipeline" },
   { key: "calling_crm", label: "Calling CRM" },
+  { key: "stage_sync", label: "Stage Sync Rules" },
   { key: "operations_handoff", label: "Operations Handoff Rules" },
+  { key: "whatsapp", label: "WhatsApp Templates" },
   { key: "followup", label: "Follow-Up" },
   { key: "recovery", label: "Payment Recovery" },
   { key: "finance", label: "Finance / EMI" },
@@ -53,8 +55,6 @@ const SECTIONS = [
   { key: "team", label: "Roles & Departments" },
   { key: "eligibility", label: "Assignment Eligibility" },
   { key: "tags", label: "Tags" },
-  { key: "stage_sync", label: "Stage Sync Rules" },
-  { key: "whatsapp", label: "WhatsApp Templates" },
   { key: "dropdowns", label: "General Dropdowns" },
   { key: "media_buyer_cleanup", label: "Media Buyer Name Cleanup" },
 ];
