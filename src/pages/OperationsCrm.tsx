@@ -1,0 +1,408 @@
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import {
+  Plus, Search, X as XIcon, RefreshCw, Settings2, GripVertical, ExternalLink,
+  Pencil, Trash2,
+} from "lucide-react";
+import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, DEFAULT_OPERATIONS_STAGES } from "@/lib/operationsCrm";
+import AddCrmStageModal from "@/components/AddCrmStageModal";
+import type { Pipeline, Stage } from "@/lib/crmTypes";
+
+interface OpsLead {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  product_name: string | null;
+  batch_name: string | null;
+  service_package_name: string | null;
+  service_months: number | null;
+  service_days_committed: number | null;
+  service_status: string;
+  pipeline_id: string | null;
+  stage_id: string | null;
+  assigned_media_buyer_id: string | null;
+  assigned_media_buyer_name: string | null;
+  priority: string | null;
+  ad_launch_date: string | null;
+  total_active_days: number;
+  total_paused_days: number;
+  service_end_target_date: string | null;
+  crm_lead_id: string | null;
+  paid_pipeline_lead_id: string | null;
+  notes: string | null;
+  created_at: string;
+  sort_order: number;
+}
+
+export default function OperationsCrm() {
+  const { profile, isAdmin } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const [pipelineId, setPipelineId] = useState<string | null>(null);
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [leads, setLeads] = useState<OpsLead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [buyerFilter, setBuyerFilter] = useState<string>(params.get("assigned_to") === "me" ? "me" : "all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [buyers, setBuyers] = useState<{ id: string; full_name: string }[]>([]);
+  const [openLead, setOpenLead] = useState<string | null>(null);
+  const [addStageOpen, setAddStageOpen] = useState(false);
+  const [drag, setDrag] = useState<{ id: string; fromStage: string | null } | null>(null);
+  const [hoverStage, setHoverStage] = useState<string | null>(null);
+  const [renameStage, setRenameStage] = useState<Stage | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { pipelineId: pid } = await ensureOperationsPipeline();
+      setPipelineId(pid);
+      const [pRes, sRes, lRes, bRes] = await Promise.all([
+        supabase.from("pipelines").select("*").order("position"),
+        supabase.from("stages").select("*").eq("pipeline_id", pid).order("position"),
+        supabase.from("operations_leads" as any).select("*").order("sort_order", { ascending: true }).order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, full_name").eq("can_receive_operations_leads", true as any),
+      ]);
+      setPipelines((pRes.data ?? []) as any);
+      setStages((sRes.data ?? []) as any);
+      setLeads((lRes.data ?? []) as any);
+      setBuyers(((bRes.data ?? []) as any[]).map((b) => ({ id: b.id, full_name: b.full_name ?? "Unnamed" })));
+    } catch (e: any) {
+      toast.error(e.message || "Failed to load Operations CRM");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filtered = useMemo(() => {
+    return leads.filter((l) => {
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hit = [l.name, l.email, l.phone, l.product_name, l.batch_name, l.assigned_media_buyer_name]
+          .some((v) => v && String(v).toLowerCase().includes(q));
+        if (!hit) return false;
+      }
+      if (buyerFilter === "me") {
+        if (l.assigned_media_buyer_id !== profile?.id) return false;
+      } else if (buyerFilter !== "all") {
+        if (l.assigned_media_buyer_id !== buyerFilter) return false;
+      }
+      if (statusFilter !== "all" && l.service_status !== statusFilter) return false;
+      if (stageFilter !== "all" && l.stage_id !== stageFilter) return false;
+      return true;
+    });
+  }, [leads, search, buyerFilter, statusFilter, stageFilter, profile?.id]);
+
+  const metrics = useMemo(() => {
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return {
+      total: leads.length,
+      active: leads.filter((l) => l.service_status === "active").length,
+      notStarted: leads.filter((l) => l.service_status === "not_started").length,
+      paused: leads.filter((l) => l.service_status === "paused").length,
+      stopped: leads.filter((l) => l.service_status === "stopped").length,
+      completed: leads.filter((l) => l.service_status === "completed").length,
+      mineThisMonth: leads.filter((l) => l.assigned_media_buyer_id === profile?.id && l.created_at.startsWith(month)).length,
+    };
+  }, [leads, profile?.id]);
+
+  const leadsByStage = useMemo(() => {
+    const map = new Map<string, OpsLead[]>();
+    stages.forEach((s) => map.set(s.id, []));
+    for (const l of filtered) {
+      if (l.stage_id && map.has(l.stage_id)) map.get(l.stage_id)!.push(l);
+    }
+    return map;
+  }, [filtered, stages]);
+
+  const onDropToStage = async (toStageId: string) => {
+    if (!drag) return;
+    const id = drag.id;
+    const from = drag.fromStage;
+    setDrag(null);
+    setHoverStage(null);
+    if (from === toStageId) return;
+
+    // Optimistic update
+    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage_id: toStageId } : l));
+    const { error } = await supabase.from("operations_leads" as any).update({ stage_id: toStageId }).eq("id", id);
+    if (error) {
+      toast.error("Failed to move card");
+      load();
+    }
+  };
+
+  const addStage = () => setAddStageOpen(true);
+
+  const saveRename = async () => {
+    if (!renameStage || !renameValue.trim()) return;
+    const { error } = await supabase.from("stages").update({ name: renameValue.trim() }).eq("id", renameStage.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Stage renamed");
+    setRenameStage(null);
+    setRenameValue("");
+    load();
+  };
+
+  const deleteStage = async (s: Stage) => {
+    const count = leadsByStage.get(s.id)?.length ?? 0;
+    if (count > 0) { toast.error(`Move ${count} card${count === 1 ? "" : "s"} out of this stage first.`); return; }
+    if (!confirm(`Delete stage "${s.name}"?`)) return;
+    const { error } = await supabase.from("stages").delete().eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Stage deleted");
+    load();
+  };
+
+  const openCrmLink = (l: OpsLead) => {
+    if (l.crm_lead_id) window.open(`/crm?lead=${l.crm_lead_id}`, "_blank");
+  };
+
+  const drawerLead = leads.find((l) => l.id === openLead) || null;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4 flex-wrap gap-2">
+        <div>
+          <h1 className="font-serif text-2xl text-black">Operations CRM</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Service delivery for paid clients · media buying, ads tracking, conversions, rewards.
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button onClick={load} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
+          <button onClick={addStage} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> Add Stage</button>
+        </div>
+      </div>
+
+      {/* Metric strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
+        {[
+          { label: "Total clients", value: metrics.total },
+          { label: "Active ads", value: metrics.active },
+          { label: "Not started", value: metrics.notStarted },
+          { label: "Paused", value: metrics.paused },
+          { label: "Stopped", value: metrics.stopped },
+          { label: "Completed", value: metrics.completed },
+          { label: "Mine this month", value: metrics.mineThisMonth },
+        ].map((m) => (
+          <div key={m.label} className="bg-white border border-line rounded-lg px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.label}</div>
+            <div className="font-serif text-xl text-black mt-0.5">{m.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-2 flex-wrap mb-3">
+        <div className="relative flex-1 min-w-[200px] max-w-[320px]">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, phone, email…"
+            className="ipc-input !h-9 !text-xs !pl-7 w-full"
+          />
+          <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          {search && (
+            <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black">
+              <XIcon className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        <select className="ipc-input !h-9 !text-xs" value={buyerFilter} onChange={(e) => { setBuyerFilter(e.target.value); const p = new URLSearchParams(params); if (e.target.value === "me") p.set("assigned_to", "me"); else p.delete("assigned_to"); setParams(p, { replace: true }); }}>
+          <option value="all">All media buyers</option>
+          {profile?.id && <option value="me">Assigned to me</option>}
+          {buyers.map((b) => <option key={b.id} value={b.id}>{b.full_name}</option>)}
+        </select>
+        <select className="ipc-input !h-9 !text-xs" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="all">All statuses</option>
+          {Object.entries(SERVICE_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select className="ipc-input !h-9 !text-xs" value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}>
+          <option value="all">All stages</option>
+          {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        {(search || buyerFilter !== "all" || statusFilter !== "all" || stageFilter !== "all") && (
+          <button
+            className="text-[11px] underline text-muted-foreground hover:text-black"
+            onClick={() => { setSearch(""); setBuyerFilter("all"); setStatusFilter("all"); setStageFilter("all"); }}
+          >Reset</button>
+        )}
+        <div className="ml-auto text-[11px] text-muted-foreground">
+          Showing <span className="text-foreground font-medium">{filtered.length}</span> of {leads.length}
+        </div>
+      </div>
+
+      {/* Kanban */}
+      {loading ? (
+        <div className="text-sm text-muted-foreground py-12 text-center">Loading…</div>
+      ) : stages.length === 0 ? (
+        <div className="text-sm text-muted-foreground py-12 text-center border border-dashed border-line rounded-lg">
+          No stages yet. <button className="underline text-black" onClick={addStage}>Add the first stage</button>.
+        </div>
+      ) : (
+        <div className="flex gap-3 overflow-x-auto pb-4">
+          {stages.map((s) => {
+            const items = leadsByStage.get(s.id) ?? [];
+            const isHover = hoverStage === s.id;
+            return (
+              <div
+                key={s.id}
+                className={`flex-shrink-0 w-72 bg-off rounded-lg border ${isHover ? "border-gold" : "border-line"} transition-colors`}
+                onDragOver={(e) => { e.preventDefault(); if (hoverStage !== s.id) setHoverStage(s.id); }}
+                onDragLeave={() => setHoverStage(null)}
+                onDrop={() => onDropToStage(s.id)}
+              >
+                <div className="px-3 py-2 flex items-center justify-between sticky top-0 bg-off rounded-t-lg z-[1]">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                    <div className="font-serif text-sm text-black truncate">{s.name}</div>
+                    <div className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-line text-muted-foreground">{items.length}</div>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex items-center gap-0.5">
+                      <button title="Rename" onClick={() => { setRenameStage(s); setRenameValue(s.name); }} className="w-5 h-5 rounded hover:bg-white flex items-center justify-center text-muted-foreground"><Pencil className="w-3 h-3" /></button>
+                      <button title="Delete" onClick={() => deleteStage(s)} className="w-5 h-5 rounded hover:bg-white flex items-center justify-center text-muted-foreground"><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  )}
+                </div>
+                <div className="px-2 pb-2 space-y-2 min-h-[100px]">
+                  {items.map((l) => (
+                    <div
+                      key={l.id}
+                      draggable
+                      onDragStart={() => setDrag({ id: l.id, fromStage: l.stage_id })}
+                      onDragEnd={() => { setDrag(null); setHoverStage(null); }}
+                      onClick={() => setOpenLead(l.id)}
+                      className={`bg-white border border-line rounded-md p-2.5 cursor-grab active:cursor-grabbing hover:border-[#bbb] hover:shadow-sm transition ${drag?.id === l.id ? "opacity-30" : ""}`}
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="font-serif text-[13px] text-black truncate flex-1">{l.name}</div>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${SERVICE_STATUS_COLORS[l.service_status] || ""}`}>{SERVICE_STATUS_LABELS[l.service_status] || l.service_status}</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                        {l.phone || l.email || "—"}
+                      </div>
+                      <div className="flex items-center justify-between mt-1.5 gap-1">
+                        <div className="text-[10px] text-muted-foreground truncate">
+                          {l.assigned_media_buyer_name || "Unassigned"}
+                        </div>
+                        {l.service_months && (
+                          <div className="text-[10px] text-muted-foreground flex-shrink-0">{l.service_months}m</div>
+                        )}
+                      </div>
+                      {l.batch_name && (
+                        <div className="text-[10px] text-muted-foreground truncate mt-0.5 italic">{l.batch_name}</div>
+                      )}
+                    </div>
+                  ))}
+                  {items.length === 0 && (
+                    <div className="text-[10px] text-muted-foreground text-center py-4">No cards</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add stage modal — reuses Calling CRM stage modal */}
+      {addStageOpen && pipelineId && (
+        <AddCrmStageModal
+          pipelines={pipelines}
+          stages={stages}
+          defaultPipelineId={pipelineId}
+          onClose={() => setAddStageOpen(false)}
+          onCreated={() => load()}
+        />
+      )}
+
+      {/* Rename stage */}
+      {renameStage && (
+        <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStage(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-sm p-5">
+            <div className="font-serif text-base mb-2">Rename stage</div>
+            <input
+              autoFocus
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") saveRename(); if (e.key === "Escape") setRenameStage(null); }}
+              className="ipc-input"
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={() => setRenameStage(null)} className="ipc-btn ipc-btn-ghost">Cancel</button>
+              <button onClick={saveRename} className="ipc-btn ipc-btn-black">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lead drawer (Phase A placeholder — Phase B will add full controls) */}
+      {drawerLead && (
+        <div className="fixed inset-0 z-[1100] bg-black/40 flex justify-end" onClick={() => setOpenLead(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-white h-full overflow-y-auto">
+            <div className="px-5 py-4 border-b border-line flex items-center justify-between">
+              <div className="min-w-0">
+                <div className="font-serif text-lg text-black truncate">{drawerLead.name}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{drawerLead.product_name || "—"}</div>
+              </div>
+              <button onClick={() => setOpenLead(null)} className="w-7 h-7 rounded hover:bg-off flex items-center justify-center"><XIcon className="w-4 h-4" /></button>
+            </div>
+            <div className="p-5 space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Email" value={drawerLead.email || "—"} />
+                <Field label="Phone" value={drawerLead.phone || "—"} />
+                <Field label="Batch" value={drawerLead.batch_name || "—"} />
+                <Field label="Package" value={drawerLead.service_package_name || "—"} />
+                <Field label="Duration" value={drawerLead.service_months ? `${drawerLead.service_months} months` : "—"} />
+                <Field label="Status" value={SERVICE_STATUS_LABELS[drawerLead.service_status] || drawerLead.service_status} />
+                <Field label="Assigned" value={drawerLead.assigned_media_buyer_name || "Unassigned"} />
+                <Field label="Ad launch" value={drawerLead.ad_launch_date || "—"} />
+              </div>
+              {drawerLead.notes && (
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Notes</div>
+                  <div className="text-xs whitespace-pre-wrap text-foreground">{drawerLead.notes}</div>
+                </div>
+              )}
+              <div className="border-t border-line pt-3">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Linked records</div>
+                {drawerLead.crm_lead_id ? (
+                  <button onClick={() => openCrmLink(drawerLead)} className="ipc-btn ipc-btn-ghost !text-xs">
+                    <ExternalLink className="w-3 h-3" /> Open in Calling CRM
+                  </button>
+                ) : (
+                  <div className="text-[11px] text-muted-foreground">No linked Calling CRM record.</div>
+                )}
+              </div>
+              <div className="bg-off border border-line rounded-md p-3 text-[11px] text-muted-foreground">
+                Service tracking, conversion reporting, and reward progress are coming in the next update. Stage drag/drop and assignment are live now.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-xs text-foreground truncate" title={value}>{value}</div>
+    </div>
+  );
+}
