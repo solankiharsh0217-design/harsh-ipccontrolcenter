@@ -22,7 +22,8 @@ import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/lead
 import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
 import ManagedStageFilter from "@/components/crm/ManagedStageFilter";
 import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/ArchiveConfirmModal";
-import { archiveBatch, restoreBatch, permanentlyDeleteBatch, bulkArchiveLeads, getLeadLinks } from "@/lib/crmArchive";
+import { BatchDeleteChoicesModal } from "@/components/crm/BatchDeleteChoicesModal";
+import { archiveBatch, restoreBatch, permanentlyDeleteBatch, bulkArchiveLeads, getLeadLinks, resetBatchForReimport, safePermanentDeleteBatch } from "@/lib/crmArchive";
 import { useAuth } from "@/context/AuthContext";
 import { Archive, RotateCcw } from "lucide-react";
 
@@ -87,6 +88,8 @@ export default function Crm() {
   const [deleteBatchTarget, setDeleteBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[] } | null>(null);
   const [deleteBatchBusy, setDeleteBatchBusy] = useState(false);
   const [deleteBatchBlocked, setDeleteBatchBlocked] = useState<string | null>(null);
+  const [batchChoicesTarget, setBatchChoicesTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[]; linkedPaid: number; linkedOps: number } | null>(null);
+  const [batchChoicesBusy, setBatchChoicesBusy] = useState(false);
   const toggleSelect = (id: string) => setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelectedIds(new Set());
 
@@ -984,6 +987,58 @@ export default function Crm() {
           }}
         />
       )}
+      {batchChoicesTarget && (
+        <BatchDeleteChoicesModal
+          batchName={batchChoicesTarget.name}
+          linkedPaid={batchChoicesTarget.linkedPaid}
+          linkedOps={batchChoicesTarget.linkedOps}
+          totalLeads={batchChoicesTarget.leadIds.length}
+          isAdmin={isAdmin}
+          busy={batchChoicesBusy}
+          onClose={() => setBatchChoicesTarget(null)}
+          onArchive={async () => {
+            const activeIds = leads
+              .filter((l: any) => (l.webinar_source || "Unsourced") === batchChoicesTarget.name && (l.webinar_date || null) === batchChoicesTarget.date && !l.archived_at)
+              .map((l) => l.id);
+            if (!activeIds.length) { toast.info("No active leads to archive"); setBatchChoicesTarget(null); return; }
+            setArchiveBatchLinks({ paid: batchChoicesTarget.linkedPaid, ops: batchChoicesTarget.linkedOps });
+            setArchiveBatchTarget({
+              name: batchChoicesTarget.name, date: batchChoicesTarget.date, pipelineId: batchChoicesTarget.pipelineId,
+              leadIds: activeIds, activeCount: activeIds.length,
+            });
+            setBatchChoicesTarget(null);
+          }}
+          onReset={async (reason) => {
+            setBatchChoicesBusy(true);
+            try {
+              const activeIds = leads
+                .filter((l: any) => (l.webinar_source || "Unsourced") === batchChoicesTarget.name && (l.webinar_date || null) === batchChoicesTarget.date && !l.archived_at)
+                .map((l) => l.id);
+              const r = await resetBatchForReimport({
+                batchName: batchChoicesTarget.name, batchDate: batchChoicesTarget.date,
+                pipelineId: batchChoicesTarget.pipelineId, leadIds: activeIds, reason: reason || undefined,
+              });
+              toast.success(`Batch reset for re-import (${r.affected} leads). You can now upload fresh leads.`);
+              setBatchChoicesTarget(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Reset failed"); }
+            finally { setBatchChoicesBusy(false); }
+          }}
+          onSafeDelete={async (reason) => {
+            setBatchChoicesBusy(true);
+            try {
+              const r = await safePermanentDeleteBatch({
+                batchName: batchChoicesTarget.name, batchDate: batchChoicesTarget.date,
+                pipelineId: batchChoicesTarget.pipelineId, leadIds: batchChoicesTarget.leadIds, reason: reason || undefined,
+              });
+              toast.success(`${r.deleted} deleted permanently, ${r.archived} archived (linked), ${r.alreadyArchivedLinked} already archived.`);
+              setBatchChoicesTarget(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Delete failed"); }
+            finally { setBatchChoicesBusy(false); }
+          }}
+        />
+      )}
       {renameStageTarget && (
         <div className="fixed inset-0 z-[1200] bg-black/40 flex items-center justify-center p-4" onClick={() => setRenameStageTarget(null)}>
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-sm p-5">
@@ -1264,15 +1319,25 @@ export default function Crm() {
                         await load();
                       } catch (e: any) { toast.error(e.message || "Restore failed"); }
                     }}
+                    onReset={async () => {
+                      const leadIds = leads
+                        .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date && !l.archived_at)
+                        .map((l) => l.id);
+                      if (!leadIds.length) { toast.info("No active leads in this batch to reset"); return; }
+                      const links = await getLeadLinks(leadIds).catch(() => ({ paid: 0, ops: 0 }));
+                      setBatchChoicesTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds, linkedPaid: links.paid, linkedOps: links.ops });
+                    }}
                     onDelete={async () => {
                       const leadIds = leads
                         .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date)
                         .map((l) => l.id);
                       const links = await getLeadLinks(leadIds).catch(() => ({ paid: 0, ops: 0 }));
+                      if (links.paid > 0 || links.ops > 0) {
+                        setBatchChoicesTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds, linkedPaid: links.paid, linkedOps: links.ops });
+                        return;
+                      }
                       setDeleteBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds });
-                      setDeleteBatchBlocked(links.paid > 0 || links.ops > 0
-                        ? `Cannot permanently delete — ${links.paid} lead(s) linked to Paid Pipeline and ${links.ops} to Operations CRM. Archive instead.`
-                        : null);
+                      setDeleteBatchBlocked(null);
                     }}
                   />
                   <div className="flex items-center gap-2">
@@ -1671,9 +1736,9 @@ function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight,
   );
 }
 
-function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRestore, onDelete }: {
+function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRestore, onReset, onDelete }: {
   isAdmin: boolean; archived: boolean;
-  onView: () => void; onRename: () => void; onArchive: () => void; onRestore: () => void; onDelete: () => void;
+  onView: () => void; onRename: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -1694,12 +1759,15 @@ function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRe
         title="Batch actions" aria-label="Batch actions"
       >⋯</button>
       {open && (
-        <div className="absolute right-0 mt-1 w-52 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
+        <div className="absolute right-0 mt-1 w-56 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
           {item(<><ExternalLink className="w-3 h-3" /> View leads</>, onView)}
           {!archived && item(<><Pencil className="w-3 h-3" /> Rename batch</>, onRename)}
           <div className="h-px bg-line my-1" />
           {!archived
-            ? item(<><Archive className="w-3 h-3" /> Archive batch</>, onArchive, "text-[#92400E]")
+            ? <>
+                {item(<><Archive className="w-3 h-3" /> Archive batch</>, onArchive, "text-[#92400E]")}
+                {isAdmin && item(<><RotateCcw className="w-3 h-3" /> Reset for re-import</>, onReset, "text-[#1D4ED8]")}
+              </>
             : item(<><RotateCcw className="w-3 h-3" /> Restore batch</>, onRestore, "text-[#15803D]")
           }
           {isAdmin && (
@@ -1713,4 +1781,5 @@ function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRe
     </div>
   );
 }
+
 
