@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const {
+      action,
       request_id,
       paid_pipeline_lead_id,
       crm_lead_id,
@@ -60,6 +61,24 @@ Deno.serve(async (req) => {
       origin,
       is_test,
     } = body || {};
+
+    // Lightweight diagnostics — no secret values leaked.
+    if (action === 'diagnostics') {
+      const diagAdmin = createClient(SUPABASE_URL, SERVICE);
+      const { data: tpl } = await diagAdmin.from('code_of_conduct_templates')
+        .select('id,name,from_email,from_name,reply_to_email,email_subject,email_body,template_pdf_url,html_content,whatsapp_redirect_url,test_recipient_email,updated_at')
+        .eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const { data: lastReq } = await diagAdmin.from('code_of_conduct_requests')
+        .select('id,member_email,status,sent_at,last_email_attempt_at,last_email_error,last_email_error_code,provider_message_id')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      return jsonResponse({
+        ok: true,
+        provider: 'resend',
+        has_resend_api_key: !!Deno.env.get('RESEND_API_KEY'),
+        template: tpl || null,
+        last_attempt: lastReq || null,
+      });
+    }
 
     if (!member_email || typeof member_email !== 'string' || !member_email.includes('@')) {
       return fail('MISSING_RECIPIENT_EMAIL', 'A valid recipient email is required.');
@@ -185,6 +204,7 @@ ${bodyText.split('\n').map((l: string) => l.includes(signingLink) ? '' : `<p sty
       return fail('MISSING_RESEND_API_KEY', msg, null, 400);
     }
 
+    const replyTo = (templateRow as any).reply_to_email || undefined;
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -194,6 +214,7 @@ ${bodyText.split('\n').map((l: string) => l.includes(signingLink) ? '' : `<p sty
         subject: is_test ? `[TEST] ${subject}` : subject,
         html: htmlBody,
         text: bodyText,
+        ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     });
 
