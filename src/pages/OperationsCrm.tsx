@@ -10,6 +10,10 @@ import {
 import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, computeServiceCalc } from "@/lib/operationsCrm";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import OperationsLeadDrawer, { type OpsLeadFull } from "@/components/OperationsLeadDrawer";
+import RewardWidget from "@/components/operations/RewardWidget";
+import PendingApprovalsPanel from "@/components/operations/PendingApprovalsPanel";
+import MediaBuyerPerformancePanel from "@/components/operations/MediaBuyerPerformancePanel";
+import { getMonthlyCountsByBuyer, currentMonthStr } from "@/lib/operationsConversions";
 import type { Pipeline, Stage } from "@/lib/crmTypes";
 
 interface OpsLead {
@@ -61,6 +65,8 @@ export default function OperationsCrm() {
   const [hoverStage, setHoverStage] = useState<string | null>(null);
   const [renameStage, setRenameStage] = useState<Stage | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [convCounts, setConvCounts] = useState<Map<string, { approved: number; pending: number; rejected: number; value: number }>>(new Map());
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const load = async () => {
     setLoading(true);
@@ -85,6 +91,22 @@ export default function OperationsCrm() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const c = await getMonthlyCountsByBuyer(currentMonthStr());
+      if (!cancel) setConvCounts(c);
+    })();
+    return () => { cancel = true; };
+  }, [refreshKey]);
+
+  const myConv = useMemo(() => convCounts.get(profile?.id ?? "") ?? { approved: 0, pending: 0, rejected: 0, value: 0 }, [convCounts, profile?.id]);
+  const allConv = useMemo(() => {
+    let approved = 0, pending = 0, rejected = 0;
+    for (const v of convCounts.values()) { approved += v.approved; pending += v.pending; rejected += v.rejected; }
+    return { approved, pending, rejected };
+  }, [convCounts]);
 
   const filtered = useMemo(() => {
     return leads.filter((l) => {
@@ -190,22 +212,47 @@ export default function OperationsCrm() {
       </div>
 
       {/* Metric strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-4">
-        {[
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-3">
+        {(isAdmin ? [
           { label: "Total clients", value: metrics.total },
           { label: "Active ads", value: metrics.active },
-          { label: "Not started", value: metrics.notStarted },
           { label: "Paused", value: metrics.paused },
-          { label: "Stopped", value: metrics.stopped },
           { label: "Completed", value: metrics.completed },
-          { label: "Mine this month", value: metrics.mineThisMonth },
-        ].map((m) => (
+          { label: "Pending approvals", value: allConv.pending, tone: allConv.pending > 0 ? "amber" : undefined },
+          { label: "Approved this month", value: allConv.approved },
+          { label: "Rejected this month", value: allConv.rejected },
+        ] : [
+          { label: "My clients", value: leads.filter((l) => l.assigned_media_buyer_id === profile?.id).length },
+          { label: "Active ads", value: leads.filter((l) => l.assigned_media_buyer_id === profile?.id && l.service_status === "active").length },
+          { label: "Paused", value: leads.filter((l) => l.assigned_media_buyer_id === profile?.id && l.service_status === "paused").length },
+          { label: "Conversions this month", value: myConv.approved + myConv.pending + myConv.rejected },
+          { label: "Approved", value: myConv.approved },
+          { label: "Pending", value: myConv.pending, tone: myConv.pending > 0 ? "amber" : undefined },
+          { label: "Rejected", value: myConv.rejected },
+        ]).map((m: any) => (
           <div key={m.label} className="bg-white border border-line rounded-lg px-3 py-2">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.label}</div>
-            <div className="font-serif text-xl text-black mt-0.5">{m.value}</div>
+            <div className={`font-serif text-xl mt-0.5 ${m.tone === "amber" ? "text-[#92400E]" : "text-black"}`}>{m.value}</div>
           </div>
         ))}
       </div>
+
+      {/* Phase C panels */}
+      {!isAdmin && profile?.id && (
+        <div className="mb-3">
+          <RewardWidget buyerId={profile.id} />
+        </div>
+      )}
+      {isAdmin && allConv.pending > 0 && (
+        <div className="mb-3">
+          <PendingApprovalsPanel onChanged={() => setRefreshKey((k) => k + 1)} onOpenLead={(id) => setOpenLead(id)} />
+        </div>
+      )}
+      {isAdmin && (
+        <div className="mb-4">
+          <MediaBuyerPerformancePanel leads={leads} />
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap mb-3">
@@ -380,7 +427,7 @@ export default function OperationsCrm() {
         <OperationsLeadDrawer
           lead={drawerLead as unknown as OpsLeadFull}
           onClose={() => setOpenLead(null)}
-          onSaved={() => load()}
+          onSaved={() => { load(); setRefreshKey((k) => k + 1); }}
         />
       )}
     </div>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/operationsCrm";
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
+import ConversionsSection from "@/components/operations/ConversionsSection";
 
 export interface OpsLeadFull {
   id: string;
@@ -175,6 +176,14 @@ export default function OperationsLeadDrawer({
               )}
             </div>
           </Section>
+
+          {/* Client Conversions (Phase C) */}
+          <ConversionsSection
+            leadId={lead.id}
+            leadName={lead.name}
+            assignedBuyerId={lead.assigned_media_buyer_id}
+            onChanged={onSaved}
+          />
 
           {/* Timeline */}
           <Section title="Service timeline">
