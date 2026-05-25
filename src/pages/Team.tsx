@@ -261,22 +261,39 @@ export default function Team() {
     }
   };
 
+  const visible = members.filter((m) => filter === "all" ? true : filter === "deactivated" ? !!m.deactivated_at : !m.deactivated_at);
+
   return (
     <div className="max-w-[780px]">
-      <PageHead title="Team Directory" sub="All active IPC team members and their roles." back />
-      {members.length === 0 && <div className="font-sans text-sm text-muted-foreground">No active members yet.</div>}
+      <PageHead title="Team Directory" sub="All IPC team members and their roles." back />
+      <div className="flex items-center gap-1 mb-3 border border-line rounded-md p-0.5 w-fit bg-off">
+        {(["active","deactivated","all"] as const).map((k) => (
+          <button key={k} onClick={() => setFilter(k)}
+            className={`px-3 h-7 rounded text-[11px] font-sans uppercase tracking-wider ${filter === k ? "bg-white text-black shadow-sm" : "text-muted-foreground hover:text-black"}`}>
+            {k === "active" ? "Active" : k === "deactivated" ? "Deactivated" : "All"}
+            <span className="ml-1.5 text-muted-foreground/70 normal-case tracking-normal">
+              ({k === "active" ? members.filter(m=>!m.deactivated_at).length : k === "deactivated" ? members.filter(m=>!!m.deactivated_at).length : members.length})
+            </span>
+          </button>
+        ))}
+      </div>
+      {visible.length === 0 && <div className="font-sans text-sm text-muted-foreground">No members in this view.</div>}
       <div className="grid grid-cols-2 gap-3">
-        {members.map((m, i) => {
+        {visible.map((m, i) => {
           const alt = i % 2 === 1;
           const today = m.last_login && new Date(m.last_login).toDateString() === new Date().toDateString();
+          const isDeact = !!m.deactivated_at;
           return (
-            <div key={m.id} className="border border-line rounded-xl py-5 px-[22px] flex items-center gap-3.5 hover:bg-off transition-colors relative">
+            <div key={m.id} className={`border border-line rounded-xl py-5 px-[22px] flex items-center gap-3.5 transition-colors relative ${isDeact ? "bg-off/60 opacity-75" : "hover:bg-off"}`}>
               <div className={`w-11 h-11 rounded-full flex items-center justify-center font-serif text-sm font-medium flex-shrink-0
-                ${alt ? "bg-gold-pale border border-gold-mid text-gold-deep" : "bg-black text-gold"}`}>
+                ${isDeact ? "bg-muted text-muted-foreground" : alt ? "bg-gold-pale border border-gold-mid text-gold-deep" : "bg-black text-gold"}`}>
                 {initials(m.full_name)}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-serif text-[17px] font-medium text-black mb-0.5 truncate">{m.full_name}</div>
+                <div className="font-serif text-[17px] font-medium text-black mb-0.5 truncate flex items-center gap-2">
+                  {m.full_name}
+                  {isDeact && <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider">Deactivated</span>}
+                </div>
                 <div className="font-sans text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{m.role}</div>
                 <div className="font-sans text-[11px] text-muted-foreground truncate mt-0.5" title={m.email || undefined}>
                   {m.email || <span className="italic">Email not available</span>}
@@ -284,25 +301,43 @@ export default function Team() {
                     <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-red-50 text-red-700 border border-red-200">Duplicate email</span>
                   )}
                 </div>
+                {isDeact && (
+                  <div className="font-sans text-[10px] text-amber-700 mt-1">
+                    Deactivated {m.deactivated_at ? formatDateShort(m.deactivated_at) : ""}{m.deactivation_reason ? ` · ${m.deactivation_reason}` : ""}
+                  </div>
+                )}
               </div>
-              {m.last_login && (
-                <div className="font-sans text-[10px] text-muted-foreground whitespace-nowrap text-right">
+              {m.last_login && !isDeact && (
+                <div className="font-sans text-[10px] text-muted-foreground whitespace-nowrap text-right mr-7">
                   {today ? `Today ${formatTime(m.last_login)}` : formatDateShort(m.last_login)}
                 </div>
               )}
               {isAdmin && (
-                <button
-                  onClick={() => openEdit(m)}
-                  className="absolute top-2 right-2 h-7 px-2 rounded-md border border-line bg-white hover:bg-off text-[10px] font-sans uppercase tracking-wider flex items-center gap-1 text-muted-foreground hover:text-black transition-colors"
-                  title="Manage access"
-                >
-                  <Shield className="w-3 h-3" /> Access
-                </button>
+                <MemberActionMenu
+                  isAdmin={isAdmin}
+                  isDeactivated={isDeact}
+                  onManage={() => openEdit(m)}
+                  onDeactivate={() => setActionModal({ action: "deactivate", member: m })}
+                  onRemoveAccess={() => setActionModal({ action: "remove_access", member: m })}
+                  onRestore={() => setActionModal({ action: "restore", member: m })}
+                  onDelete={() => setActionModal({ action: "delete", member: m })}
+                />
               )}
             </div>
           );
         })}
       </div>
+
+      {actionModal && user && (
+        <MemberActionModal
+          action={actionModal.action}
+          member={actionModal.member}
+          actorId={user.id}
+          onClose={() => setActionModal(null)}
+          onDone={load}
+        />
+      )}
+
 
       {editing && (
         <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-6" onClick={() => !saving && setEditing(null)}>
