@@ -91,11 +91,15 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [dealValue, setDealValue] = useState<number>(118000);
 
   // Step 4
-  const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
-  const [assignment, setAssignment] = useState<"unassigned" | "round_robin" | "hot_to_top">("unassigned");
+  const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
+  const [assignment, setAssignment] = useState<AssignmentMode>("unassigned");
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>("");
   const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>("move");
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Step 5 — diagnostics result
+  const [result, setResult] = useState<ImportResult | null>(null);
 
   // Preflight summary
   const [preflightLoading, setPreflightLoading] = useState(false);
