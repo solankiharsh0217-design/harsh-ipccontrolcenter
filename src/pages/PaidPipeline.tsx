@@ -1250,6 +1250,80 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           </Section>
 
 
+          {/* 1c. Linked Calling CRM Stage — high in drawer for quick stage sync */}
+          {(() => {
+            const current = crmStages.find(s => s.id === crmStageId) || null;
+            const chip = current ? stageChip(current.name, current.color) : null;
+            const filtered = crmStages
+              .filter(s => !crmStageSearch.trim() || s.name.toLowerCase().includes(crmStageSearch.trim().toLowerCase()));
+            return (
+              <div className="rounded-xl border border-[#C7D2FE] bg-gradient-to-br from-[#EEF2FF] to-white p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[#3730A3]">🔗 Linked Calling CRM Stage</div>
+                    {!lead.crm_lead_id && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]">Not linked</span>
+                    )}
+                  </div>
+                  {lead.crm_lead_id && (
+                    <Link to={`/crm?lead=${lead.crm_lead_id}`} className="text-[11px] text-[#3730A3] hover:underline">Open in CRM ↗</Link>
+                  )}
+                </div>
+
+                {!lead.crm_lead_id ? (
+                  <div className="space-y-2">
+                    <div className="text-[12px] text-[#3730A3]">No linked Calling CRM lead found. Link this buyer so stage changes sync across both pipelines.</div>
+                    <button onClick={linkToCrm} disabled={linkingCrm} className="ipc-btn ipc-btn-black !h-9">
+                      {linkingCrm ? "Linking…" : "Link to Calling CRM lead"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
+                    {chip ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border" style={{ background: chip.bg, color: chip.text, borderColor: chip.border }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: chip.dot }} />
+                        {current!.name}
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-xs bg-off border border-line">—</span>
+                    )}
+                    <Popover open={crmPickerOpen} onOpenChange={(v) => { setCrmPickerOpen(v); if (!v) setCrmStageSearch(""); }}>
+                      <PopoverTrigger asChild>
+                        <button className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-black text-white hover:opacity-90">
+                          Change Stage
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" side="bottom" sideOffset={6} collisionPadding={16} className="z-[1100] w-[320px] p-0 bg-white border border-line rounded-md shadow-lg overflow-hidden">
+                        <div className="px-3 py-2 border-b border-line">
+                          <div className="text-[11px] font-semibold uppercase tracking-wider mb-1.5">Change CRM Stage <span className="text-muted-foreground font-normal">({crmStages.length})</span></div>
+                          <input autoFocus value={crmStageSearch} onChange={(e) => setCrmStageSearch(e.target.value)} placeholder="Search stages…" className="w-full text-xs outline-none bg-transparent" />
+                        </div>
+                        <div className="max-h-[280px] overflow-y-auto">
+                          {filtered.length === 0 && <div className="px-3 py-4 text-[12px] text-muted-foreground">No stages found.</div>}
+                          {filtered.map((s) => {
+                            const ch = stageChip(s.name, s.color);
+                            const isCurrent = s.id === crmStageId;
+                            return (
+                              <button key={s.id} onClick={() => changeCrmStage(s.id)} className={`w-full flex items-center gap-2 text-left px-3 py-2 text-xs hover:bg-off ${isCurrent ? "bg-off" : ""}`}>
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: ch.dot }} />
+                                <span className={`flex-1 truncate ${isCurrent ? "font-medium" : ""}`}>{s.name}</span>
+                                {isCurrent && <span className="text-[10px] text-muted-foreground">current</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+                <div className="text-[11px] text-muted-foreground mt-2">
+                  Changes here update the linked Calling CRM lead and trigger Operations handoff rules if matched.
+                </div>
+              </div>
+            );
+          })()}
+
           {/* 2. Next Follow-up — high-visibility, daily-use card */}
           {(() => {
             const todayStr = new Date().toISOString().slice(0, 10);
