@@ -1165,7 +1165,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-full max-w-[720px] bg-white overflow-y-auto pb-24">
+      <div className="w-full max-w-[720px] bg-white overflow-y-auto pb-32 relative">
         <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-line flex justify-between items-start">
           <div>
             <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
