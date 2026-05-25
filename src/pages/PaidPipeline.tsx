@@ -836,6 +836,10 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [openPay, setOpenPay] = useState(false);
   const [openFu, setOpenFu] = useState(false);
   const [openFin, setOpenFin] = useState(false);
+  const [editBatch, setEditBatch] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [copiedTpl, setCopiedTpl] = useState<string | null>(null);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
