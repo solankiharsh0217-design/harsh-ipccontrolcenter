@@ -1259,6 +1259,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           <button onClick={onClose} className="text-[20px] leading-none">×</button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="px-6 pt-4">
           <div className="rounded-lg border border-line bg-off/40 px-3 py-2.5">
             <div className="flex items-center justify-between mb-2">
