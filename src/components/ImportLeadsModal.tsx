@@ -502,30 +502,34 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
       for (let i = 0; i < newPayloads.length; i += 200) {
         const chunk = newPayloads.slice(i, i + 200);
+        const chunkSrc = newRows.slice(i, i + 200);
         const { data, error } = await supabase.from("leads").insert(chunk).select("id");
         if (error) {
           // Fallback: race condition / unseen duplicate — retry one-by-one
           console.error("[ImportLeadsModal] insert chunk error, retrying per-row", error);
-          for (const row of chunk) {
+          for (let j = 0; j < chunk.length; j++) {
+            const row = chunk[j];
+            const src = chunkSrc[j];
             const { data: d2, error: e2 } = await supabase.from("leads").insert(row).select("id").maybeSingle();
             if (e2) {
               if (e2.code === "23505" || /duplicate key/i.test(e2.message)) {
                 skippedDuplicates++;
+                addReason("Duplicate key collision on insert");
               } else {
                 failed++;
+                addReason(`Insert failed: ${e2.message}`);
                 if (!errors.includes(e2.message)) errors.push(e2.message);
               }
             } else if (d2) {
               newImported++;
+              if (src?._phoneOnly) phoneOnlyImported++;
             }
           }
         } else {
           newImported += data?.length || chunk.length;
+          chunkSrc.forEach((s) => { if (s._phoneOnly) phoneOnlyImported++; });
         }
       }
-
-      // ── Auto-sync paid leads to Paid Pipeline ─────────────────────────────
-      let paidSynced = 0;
       let paidLinked = 0;
       let paidUnlinked = 0;
       if (pipelineType === "paid") {
