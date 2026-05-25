@@ -104,7 +104,22 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     await supabase.from("leads").update({ stage_id: stageId }).eq("id", lead.id);
     toast.success("Stage updated");
     await load(); onChanged();
-    if (prev !== stageId) onStageChanged?.(lead.id, stageId);
+    if (prev !== stageId) {
+      onStageChanged?.(lead.id, stageId);
+      try {
+        const { evaluateStageTrigger } = await import("@/lib/codeOfConductRules");
+        const res = await evaluateStageTrigger({
+          source: "crm", pipelineId: lead.pipeline_id, stageId,
+          crmLeadId: lead.id, memberName: lead.full_name || "Member",
+          memberEmail: lead.email, memberPhone: lead.phone,
+          programName: lead.program_name, dealValue: lead.deal_value,
+        });
+        if (res.action === "auto_sent") toast.success(`Code of Conduct auto-sent (rule: ${res.rule?.name})`);
+        else if (res.action === "suggested") toast.message(`Code of Conduct suggested for this stage`, { description: res.rule?.name });
+        else if (res.action === "auto_send_failed") toast.error(`Auto-send failed: ${res.message}`);
+        else if (res.action === "missing_email") toast.error(res.message || "Member has no email");
+      } catch { /* ignore */ }
+    }
   };
 
   const setAgent = async (agentId: string | null) => {
