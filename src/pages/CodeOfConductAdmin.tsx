@@ -462,6 +462,8 @@ export default function CodeOfConductAdmin() {
 function errorHint(code?: string) {
   switch (code) {
     case "MISSING_RESEND_API_KEY": return "Add RESEND_API_KEY in backend secrets.";
+    case "MISSING_EMAIL_FROM_ADDRESS": return "Add EMAIL_FROM_ADDRESS in backend secrets (or set a template From email).";
+    case "MISSING_EMAIL_FROM_NAME": return "Add EMAIL_FROM_NAME in backend secrets (or set a template From name).";
     case "MISSING_FROM_EMAIL": return "Add the sender email connected to your email provider in Email Setup.";
     case "RESEND_DOMAIN_NOT_VERIFIED": return "Use a verified sender/domain inside Resend.";
     case "EMAIL_PROVIDER_REJECTED": return "Your email provider rejected the request. Check sender domain, recipient, and provider limits.";
