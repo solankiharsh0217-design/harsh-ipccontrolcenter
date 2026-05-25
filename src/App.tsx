@@ -43,7 +43,9 @@ const qc = new QueryClient();
 
 const Shell = ({ children, admin, moduleKey }: { children: React.ReactNode; admin?: boolean; moduleKey?: ModuleKey }) => (
   <ProtectedRoute adminOnly={admin} moduleKey={moduleKey}>
-    <AppLayout>{children}</AppLayout>
+    <AppLayout>
+      <RouteErrorBoundary>{children}</RouteErrorBoundary>
+    </AppLayout>
   </ProtectedRoute>
 );
 
