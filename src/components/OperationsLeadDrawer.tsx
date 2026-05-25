@@ -326,7 +326,8 @@ function ServiceActionModal({
         updates.ad_launch_date = lead.ad_launch_date || date;
         updates.current_active_start_date = date;
         updates.last_resumed_at = date;
-        // est end = date + remaining (committed - already used)
+        updates.last_paused_at = null;
+        // est end = date + remaining (committed - already used active days)
         const remaining = Math.max(0, committedDays - (lead.total_active_days ?? 0));
         updates.service_end_target_date = addDays(date, remaining);
       } else if (action === "pause") {
@@ -336,12 +337,16 @@ function ServiceActionModal({
         updates.total_active_days = (lead.total_active_days ?? 0) + activeAdd;
         updates.last_paused_at = date;
         updates.current_active_start_date = null;
+        // Snapshot a "if resumed today" estimated end so UI is not stale
+        const remainingAfter = Math.max(0, committedDays - updates.total_active_days);
+        updates.service_end_target_date = addDays(date, remainingAfter);
       } else if (action === "resume") {
         const pausedAdd = lead.last_paused_at
           ? daysBetween(lead.last_paused_at, date) : 0;
         updates.service_status = "active";
         updates.total_paused_days = (lead.total_paused_days ?? 0) + pausedAdd;
         updates.last_resumed_at = date;
+        updates.last_paused_at = null;
         updates.current_active_start_date = date;
         const remaining = Math.max(0, committedDays - (lead.total_active_days ?? 0));
         updates.service_end_target_date = addDays(date, remaining);
@@ -353,12 +358,16 @@ function ServiceActionModal({
         }
         updates.service_status = "stopped";
         updates.current_active_start_date = null;
+        updates.last_paused_at = null;
+        updates.service_end_target_date = date;
       } else if (action === "complete") {
         if (oldStatus === "active" && lead.current_active_start_date) {
           updates.total_active_days = (lead.total_active_days ?? 0) + daysBetween(lead.current_active_start_date, date);
         }
         updates.service_status = "completed";
         updates.current_active_start_date = null;
+        updates.last_paused_at = null;
+        updates.service_end_target_date = date;
       }
 
       // Insert event
