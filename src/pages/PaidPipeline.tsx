@@ -747,8 +747,9 @@ function FinanceCell({ lead, onClick }: { lead: any; onClick: () => void }) {
   );
 }
 
-function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }: {
+function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen, onArchive, onRestore, archived }: {
   onAddPayment: () => void; onUpdateFinance: () => void; onSetFollowUp: () => void; onOpen: () => void;
+  onArchive: () => void; onRestore: () => void; archived: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
