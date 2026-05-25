@@ -241,21 +241,42 @@ export default function OperationsCrm() {
         ))}
       </div>
 
-      {/* Phase C panels */}
-      {!isAdmin && profile?.id && (
-        <div className="mb-3">
-          <RewardWidget buyerId={profile.id} />
-        </div>
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-line mb-3">
+        {([
+          ["kanban", "Kanban"],
+          ["reports", "Reports"],
+          ["conversions", "Conversions"],
+          ["rewards", "Rewards"],
+        ] as const).map(([k, l]) => (
+          <button key={k} onClick={() => { setTab(k); const p = new URLSearchParams(params); if (k === "kanban") p.delete("tab"); else p.set("tab", k); setParams(p, { replace: true }); }}
+            className={`relative px-3 py-2 text-[12px] font-sans ${tab === k ? "text-black after:absolute after:left-2 after:right-2 after:bottom-[-1px] after:h-[2px] after:bg-gold" : "text-muted-foreground hover:text-black"}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {tab !== "kanban" && !isAdmin && tab === "conversions" && profile?.id && (
+        <div className="mb-3"><RewardWidget buyerId={profile.id} /></div>
       )}
-      {isAdmin && allConv.pending > 0 && (
-        <div className="mb-3">
-          <PendingApprovalsPanel onChanged={() => setRefreshKey((k) => k + 1)} onOpenLead={(id) => setOpenLead(id)} />
-        </div>
+      {tab === "reports" && (
+        <OpsReportsTab leads={leads as any} onOpenLead={(id) => setOpenLead(id)} />
+      )}
+      {tab === "conversions" && (
+        <OpsConversionsTab isAdmin={isAdmin} onOpenLead={(id) => setOpenLead(id)} onChanged={() => setRefreshKey((k) => k + 1)} />
+      )}
+      {tab === "rewards" && (
+        <OpsRewardsTab isAdmin={isAdmin} selfId={profile?.id} />
+      )}
+
+      {tab !== "kanban" ? null : (
+      <>
+      {/* Phase C panels — kanban view */}
+      {!isAdmin && profile?.id && (
+        <div className="mb-3"><RewardWidget buyerId={profile.id} /></div>
       )}
       {isAdmin && (
-        <div className="mb-4">
-          <MediaBuyerPerformancePanel leads={leads} />
-        </div>
+        <div className="mb-4"><MediaBuyerPerformancePanel leads={leads} /></div>
       )}
 
       {/* Filters */}
