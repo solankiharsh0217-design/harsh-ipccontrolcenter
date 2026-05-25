@@ -491,6 +491,58 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
         </div>
 
 
+        {/* Danger zone: archive / restore / permanent delete */}
+        <div className="px-6 py-4 border-t border-line">
+          {(lead as any).archived_at && (
+            <div className="mb-3 px-3 py-2 rounded-md bg-[#FEF3C7] border border-[#FDE68A] text-[11.5px] text-[#92400E]">
+              <span className="font-medium">Archived</span> on {new Date((lead as any).archived_at).toLocaleString()}
+              {(lead as any).archive_reason && <div className="text-[11px] mt-0.5 opacity-80">Reason: {(lead as any).archive_reason}</div>}
+            </div>
+          )}
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Danger zone</div>
+          <div className="flex flex-wrap gap-2">
+            {!(lead as any).archived_at ? (
+              <button
+                onClick={async () => {
+                  const links = await getLeadLinks([lead.id]).catch(() => ({ paid: 0, ops: 0 }));
+                  setArchiveLinks(links);
+                  setArchiveOpen(true);
+                }}
+                className="ipc-btn !h-9 !text-xs !bg-[#FEF3C7] !text-[#92400E] hover:!bg-[#FDE68A] border border-[#FDE68A]"
+              >
+                <Archive className="w-3.5 h-3.5" /> Archive lead
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  try {
+                    await restoreLead({ id: lead.id, full_name: lead.full_name });
+                    toast.success("Lead restored");
+                    await load(); onChanged();
+                  } catch (e: any) { toast.error(e.message || "Restore failed"); }
+                }}
+                className="ipc-btn !h-9 !text-xs !bg-[#DCFCE7] !text-[#166534] hover:!bg-[#BBF7D0] border border-[#86EFAC]"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Restore lead
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                onClick={async () => {
+                  const links = await getLeadLinks([lead.id]).catch(() => ({ paid: 0, ops: 0 }));
+                  setDeleteBlocked(links.paid > 0 || links.ops > 0
+                    ? `Cannot permanently delete — this lead is linked to ${links.paid ? "Paid Pipeline" : ""}${links.paid && links.ops ? " and " : ""}${links.ops ? "Operations CRM" : ""}. Archive instead.`
+                    : null);
+                  setDeleteOpen(true);
+                }}
+                className="ipc-btn !h-9 !text-xs !text-[#DC2626] hover:!bg-[#FEE2E2] border border-[#FCA5A5]"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Permanent delete
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Sticky Save & Close */}
         <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex items-center justify-between gap-3">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
@@ -502,6 +554,50 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           </button>
         </div>
       </div>
+      {archiveOpen && (
+        <ArchiveConfirmModal
+          title={`Archive "${lead.full_name || "lead"}"?`}
+          description="This hides the lead from active CRM views. Paid Pipeline / Operations CRM links are preserved."
+          detailLines={archiveLinks ? [
+            `${archiveLinks.paid} linked Paid Pipeline record(s) — preserved.`,
+            `${archiveLinks.ops} active Operations CRM record(s) — preserved.`,
+            archiveLinks.paid + archiveLinks.ops > 0
+              ? "Archiving here hides from Calling CRM only."
+              : "You can restore from Show archived.",
+          ] : undefined}
+          busy={archiveBusy}
+          onClose={() => { setArchiveOpen(false); setArchiveLinks(null); }}
+          onConfirm={async (reason) => {
+            setArchiveBusy(true);
+            try {
+              await archiveLead({ id: lead.id, full_name: lead.full_name, webinar_source: lead.webinar_source, paid_pipeline_lead_id: (lead as any).paid_pipeline_lead_id }, reason || undefined);
+              toast.success("Lead archived");
+              setArchiveOpen(false); setArchiveLinks(null);
+              onChanged(); onClose();
+            } catch (e: any) { toast.error(e.message || "Archive failed"); }
+            finally { setArchiveBusy(false); }
+          }}
+        />
+      )}
+      {deleteOpen && (
+        <PermanentDeleteModal
+          title={`Permanently delete "${lead.full_name || "lead"}"?`}
+          description="This cannot be undone. Activity, reminders, and tags on this lead will be removed."
+          blocked={deleteBlocked}
+          busy={deleteBusy}
+          onClose={() => { setDeleteOpen(false); setDeleteBlocked(null); }}
+          onConfirm={async (reason) => {
+            setDeleteBusy(true);
+            try {
+              await permanentlyDeleteLead({ id: lead.id, full_name: lead.full_name }, reason || undefined);
+              toast.success("Lead permanently deleted");
+              setDeleteOpen(false);
+              onChanged(); onClose();
+            } catch (e: any) { toast.error(e.message || "Delete failed"); }
+            finally { setDeleteBusy(false); }
+          }}
+        />
+      )}
       {sendOpsOpen && (
         <SendToOperationsCrmModal
           candidateLeads={[{
