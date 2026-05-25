@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/auditLog";
 import MediaBuyerAliasManager from "@/components/admin/MediaBuyerAliasManager";
+import OperationsHandoffRulesPanel from "@/components/admin/OperationsHandoffRulesPanel";
 
 
 const MS = "master_settings";
@@ -44,6 +45,7 @@ const SECTIONS = [
   { key: "payments", label: "Payment Settings" },
   { key: "paid_pipeline", label: "Paid Pipeline" },
   { key: "calling_crm", label: "Calling CRM" },
+  { key: "operations_handoff", label: "Operations Handoff Rules" },
   { key: "followup", label: "Follow-Up" },
   { key: "recovery", label: "Payment Recovery" },
   { key: "finance", label: "Finance / EMI" },
@@ -148,6 +150,7 @@ export default function MasterSettings() {
             />
           )}
           {activeSection === "calling_crm" && <CrmPipelinesSection />}
+          {activeSection === "operations_handoff" && <OperationsHandoffRulesPanel />}
           {activeSection === "followup" && (
             <PPSettingsGroup
               title="Follow-Up Settings"
