@@ -182,9 +182,11 @@ export default function CodeOfConductAdmin() {
 
   const checklist: ChecklistItem[] = useMemo(() => {
     const t = tpl || {};
+    const hasFromEmail = !!t.from_email || !!diag?.has_email_from_address;
+    const hasFromName = !!t.from_name || !!diag?.has_email_from_name;
     const items: ChecklistItem[] = [
-      { key: "from_email", label: "Sender email added", ok: !!t.from_email, required: true, hint: "Use an address on a domain verified with your email provider." },
-      { key: "from_name", label: "Sender name added", ok: !!t.from_name, required: true },
+      { key: "from_email", label: "Sender email configured (template or EMAIL_FROM_ADDRESS secret)", ok: hasFromEmail, required: true, hint: "Use an address on a domain verified with your email provider." },
+      { key: "from_name", label: "Sender name configured (template or EMAIL_FROM_NAME secret)", ok: hasFromName, required: true },
       { key: "email_subject", label: "Email subject added", ok: !!t.email_subject, required: true },
       { key: "email_body", label: "Email body added", ok: !!t.email_body, required: true },
       { key: "doc", label: "PDF or HTML document added", ok: !!(t.template_pdf_url || t.html_content), required: true },
