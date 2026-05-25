@@ -105,7 +105,10 @@ export default function FollowUpCommandCenter() {
 
   const [fus, setFus] = useState<FollowUp[]>([]);
   const [leadMap, setLeadMap] = useState<Record<string, Lead>>({});
+  const [profileMap, setProfileMap] = useState<Record<string, string>>({});
+  const [profileList, setProfileList] = useState<{ id: string; full_name: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const ownerName = (id: string | null | undefined) => (id && profileMap[id]) || (id ? id.slice(0, 8) + "…" : "—");
 
   const [quickPreset, setQuickPreset] = useState<string>("due_today");
   const [search, setSearch] = useState("");
