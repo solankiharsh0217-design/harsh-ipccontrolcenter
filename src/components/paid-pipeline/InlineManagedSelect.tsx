@@ -6,6 +6,13 @@ import { logActivity } from "@/lib/auditLog";
 
 type Opt = { id: string; label: string; color?: string | null };
 
+const NOUN: Record<string, string> = {
+  pipeline_stage: "stage",
+  lead_priority: "priority",
+  finance_partner: "finance partner",
+  finance_status: "finance status",
+};
+
 export default function InlineManagedSelect({
   settingType,
   value,
@@ -15,15 +22,17 @@ export default function InlineManagedSelect({
   colorize = false,
   refreshKey,
   onListChanged,
+  triggerClassName,
 }: {
-  settingType: "pipeline_stage" | "lead_priority";
+  settingType: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  width?: number;
+  width?: number | string;
   colorize?: boolean;
   refreshKey?: number;
   onListChanged?: () => void;
+  triggerClassName?: string;
 }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -78,10 +87,13 @@ export default function InlineManagedSelect({
     } as any);
     if (error) { toast.error(error.message); return; }
     toast.success("Added");
+    const at = settingType === "pipeline_stage" ? "stage_created"
+      : settingType === "lead_priority" ? "lead_priority_created"
+      : `${settingType}_created`;
     logActivity({
       module_key: "paid_pipeline", module_label: "Paid Pipeline",
-      action_type: settingType === "pipeline_stage" ? "stage_created" : "lead_priority_created",
-      action_label: settingType === "pipeline_stage" ? "Stage created" : "Priority created",
+      action_type: at,
+      action_label: `${NOUN[settingType] || settingType} created`,
       summary: `${trimmed} added`,
     });
     setNewLabel(""); setNewColor(""); setAdding(false);
@@ -96,10 +108,13 @@ export default function InlineManagedSelect({
       .update({ is_active: false } as any).eq("id", o.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Deactivated");
+    const at = settingType === "pipeline_stage" ? "stage_deactivated"
+      : settingType === "lead_priority" ? "lead_priority_deactivated"
+      : `${settingType}_deactivated`;
     logActivity({
       module_key: "paid_pipeline", module_label: "Paid Pipeline",
-      action_type: settingType === "pipeline_stage" ? "stage_deactivated" : "lead_priority_deactivated",
-      action_label: settingType === "pipeline_stage" ? "Stage deactivated" : "Priority deactivated",
+      action_type: at,
+      action_label: `${NOUN[settingType] || settingType} deactivated`,
       summary: `${o.label} deactivated`, severity: "warning",
     });
     await load();
@@ -114,7 +129,7 @@ export default function InlineManagedSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full h-7 border border-line rounded px-2 text-[11px] text-left bg-white truncate flex items-center justify-between gap-1 hover:bg-off"
+        className={triggerClassName || "w-full h-7 border border-line rounded px-2 text-[11px] text-left bg-white truncate flex items-center justify-between gap-1 hover:bg-off"}
         style={{ color: currentColor }}
         title={value || placeholder}
       >
@@ -155,7 +170,7 @@ export default function InlineManagedSelect({
                 type="button"
                 onClick={() => setAdding(true)}
                 className="w-full text-left px-2.5 py-1.5 text-[11.5px] text-[#2563EB] hover:bg-off"
-              >+ Add new {settingType === "pipeline_stage" ? "stage" : "priority"}</button>
+              >+ Add new {NOUN[settingType] || settingType}</button>
             ) : (
               <div className="p-2 space-y-1.5">
                 <input

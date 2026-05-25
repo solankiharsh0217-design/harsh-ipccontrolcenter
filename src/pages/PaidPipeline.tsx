@@ -115,6 +115,8 @@ export default function PaidPipeline() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [insightFilter, setInsightFilter] = useState<string | null>(null);
+  const [showMoreMetrics, setShowMoreMetrics] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const HIGH_BAL_THRESHOLD = 50000;
 
   const load = async () => {
@@ -389,58 +391,72 @@ export default function PaidPipeline() {
 
 
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-5">
+      {/* Primary metric strip (5 cards) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-3">
         <SumCard label="Total Paid Leads" value={String(filtered.length)} accent="blue" />
-        <SumCard label="Total Deal Value" value={inr(totals.dealTotal)} />
-        <SumCard label="Token Collected" value={inr(totals.token)} />
         <SumCard label="Total Collected" value={inr(totals.collectedTotal)} accent="green" />
         <SumCard label="Balance Pending" value={inr(totals.balance)} accent="gold" />
-        <SumCard label="Revenue Realized" value={inr(totals.realized)} accent="green" />
         <SumCard label="Revenue To Be Realized" value={inr(totals.toBeRealized)} />
-        <SumCard label="Finance Pending" value={String(totals.financePending)} />
-        <SumCard label="EMI / Finance Disbursed" value={inr(totals.emiDisbursed)} />
-        <SumCard label="Final Sales" value={String(totals.finalSales)} />
-        <SumCard label="Dropped After Token" value={String(totals.dropped)} />
-        <SumCard label="Hot/Urgent Bal Pending" value={String(totals.hotPending)} accent="red" />
         <SumCard label="Follow-Ups Due Today" value={String(totals.dueToday)} accent="blue" />
       </div>
 
+      <div className="mb-4">
+        <button
+          onClick={() => setShowMoreMetrics(v => !v)}
+          className="text-[11.5px] text-muted-foreground hover:text-black inline-flex items-center gap-1"
+        >
+          {showMoreMetrics ? "▾" : "▸"} {showMoreMetrics ? "Hide" : "More"} revenue metrics
+        </button>
+        {showMoreMetrics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3 mt-2">
+            <SumCard label="Total Deal Value" value={inr(totals.dealTotal)} />
+            <SumCard label="Token Collected" value={inr(totals.token)} />
+            <SumCard label="Revenue Realized" value={inr(totals.realized)} accent="green" />
+            <SumCard label="Finance Pending" value={String(totals.financePending)} />
+            <SumCard label="EMI / Finance Disbursed" value={inr(totals.emiDisbursed)} />
+            <SumCard label="Final Sales" value={String(totals.finalSales)} />
+            <SumCard label="Dropped After Token" value={String(totals.dropped)} />
+            <SumCard label="Hot/Urgent Bal Pending" value={String(totals.hotPending)} accent="red" />
+          </div>
+        )}
+      </div>
+
       {/* Operational insight chips */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-3">
         <InsightChip
-          label={`${insights.highBalCount} leads · balance > ${inr(HIGH_BAL_THRESHOLD)} (${inr(insights.highBalAmt)})`}
+          label={`${insights.highBalCount} · High balance (${inr(insights.highBalAmt)})`}
           active={insightFilter === "high_balance"}
           onClick={() => setInsightFilter(insightFilter === "high_balance" ? null : "high_balance")}
           accent="gold"
         />
         <InsightChip
-          label={`${insights.approvedNotDisbCount} finance approved · not disbursed (${inr(insights.approvedNotDisbAmt)})`}
+          label={`${insights.approvedNotDisbCount} · Approved · not disbursed`}
           active={insightFilter === "approved_not_disbursed"}
           onClick={() => setInsightFilter(insightFilter === "approved_not_disbursed" ? null : "approved_not_disbursed")}
           accent="blue"
         />
         <InsightChip
-          label={`${insights.noFu} leads · no next follow-up`}
+          label={`${insights.noFu} · No follow-up`}
           active={insightFilter === "no_followup"}
           onClick={() => setInsightFilter(insightFilter === "no_followup" ? null : "no_followup")}
           accent="muted"
         />
         <InsightChip
-          label={`${insights.urgentBalCount} urgent · balance pending (${inr(insights.urgentBalAmt)})`}
+          label={`${insights.urgentBalCount} · Urgent balance`}
           active={insightFilter === "urgent_balance"}
           onClick={() => setInsightFilter(insightFilter === "urgent_balance" ? null : "urgent_balance")}
           accent="red"
         />
         <InsightChip
-          label={`${insights.tokenNoSecond} token paid · no further payment`}
+          label={`${insights.tokenNoSecond} · Token only`}
           active={insightFilter === "token_no_second"}
           onClick={() => setInsightFilter(insightFilter === "token_no_second" ? null : "token_no_second")}
           accent="gold"
         />
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-2">
+      {/* Filters — compact: 2 rows, more behind popover */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-2">
         <input
           className="h-9 border border-line rounded-md px-3 text-[13px] col-span-2"
           placeholder="Search name, email, phone…"
@@ -448,24 +464,32 @@ export default function PaidPipeline() {
           onChange={e => setSearchInput(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") setSearch(searchInput); }}
         />
-        <FilterSelect value={batchFilter} onChange={setBatchFilter} label="All webinar batches" options={batches.map(b => ({ v: b.id, l: b.batch_name }))} />
-        <FilterSelect value={paidBatchFilter} onChange={setPaidBatchFilter} label="All paid batches" options={paidBatches.map(b => ({ v: b.id, l: b.batch_name }))} />
-        <FilterSelect value={onboardingBatchFilter} onChange={setOnboardingBatchFilter} label="All onboarding batches" options={onboardingBatches.map(o => ({ v: o, l: o }))} />
         <FilterSelect value={stageFilter} onChange={setStageFilter} label="All stages" options={stages.map(s => ({ v: s, l: s }))} />
         <FilterSelect value={tempFilter} onChange={setTempFilter} label="All priorities" options={TEMPERATURES.map(t => ({ v: t, l: t }))} />
-        <FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Documents Received","Application Submitted","Approved","Rejected","Disbursed","Alternate Partner Needed"].map(t => ({ v: t, l: t }))} />
-        <FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} />
         <FilterSelect value={ownerFilter} onChange={setOwnerFilter} label="All owners" options={[{ v: "unassigned", l: "— Unassigned —" }, ...agents.map(a => ({ v: a.id, l: a.full_name }))]} />
+        <FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Documents Received","Application Submitted","Approved","Rejected","Disbursed","Alternate Partner Needed"].map(t => ({ v: t, l: t }))} />
+        <FilterSelect value={tagFilter} onChange={setTagFilter} label="All tags" options={allTags.map(t => ({ v: t.id, l: t.name }))} />
         <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
           { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
         ]} />
-        <FilterSelect value={revenueStatusFilter} onChange={setRevenueStatusFilter} label="All revenue status" options={[
-          { v: "token", l: "Token only" }, { v: "partial", l: "Partially collected" }, { v: "full", l: "Fully collected" },
-          { v: "finance_pending", l: "Finance pending" }, { v: "finance_disbursed", l: "Finance disbursed" },
-          { v: "balance_pending", l: "Balance pending" }, { v: "dropped", l: "Dropped" },
-        ]} />
-        <FilterSelect value={tagFilter} onChange={setTagFilter} label="All tags" options={allTags.map(t => ({ v: t.id, l: t.name }))} />
+        <button
+          onClick={() => setShowMoreFilters(v => !v)}
+          className="h-9 border border-line rounded-md px-3 text-[12.5px] hover:bg-off text-left"
+        >{showMoreFilters ? "▾" : "▸"} More filters</button>
       </div>
+      {showMoreFilters && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2 p-2 border border-line rounded-md bg-off/30">
+          <FilterSelect value={batchFilter} onChange={setBatchFilter} label="All webinar batches" options={batches.map(b => ({ v: b.id, l: b.batch_name }))} />
+          <FilterSelect value={paidBatchFilter} onChange={setPaidBatchFilter} label="All paid batches" options={paidBatches.map(b => ({ v: b.id, l: b.batch_name }))} />
+          <FilterSelect value={onboardingBatchFilter} onChange={setOnboardingBatchFilter} label="All onboarding batches" options={onboardingBatches.map(o => ({ v: o, l: o }))} />
+          <FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} />
+          <FilterSelect value={revenueStatusFilter} onChange={setRevenueStatusFilter} label="All revenue status" options={[
+            { v: "token", l: "Token only" }, { v: "partial", l: "Partially collected" }, { v: "full", l: "Fully collected" },
+            { v: "finance_pending", l: "Finance pending" }, { v: "finance_disbursed", l: "Finance disbursed" },
+            { v: "balance_pending", l: "Balance pending" }, { v: "dropped", l: "Dropped" },
+          ]} />
+        </div>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div className="text-[12.5px] text-muted-foreground">
           Showing <span className="font-medium text-black">{filtered.length}</span> of <span className="font-medium text-black">{leads.length}</span> paid leads
@@ -707,31 +731,57 @@ function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen }
   onAddPayment: () => void; onUpdateFinance: () => void; onSetFollowUp: () => void; onOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", h);
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setOpenUp(window.innerHeight - r.bottom < 240);
+    }
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
-  const item = (label: string, fn: () => void, accent?: string) => (
-    <button onClick={() => { setOpen(false); fn(); }} className={`w-full text-left px-3 py-1.5 text-[12px] hover:bg-off ${accent || ""}`}>{label}</button>
+
+  const Row = ({
+    onClick, dotColor, tint, title, subtitle, icon,
+  }: { onClick: () => void; dotColor: string; tint: string; title: string; subtitle: string; icon: string }) => (
+    <button
+      onClick={() => { setOpen(false); onClick(); }}
+      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-off text-left transition-colors"
+    >
+      <span className="w-7 h-7 rounded-md flex items-center justify-center text-[14px]" style={{ background: tint, color: dotColor }}>{icon}</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-[12.5px] font-medium text-black">{title}</span>
+        <span className="block text-[10.5px] text-muted-foreground truncate">{subtitle}</span>
+      </span>
+    </button>
   );
+
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen(o => !o)} className="text-[12px] px-2 py-1 rounded border border-line hover:bg-off leading-none" title="More actions" aria-label="More actions">⋯</button>
+      <button
+        ref={btnRef}
+        onClick={() => setOpen(o => !o)}
+        className="text-[14px] px-2 py-1 rounded border border-line hover:bg-off leading-none text-muted-foreground"
+        title="More actions"
+        aria-label="More actions"
+      >⋯</button>
       {open && (
-        <div className="absolute right-0 mt-1 w-44 bg-white border border-line rounded-md shadow-lg z-30 py-1">
-          {item("+ Add Payment", onAddPayment, "text-[#15803D] font-medium")}
-          {item("Update Finance", onUpdateFinance)}
-          {item("Set Follow-up", onSetFollowUp)}
-          <div className="h-px bg-line my-1" />
-          {item("Open Details", onOpen)}
+        <div className={`absolute right-0 ${openUp ? "bottom-9" : "mt-1"} w-60 bg-white border border-line rounded-lg shadow-xl z-30 py-1 overflow-hidden`}>
+          <Row onClick={onAddPayment} dotColor="#15803D" tint="#DCFCE7" title="Add Payment" subtitle="Record token / balance / EMI" icon="₹" />
+          <Row onClick={onUpdateFinance} dotColor="#1E40AF" tint="#DBEAFE" title="Update Finance" subtitle="Partner, status, disbursal" icon="◈" />
+          <Row onClick={onSetFollowUp} dotColor="#92400E" tint="#FEF3C7" title="Set Follow-up" subtitle="Schedule next call / message" icon="⏰" />
+          <div className="h-px bg-line my-0.5" />
+          <Row onClick={onOpen} dotColor="#111827" tint="#F3F4F6" title="Open Details" subtitle="Full lead drawer" icon="↗" />
         </div>
       )}
     </div>
   );
 }
+
 
 
 
@@ -786,6 +836,10 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [openPay, setOpenPay] = useState(false);
   const [openFu, setOpenFu] = useState(false);
   const [openFin, setOpenFin] = useState(false);
+  const [editBatch, setEditBatch] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [copiedTpl, setCopiedTpl] = useState<string | null>(null);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
@@ -889,93 +943,127 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Timeline & Follow-up */}
-          <Section title="Timeline & Follow-up">
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Created / Imported" value={lead.created_at ? fmtDate(lead.created_at) : "—"} />
-              <Field label="Paid Batch" value={lead.paid_batch_name || "—"} />
-              <Field label="Onboarding Batch" value={lead.onboarding_batch_name || "—"} />
-              <Field label="Last Payment Date" value={payments[0]?.payment_date ? fmtDate(payments[0].payment_date) : "—"} />
-              <Field label="Last Contacted" value={activity[0]?.created_at ? fmtDate(activity[0].created_at) : "—"} />
-              <Field label="Next Follow-up Date" value={lead.next_follow_up_date ? fmtDate(lead.next_follow_up_date) : "—"} />
-              <Field label="Next Follow-up Time" value={lead.next_follow_up_time ? String(lead.next_follow_up_time).slice(0,5) : "—"} />
-              <Field label="Follow-up Type" value={lead.follow_up_reason || "—"} />
-              <Field label="Assigned Owner" value={agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"} />
-            </div>
-            <div className="mt-3">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Fast Follow-up</div>
-              <FastFollowUpComposer
-                paidLeadId={lead.id}
-                crmLeadId={lead.crm_lead_id || null}
-                leadName={lead.name || undefined}
-                defaultPriority={temperature || "Normal"}
-                onSaved={() => { loadInner(); onChanged(); }}
-              />
-            </div>
-          </Section>
 
-          {/* Payment Summary */}
-          <Section title="Payment summary">
+          {/* 1. Payment Summary — top priority */}
+          <Section title="Revenue snapshot">
             <div className="grid grid-cols-3 gap-2">
               <Field label="Deal value" value={inr(lead.deal_value_including_gst)} />
-              <Field label="Token collected" value={inr(lead.token_amount_collected)} />
-              <Field label="Total collected" value={inr(lead.total_collected)} />
-              <Field label="Balance pending" value={inr(lead.balance_pending)} accent />
-              <Field label="Realized revenue" value={inr(lead.final_revenue_realized || 0)} />
+              <Field label="Token collected" value={inr(lead.token_amount_collected)} tone="green" />
+              <Field label="Total collected" value={inr(lead.total_collected)} tone="green" />
+              <Field label="Balance pending" value={inr(lead.balance_pending)} tone={Number(lead.balance_pending) > 50000 ? "red" : "amber"} />
+              <Field label="Realized revenue" value={inr(lead.final_revenue_realized || 0)} tone="green" />
               <Field label="To be realized" value={inr(lead.revenue_to_be_realized ?? lead.balance_pending)} />
             </div>
           </Section>
 
-          {/* Quick Status */}
+          {/* 2. Next action / Follow-up — unified, high in drawer */}
+          <Section title="Next action · Follow-up">
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <Field label="Next follow-up" value={lead.next_follow_up_date ? fmtDate(lead.next_follow_up_date) : (lead.next_balance_follow_up_date ? fmtDate(lead.next_balance_follow_up_date) + " (balance)" : (lead.finance_follow_up_date ? fmtDate(lead.finance_follow_up_date) + " (finance)" : "—"))} />
+              <Field label="Type" value={lead.follow_up_reason || "—"} />
+              <Field label="Owner" value={agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"} />
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {[
+                { l: "Today", days: 0 },
+                { l: "Tomorrow", days: 1 },
+                { l: "+3 days", days: 3 },
+                { l: "Next week", days: 7 },
+              ].map(q => (
+                <button
+                  key={q.l}
+                  onClick={async () => {
+                    const d = new Date(); d.setDate(d.getDate() + q.days);
+                    const iso = d.toISOString().slice(0,10);
+                    await supabase.from("paid_pipeline_leads").update({ next_follow_up_date: iso } as any).eq("id", lead.id);
+                    toast.success(`Follow-up set ${q.l.toLowerCase()}`);
+                    onChanged();
+                  }}
+                  className="text-[11.5px] px-2.5 py-1 rounded-full border border-line hover:bg-off"
+                >{q.l}</button>
+              ))}
+              <button onClick={() => setOpenFu(true)} className="text-[11.5px] px-2.5 py-1 rounded-full bg-black text-white hover:opacity-90">Set custom follow-up</button>
+            </div>
+            <FastFollowUpComposer
+              paidLeadId={lead.id}
+              crmLeadId={lead.crm_lead_id || null}
+              leadName={lead.name || undefined}
+              defaultPriority={temperature || "Normal"}
+              onSaved={() => { loadInner(); onChanged(); }}
+            />
+          </Section>
+
+          {/* 3. Quick status — managed dropdowns */}
           <Section title="Quick status">
             <div className="grid grid-cols-2 gap-3">
-              <QuickSaveInput fieldKey="paid_pipeline_stage" label="Pipeline stage" value={stage} onChange={setStage} placeholder="Token Paid" />
-              <QuickSaveInput fieldKey="lead_temperature" label="Lead temperature" value={temperature} onChange={setTemperature} placeholder="Hot" />
-              <QuickSaveInput fieldKey="paid_batch_name" label="Paid batch" value={paidBatch} onChange={setPaidBatch} placeholder="Diamond Token Buyers - May" />
-              <QuickSaveInput fieldKey="onboarding_batch_name" label="Onboarding batch" value={onboardingBatch} onChange={setOnboardingBatch} placeholder="Diamond May 2026 Batch 1" />
-              <QuickSaveInput fieldKey="revenue_recognition_rule" label="Revenue recognition rule" value={revRule} onChange={setRevRule} placeholder="Realized Revenue Only" />
-            </div>
-            <div className="flex gap-2 mt-3">
-              <button onClick={() => setOpenPay(true)} className="ipc-btn ipc-btn-black !h-9">+ Add payment</button>
-              <button onClick={() => setOpenFu(true)} className="ipc-btn ipc-btn-ghost !h-9">Set follow-up</button>
-            </div>
-          </Section>
-
-          {/* Balance */}
-          <Section title="Balance tracking">
-            <div className="grid grid-cols-2 gap-3">
-              <QuickSaveInput fieldKey="balance_category" label="Balance category" value={balCat} onChange={setBalCat} placeholder="Second Token Pending" />
               <div>
-                <label className="qsi-label">Next balance follow-up</label>
-                <input type="date" className="qsi-input" value={balDate} onChange={(e) => setBalDate(e.target.value)} />
+                <label className="qsi-label">Pipeline stage</label>
+                <InlineManagedSelect settingType="pipeline_stage" value={stage} onChange={setStage} width="100%"
+                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+              </div>
+              <div>
+                <label className="qsi-label">Lead temperature</label>
+                <InlineManagedSelect settingType="lead_priority" value={temperature} onChange={setTemperature} width="100%" colorize
+                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+              </div>
+              <div>
+                <label className="qsi-label">Finance partner</label>
+                <InlineManagedSelect settingType="finance_partner" value={financePartner} onChange={setFinancePartner} width="100%"
+                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+              </div>
+              <div>
+                <label className="qsi-label">Finance status</label>
+                <InlineManagedSelect settingType="finance_status" value={financeStatus} onChange={setFinanceStatus} width="100%"
+                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+              </div>
+              <div>
+                <label className="qsi-label">Balance category</label>
+                <QuickSaveInput fieldKey="balance_category" value={balCat} onChange={setBalCat} placeholder="Second Token Pending" />
               </div>
             </div>
-            <div className="mt-2">
-              <label className="qsi-label">Balance description</label>
-              <textarea className="qsi-input !h-auto py-2" rows={2} value={balDesc} onChange={(e) => setBalDesc(e.target.value)} placeholder="e.g. Student paid ₹1,000. Promised ₹6,000 by tomorrow evening." />
-            </div>
           </Section>
 
-          {/* Finance */}
+          {/* 4. Batch information — read-only by default */}
+          <Section title="Batch information">
+            {!editBatch ? (
+              <div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Paid batch" value={lead.paid_batch_name || "—"} />
+                  <Field label="Onboarding batch" value={lead.onboarding_batch_name || "—"} />
+                  <Field label="Product / Program" value={lead.product_name_snapshot || "—"} />
+                  <Field label="Revenue recognition" value={lead.revenue_recognition_rule || "Realized Revenue Only"} />
+                </div>
+                {(!lead.paid_batch_name || !lead.onboarding_batch_name) && (
+                  <div className="text-[11px] text-muted-foreground mt-2">Some batch fields are missing from import.</div>
+                )}
+                <button onClick={() => setEditBatch(true)} className="text-[11.5px] mt-2 text-[#2563EB] hover:underline">Edit batch details</button>
+              </div>
+            ) : (
+              <div>
+                <div className="grid grid-cols-2 gap-3">
+                  <QuickSaveInput fieldKey="paid_batch_name" label="Paid batch" value={paidBatch} onChange={setPaidBatch} placeholder="Diamond Token Buyers - May" />
+                  <QuickSaveInput fieldKey="onboarding_batch_name" label="Onboarding batch" value={onboardingBatch} onChange={setOnboardingBatch} placeholder="Diamond May 2026 Batch 1" />
+                  <QuickSaveInput fieldKey="revenue_recognition_rule" label="Revenue recognition rule" value={revRule} onChange={setRevRule} placeholder="Realized Revenue Only" />
+                </div>
+                <button onClick={() => setEditBatch(false)} className="text-[11.5px] mt-2 text-muted-foreground hover:text-black">Done editing</button>
+              </div>
+            )}
+          </Section>
+
+          {/* 5. Finance / EMI — compact */}
           <Section title="Finance / EMI">
-            <div className="grid grid-cols-2 gap-3">
-              <QuickSaveInput fieldKey="finance_partner" label="Finance partner" value={financePartner} onChange={setFinancePartner} placeholder="Bajaj Finance" />
-              <QuickSaveInput fieldKey="finance_status" label="Finance status" value={financeStatus} onChange={setFinanceStatus} placeholder="Documents Pending" />
-              <div>
-                <label className="qsi-label">Finance follow-up</label>
-                <input type="date" className="qsi-input" value={financeFu} onChange={(e) => setFinanceFu(e.target.value)} />
-              </div>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <Field label="Required" value={lead.finance_required ? "Yes" : "No"} />
+              <Field label="Approved" value={inr(lead.finance_amount_approved || 0)} />
+              <Field label="Disbursed" value={inr(lead.finance_amount_disbursed || 0)} tone={(lead.finance_amount_disbursed || 0) > 0 ? "green" : undefined} />
             </div>
-            <div className="mt-2">
-              <label className="qsi-label">Finance notes</label>
-              <textarea className="qsi-input !h-auto py-2" rows={2} value={financeNotes} onChange={(e) => setFinanceNotes(e.target.value)} placeholder="e.g. Bajaj failed — trying EZMI." />
-            </div>
+            <button onClick={() => setOpenFin(true)} className="ipc-btn ipc-btn-ghost !h-9">Open finance editor</button>
           </Section>
 
-          {/* Payment history */}
+          {/* 6. Payment history */}
           <Section title={`Payment history (${payments.length})`}>
             {payments.length === 0 ? (
-              <div className="text-[12px] text-muted-foreground">No payments yet. Click "+ Add payment" above.</div>
+              <div className="text-[12px] text-muted-foreground">No payments yet. Click "+ Add Payment" above.</div>
             ) : (
               <table className="w-full text-[12px]">
                 <thead><tr className="text-left text-muted-foreground"><th className="py-1">Date</th><th>Category / Type</th><th>Mode</th><th>Description</th><th className="text-right">Amount</th><th></th></tr></thead>
@@ -995,12 +1083,43 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             )}
           </Section>
 
-          {/* Activity */}
-          <Section title="Activity">
-            {activity.length === 0 ? (
+          {/* 7. WhatsApp templates — friendly cards */}
+          <Section title="WhatsApp templates">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {tpls.map(t => (
+                <div key={t.label} className="rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] p-3 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center">W</span>
+                    <span className="text-[12.5px] font-medium text-[#15803D]">{t.label}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground line-clamp-2">{t.msg}</div>
+                  <div className="flex gap-1.5 mt-1">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(t.msg);
+                        setCopiedTpl(t.label);
+                        setTimeout(() => setCopiedTpl(null), 1200);
+                      }}
+                      className="flex-1 text-[11px] h-7 rounded border border-[#BBF7D0] bg-white hover:bg-[#DCFCE7] text-[#15803D]"
+                    >{copiedTpl === t.label ? "✓ Copied" : "Copy"}</button>
+                    <a href={waLink(t.msg)} target="_blank" rel="noreferrer" className="flex-1 text-[11px] h-7 rounded bg-[#25D366] text-white hover:opacity-90 flex items-center justify-center">Send</a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          {/* 8. Activity — collapsed */}
+          <Section
+            title="Activity"
+            right={<button onClick={() => setShowActivity(v => !v)} className="text-[11px] text-muted-foreground hover:text-black">{showActivity ? "Hide" : "Show"}</button>}
+          >
+            {!showActivity ? (
+              <div className="text-[12px] text-muted-foreground">{activity.length} entries · click Show to view.</div>
+            ) : activity.length === 0 ? (
               <div className="text-[12px] text-muted-foreground">No activity yet.</div>
             ) : (
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              <div className="space-y-2 max-h-[240px] overflow-y-auto">
                 {activity.map(a => (
                   <div key={a.id} className="text-[11.5px] border-l-2 border-line pl-2">
                     <div className="text-muted-foreground text-[10px]">{new Date(a.created_at).toLocaleString()} · {a.activity_type}</div>
@@ -1011,16 +1130,31 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             )}
           </Section>
 
-          {/* WhatsApp templates */}
-          <Section title="WhatsApp templates">
-            <div className="grid grid-cols-2 gap-2">
-              {tpls.map(t => (
-                <a key={t.label} href={waLink(t.msg)} target="_blank" rel="noreferrer" className="border border-line rounded-md px-3 py-2 text-[12px] hover:bg-off">
-                  <div className="font-medium">{t.label}</div>
-                  <div className="text-[10.5px] text-muted-foreground line-clamp-2 mt-0.5">{t.msg}</div>
-                </a>
-              ))}
-            </div>
+          {/* 9. Advanced — collapsed */}
+          <Section
+            title="Advanced · balance notes"
+            right={<button onClick={() => setShowAdvanced(v => !v)} className="text-[11px] text-muted-foreground hover:text-black">{showAdvanced ? "Hide" : "Show"}</button>}
+          >
+            {showAdvanced && (
+              <div className="space-y-3">
+                <div>
+                  <label className="qsi-label">Next balance follow-up</label>
+                  <input type="date" className="qsi-input" value={balDate} onChange={(e) => setBalDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="qsi-label">Balance description</label>
+                  <textarea className="qsi-input !h-auto py-2" rows={2} value={balDesc} onChange={(e) => setBalDesc(e.target.value)} placeholder="e.g. Student paid ₹1,000. Promised ₹6,000 by tomorrow." />
+                </div>
+                <div>
+                  <label className="qsi-label">Finance follow-up date</label>
+                  <input type="date" className="qsi-input" value={financeFu} onChange={(e) => setFinanceFu(e.target.value)} />
+                </div>
+                <div>
+                  <label className="qsi-label">Finance notes</label>
+                  <textarea className="qsi-input !h-auto py-2" rows={2} value={financeNotes} onChange={(e) => setFinanceNotes(e.target.value)} />
+                </div>
+              </div>
+            )}
           </Section>
         </div>
 
@@ -1038,18 +1172,25 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   );
 }
 
-function Section({ title, children }: { title: string; children: any }) {
+function Section({ title, children, right }: { title: string; children: any; right?: any }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-2">{title}</div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{title}</div>
+        {right}
+      </div>
       <div className="border border-line rounded-md p-3">{children}</div>
     </div>
   );
 }
 
-function Field({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Field({ label, value, accent, tone }: { label: string; value: string; accent?: boolean; tone?: "green" | "amber" | "red" }) {
+  const toneBg = tone === "green" ? "bg-[#F0FDF4] border-[#BBF7D0]"
+    : tone === "amber" ? "bg-gold-pale border-[#F5D78A]"
+    : tone === "red" ? "bg-[#FEF2F2] border-[#FCA5A5]"
+    : (accent ? "bg-gold-pale" : "");
   return (
-    <div className={"border border-line rounded-md px-3 py-2 " + (accent ? "bg-gold-pale" : "")}>
+    <div className={"border border-line rounded-md px-3 py-2 " + toneBg}>
       <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
       <div className="font-serif text-[16px] mt-0.5">{value}</div>
     </div>

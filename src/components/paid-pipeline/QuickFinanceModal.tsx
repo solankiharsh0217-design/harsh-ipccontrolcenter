@@ -2,8 +2,9 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { recomputePaidLead, DEFAULT_FINANCE_PARTNERS, DEFAULT_FINANCE_STATUSES, inr } from "@/lib/paidPipeline";
+import { recomputePaidLead, inr } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
+import InlineManagedSelect from "./InlineManagedSelect";
 
 type Lead = {
   id: string;
@@ -138,16 +139,23 @@ export default function QuickFinanceModal({
             </div>
             <div>
               <label className="qsi-label">Finance partner</label>
-              <input list="finance-partners" className="qsi-input" value={partner} onChange={(e) => setPartner(e.target.value)} placeholder="Bajaj Finance" />
-              <datalist id="finance-partners">{DEFAULT_FINANCE_PARTNERS.map(p => <option key={p} value={p} />)}</datalist>
+              <InlineManagedSelect
+                settingType="finance_partner"
+                value={partner}
+                onChange={setPartner}
+                width="100%"
+                triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off"
+              />
             </div>
             <div>
               <label className="qsi-label">Finance status</label>
-              <select className="qsi-input" value={status} onChange={(e) => handleStatusChange(e.target.value)} disabled={required === "No"}>
-                <option value="">—</option>
-                {DEFAULT_FINANCE_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                <option value="Alternate Partner Needed">Alternate Partner Needed</option>
-              </select>
+              <InlineManagedSelect
+                settingType="finance_status"
+                value={required === "No" ? "Not Required" : status}
+                onChange={(v) => handleStatusChange(v)}
+                width="100%"
+                triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off"
+              />
             </div>
             <div>
               <label className="qsi-label">Approved amount</label>
