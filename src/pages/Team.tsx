@@ -54,7 +54,7 @@ export default function Team() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department").eq("status","active").order("full_name");
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department, email").eq("status","active").order("full_name");
     const { data: logs } = await supabase.from("attendance_logs").select("user_id, login_time").order("login_time", { ascending: false });
     const lastByUser = new Map<string, string>();
     logs?.forEach(l => { if (!lastByUser.has(l.user_id)) lastByUser.set(l.user_id, l.login_time); });
