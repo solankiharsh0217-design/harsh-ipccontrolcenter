@@ -160,6 +160,16 @@ export default function FollowUpCommandCenter() {
       leadsArr.forEach(l => { map[l.id] = l; });
       setLeadMap(map);
 
+      // Load profiles for owner-name resolution
+      try {
+        const { data: profs } = await (supabase as any).from("profiles").select("id, full_name").order("full_name");
+        const pList = (profs as any[] || []).map(p => ({ id: p.id, full_name: p.full_name || "—" }));
+        setProfileList(pList);
+        const pMap: Record<string, string> = {};
+        pList.forEach(p => { pMap[p.id] = p.full_name; });
+        setProfileMap(pMap);
+      } catch { /* ignore */ }
+
       // 3) Synthetic from paid_pipeline_payments.next_payment_expected_date
       const syn: FollowUp[] = [];
       const { data: pays } = await (supabase as any)
