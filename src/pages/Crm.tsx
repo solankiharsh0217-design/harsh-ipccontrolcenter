@@ -78,6 +78,15 @@ export default function Crm() {
   const [assignAgentId, setAssignAgentId] = useState<string>("");
   const [assignScope, setAssignScope] = useState<"unassigned"|"all">("unassigned");
   const [assignBusy, setAssignBusy] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false);
+  const [bulkArchiveBusy, setBulkArchiveBusy] = useState(false);
+  const [archiveBatchTarget, setArchiveBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[]; activeCount: number } | null>(null);
+  const [archiveBatchBusy, setArchiveBatchBusy] = useState(false);
+  const [archiveBatchLinks, setArchiveBatchLinks] = useState<{ paid: number; ops: number } | null>(null);
+  const [deleteBatchTarget, setDeleteBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[] } | null>(null);
+  const [deleteBatchBusy, setDeleteBatchBusy] = useState(false);
+  const [deleteBatchBlocked, setDeleteBatchBlocked] = useState<string | null>(null);
   const toggleSelect = (id: string) => setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelectedIds(new Set());
 
