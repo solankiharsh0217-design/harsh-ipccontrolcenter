@@ -1,106 +1,98 @@
-# Calling CRM → Operations CRM Handoff Cleanup
+# Safe Archive & Delete System
 
-This is a multi-part fix touching the Calling CRM Kanban, the lead drawer, the Send to Operations modal, Operations CRM filtering, and a new Operations Handoff Rules system in Master Settings.
+A non-destructive cleanup workflow for Calling CRM and Paid Pipeline. Soft archive is the default; permanent delete is admin-only and blocked when linked payment/operations/conversion data exists.
 
-## Scope
+## 1. Schema (additive migration)
 
-Parts 1–11 from your spec. Phase C (conversion reporting, rewards, AI Insights) is explicitly out of scope.
+Add nullable columns — no data loss, no destructive changes.
 
----
+**`crm_leads`** (and **`paid_pipeline_leads`** for Part 7):
+- `archived_at timestamptz`
+- `archived_by uuid`
+- `archive_reason text`
+- `deleted_at timestamptz`
+- `deleted_by uuid`
+- `delete_reason text`
 
-## 1. Calling CRM bulk selection UI (`src/pages/Crm.tsx`)
+**New table `crm_batch_archives`** (batches are derived from `webinar_source` + `pipeline_id`, no separate batch table exists):
+- `pipeline_id`, `batch_name`, `archived_at`, `archived_by`, `archive_reason`, `affected_lead_count`
 
-- Move card checkbox to the **left** of the card header, before the name.
-- Move stage select-all checkbox to the **left** of the stage header, before the stage name. Support `indeterminate` state.
-- Checkboxes use existing `<Checkbox>` (subtle, always rendered, low-contrast border; selected card gets `ring-1 ring-primary/40 bg-primary/5`).
-- Bulk action bar: sticky pill at top-left of the Kanban (below filters), not floating right. Layout: `"N selected | Move Stage | Assign | Send to Operations | Add Tag | Clear"`.
-- Audit log `crm_bulk_selected` on first selection per session.
+RLS: admins full access; managers/sales executives bounded by existing module access patterns. Restore = clear the archive columns.
 
-## 2. Restore CRM Stage section in Lead Drawer (`src/components/LeadDrawer.tsx`)
+## 2. Calling CRM — Batches view
 
-- New compact **CRM Stage** section: current stage badge + "Change Stage" dropdown listing live stages from the lead's pipeline.
-- Updating writes to `leads.stage_id`, refreshes parent, logs `crm_stage_changed`, and if the destination stage is eligible for Ops handoff, shows an inline "Send to Operations CRM" suggestion chip.
-- Placed directly after Suggested Next Action, above Follow-ups.
+Replace the lone edit pencil on each batch card with a `⋯` menu:
+- View leads
+- Rename batch (existing)
+- Archive batch (amber)
+- Permanent delete (admin only, red, hidden if unsafe)
 
-## 3. Compact the Lead Drawer (`src/components/LeadDrawer.tsx`)
+**Archive batch**: confirm modal showing affected lead count, mixed-link summary (X total / Y linked to Paid Pipeline / Z linked to Operations CRM), optional reason. Soft-archives all active leads in batch + writes a `crm_batch_archives` row. Audit log `crm_batch_archived`.
 
-Reorder into tighter sections (header → Payment Snapshot → Tags → Suggested Next Action → Score/Attendance summary → Quick Actions → Follow-up → CRM Stage → Assigned Agent → Activity Log). Tighten vertical padding (`space-y-3` instead of `space-y-6`). Sticky footer keeps `Cancel | Save & Close`.
+**Permanent delete batch**: only enabled when no leads in batch have `paid_pipeline_lead_id`, no linked operations records, no conversions/rewards. Otherwise shows "Archive instead" notice. Requires typing `DELETE`.
 
-## 4. Fix media buyer eligibility (`src/components/SendToOperationsCrmModal.tsx`, `src/lib/eligibleAssignees.ts`)
+Add `Show archived batches` toggle in the Batches view header; archived batch cards render muted with `Restore batch` button.
 
-- Broaden `operations_crm` context: include profiles where **role ILIKE 'media buyer'** OR `can_receive_operations_leads = true`, in addition to existing flag check.
-- When the dropdown is empty, render a **debug panel** showing counts:
-  - Active users
-  - Media Buyer role users
-  - Users with `operations_crm` module access
-  - Users with `active_for_assignment = true`
-  - Users with `can_receive_operations_leads = true`
-- List "Media buyers found but not eligible" with the missing-flag reason next to each.
-- CTA button **"Manage Operations Eligibility"** that navigates to `/team` (Team Directory) with `?module=operations_crm` query so the page can scroll/filter to those flags.
+## 3. Calling CRM — Kanban bulk bar
 
-## 5. Operations CRM admin/team visibility (`src/pages/OperationsCrm.tsx`)
+Add `Archive Selected` action between Assign and Clear. Confirm modal with count + optional reason. Bulk soft-archive + audit `crm_leads_bulk_archived`. Permanent delete intentionally not exposed here.
 
-- Admin sees all leads. Add filter dropdown: **All media buyers / Assigned to me / Unassigned / <specific buyer>**.
-- Non-admin team member: query already scoped, but enforce `assigned_media_buyer_id = auth.uid()` client-side as a guard in case RLS is permissive.
+## 4. Individual lead actions
 
-## 6. Manual Send to Operations from drawer + bulk bar
+In `LeadDrawer` and the lead card `⋯` menu:
+- Archive lead (amber)
+- Restore lead (visible only when viewing archived)
+- Permanent delete (admin only, blocked when linked to Paid Pipeline / Operations / payments)
 
-Already wired in bulk bar; ensure the drawer's "Send to Operations CRM" button opens the modal with a single-lead payload and that after success the button flips to "Open in Operations CRM" (re-query `operations_leads`).
+Confirmation copy adapts when the lead has `paid_pipeline_lead_id` or operations link — explicitly states the linked record is preserved.
 
-## 7. Operations Handoff Rules (Master Settings)
+## 5. Show archived / restore
 
-### Migration
+Add `Show archived` toggle in the CRM filter row. Default off. When on:
+- Archived leads appear muted, no drag/drop, show archived date + reason
+- Restore button per lead and per batch
+- Restore writes `crm_lead_restored` / `crm_batch_restored`
 
-New table `operations_handoff_rules`:
-- `id`, `source_pipeline_id` (FK pipelines), `eligible_stage_ids` (uuid[]), `mode` ('manual'|'suggest'|'auto'), `default_service_package` (text), `default_service_days` (int), `default_assignment_method` ('unassigned'|'single'|'round_robin'), `eligible_buyer_ids` (uuid[]), `duplicate_behavior` ('skip'|'update'), `is_active` (bool), `created_by`, timestamps.
-- RLS: admins manage; authenticated read.
+## 6. Paid Pipeline safety
 
-### UI (`src/pages/MasterSettings.tsx` — new "Operations Handoff Rules" section)
+`src/pages/PaidPipeline.tsx` `RowActionsMenu` gains `Archive Buyer` action (amber). Soft-archive only — payments, finance history, activity preserved. Add `Show archived` filter. Permanent delete blocked whenever payment rows exist; shows the "Archive instead" message. Audit `paid_pipeline_buyer_archived` / `_restored`.
 
-- List rules, create/edit/delete.
-- Stage multi-select populated from live `stages` for chosen pipeline.
-- Mode selector (default `suggest`).
-- Save disabled until package + duration + assignment method are set when mode is `auto`; show warning "Operations handoff rule needs package, duration, and assignment settings."
+## 7. Import duplicate handling
 
-### Runtime (`src/lib/operationsCrm.ts`)
+`ImportLeadsModal` duplicate check: queries active leads first. If email/phone matches only archived leads, prompts per-row: Restore existing | Import as new | Skip. Fresh imports work after archiving wrong batches.
 
-- `getActiveHandoffRules()`, `getRuleForStage(stageId)` helpers.
-- `evaluateHandoffOnStageChange(lead, newStageId)`:
-  - **suggest**: returns suggestion payload (used by drawer chip + bulk banner).
-  - **auto**: creates `operations_leads` row using rule defaults, dedupes by `crm_lead_id`/`paid_pipeline_lead_id`, notifies assigned buyer(s), logs `operations_auto_handoff_completed`.
-- Hooked from `Crm.tsx` drag-drop + bulk stage move + `LeadDrawer.tsx` Change Stage.
+## 8. Permissions
 
-## 8. Bulk move → Operations banner
+- **Admin**: archive, restore, permanent delete (with safety checks)
+- **Manager**: archive/restore if has CRM module
+- **Sales exec**: archive own leads only (existing assignment logic)
+- **Media buyer**: no archive/delete UI
 
-After bulk stage move, count leads whose new stage matches an active rule. Show inline banner `"X leads are now eligible for Operations CRM"` with button → opens `SendToOperationsCrmModal` prefilled with those IDs (suggest mode) or auto-creates them (auto mode).
+Unauthorized actions are hidden, not disabled.
 
-## 9. Duplicate prevention (`src/lib/operationsCrm.ts`)
+## 9. Audit logs
 
-`createOperationsLeadFromCrm` already checks `crm_lead_id`. Extend to also check `paid_pipeline_lead_id`, and (only when neither ID is provided) match by email/phone. Honor rule's `duplicate_behavior`.
+All actions go through `logActivity()` with module `calling_crm` / `paid_pipeline`:
+`crm_lead_archived`, `crm_lead_restored`, `crm_leads_bulk_archived`, `crm_batch_archived`, `crm_batch_restored`, `crm_lead_permanently_deleted`, `crm_batch_permanently_deleted`, `paid_pipeline_buyer_archived`, `paid_pipeline_buyer_restored`. Metadata includes lead/batch ids, counts, reason, linked counts.
 
-## 10. Audit logs
+## 10. UI rules
 
-Wire `logActivity` for: `crm_bulk_selected`, `bulk_crm_stage_changed` (already), `operations_manual_handoff_started`, `operations_lead_created_from_crm`, `operations_bulk_handoff_completed`, `operations_handoff_rule_created/updated`, `operations_auto_handoff_completed`, `operations_lead_assigned`. Include lead count, source pipeline/stage, destination stage, assignment method, buyer ids, created_by.
+- Archive = amber confirm dialog with plain copy
+- Permanent delete = red dialog requiring typed `DELETE`
+- All active CRM list/kanban/batches queries exclude `archived_at IS NOT NULL` by default
 
----
+## Technical sections
 
-## Files to edit
+**Files to add**:
+- `supabase/migrations/<ts>_crm_archive_system.sql`
+- `src/lib/crmArchive.ts` — archive/restore/permanent-delete helpers + safety checks
+- `src/components/crm/ArchiveConfirmModal.tsx` + `PermanentDeleteModal.tsx`
 
-- `src/pages/Crm.tsx` — bulk UI, left-aligned checkboxes, sticky pill bar, stage-change hook.
-- `src/components/LeadDrawer.tsx` — restored Stage section + compact reorder + suggestion chip.
-- `src/components/SendToOperationsCrmModal.tsx` — debug panel, "Manage Eligibility" CTA, broader eligibility.
-- `src/lib/eligibleAssignees.ts` — broaden operations_crm context (role OR flag); add `getOperationsEligibilityDiagnostics()`.
-- `src/lib/operationsCrm.ts` — handoff rule helpers + auto/suggest evaluator + duplicate hardening.
-- `src/pages/OperationsCrm.tsx` — admin filter dropdown.
-- `src/pages/MasterSettings.tsx` — new Operations Handoff Rules section.
-- `src/components/admin/OperationsHandoffRulesPanel.tsx` *(new)* — rule editor.
-- `supabase/migrations/<ts>_ops_handoff_rules.sql` — new table + RLS.
+**Files to edit**:
+- `src/pages/Crm.tsx` — batch card menu, `Show archived` toggle, exclude archived by default, bulk bar action
+- `src/components/LeadDrawer.tsx` — individual archive/restore/delete
+- `src/components/ImportLeadsModal.tsx` — archived-duplicate prompt
+- `src/pages/PaidPipeline.tsx` — `RowActionsMenu` archive entry + show-archived filter
+- `src/lib/auditLog.ts` — register new action labels (optional, generic insert already works)
 
-## What stays untouched
-
-- Calling CRM data, Paid Pipeline data, existing Operations CRM leads, service lifecycle logic, notifications module, AppLayout sidebar.
-- No Phase C (conversion reporting, rewards, AI insights).
-
-## Build verification
-
-Lovable auto-runs typecheck/build after edits; I'll address any compile errors before finishing.
+**Out of scope**: schema changes to Operations CRM, payments, conversions, reports. None of those are touched.
