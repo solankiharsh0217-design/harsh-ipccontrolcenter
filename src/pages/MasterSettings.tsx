@@ -154,6 +154,14 @@ export default function MasterSettings() {
           )}
           {activeSection === "calling_crm" && <CrmPipelinesSection />}
           {activeSection === "operations_handoff" && <OperationsHandoffRulesPanel />}
+          {activeSection === "operations_rewards" && <OperationsRewardRulesPanel />}
+          {activeSection === "operations_packages" && (
+            <PPSettingsGroup
+              title="Operations Packages"
+              subtitle="Service packages offered to operations clients (e.g. Ads Management, Lead Generation Support). These appear in the Send to Operations modal."
+              groups={[{ type: "operations_package", label: "Packages" }]}
+            />
+          )}
           {activeSection === "followup" && (
             <PPSettingsGroup
               title="Follow-Up Settings"
