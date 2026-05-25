@@ -953,7 +953,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     }
     if (!resolvedPipelineId) {
       const { data: paidPipe } = await supabase
-        .from("pipelines").select("id").eq("pipeline_type", "paid").order("position").limit(1).maybeSingle();
+        .from("pipelines").select("id").eq("type", "paid").order("position").limit(1).maybeSingle();
       resolvedPipelineId = (paidPipe as any)?.id || null;
     }
     setCrmPipelineId(resolvedPipelineId);
