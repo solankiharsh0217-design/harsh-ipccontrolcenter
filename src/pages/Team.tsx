@@ -265,6 +265,12 @@ export default function Team() {
               <div className="min-w-0 flex-1">
                 <div className="font-serif text-[17px] font-medium text-black mb-0.5 truncate">{m.full_name}</div>
                 <div className="font-sans text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{m.role}</div>
+                <div className="font-sans text-[11px] text-muted-foreground truncate mt-0.5" title={m.email || undefined}>
+                  {m.email || <span className="italic">Email not available</span>}
+                  {m.email && members.filter((x) => (x.email || "").toLowerCase() === m.email!.toLowerCase()).length > 1 && (
+                    <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-red-50 text-red-700 border border-red-200">Duplicate email</span>
+                  )}
+                </div>
               </div>
               {m.last_login && (
                 <div className="font-sans text-[10px] text-muted-foreground whitespace-nowrap text-right">
