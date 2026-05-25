@@ -37,10 +37,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [activityChannel, setActivityChannel] = useState<ActivityLog["channel"]>("call");
   const [paidSnap, setPaidSnap] = useState<any | null>(null);
   const [showStagePicker, setShowStagePicker] = useState(false);
+  const [stageSearch, setStageSearch] = useState("");
   const [newStageName, setNewStageName] = useState("");
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
+  const [extraOpen, setExtraOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, { id: s.id, name: s.name }])), [stages]);
 
 
