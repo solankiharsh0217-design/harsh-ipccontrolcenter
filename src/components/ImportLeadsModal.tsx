@@ -140,14 +140,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const goToStep3 = async () => {
     setLoading(true);
     try {
-      const [{ data: pl }, { data: st }, { data: ag }] = await Promise.all([
+      const [{ data: pl }, { data: st }, elig] = await Promise.all([
         supabase.from("pipelines").select("*").order("position"),
         supabase.from("stages").select("*").order("position"),
-        supabase.from("profiles").select("id, full_name, role, status").eq("status", "active"),
+        getEligibleAssignees("calling_crm"),
       ]);
       setPipelines(pl || []);
       setStages(st || []);
-      setAgents(((ag || []) as any).filter((a: any) => /BDE|Sales|Agent/i.test(a.role || "")));
+      setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name, role: a.role })));
       const list = pl || [];
       const def = resolveDefaultPipelineId(leadType, list);
       setTargetPipelineId(def);
