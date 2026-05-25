@@ -67,6 +67,35 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const setAgent = async (agentId: string | null) => {
     await supabase.from("leads").update({ assigned_agent_id: agentId }).eq("id", lead.id);
     toast.success("Agent updated");
+    if (agentId && agentId !== lead.assigned_agent_id) {
+      try {
+        await createNotification({
+          recipient_user_id: agentId,
+          module_key: "calling_crm",
+          notification_type: "leads_assigned",
+          title: "New Calling CRM lead assigned",
+          message: `${lead.full_name || "A lead"} has been assigned to you.`,
+          priority: "normal",
+          action_url: "/crm?assigned_to=me",
+          action_label: "Open Calling CRM",
+          entity_type: "crm_lead",
+          entity_id: lead.id,
+          entity_label: lead.full_name || undefined,
+          triggered_by_user_id: profile?.id ?? null,
+          triggered_by_name: profile?.full_name ?? undefined,
+          allowDuplicate: true,
+          metadata: {
+            module_key: "calling_crm",
+            lead_ids: [lead.id],
+            assignment_type: "single",
+            assigned_by: profile?.id ?? null,
+            assigned_to: agentId,
+            count: 1,
+            deep_link: "/crm?assigned_to=me",
+          },
+        });
+      } catch { /* ignore */ }
+    }
     await load(); onChanged();
   };
   const logActivity = async () => {
