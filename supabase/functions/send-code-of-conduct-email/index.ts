@@ -71,10 +71,23 @@ Deno.serve(async (req) => {
       const { data: lastReq } = await diagAdmin.from('code_of_conduct_requests')
         .select('id,member_email,status,sent_at,last_email_attempt_at,last_email_error,last_email_error_code,provider_message_id')
         .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const envFrom = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
+      const envName = Deno.env.get('EMAIL_FROM_NAME') || '';
+      const envReply = Deno.env.get('EMAIL_REPLY_TO') || '';
+      const resolvedFromEmail = (tpl?.from_email && tpl.from_email.trim()) || envFrom || '';
+      const resolvedFromName = (tpl?.from_name && tpl.from_name.trim()) || envName || '';
+      const resolvedReplyTo = (tpl?.reply_to_email && tpl.reply_to_email.trim()) || envReply || '';
       return jsonResponse({
         ok: true,
         provider: 'resend',
         has_resend_api_key: !!Deno.env.get('RESEND_API_KEY'),
+        has_email_from_address: !!envFrom,
+        has_email_from_name: !!envName,
+        has_email_reply_to: !!envReply,
+        resolved_from_email: resolvedFromEmail,
+        resolved_from_name: resolvedFromName,
+        resolved_reply_to: resolvedReplyTo,
+        sender_source: tpl?.from_email ? 'template' : (envFrom ? 'secret' : 'none'),
         template: tpl || null,
         last_attempt: lastReq || null,
       });
