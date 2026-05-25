@@ -26,7 +26,7 @@ const channelStyle: Record<string, string> = {
   call: "#16A34A", whatsapp: "#22C55E", email: "#2563EB", sms: "#7C3AED", note: "#888888", system: "#0a0a0a",
 };
 
-export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged }: Props) {
+export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged, onStageChanged }: Props) {
   const { profile } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
@@ -38,6 +38,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
   const [newStageName, setNewStageName] = useState("");
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
+  const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
+
 
   const load = async () => {
     const [{ data: l }, { data: a }, { data: r }] = await Promise.all([
