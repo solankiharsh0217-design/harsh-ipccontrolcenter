@@ -1386,7 +1386,18 @@ export default function Crm() {
       {/* Spacer for fixed bottom bar */}
       <div className="h-14" />
 
-      {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={() => setOpenLead(null)} onChanged={load} />}
+      {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={() => setOpenLead(null)} onChanged={load} onStageChanged={async (lid, stageId) => {
+        const st = stages.find((s) => s.id === stageId);
+        await refreshOpsState();
+        // Use freshest leads from DB to avoid stale closure
+        const { data: l } = await supabase.from("leads").select("*").eq("id", lid).maybeSingle();
+        if (l) {
+          // Patch local state so evaluator sees this lead
+          setLeads((prev) => prev.some((p) => p.id === lid) ? prev.map((p) => p.id === lid ? { ...p, ...(l as any) } : p) : [...prev, l as any]);
+          setTimeout(() => evaluateHandoffForLeads([lid], (l as any).pipeline_id ?? st?.pipeline_id ?? activePipeline, stageId).catch(() => {}), 0);
+        }
+      }} />}
+
 
       {/* Assign agents modal */}
       <AssignModal
