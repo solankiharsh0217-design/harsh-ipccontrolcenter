@@ -177,6 +177,16 @@ export default function OperationsLeadDrawer({
             </div>
           </Section>
 
+          {/* Client Conversions (Phase C) */}
+          <Section title="">
+            <ConversionsSection
+              leadId={lead.id}
+              leadName={lead.name}
+              assignedBuyerId={lead.assigned_media_buyer_id}
+              onChanged={onSaved}
+            />
+          </Section>
+
           {/* Timeline */}
           <Section title="Service timeline">
             {eventsLoading ? (
