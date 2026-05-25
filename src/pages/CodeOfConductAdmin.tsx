@@ -398,6 +398,8 @@ export default function CodeOfConductAdmin() {
         </div>
       )}
 
+      {tab === "rules" && <CodeOfConductRulesTab />}
+
       {tab === "diagnostics" && (
         <div className="bg-white border border-line rounded-xl p-6 space-y-4">
           <div className="flex items-center justify-between">
