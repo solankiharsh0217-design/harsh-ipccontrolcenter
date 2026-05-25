@@ -109,6 +109,8 @@ export default function PaidPipeline() {
   const [quickPayId, setQuickPayId] = useState<string | null>(null);
   const [quickFuId, setQuickFuId] = useState<string | null>(null);
   const [quickFinanceId, setQuickFinanceId] = useState<string | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string | null } | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const [bulkSend, setBulkSend] = useState(false);
   const [bulkSendIdsOverride, setBulkSendIdsOverride] = useState<string[] | null>(null);
   const [newBatchOpen, setNewBatchOpen] = useState(false);
