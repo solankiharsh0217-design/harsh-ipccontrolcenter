@@ -8,7 +8,7 @@ import { moduleAliases } from "@/lib/eligibleAssignees";
 import PayrollFieldsSection, { emptyPayroll, dbToPayroll, payrollToDb, type PayrollFormState } from "@/components/PayrollFieldsSection";
 import QuickSaveInput from "@/components/QuickSaveInput";
 import { toast } from "sonner";
-import { Shield, X } from "lucide-react";
+import { X } from "lucide-react";
 import { logActivity } from "@/lib/auditLog";
 import MemberActionMenu from "@/components/team/MemberActionMenu";
 import MemberActionModal from "@/components/team/MemberActionModal";
