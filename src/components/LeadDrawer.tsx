@@ -265,6 +265,9 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
               </div>
             </div>
           )}
+        </div>
+
+
 
 
         {/* Score + signals */}
