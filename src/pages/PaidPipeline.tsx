@@ -1378,6 +1378,16 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             );
           })()}
 
+          <CodeOfConductPanel
+            paidLeadId={lead.id}
+            crmLeadId={lead.crm_lead_id || null}
+            memberName={lead.name || "Member"}
+            memberEmail={(lead as any).email || null}
+            memberPhone={(lead as any).phone || null}
+            programName={null}
+            dealValue={Number(lead.deal_value_including_gst || 0) || null}
+          />
+
           {/* 2. Next Follow-up — high-visibility, daily-use card */}
           {(() => {
             const todayStr = new Date().toISOString().slice(0, 10);
