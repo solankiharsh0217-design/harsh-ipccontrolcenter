@@ -980,56 +980,126 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             </div>
           </Section>
 
-          {/* Quick Status */}
+          {/* 1. Payment Summary — top priority */}
+          <Section title="Revenue snapshot">
+            <div className="grid grid-cols-3 gap-2">
+              <Field label="Deal value" value={inr(lead.deal_value_including_gst)} />
+              <Field label="Token collected" value={inr(lead.token_amount_collected)} tone="green" />
+              <Field label="Total collected" value={inr(lead.total_collected)} tone="green" />
+              <Field label="Balance pending" value={inr(lead.balance_pending)} tone={Number(lead.balance_pending) > 50000 ? "red" : "amber"} />
+              <Field label="Realized revenue" value={inr(lead.final_revenue_realized || 0)} tone="green" />
+              <Field label="To be realized" value={inr(lead.revenue_to_be_realized ?? lead.balance_pending)} />
+            </div>
+          </Section>
+
+          {/* 2. Next action / Follow-up — unified, high in drawer */}
+          <Section title="Next action · Follow-up">
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <Field label="Next follow-up" value={lead.next_follow_up_date ? fmtDate(lead.next_follow_up_date) : (lead.next_balance_follow_up_date ? fmtDate(lead.next_balance_follow_up_date) + " (balance)" : (lead.finance_follow_up_date ? fmtDate(lead.finance_follow_up_date) + " (finance)" : "—"))} />
+              <Field label="Type" value={lead.follow_up_reason || "—"} />
+              <Field label="Owner" value={agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"} />
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {[
+                { l: "Today", days: 0 },
+                { l: "Tomorrow", days: 1 },
+                { l: "+3 days", days: 3 },
+                { l: "Next week", days: 7 },
+              ].map(q => (
+                <button
+                  key={q.l}
+                  onClick={async () => {
+                    const d = new Date(); d.setDate(d.getDate() + q.days);
+                    const iso = d.toISOString().slice(0,10);
+                    await supabase.from("paid_pipeline_leads").update({ next_follow_up_date: iso } as any).eq("id", lead.id);
+                    toast.success(`Follow-up set ${q.l.toLowerCase()}`);
+                    onChanged();
+                  }}
+                  className="text-[11.5px] px-2.5 py-1 rounded-full border border-line hover:bg-off"
+                >{q.l}</button>
+              ))}
+              <button onClick={() => setOpenFu(true)} className="text-[11.5px] px-2.5 py-1 rounded-full bg-black text-white hover:opacity-90">Set custom follow-up</button>
+            </div>
+            <FastFollowUpComposer
+              paidLeadId={lead.id}
+              crmLeadId={lead.crm_lead_id || null}
+              leadName={lead.name || undefined}
+              defaultPriority={temperature || "Normal"}
+              onSaved={() => { loadInner(); onChanged(); }}
+            />
+          </Section>
+
+          {/* 3. Quick status — managed dropdowns */}
           <Section title="Quick status">
             <div className="grid grid-cols-2 gap-3">
-              <QuickSaveInput fieldKey="paid_pipeline_stage" label="Pipeline stage" value={stage} onChange={setStage} placeholder="Token Paid" />
-              <QuickSaveInput fieldKey="lead_temperature" label="Lead temperature" value={temperature} onChange={setTemperature} placeholder="Hot" />
-              <QuickSaveInput fieldKey="paid_batch_name" label="Paid batch" value={paidBatch} onChange={setPaidBatch} placeholder="Diamond Token Buyers - May" />
-              <QuickSaveInput fieldKey="onboarding_batch_name" label="Onboarding batch" value={onboardingBatch} onChange={setOnboardingBatch} placeholder="Diamond May 2026 Batch 1" />
-              <QuickSaveInput fieldKey="revenue_recognition_rule" label="Revenue recognition rule" value={revRule} onChange={setRevRule} placeholder="Realized Revenue Only" />
-            </div>
-            <div className="flex gap-2 mt-3">
-              <button onClick={() => setOpenPay(true)} className="ipc-btn ipc-btn-black !h-9">+ Add payment</button>
-              <button onClick={() => setOpenFu(true)} className="ipc-btn ipc-btn-ghost !h-9">Set follow-up</button>
-            </div>
-          </Section>
-
-          {/* Balance */}
-          <Section title="Balance tracking">
-            <div className="grid grid-cols-2 gap-3">
-              <QuickSaveInput fieldKey="balance_category" label="Balance category" value={balCat} onChange={setBalCat} placeholder="Second Token Pending" />
               <div>
-                <label className="qsi-label">Next balance follow-up</label>
-                <input type="date" className="qsi-input" value={balDate} onChange={(e) => setBalDate(e.target.value)} />
+                <label className="qsi-label">Pipeline stage</label>
+                <InlineManagedSelect settingType="pipeline_stage" value={stage} onChange={setStage} width="100%"
+                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+              </div>
+              <div>
+                <label className="qsi-label">Lead temperature</label>
+                <InlineManagedSelect settingType="lead_priority" value={temperature} onChange={setTemperature} width="100%" colorize
+                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+              </div>
+              <div>
+                <label className="qsi-label">Finance partner</label>
+                <InlineManagedSelect settingType="finance_partner" value={financePartner} onChange={setFinancePartner} width="100%"
+                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+              </div>
+              <div>
+                <label className="qsi-label">Finance status</label>
+                <InlineManagedSelect settingType="finance_status" value={financeStatus} onChange={setFinanceStatus} width="100%"
+                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+              </div>
+              <div>
+                <label className="qsi-label">Balance category</label>
+                <QuickSaveInput fieldKey="balance_category" value={balCat} onChange={setBalCat} placeholder="Second Token Pending" />
               </div>
             </div>
-            <div className="mt-2">
-              <label className="qsi-label">Balance description</label>
-              <textarea className="qsi-input !h-auto py-2" rows={2} value={balDesc} onChange={(e) => setBalDesc(e.target.value)} placeholder="e.g. Student paid ₹1,000. Promised ₹6,000 by tomorrow evening." />
-            </div>
           </Section>
 
-          {/* Finance */}
+          {/* 4. Batch information — read-only by default */}
+          <Section title="Batch information">
+            {!editBatch ? (
+              <div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Paid batch" value={lead.paid_batch_name || "—"} />
+                  <Field label="Onboarding batch" value={lead.onboarding_batch_name || "—"} />
+                  <Field label="Product / Program" value={lead.product_name_snapshot || "—"} />
+                  <Field label="Revenue recognition" value={lead.revenue_recognition_rule || "Realized Revenue Only"} />
+                </div>
+                {(!lead.paid_batch_name || !lead.onboarding_batch_name) && (
+                  <div className="text-[11px] text-muted-foreground mt-2">Some batch fields are missing from import.</div>
+                )}
+                <button onClick={() => setEditBatch(true)} className="text-[11.5px] mt-2 text-[#2563EB] hover:underline">Edit batch details</button>
+              </div>
+            ) : (
+              <div>
+                <div className="grid grid-cols-2 gap-3">
+                  <QuickSaveInput fieldKey="paid_batch_name" label="Paid batch" value={paidBatch} onChange={setPaidBatch} placeholder="Diamond Token Buyers - May" />
+                  <QuickSaveInput fieldKey="onboarding_batch_name" label="Onboarding batch" value={onboardingBatch} onChange={setOnboardingBatch} placeholder="Diamond May 2026 Batch 1" />
+                  <QuickSaveInput fieldKey="revenue_recognition_rule" label="Revenue recognition rule" value={revRule} onChange={setRevRule} placeholder="Realized Revenue Only" />
+                </div>
+                <button onClick={() => setEditBatch(false)} className="text-[11.5px] mt-2 text-muted-foreground hover:text-black">Done editing</button>
+              </div>
+            )}
+          </Section>
+
+          {/* 5. Finance / EMI — compact */}
           <Section title="Finance / EMI">
-            <div className="grid grid-cols-2 gap-3">
-              <QuickSaveInput fieldKey="finance_partner" label="Finance partner" value={financePartner} onChange={setFinancePartner} placeholder="Bajaj Finance" />
-              <QuickSaveInput fieldKey="finance_status" label="Finance status" value={financeStatus} onChange={setFinanceStatus} placeholder="Documents Pending" />
-              <div>
-                <label className="qsi-label">Finance follow-up</label>
-                <input type="date" className="qsi-input" value={financeFu} onChange={(e) => setFinanceFu(e.target.value)} />
-              </div>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <Field label="Required" value={lead.finance_required ? "Yes" : "No"} />
+              <Field label="Approved" value={inr(lead.finance_amount_approved || 0)} />
+              <Field label="Disbursed" value={inr(lead.finance_amount_disbursed || 0)} tone={(lead.finance_amount_disbursed || 0) > 0 ? "green" : undefined} />
             </div>
-            <div className="mt-2">
-              <label className="qsi-label">Finance notes</label>
-              <textarea className="qsi-input !h-auto py-2" rows={2} value={financeNotes} onChange={(e) => setFinanceNotes(e.target.value)} placeholder="e.g. Bajaj failed — trying EZMI." />
-            </div>
+            <button onClick={() => setOpenFin(true)} className="ipc-btn ipc-btn-ghost !h-9">Open finance editor</button>
           </Section>
 
-          {/* Payment history */}
+          {/* 6. Payment history */}
           <Section title={`Payment history (${payments.length})`}>
             {payments.length === 0 ? (
-              <div className="text-[12px] text-muted-foreground">No payments yet. Click "+ Add payment" above.</div>
+              <div className="text-[12px] text-muted-foreground">No payments yet. Click "+ Add Payment" above.</div>
             ) : (
               <table className="w-full text-[12px]">
                 <thead><tr className="text-left text-muted-foreground"><th className="py-1">Date</th><th>Category / Type</th><th>Mode</th><th>Description</th><th className="text-right">Amount</th><th></th></tr></thead>
@@ -1049,12 +1119,43 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             )}
           </Section>
 
-          {/* Activity */}
-          <Section title="Activity">
-            {activity.length === 0 ? (
+          {/* 7. WhatsApp templates — friendly cards */}
+          <Section title="WhatsApp templates">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {tpls.map(t => (
+                <div key={t.label} className="rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] p-3 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center">W</span>
+                    <span className="text-[12.5px] font-medium text-[#15803D]">{t.label}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground line-clamp-2">{t.msg}</div>
+                  <div className="flex gap-1.5 mt-1">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(t.msg);
+                        setCopiedTpl(t.label);
+                        setTimeout(() => setCopiedTpl(null), 1200);
+                      }}
+                      className="flex-1 text-[11px] h-7 rounded border border-[#BBF7D0] bg-white hover:bg-[#DCFCE7] text-[#15803D]"
+                    >{copiedTpl === t.label ? "✓ Copied" : "Copy"}</button>
+                    <a href={waLink(t.msg)} target="_blank" rel="noreferrer" className="flex-1 text-[11px] h-7 rounded bg-[#25D366] text-white hover:opacity-90 flex items-center justify-center">Send</a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          {/* 8. Activity — collapsed */}
+          <Section
+            title="Activity"
+            right={<button onClick={() => setShowActivity(v => !v)} className="text-[11px] text-muted-foreground hover:text-black">{showActivity ? "Hide" : "Show"}</button>}
+          >
+            {!showActivity ? (
+              <div className="text-[12px] text-muted-foreground">{activity.length} entries · click Show to view.</div>
+            ) : activity.length === 0 ? (
               <div className="text-[12px] text-muted-foreground">No activity yet.</div>
             ) : (
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              <div className="space-y-2 max-h-[240px] overflow-y-auto">
                 {activity.map(a => (
                   <div key={a.id} className="text-[11.5px] border-l-2 border-line pl-2">
                     <div className="text-muted-foreground text-[10px]">{new Date(a.created_at).toLocaleString()} · {a.activity_type}</div>
@@ -1065,16 +1166,31 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             )}
           </Section>
 
-          {/* WhatsApp templates */}
-          <Section title="WhatsApp templates">
-            <div className="grid grid-cols-2 gap-2">
-              {tpls.map(t => (
-                <a key={t.label} href={waLink(t.msg)} target="_blank" rel="noreferrer" className="border border-line rounded-md px-3 py-2 text-[12px] hover:bg-off">
-                  <div className="font-medium">{t.label}</div>
-                  <div className="text-[10.5px] text-muted-foreground line-clamp-2 mt-0.5">{t.msg}</div>
-                </a>
-              ))}
-            </div>
+          {/* 9. Advanced — collapsed */}
+          <Section
+            title="Advanced · balance notes"
+            right={<button onClick={() => setShowAdvanced(v => !v)} className="text-[11px] text-muted-foreground hover:text-black">{showAdvanced ? "Hide" : "Show"}</button>}
+          >
+            {showAdvanced && (
+              <div className="space-y-3">
+                <div>
+                  <label className="qsi-label">Next balance follow-up</label>
+                  <input type="date" className="qsi-input" value={balDate} onChange={(e) => setBalDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="qsi-label">Balance description</label>
+                  <textarea className="qsi-input !h-auto py-2" rows={2} value={balDesc} onChange={(e) => setBalDesc(e.target.value)} placeholder="e.g. Student paid ₹1,000. Promised ₹6,000 by tomorrow." />
+                </div>
+                <div>
+                  <label className="qsi-label">Finance follow-up date</label>
+                  <input type="date" className="qsi-input" value={financeFu} onChange={(e) => setFinanceFu(e.target.value)} />
+                </div>
+                <div>
+                  <label className="qsi-label">Finance notes</label>
+                  <textarea className="qsi-input !h-auto py-2" rows={2} value={financeNotes} onChange={(e) => setFinanceNotes(e.target.value)} />
+                </div>
+              </div>
+            )}
           </Section>
         </div>
 
