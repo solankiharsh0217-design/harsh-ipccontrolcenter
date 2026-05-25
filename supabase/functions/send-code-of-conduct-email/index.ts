@@ -246,17 +246,6 @@ ${bodyText.split('\n').map((l: string) => l.includes(signingLink) ? '' : `<p sty
         ...(replyTo ? { reply_to: replyTo } : {}),
       }),
     });
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: `${fromName} <${fromEmail}>`,
-        to: [member_email],
-        subject: is_test ? `[TEST] ${subject}` : subject,
-        html: htmlBody,
-        text: bodyText,
-        ...(replyTo ? { reply_to: replyTo } : {}),
-      }),
-    });
 
     const respText = await resp.text();
     let respJson: any = null;
