@@ -152,7 +152,7 @@ export default function OpsConversionsTab({ isAdmin, onOpenLead, onChanged }: Pr
               <button disabled={busy} onClick={() => { setRejectFor("bulk"); setNote(""); }} className="ipc-btn ipc-btn-ghost !h-8 !text-xs border-[#FCA5A5] text-[#991B1B]"><XIcon className="w-3 h-3" /> Reject all</button>
             </>
           )}
-          <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> CSV</button>
+          {isAdmin && <button onClick={exportCsv} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> CSV</button>}
         </div>
       </div>
 

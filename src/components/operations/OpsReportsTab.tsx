@@ -37,6 +37,7 @@ interface OpsLead {
 interface Props {
   leads: OpsLead[];
   onOpenLead: (id: string) => void;
+  isAdmin?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -47,7 +48,7 @@ const STATUS_COLORS: Record<string, string> = {
   completed: "#3b82f6",
 };
 
-export default function OpsReportsTab({ leads, onOpenLead }: Props) {
+export default function OpsReportsTab({ leads, onOpenLead, isAdmin = false }: Props) {
   const [month, setMonth] = useState<string>(currentMonthStr());
   const [buyerFilter, setBuyerFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -361,11 +362,13 @@ export default function OpsReportsTab({ leads, onOpenLead }: Props) {
           <option value="assigned">Assigned only</option>
           <option value="unassigned">Unassigned only</option>
         </select>
-        <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={exportOpsLeads} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Leads</button>
-          <button onClick={exportBuyerPerf} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Performance</button>
-          <button onClick={exportConversions} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Conversions</button>
-        </div>
+        {isAdmin && (
+          <div className="ml-auto flex items-center gap-1.5">
+            <button onClick={exportOpsLeads} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Leads</button>
+            <button onClick={exportBuyerPerf} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Performance</button>
+            <button onClick={exportConversions} className="ipc-btn ipc-btn-ghost !h-8 !text-xs"><Download className="w-3 h-3" /> Conversions</button>
+          </div>
+        )}
       </div>
 
       {/* Summary cards */}
