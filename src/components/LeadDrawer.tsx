@@ -50,6 +50,14 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged 
         .eq("id", ppid).maybeSingle();
       setPaidSnap(pp || null);
     } else setPaidSnap(null);
+    // Check whether this lead is already in Operations CRM (active record)
+    const { data: ops } = await (supabase as any)
+      .from("operations_leads")
+      .select("id, service_status")
+      .eq("crm_lead_id", leadId)
+      .not("service_status", "in", "(stopped,completed)")
+      .maybeSingle();
+    setOpsLeadId(ops?.id ?? null);
   };
   useEffect(() => { load(); }, [leadId]);
 
