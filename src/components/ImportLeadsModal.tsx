@@ -396,6 +396,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             program_name: productName,
             deal_value: dealValue,
             lead_source_type: "direct_import",
+            // If existing duplicate is archived, restore it so the fresh import isn't silently blocked.
+            ...(existing.archived_at ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
           };
           if (duplicatePolicy === "update") {
             // Fill missing name/phone/country only
