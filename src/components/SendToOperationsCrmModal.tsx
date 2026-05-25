@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { X, Info } from "lucide-react";
-import { getEligibleAssignees } from "@/lib/eligibleAssignees";
-import { ensureOperationsPipeline } from "@/lib/operationsCrm";
+import { X, Info, AlertTriangle, ExternalLink } from "lucide-react";
+import { getEligibleAssignees, getOperationsEligibilityDiagnostics, type OpsEligibilityDiagnostics } from "@/lib/eligibleAssignees";
+import { ensureOperationsPipeline, findExistingActiveOpsLead } from "@/lib/operationsCrm";
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
+
 
 interface SourceLead {
   id: string;
@@ -60,11 +62,19 @@ export default function SendToOperationsCrmModal({
   const [notes, setNotes] = useState<string>("");
   const [duplicateMode, setDuplicateMode] = useState<"skip" | "update">("skip");
 
+  const [diagnostics, setDiagnostics] = useState<OpsEligibilityDiagnostics | null>(null);
+
   useEffect(() => {
-    getEligibleAssignees("operations_crm")
-      .then((rows) => setAssignees(rows.map((r) => ({ id: r.id, full_name: r.full_name }))))
-      .catch(() => setAssignees([]));
+    (async () => {
+      const [rows, diag] = await Promise.all([
+        getEligibleAssignees("operations_crm").catch(() => []),
+        getOperationsEligibilityDiagnostics().catch(() => null),
+      ]);
+      setAssignees(rows.map((r) => ({ id: r.id, full_name: r.full_name })));
+      setDiagnostics(diag);
+    })();
   }, []);
+
 
   const selectedLeads: SourceLead[] = useMemo(() => {
     if (preSelectedIds && preSelectedIds.length > 0 && scope === "selected") {
@@ -117,17 +127,25 @@ export default function SendToOperationsCrmModal({
       const { pipelineId, firstStageId } = await ensureOperationsPipeline();
       const sourceIds = selectedLeads.map((l) => l.id);
 
-      // Check duplicates among active operations leads
-      const { data: existing } = await supabase
-        .from("operations_leads" as any)
-        .select("id, crm_lead_id, assigned_media_buyer_id, service_status, stage_id")
-        .in("crm_lead_id", sourceIds);
+      // Check duplicates among active operations leads (by crm_lead_id OR paid_pipeline_lead_id)
+      const ppIds = selectedLeads.map((l) => l.paid_pipeline_lead_id).filter(Boolean) as string[];
+      const dupQueries: Promise<any>[] = [
+        (supabase as any).from("operations_leads").select("id, crm_lead_id, paid_pipeline_lead_id, assigned_media_buyer_id, service_status, stage_id").in("crm_lead_id", sourceIds),
+      ];
+      if (ppIds.length) {
+        dupQueries.push((supabase as any).from("operations_leads").select("id, crm_lead_id, paid_pipeline_lead_id, assigned_media_buyer_id, service_status, stage_id").in("paid_pipeline_lead_id", ppIds));
+      }
+      const dupResults = await Promise.all(dupQueries);
       const existingByCrm = new Map<string, any>();
-      (existing ?? []).forEach((r: any) => {
-        if (r.crm_lead_id && r.service_status !== "stopped" && r.service_status !== "completed") {
-          existingByCrm.set(r.crm_lead_id, r);
-        }
+      const existingByPp = new Map<string, any>();
+      dupResults.forEach(({ data }) => {
+        (data ?? []).forEach((r: any) => {
+          if (r.service_status === "stopped" || r.service_status === "completed") return;
+          if (r.crm_lead_id) existingByCrm.set(r.crm_lead_id, r);
+          if (r.paid_pipeline_lead_id) existingByPp.set(r.paid_pipeline_lead_id, r);
+        });
       });
+
 
       const daysCommitted = Math.round(monthsFinal * 30);
       const buyerNameById = new Map(assignees.map((a) => [a.id, a.full_name]));
@@ -139,7 +157,8 @@ export default function SendToOperationsCrmModal({
       const buyerCounts: Record<string, number> = {};
 
       for (const lead of selectedLeads) {
-        const dup = existingByCrm.get(lead.id);
+        const dup = existingByCrm.get(lead.id) || (lead.paid_pipeline_lead_id ? existingByPp.get(lead.paid_pipeline_lead_id) : undefined);
+
         let buyerId: string | null = null;
         if (assignMethod === "single") buyerId = singleAssignee;
         else if (assignMethod === "round_robin" && assignees.length) {
@@ -409,12 +428,47 @@ export default function SendToOperationsCrmModal({
                 ))}
               </select>
             )}
-            {assignees.length === 0 && assignMethod !== "unassigned" && (
-              <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 flex items-start gap-1.5">
-                <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                <span>No eligible media buyers found. In Team Directory → Manage Member, enable <span className="font-medium">"Can receive Operations leads"</span>.</span>
+            {assignees.length === 0 && diagnostics && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+                <div className="flex items-center gap-1.5 text-[12px] font-medium text-amber-900">
+                  <AlertTriangle className="w-3.5 h-3.5" /> No eligible media buyers found
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 text-[11px] text-amber-900/90">
+                  <div className="flex justify-between bg-white/60 rounded px-2 py-1"><span>Active users</span><span className="font-medium">{diagnostics.counts.activeUsers}</span></div>
+                  <div className="flex justify-between bg-white/60 rounded px-2 py-1"><span>Media Buyer role</span><span className="font-medium">{diagnostics.counts.mediaBuyerRoleUsers}</span></div>
+                  <div className="flex justify-between bg-white/60 rounded px-2 py-1"><span>Has Operations CRM access</span><span className="font-medium">{diagnostics.counts.withOperationsModule}</span></div>
+                  <div className="flex justify-between bg-white/60 rounded px-2 py-1"><span>Active for assignment</span><span className="font-medium">{diagnostics.counts.withActiveForAssignment}</span></div>
+                  <div className="flex justify-between bg-white/60 rounded px-2 py-1 col-span-2"><span>Can receive Operations leads</span><span className="font-medium">{diagnostics.counts.withCanReceiveOperations}</span></div>
+                </div>
+                {diagnostics.mediaBuyersNotEligible.length > 0 && (
+                  <div className="pt-2 border-t border-amber-200">
+                    <div className="text-[11px] font-medium text-amber-900 mb-1">Media buyers found but not eligible:</div>
+                    <ul className="space-y-1">
+                      {diagnostics.mediaBuyersNotEligible.map((p) => (
+                        <li key={p.id} className="flex items-start justify-between gap-2 text-[11px] bg-white/70 rounded px-2 py-1">
+                          <span className="font-medium text-foreground">{p.full_name}</span>
+                          <span className="text-amber-800 text-right">{p.blockingReasons.join(" · ") || "Missing flag"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <Link
+                  to="/team?module=operations_crm"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-900 underline hover:text-amber-700"
+                  onClick={onClose}
+                >
+                  <ExternalLink className="w-3 h-3" /> Manage Operations Eligibility
+                </Link>
               </div>
             )}
+            {assignees.length === 0 && !diagnostics && assignMethod !== "unassigned" && (
+              <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 flex items-start gap-1.5">
+                <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <span>Loading eligibility…</span>
+              </div>
+            )}
+
           </div>
 
           {/* Duplicates */}

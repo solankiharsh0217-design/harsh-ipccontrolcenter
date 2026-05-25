@@ -179,3 +179,88 @@ export const COMMS_TEMPLATES: Record<string, (name: string, date: string) => str
   complete: (n, d) => `Hi ${n}, your committed service period has been completed on ${d}.`,
 };
 
+// ─────────────── Handoff Rules ───────────────
+
+export type HandoffMode = "manual" | "suggest" | "auto";
+export type AssignmentMethod = "unassigned" | "single" | "round_robin";
+export type DuplicateBehavior = "skip" | "update";
+
+export interface HandoffRule {
+  id: string;
+  name: string;
+  source_pipeline_id: string;
+  eligible_stage_ids: string[];
+  mode: HandoffMode;
+  default_service_package: string | null;
+  default_service_days: number | null;
+  default_assignment_method: AssignmentMethod;
+  default_single_buyer_id: string | null;
+  eligible_buyer_ids: string[];
+  duplicate_behavior: DuplicateBehavior;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getActiveHandoffRules(): Promise<HandoffRule[]> {
+  const { data, error } = await (supabase as any)
+    .from("operations_handoff_rules")
+    .select("*")
+    .eq("is_active", true);
+  if (error) {
+    console.warn("[handoff] list failed", error);
+    return [];
+  }
+  return (data ?? []) as HandoffRule[];
+}
+
+export function findRuleForStage(rules: HandoffRule[], pipelineId: string | null, stageId: string | null): HandoffRule | null {
+  if (!pipelineId || !stageId) return null;
+  return rules.find((r) =>
+    r.is_active &&
+    r.source_pipeline_id === pipelineId &&
+    (r.eligible_stage_ids || []).includes(stageId)
+  ) ?? null;
+}
+
+export function isRuleAutoReady(r: HandoffRule): boolean {
+  if (r.mode !== "auto") return true;
+  if (!r.default_service_package || !r.default_service_days || r.default_service_days <= 0) return false;
+  if (r.default_assignment_method === "single" && !r.default_single_buyer_id) return false;
+  if (r.default_assignment_method === "round_robin" && (!r.eligible_buyer_ids || r.eligible_buyer_ids.length === 0)) return false;
+  return true;
+}
+
+// Returns existing active operations_leads row matching crm_lead_id / paid_pipeline_lead_id
+export async function findExistingActiveOpsLead(opts: {
+  crmLeadId?: string | null;
+  paidPipelineLeadId?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}): Promise<any | null> {
+  const { crmLeadId, paidPipelineLeadId, email, phone } = opts;
+  const sb = supabase as any;
+  if (crmLeadId) {
+    const { data } = await sb.from("operations_leads").select("*").eq("crm_lead_id", crmLeadId);
+    const hit = (data ?? []).find((r: any) => r.service_status !== "stopped" && r.service_status !== "completed");
+    if (hit) return hit;
+  }
+  if (paidPipelineLeadId) {
+    const { data } = await sb.from("operations_leads").select("*").eq("paid_pipeline_lead_id", paidPipelineLeadId);
+    const hit = (data ?? []).find((r: any) => r.service_status !== "stopped" && r.service_status !== "completed");
+    if (hit) return hit;
+  }
+  if (!crmLeadId && !paidPipelineLeadId && (email || phone)) {
+    let query = sb.from("operations_leads").select("*");
+    if (email && phone) query = query.or(`email.eq.${email},phone.eq.${phone}`);
+    else if (email) query = query.eq("email", email);
+    else if (phone) query = query.eq("phone", phone);
+    const { data } = await query;
+    const hit = (data ?? []).find((r: any) => r.service_status !== "stopped" && r.service_status !== "completed");
+    if (hit) return hit;
+  }
+  return null;
+}
+
+

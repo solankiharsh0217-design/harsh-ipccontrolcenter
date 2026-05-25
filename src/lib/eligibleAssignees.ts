@@ -126,9 +126,17 @@ export async function getEligibleAssignees(
     .eq("role", "admin");
   const admins = new Set((roles ?? []).map((r: any) => r.user_id));
 
+  // Operations CRM additionally treats anyone with role "Media Buyer" as
+  // implicitly eligible, even if the flag column was never toggled.
+  const includesOps = ctxs.some((c) => c === "operations_crm" || c === "round_robin_operations_crm");
+
   return ((profiles ?? []) as any[])
     .filter((p) => p.active_for_assignment !== false)
-    .filter((p) => flags.some((f) => p[f] === true))
+    .filter((p) => {
+      const flagMatch = flags.some((f) => p[f] === true);
+      const opsRoleMatch = includesOps && typeof p.role === "string" && p.role.toLowerCase().includes("media buyer");
+      return flagMatch || opsRoleMatch;
+    })
     .filter((p) => (needsRoundRobin ? p.include_in_round_robin === true : true))
     .map((p) => ({
       id: p.id,
@@ -138,3 +146,101 @@ export async function getEligibleAssignees(
     }))
     .sort((a, b) => a.full_name.localeCompare(b.full_name));
 }
+
+// ---------------------------------------------------------------------------
+// Operations CRM eligibility diagnostics — surfaces *why* a media buyer is
+// missing from the Send to Operations dropdown.
+// ---------------------------------------------------------------------------
+
+export interface OpsEligibilityProfile {
+  id: string;
+  full_name: string;
+  role: string | null;
+  status: string;
+  active_for_assignment: boolean;
+  can_receive_operations_leads: boolean;
+  has_operations_module_access: boolean;
+  isMediaBuyerRole: boolean;
+  isEligible: boolean;
+  blockingReasons: string[];
+}
+
+export interface OpsEligibilityDiagnostics {
+  counts: {
+    activeUsers: number;
+    mediaBuyerRoleUsers: number;
+    withOperationsModule: number;
+    withActiveForAssignment: number;
+    withCanReceiveOperations: number;
+    eligible: number;
+  };
+  eligible: OpsEligibilityProfile[];
+  mediaBuyersNotEligible: OpsEligibilityProfile[];
+}
+
+export async function getOperationsEligibilityDiagnostics(): Promise<OpsEligibilityDiagnostics> {
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name, role, status, active_for_assignment, can_receive_operations_leads")
+    .eq("status", "active");
+
+  const { data: modAccess } = await supabase
+    .from("user_module_access")
+    .select("user_id, module_key");
+  const opsAccessUserIds = new Set(
+    (modAccess ?? [])
+      .filter((m: any) => m.module_key === "operations_crm")
+      .map((m: any) => m.user_id as string)
+  );
+
+  const list = (profiles ?? []) as any[];
+
+  const counts = {
+    activeUsers: list.length,
+    mediaBuyerRoleUsers: 0,
+    withOperationsModule: 0,
+    withActiveForAssignment: 0,
+    withCanReceiveOperations: 0,
+    eligible: 0,
+  };
+
+  const enriched: OpsEligibilityProfile[] = list.map((p) => {
+    const isMediaBuyerRole = typeof p.role === "string" && p.role.toLowerCase().includes("media buyer");
+    const hasOpsAccess = opsAccessUserIds.has(p.id);
+    const canReceive = !!p.can_receive_operations_leads;
+    const activeForAssign = p.active_for_assignment !== false;
+
+    if (isMediaBuyerRole) counts.mediaBuyerRoleUsers++;
+    if (hasOpsAccess) counts.withOperationsModule++;
+    if (activeForAssign) counts.withActiveForAssignment++;
+    if (canReceive) counts.withCanReceiveOperations++;
+
+    const blockingReasons: string[] = [];
+    if (!activeForAssign) blockingReasons.push("Enable 'Active for assignment'");
+    if (!canReceive) blockingReasons.push("Enable 'Can receive Operations leads'");
+
+    const isEligible = activeForAssign && (canReceive || isMediaBuyerRole);
+    if (isEligible) counts.eligible++;
+
+    return {
+      id: p.id,
+      full_name: p.full_name ?? "Unnamed",
+      role: p.role ?? null,
+      status: p.status,
+      active_for_assignment: activeForAssign,
+      can_receive_operations_leads: canReceive,
+      has_operations_module_access: hasOpsAccess,
+      isMediaBuyerRole,
+      isEligible,
+      blockingReasons,
+    };
+  });
+
+  return {
+    counts,
+    eligible: enriched.filter((p) => p.isEligible).sort((a, b) => a.full_name.localeCompare(b.full_name)),
+    mediaBuyersNotEligible: enriched.filter((p) => p.isMediaBuyerRole && !p.isEligible)
+      .sort((a, b) => a.full_name.localeCompare(b.full_name)),
+  };
+}
+

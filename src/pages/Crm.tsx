@@ -791,7 +791,23 @@ export default function Crm() {
                 >
                   <div className="px-3 pt-3 pb-2 border-b-2" style={{ borderBottomColor: color }}>
                     <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={items.length > 0 && items.every((l) => selectedIds.has(l.id))}
+                          ref={(el) => { if (el) { const some = items.some((l) => selectedIds.has(l.id)); const all = items.length > 0 && items.every((l) => selectedIds.has(l.id)); el.indeterminate = some && !all; } }}
+                          onChange={(e) => {
+                            const ids = items.map((l) => l.id);
+                            setSelectedIds((p) => {
+                              const n = new Set(p);
+                              if (e.target.checked) ids.forEach((id) => n.add(id));
+                              else ids.forEach((id) => n.delete(id));
+                              return n;
+                            });
+                          }}
+                          title="Select all in stage"
+                          className="w-3.5 h-3.5 cursor-pointer accent-black flex-shrink-0"
+                        />
                         <span
                           draggable
                           onDragStart={(e) => { e.dataTransfer.setData("text/plain", `stage:${s.id}`); e.dataTransfer.effectAllowed = "move"; setStageDragId(s.id); }}
@@ -807,21 +823,6 @@ export default function Crm() {
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <div className="text-xs text-muted-foreground">{items.length}</div>
-                        <input
-                          type="checkbox"
-                          checked={items.length > 0 && items.every((l) => selectedIds.has(l.id))}
-                          onChange={(e) => {
-                            const ids = items.map((l) => l.id);
-                            setSelectedIds((p) => {
-                              const n = new Set(p);
-                              if (e.target.checked) ids.forEach((id) => n.add(id));
-                              else ids.forEach((id) => n.delete(id));
-                              return n;
-                            });
-                          }}
-                          title="Select all in stage"
-                          className="w-3.5 h-3.5 cursor-pointer accent-black"
-                        />
                         <StageHeaderMenu
                           stage={s}
                           idx={idx}
@@ -837,6 +838,7 @@ export default function Crm() {
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">₹{total.toLocaleString("en-IN")}</div>
                   </div>
+
                   <div className="p-2 space-y-2 flex-1 min-h-[120px]">
                     {items.map((l, cardIdx) => {
                       const g = GRADE_STYLES[l.grade];
@@ -878,36 +880,41 @@ export default function Crm() {
                             }}
                             className={`relative p-3 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${isDragging ? "opacity-30 shadow-lg" : ""} ${selectedIds.has(l.id) ? "ring-2 ring-gold" : ""}`}
                             style={{ background: cardBg, borderColor: cardBorder }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(l.id)}
-                              onClick={(e) => { e.stopPropagation(); toggleSelect(l.id); }}
-                              onChange={() => {}}
-                              className="absolute top-2 right-2 w-3.5 h-3.5 cursor-pointer accent-black"
-                              title="Select lead"
-                            />
-                            {l.webinar_source && <div className="uppercase-label !text-[8px] mb-1">{l.webinar_source}</div>}
-                            <div className="font-serif text-sm">{l.full_name || "Unnamed"}</div>
-                            <div className="text-[11px] text-muted-foreground">{l.program_name}</div>
-                            <div className="text-[11px] mt-0.5">{l.phone || "—"}</div>
-                            <div className="text-[11px] mt-1">₹{Number(l.deal_value).toLocaleString("en-IN")}</div>
-                            {(leadTagsMap[l.id] || []).length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1.5">
-                                {(leadTagsMap[l.id] || []).slice(0, 2).map((tg) => {
-                                  const tc = tg.color || pickTagColor(tg.name);
-                                  return (
-                                    <span key={tg.id} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium border" style={{ background: tc + "1A", color: tc, borderColor: tc + "55" }}>{tg.name}</span>
-                                  );
-                                })}
-                                {(leadTagsMap[l.id] || []).length > 2 && (
-                                  <span className="text-[9px] text-muted-foreground">+{(leadTagsMap[l.id] || []).length - 2}</span>
+                            <div className="flex items-start gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(l.id)}
+                                onClick={(e) => { e.stopPropagation(); toggleSelect(l.id); }}
+                                onChange={() => {}}
+                                className="mt-1 w-3.5 h-3.5 cursor-pointer accent-black flex-shrink-0"
+                                title="Select lead"
+                              />
+                              <div className="flex-1 min-w-0">
+                                {l.webinar_source && <div className="uppercase-label !text-[8px] mb-1">{l.webinar_source}</div>}
+                                <div className="font-serif text-sm truncate">{l.full_name || "Unnamed"}</div>
+                                <div className="text-[11px] text-muted-foreground truncate">{l.program_name}</div>
+                                <div className="text-[11px] mt-0.5">{l.phone || "—"}</div>
+                                <div className="text-[11px] mt-1">₹{Number(l.deal_value).toLocaleString("en-IN")}</div>
+                                {(leadTagsMap[l.id] || []).length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {(leadTagsMap[l.id] || []).slice(0, 2).map((tg) => {
+                                      const tc = tg.color || pickTagColor(tg.name);
+                                      return (
+                                        <span key={tg.id} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium border" style={{ background: tc + "1A", color: tc, borderColor: tc + "55" }}>{tg.name}</span>
+                                      );
+                                    })}
+                                    {(leadTagsMap[l.id] || []).length > 2 && (
+                                      <span className="text-[9px] text-muted-foreground">+{(leadTagsMap[l.id] || []).length - 2}</span>
+                                    )}
+                                  </div>
                                 )}
+                                <div className="flex items-center justify-between mt-2 gap-2">
+                                  <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
+                                  {ag && <div className="w-5 h-5 rounded-full bg-black text-gold font-serif text-[9px] flex items-center justify-center" title={ag.full_name}>{ag.full_name.slice(0,1)}</div>}
+                                </div>
                               </div>
-                            )}
-                            <div className="flex items-center justify-between mt-2 gap-2">
-                              <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
-                              {ag && <div className="w-5 h-5 rounded-full bg-black text-gold font-serif text-[9px] flex items-center justify-center" title={ag.full_name}>{ag.full_name.slice(0,1)}</div>}
                             </div>
+
                           </div>
                         </div>
                       );

@@ -1,75 +1,106 @@
-# Operations CRM — Phased Build Plan
+# Calling CRM → Operations CRM Handoff Cleanup
 
-This is a large module (5 new tables, multiple pages, settings, gamification). To stay safe and reviewable, I will implement it in 4 phases matching your recommended build order. **This plan covers all 4 phases**, but I will deliver and ask for review **after each phase** so we don't ship a 4000-line untested change in one shot.
+This is a multi-part fix touching the Calling CRM Kanban, the lead drawer, the Send to Operations modal, Operations CRM filtering, and a new Operations Handoff Rules system in Master Settings.
 
-## Phase A — Foundation (this delivery)
+## Scope
 
-**Database migration** (single migration, all safe, no destructive ops):
-- `operations_leads` — full schema per spec, linked via nullable `crm_lead_id` and `paid_pipeline_lead_id`
-- `operations_service_events` — event log for start/pause/resume/stop/complete
-- `operations_conversion_reports` — with verification fields
-- `operations_reward_rules` — seeded with default IPC rule (10 approved conversions = ₹3,000, monthly)
-- `operations_reward_progress` — per media buyer per month
-- Add column `profiles.can_receive_operations_leads boolean default false`
-- Add `module_key = 'operations_crm'` to `ModuleKey` union
-- RLS: admins full access; team members can read leads where `assigned_media_buyer_id = auth.uid()` and write events/conversions for their own leads; conversion approval restricted to admins
-- Triggers: `updated_at`, unique index preventing duplicate active operations record per `crm_lead_id` or `paid_pipeline_lead_id`
+Parts 1–11 from your spec. Phase C (conversion reporting, rewards, AI Insights) is explicitly out of scope.
 
-**Sidebar & access**:
-- New nav item "Operations CRM" → `/operations-crm`, visible if `hasModule('operations_crm')` or admin
-- Add to `MODULES` list in `src/lib/modules.ts` so admins can grant access in Team Directory
-- Add `can_receive_operations_leads` toggle in Manage Member modal (Team page) alongside existing eligibility flags
-- Register `operations_crm` in `eligibleAssignees.ts` CONTEXT_MAP
+---
 
-**Send to Operations CRM**:
-- New button on Calling CRM toolbar (when paid-onboarding pipeline active) + Paid Pipeline bulk-action bar
-- New `SendToOperationsCrmModal` component:
-  - Source scope (selected / all in stages / all in view)
-  - Service duration (3 / 6 / 10 / custom months, from app_settings)
-  - Service package (free text + quick-save suggestions)
-  - Assignment method (unassigned / single / round-robin) using existing eligibility filter
-  - Notes
-  - De-dup check: warns if `crm_lead_id` or `paid_pipeline_lead_id` already exists in active operations record; offers Skip vs Update
-- Creates `operations_leads` rows; does NOT mutate source CRM/Paid Pipeline rows
-- Audit log `operations_leads_sent_from_crm`; grouped assignment notification per assignee (reusing `createNotification`)
+## 1. Calling CRM bulk selection UI (`src/pages/Crm.tsx`)
 
-**Operations CRM Kanban page** (`src/pages/OperationsCrm.tsx`):
-- Reuses Calling CRM Kanban patterns (compact header, top metric cards, drag/drop, stage management)
-- Default stages stored in DB (`operations_stages` reuses existing `stages` table with `pipeline_id` of a new "operations" pipeline, so we don't duplicate stage infra) — seeded with the 11 default stages
-- Filters: search, media buyer, service status, batch, package, single date-range popover, tags, conversion status
-- Top cards: total / active / not started / paused / stopped / completed / conversions this month / reward progress
-- Card content per spec; click opens drawer (Phase B fills it)
+- Move card checkbox to the **left** of the card header, before the name.
+- Move stage select-all checkbox to the **left** of the stage header, before the stage name. Support `indeterminate` state.
+- Checkboxes use existing `<Checkbox>` (subtle, always rendered, low-contrast border; selected card gets `ring-1 ring-primary/40 bg-primary/5`).
+- Bulk action bar: sticky pill at top-left of the Kanban (below filters), not floating right. Layout: `"N selected | Move Stage | Assign | Send to Operations | Add Tag | Clear"`.
+- Audit log `crm_bulk_selected` on first selection per session.
 
-## Phase B — Service tracking + drawer (next delivery)
-- Full drawer with profile, assignment, package, timeline
-- Start / Pause / Resume / Stop / Complete buttons → write `operations_service_events`
-- Day calculation: `total_active_days`, `total_paused_days`, `service_end_target_date` recomputed on each event
-- Estimated end date visible on card + drawer
+## 2. Restore CRM Stage section in Lead Drawer (`src/components/LeadDrawer.tsx`)
 
-## Phase C — Conversions + rewards
-- Conversion reporting UI in drawer + approve/reject flow for admins
-- Reward progress widget on Media Buyer dashboard
-- Monthly auto-rollup triggered on conversion approval
+- New compact **CRM Stage** section: current stage badge + "Change Stage" dropdown listing live stages from the lead's pipeline.
+- Updating writes to `leads.stage_id`, refreshes parent, logs `crm_stage_changed`, and if the destination stage is eligible for Ops handoff, shows an inline "Send to Operations CRM" suggestion chip.
+- Placed directly after Suggested Next Action, above Follow-ups.
 
-## Phase D — Notifications, Master Settings, reporting
-- All notification triggers (overdue launch, paused, nearing completion, reward milestones)
-- Master Settings page sections for stages / durations / packages / pause reasons / reward rules / email templates
-- Admin reporting + CSV export
-- Email template scaffolding (copyable for V1; live send deferred until email infra confirmed)
+## 3. Compact the Lead Drawer (`src/components/LeadDrawer.tsx`)
 
-## Technical notes
+Reorder into tighter sections (header → Payment Snapshot → Tags → Suggested Next Action → Score/Attendance summary → Quick Actions → Follow-up → CRM Stage → Assigned Agent → Activity Log). Tighten vertical padding (`space-y-3` instead of `space-y-6`). Sticky footer keeps `Cancel | Save & Close`.
 
-- All defaults stored in `app_settings` (existing key-value pattern) — no hardcoded ₹3,000 / 10 conversions / 3-6-10 months in code paths, only as seed values
-- Reusing existing `stages` table (with new `pipeline_type='operations'` pipeline row) instead of a parallel `operations_stages` table — keeps Kanban management, reorder, deactivate, drag/drop logic identical to Calling CRM
-- Reusing existing `tags` system via lead-tag pivot pattern if available
-- Reusing `AssignModal` infra by adding `operations_crm` as a recognized `moduleKey` (notifications already grouped + deep-linked from the recent fix)
-- No deletion of Calling CRM / Paid Pipeline records anywhere
-- New unique constraint prevents double-send duplicates
+## 4. Fix media buyer eligibility (`src/components/SendToOperationsCrmModal.tsx`, `src/lib/eligibleAssignees.ts`)
 
-## Out of scope for now
-- Live email sending (Phase D will scaffold templates; real SMTP/SendGrid deferred until you confirm provider)
-- Weighted round-robin (added as a "future" placeholder in AssignModal; equal RR shipped in Phase A)
-- AI insights (explicitly excluded by your spec)
+- Broaden `operations_crm` context: include profiles where **role ILIKE 'media buyer'** OR `can_receive_operations_leads = true`, in addition to existing flag check.
+- When the dropdown is empty, render a **debug panel** showing counts:
+  - Active users
+  - Media Buyer role users
+  - Users with `operations_crm` module access
+  - Users with `active_for_assignment = true`
+  - Users with `can_receive_operations_leads = true`
+- List "Media buyers found but not eligible" with the missing-flag reason next to each.
+- CTA button **"Manage Operations Eligibility"** that navigates to `/team` (Team Directory) with `?module=operations_crm` query so the page can scroll/filter to those flags.
 
-## Confirmation needed before I start
-Confirm I should proceed with **Phase A only** in this delivery (~1 migration + ~6 new files + sidebar/Team edits), then we review live before Phase B.
+## 5. Operations CRM admin/team visibility (`src/pages/OperationsCrm.tsx`)
+
+- Admin sees all leads. Add filter dropdown: **All media buyers / Assigned to me / Unassigned / <specific buyer>**.
+- Non-admin team member: query already scoped, but enforce `assigned_media_buyer_id = auth.uid()` client-side as a guard in case RLS is permissive.
+
+## 6. Manual Send to Operations from drawer + bulk bar
+
+Already wired in bulk bar; ensure the drawer's "Send to Operations CRM" button opens the modal with a single-lead payload and that after success the button flips to "Open in Operations CRM" (re-query `operations_leads`).
+
+## 7. Operations Handoff Rules (Master Settings)
+
+### Migration
+
+New table `operations_handoff_rules`:
+- `id`, `source_pipeline_id` (FK pipelines), `eligible_stage_ids` (uuid[]), `mode` ('manual'|'suggest'|'auto'), `default_service_package` (text), `default_service_days` (int), `default_assignment_method` ('unassigned'|'single'|'round_robin'), `eligible_buyer_ids` (uuid[]), `duplicate_behavior` ('skip'|'update'), `is_active` (bool), `created_by`, timestamps.
+- RLS: admins manage; authenticated read.
+
+### UI (`src/pages/MasterSettings.tsx` — new "Operations Handoff Rules" section)
+
+- List rules, create/edit/delete.
+- Stage multi-select populated from live `stages` for chosen pipeline.
+- Mode selector (default `suggest`).
+- Save disabled until package + duration + assignment method are set when mode is `auto`; show warning "Operations handoff rule needs package, duration, and assignment settings."
+
+### Runtime (`src/lib/operationsCrm.ts`)
+
+- `getActiveHandoffRules()`, `getRuleForStage(stageId)` helpers.
+- `evaluateHandoffOnStageChange(lead, newStageId)`:
+  - **suggest**: returns suggestion payload (used by drawer chip + bulk banner).
+  - **auto**: creates `operations_leads` row using rule defaults, dedupes by `crm_lead_id`/`paid_pipeline_lead_id`, notifies assigned buyer(s), logs `operations_auto_handoff_completed`.
+- Hooked from `Crm.tsx` drag-drop + bulk stage move + `LeadDrawer.tsx` Change Stage.
+
+## 8. Bulk move → Operations banner
+
+After bulk stage move, count leads whose new stage matches an active rule. Show inline banner `"X leads are now eligible for Operations CRM"` with button → opens `SendToOperationsCrmModal` prefilled with those IDs (suggest mode) or auto-creates them (auto mode).
+
+## 9. Duplicate prevention (`src/lib/operationsCrm.ts`)
+
+`createOperationsLeadFromCrm` already checks `crm_lead_id`. Extend to also check `paid_pipeline_lead_id`, and (only when neither ID is provided) match by email/phone. Honor rule's `duplicate_behavior`.
+
+## 10. Audit logs
+
+Wire `logActivity` for: `crm_bulk_selected`, `bulk_crm_stage_changed` (already), `operations_manual_handoff_started`, `operations_lead_created_from_crm`, `operations_bulk_handoff_completed`, `operations_handoff_rule_created/updated`, `operations_auto_handoff_completed`, `operations_lead_assigned`. Include lead count, source pipeline/stage, destination stage, assignment method, buyer ids, created_by.
+
+---
+
+## Files to edit
+
+- `src/pages/Crm.tsx` — bulk UI, left-aligned checkboxes, sticky pill bar, stage-change hook.
+- `src/components/LeadDrawer.tsx` — restored Stage section + compact reorder + suggestion chip.
+- `src/components/SendToOperationsCrmModal.tsx` — debug panel, "Manage Eligibility" CTA, broader eligibility.
+- `src/lib/eligibleAssignees.ts` — broaden operations_crm context (role OR flag); add `getOperationsEligibilityDiagnostics()`.
+- `src/lib/operationsCrm.ts` — handoff rule helpers + auto/suggest evaluator + duplicate hardening.
+- `src/pages/OperationsCrm.tsx` — admin filter dropdown.
+- `src/pages/MasterSettings.tsx` — new Operations Handoff Rules section.
+- `src/components/admin/OperationsHandoffRulesPanel.tsx` *(new)* — rule editor.
+- `supabase/migrations/<ts>_ops_handoff_rules.sql` — new table + RLS.
+
+## What stays untouched
+
+- Calling CRM data, Paid Pipeline data, existing Operations CRM leads, service lifecycle logic, notifications module, AppLayout sidebar.
+- No Phase C (conversion reporting, rewards, AI insights).
+
+## Build verification
+
+Lovable auto-runs typecheck/build after edits; I'll address any compile errors before finishing.
