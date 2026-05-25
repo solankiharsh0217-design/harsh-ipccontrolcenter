@@ -499,6 +499,11 @@ export default function PaidPipeline() {
           {anyFilterActive && <span className="ml-2 text-[11px] uppercase tracking-wider text-[#2563EB]">Filters active</span>}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowArchived(v => !v)}
+            className={`ipc-btn !h-9 !text-xs ${showArchived ? "!bg-[#FEF3C7] !text-[#92400E] border border-[#FDE68A]" : "ipc-btn-ghost"}`}
+            title={showArchived ? "Viewing archived buyers" : "Show archived buyers"}
+          >{showArchived ? "Showing archived" : "Show archived"}</button>
           <button onClick={() => setSearch(searchInput)} className="ipc-btn ipc-btn-black !h-9">Search</button>
           <button onClick={resetFilters} className="ipc-btn ipc-btn-ghost !h-9">Reset Filters</button>
         </div>
