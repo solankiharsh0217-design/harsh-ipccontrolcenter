@@ -629,10 +629,19 @@ export default function PaidPipeline() {
                   <td className="px-3 py-2.5 sticky right-0 bg-white">
                     <div className="flex items-center justify-end">
                       <RowActionsMenu
+                        archived={!!(l as any).archived_at}
                         onAddPayment={() => setQuickPayId(l.id)}
                         onUpdateFinance={() => setQuickFinanceId(l.id)}
                         onSetFollowUp={() => setQuickFuId(l.id)}
                         onOpen={() => setOpenId(l.id)}
+                        onArchive={() => setArchiveTarget({ id: l.id, name: l.name })}
+                        onRestore={async () => {
+                          try {
+                            await restorePaidBuyer({ id: l.id, name: l.name });
+                            toast.success("Buyer restored");
+                            await load();
+                          } catch (e: any) { toast.error(e.message || "Restore failed"); }
+                        }}
                       />
                     </div>
                   </td>
