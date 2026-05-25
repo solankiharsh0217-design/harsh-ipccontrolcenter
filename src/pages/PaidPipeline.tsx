@@ -686,6 +686,25 @@ export default function PaidPipeline() {
         selectedIds={Array.from(selected)}
         onAssigned={() => { setSelected(new Set()); load(); }}
       />
+      {archiveTarget && (
+        <ArchiveConfirmModal
+          title={`Archive "${archiveTarget.name || "buyer"}"?`}
+          description="The buyer will be hidden from the active table. Payment history, finance, and activity are preserved."
+          detailLines={["You can restore later from Show archived.", "Reports and conversions remain unaffected."]}
+          busy={archiveBusy}
+          onClose={() => setArchiveTarget(null)}
+          onConfirm={async (reason) => {
+            setArchiveBusy(true);
+            try {
+              await archivePaidBuyer({ id: archiveTarget.id, name: archiveTarget.name }, reason || undefined);
+              toast.success("Buyer archived");
+              setArchiveTarget(null);
+              await load();
+            } catch (e: any) { toast.error(e.message || "Archive failed"); }
+            finally { setArchiveBusy(false); }
+          }}
+        />
+      )}
     </div>
   );
 }
