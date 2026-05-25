@@ -83,3 +83,94 @@ export const SERVICE_STATUS_COLORS: Record<string, string> = {
   stopped: "bg-[#FEE2E2] text-[#991B1B]",
   completed: "bg-[#E0E7FF] text-[#3730A3]",
 };
+
+// ─────────────── Service day calculations ───────────────
+
+export function toDateStr(d: Date | string | null | undefined): string | null {
+  if (!d) return null;
+  const dt = typeof d === "string" ? new Date(d + (d.length === 10 ? "T00:00:00" : "")) : d;
+  if (isNaN(dt.getTime())) return null;
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+export function todayStr(): string { return toDateStr(new Date())!; }
+
+export function daysBetween(a: string | null | undefined, b: string | null | undefined): number {
+  if (!a || !b) return 0;
+  const da = new Date(a + "T00:00:00").getTime();
+  const db = new Date(b + "T00:00:00").getTime();
+  if (isNaN(da) || isNaN(db)) return 0;
+  return Math.max(0, Math.round((db - da) / 86400000));
+}
+
+export function addDays(date: string, days: number): string {
+  const d = new Date(date + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return toDateStr(d)!;
+}
+
+export function monthsToDays(months: number | null | undefined): number {
+  if (!months || months <= 0) return 0;
+  return Math.round(months * 30);
+}
+
+export interface OpsLeadCalcInput {
+  service_status: string;
+  service_months?: number | null;
+  service_days_committed?: number | null;
+  total_active_days?: number | null;
+  total_paused_days?: number | null;
+  current_active_start_date?: string | null;
+  last_paused_at?: string | null;
+  service_end_target_date?: string | null;
+}
+
+export interface ServiceCalc {
+  committedDays: number;
+  activeDaysUsed: number;
+  pausedDays: number;
+  currentActivePeriodDays: number;
+  currentPausedPeriodDays: number;
+  remainingDays: number;
+  estimatedEndDate: string | null;
+}
+
+export function computeServiceCalc(l: OpsLeadCalcInput): ServiceCalc {
+  const today = todayStr();
+  const committedDays = l.service_days_committed && l.service_days_committed > 0
+    ? l.service_days_committed
+    : monthsToDays(l.service_months);
+  const totalActiveDays = l.total_active_days ?? 0;
+  const totalPausedDays = l.total_paused_days ?? 0;
+
+  const currentActivePeriodDays = l.service_status === "active" && l.current_active_start_date
+    ? daysBetween(l.current_active_start_date, today) : 0;
+  const currentPausedPeriodDays = l.service_status === "paused" && l.last_paused_at
+    ? daysBetween(l.last_paused_at, today) : 0;
+
+  const activeDaysUsed = totalActiveDays + currentActivePeriodDays;
+  const pausedDays = totalPausedDays + currentPausedPeriodDays;
+  const remainingDays = Math.max(0, committedDays - activeDaysUsed);
+
+  let estimatedEndDate: string | null = null;
+  if (l.service_status === "active") {
+    estimatedEndDate = addDays(today, remainingDays);
+  } else {
+    estimatedEndDate = l.service_end_target_date ?? null;
+  }
+
+  return {
+    committedDays, activeDaysUsed, pausedDays,
+    currentActivePeriodDays, currentPausedPeriodDays,
+    remainingDays, estimatedEndDate,
+  };
+}
+
+export const COMMS_TEMPLATES: Record<string, (name: string, date: string) => string> = {
+  start: (n, d) => `Hi ${n}, your ads service has started from ${d}. Our team will now begin managing and optimizing your campaigns.`,
+  pause: (n, d) => `Hi ${n}, your ads service has been paused from ${d} as discussed. These paused days will not be counted as active service days.`,
+  resume: (n, d) => `Hi ${n}, your ads service has resumed from ${d}.`,
+  stop: (n, d) => `Hi ${n}, your ads service has been stopped from ${d}.`,
+  complete: (n, d) => `Hi ${n}, your committed service period has been completed on ${d}.`,
+};
+
