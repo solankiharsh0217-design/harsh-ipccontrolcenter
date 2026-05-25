@@ -575,6 +575,15 @@ export default function Crm() {
           <div className="flex items-center gap-1 ml-auto">
             <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
             <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
+            {(() => {
+              const pipe = pipelines.find((p) => p.id === activePipeline) as any;
+              if (!pipe || pipe.pipeline_type !== "paid") return null;
+              return (
+                <button onClick={() => setSendOpsOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Send paid clients to Operations CRM for service delivery">
+                  <ExternalLink className="w-3.5 h-3.5" /> Send to Operations
+                </button>
+              );
+            })()}
             <button onClick={() => setAddStageOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Add a new Kanban stage"><Plus className="w-3.5 h-3.5" /> Add Stage</button>
             <OverflowActionsMenu
               onExport={exportCsv}
