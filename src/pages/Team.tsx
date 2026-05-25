@@ -231,7 +231,7 @@ export default function Team() {
       const removed = [...oldModules].filter((k) => !newModSet.has(k));
       granted.forEach((k) => logActivity({ ...t, action_type: "module_access_granted", entity_label: memberName, old_values: { [k]: false }, new_values: { [k]: true }, summary: `${k} access granted to ${memberName}.` }));
       removed.forEach((k) => logActivity({ ...t, action_type: "module_access_removed", entity_label: memberName, old_values: { [k]: true }, new_values: { [k]: false }, summary: `${k} access removed from ${memberName}.`, severity: "warning" }));
-      const eligKeys: (keyof EligibilityFlags)[] = ["can_receive_calling_crm_leads","can_receive_paid_pipeline_leads","can_receive_follow_up_tasks","can_receive_payment_recovery_leads","can_receive_media_buyer_cases","include_in_round_robin","active_for_assignment"];
+      const eligKeys: (keyof EligibilityFlags)[] = ["can_receive_calling_crm_leads","can_receive_paid_pipeline_leads","can_receive_follow_up_tasks","can_receive_payment_recovery_leads","can_receive_media_buyer_cases","can_receive_operations_leads","include_in_round_robin","active_for_assignment"];
       const eligDiff: any = { old: {}, new: {} }; let eligChanged = false;
       eligKeys.forEach((k) => {
         const ov = !!prevElig2[k]; const nv = !!editEligibility[k];
