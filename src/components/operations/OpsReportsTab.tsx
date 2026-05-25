@@ -48,7 +48,7 @@ const STATUS_COLORS: Record<string, string> = {
   completed: "#3b82f6",
 };
 
-export default function OpsReportsTab({ leads, onOpenLead }: Props) {
+export default function OpsReportsTab({ leads, onOpenLead, isAdmin = false }: Props) {
   const [month, setMonth] = useState<string>(currentMonthStr());
   const [buyerFilter, setBuyerFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
