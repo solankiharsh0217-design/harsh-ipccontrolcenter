@@ -279,10 +279,19 @@ export default function Crm() {
     }
     return { all: batchesWithType.length, unpaid, paid, custom };
   }, [batchesWithType]);
-  const visibleBatches = useMemo(
-    () => batchPipelineFilter === "all" ? batchesWithType : batchesWithType.filter((b) => b.pipelineType === batchPipelineFilter),
-    [batchesWithType, batchPipelineFilter]
-  );
+  const visibleBatches = useMemo(() => {
+    let list = batchPipelineFilter === "all" ? batchesWithType : batchesWithType.filter((b) => b.pipelineType === batchPipelineFilter);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const matchingKeys = new Set<string>();
+      for (const l of leads) {
+        const hay = [l.full_name, l.phone, l.email, l.program_name, l.webinar_source].filter(Boolean).join(" ").toLowerCase();
+        if (hay.includes(q)) matchingKeys.add(`${l.webinar_source || "—"}__${l.webinar_date || ""}`);
+      }
+      list = list.filter((b) => b.name.toLowerCase().includes(q) || matchingKeys.has(b.key));
+    }
+    return list;
+  }, [batchesWithType, batchPipelineFilter, searchQuery, leads]);
 
 
   type BatchCategory = "all" | "super-hot" | "hot" | "warm" | "cold" | "absentees";
