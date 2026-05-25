@@ -679,6 +679,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         updated,
         moved,
         restored,
+        phoneOnlyImported,
         skippedDuplicates,
         failed,
         skipped: skippedDuplicates + failed,
@@ -687,6 +688,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         paidLinked,
         paidUnlinked,
         errors,
+        failureReasons: Array.from(reasonCounts.entries()).map(([reason, count]) => ({ reason, count })),
       };
       setResult(finalResult);
       setStep(5);
