@@ -282,7 +282,15 @@ export default function OperationsCrm() {
                   )}
                 </div>
                 <div className="px-2 pb-2 space-y-2 min-h-[100px]">
-                  {items.map((l) => (
+                  {items.map((l) => {
+                    const calc = computeServiceCalc(l);
+                    let progressLine = "";
+                    if (l.service_status === "active") progressLine = `Active · ${calc.activeDaysUsed}/${calc.committedDays} days · ${calc.remainingDays} left`;
+                    else if (l.service_status === "paused") progressLine = `Paused · ${calc.pausedDays} paused days · ${calc.remainingDays} left`;
+                    else if (l.service_status === "completed") progressLine = `Completed · ${calc.activeDaysUsed} active days`;
+                    else if (l.service_status === "stopped") progressLine = `Stopped · ${calc.activeDaysUsed}/${calc.committedDays} delivered`;
+                    else progressLine = `Not started · ${calc.committedDays} days committed`;
+                    return (
                     <div
                       key={l.id}
                       draggable
@@ -302,15 +310,17 @@ export default function OperationsCrm() {
                         <div className="text-[10px] text-muted-foreground truncate">
                           {l.assigned_media_buyer_name || "Unassigned"}
                         </div>
-                        {l.service_months && (
-                          <div className="text-[10px] text-muted-foreground flex-shrink-0">{l.service_months}m</div>
+                        {l.service_package_name && (
+                          <div className="text-[10px] text-muted-foreground flex-shrink-0 truncate max-w-[120px]" title={l.service_package_name}>{l.service_package_name}</div>
                         )}
                       </div>
+                      <div className="text-[10px] text-foreground/80 truncate mt-1">{progressLine}</div>
                       {l.batch_name && (
                         <div className="text-[10px] text-muted-foreground truncate mt-0.5 italic">{l.batch_name}</div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                   {items.length === 0 && (
                     <div className="text-[10px] text-muted-foreground text-center py-4">No cards</div>
                   )}
