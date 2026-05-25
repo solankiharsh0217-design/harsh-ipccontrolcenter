@@ -13,9 +13,10 @@ interface Props {
   paidLeadId?: string | null;
   onApplied?: () => void;
   onOpenFollowUp?: () => void;
+  onOpenTokenPayment?: () => void;
 }
 
-export default function SuggestedNextActions({ crmLeadId, paidLeadId, onApplied, onOpenFollowUp }: Props) {
+export default function SuggestedNextActions({ crmLeadId, paidLeadId, onApplied, onOpenFollowUp, onOpenTokenPayment }: Props) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [ignored, setIgnored] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
