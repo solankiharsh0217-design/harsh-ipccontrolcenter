@@ -1671,3 +1671,46 @@ function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight,
   );
 }
 
+function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRestore, onDelete }: {
+  isAdmin: boolean; archived: boolean;
+  onView: () => void; onRename: () => void; onArchive: () => void; onRestore: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const item = (label: React.ReactNode, fn: () => void, accent?: string) => (
+    <button onClick={(e) => { e.stopPropagation(); setOpen(false); fn(); }} className={`w-full text-left px-3 py-1.5 text-[11.5px] hover:bg-off flex items-center gap-2 ${accent || ""}`}>{label}</button>
+  );
+  return (
+    <div ref={ref} className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
+        className="p-1.5 rounded-md text-muted-foreground hover:text-black hover:bg-off text-[14px] leading-none"
+        title="Batch actions" aria-label="Batch actions"
+      >⋯</button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-52 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
+          {item(<><ExternalLink className="w-3 h-3" /> View leads</>, onView)}
+          {!archived && item(<><Pencil className="w-3 h-3" /> Rename batch</>, onRename)}
+          <div className="h-px bg-line my-1" />
+          {!archived
+            ? item(<><Archive className="w-3 h-3" /> Archive batch</>, onArchive, "text-[#92400E]")
+            : item(<><RotateCcw className="w-3 h-3" /> Restore batch</>, onRestore, "text-[#15803D]")
+          }
+          {isAdmin && (
+            <>
+              <div className="h-px bg-line my-1" />
+              {item(<><Trash2 className="w-3 h-3" /> Permanent delete</>, onDelete, "text-[#DC2626]")}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
