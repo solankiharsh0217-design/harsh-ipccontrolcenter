@@ -796,8 +796,15 @@ export default function Crm() {
           }))}
           sourceStages={pipelineStages.map((s) => ({ id: s.id, name: s.name }))}
           preSelectedIds={Array.from(selectedIds)}
-          onClose={() => setBulkSendOpsOpen(false)}
-          onDone={() => { setBulkSendOpsOpen(false); clearSelection(); }}
+          prefill={opsBanner ? {
+            serviceDays: opsBanner.rule.default_service_days,
+            packageName: opsBanner.rule.default_service_package,
+            assignMethod: opsBanner.rule.default_assignment_method,
+            singleBuyerId: opsBanner.rule.default_single_buyer_id,
+            duplicateBehavior: opsBanner.rule.duplicate_behavior,
+          } : null}
+          onClose={() => { setBulkSendOpsOpen(false); setOpsBanner(null); }}
+          onDone={() => { setBulkSendOpsOpen(false); clearSelection(); setOpsBanner(null); refreshOpsState(); }}
         />
       )}
       {bulkMoveOpen && (
