@@ -29,8 +29,11 @@ interface OpsLead {
   assigned_media_buyer_name: string | null;
   priority: string | null;
   ad_launch_date: string | null;
+  current_active_start_date: string | null;
   total_active_days: number;
   total_paused_days: number;
+  last_paused_at: string | null;
+  last_resumed_at: string | null;
   service_end_target_date: string | null;
   crm_lead_id: string | null;
   paid_pipeline_lead_id: string | null;
