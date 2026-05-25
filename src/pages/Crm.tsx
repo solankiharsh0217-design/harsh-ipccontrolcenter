@@ -609,13 +609,13 @@ export default function Crm() {
             <button onClick={() => setView("stages")} className={`px-2.5 py-1 rounded-md text-[11px] flex items-center gap-1 ${view === "stages" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><Settings2 className="w-3 h-3" /> Stages</button>
           </div>
 
-          {(view === "kanban" || view === "list") && (
+          {(view === "kanban" || view === "list" || view === "batches") && (
             <div className="relative flex-1 min-w-[200px] max-w-[320px]">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name, phone, email…"
+                placeholder={view === "batches" ? "Search batches or leads…" : "Search name, phone, email…"}
                 className="ipc-input !h-9 !text-xs !pl-7 w-full"
               />
               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">⌕</span>
