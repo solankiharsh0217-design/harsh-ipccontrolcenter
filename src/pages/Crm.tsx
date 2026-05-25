@@ -807,6 +807,21 @@ export default function Crm() {
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <div className="text-xs text-muted-foreground">{items.length}</div>
+                        <input
+                          type="checkbox"
+                          checked={items.length > 0 && items.every((l) => selectedIds.has(l.id))}
+                          onChange={(e) => {
+                            const ids = items.map((l) => l.id);
+                            setSelectedIds((p) => {
+                              const n = new Set(p);
+                              if (e.target.checked) ids.forEach((id) => n.add(id));
+                              else ids.forEach((id) => n.delete(id));
+                              return n;
+                            });
+                          }}
+                          title="Select all in stage"
+                          className="w-3.5 h-3.5 cursor-pointer accent-black"
+                        />
                         <StageHeaderMenu
                           stage={s}
                           idx={idx}
