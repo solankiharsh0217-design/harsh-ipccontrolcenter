@@ -118,9 +118,7 @@ Deno.serve(async (req) => {
     if (!templateRow.email_subject || !templateRow.email_body) {
       return fail('TEMPLATE_MISSING_EMAIL_BODY', 'Template is missing email subject or body.');
     }
-    if (!templateRow.from_email) {
-      return fail('MISSING_FROM_EMAIL', 'Template has no From email configured.');
-    }
+    // from_email/from_name resolution happens later (template > secret > error)
 
     // Find or reuse request (skip for test sends)
     if (!is_test) {
