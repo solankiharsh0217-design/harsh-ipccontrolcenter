@@ -60,13 +60,17 @@ export default function Team() {
   const [editEligibility, setEditEligibility] = useState<EligibilityFlags>(emptyEligibility());
   const [saving, setSaving] = useState(false);
 
+  const [filter, setFilter] = useState<"active" | "deactivated" | "all">("active");
+  const [actionModal, setActionModal] = useState<{ action: "deactivate" | "remove_access" | "restore" | "delete"; member: Member } | null>(null);
+
   const load = async () => {
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department, email").eq("status","active").order("full_name");
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department, email, deactivated_at, deactivation_reason").neq("status","pending").order("full_name");
     const { data: logs } = await supabase.from("attendance_logs").select("user_id, login_time").order("login_time", { ascending: false });
     const lastByUser = new Map<string, string>();
     logs?.forEach(l => { if (!lastByUser.has(l.user_id)) lastByUser.set(l.user_id, l.login_time); });
-    setMembers((profiles ?? []).map(p => ({ ...p, last_login: lastByUser.get(p.id) ?? null })));
+    setMembers((profiles ?? []).map((p: any) => ({ ...p, last_login: lastByUser.get(p.id) ?? null })));
   };
+
 
   useEffect(() => { load(); }, []);
 
