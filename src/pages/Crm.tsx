@@ -279,10 +279,19 @@ export default function Crm() {
     }
     return { all: batchesWithType.length, unpaid, paid, custom };
   }, [batchesWithType]);
-  const visibleBatches = useMemo(
-    () => batchPipelineFilter === "all" ? batchesWithType : batchesWithType.filter((b) => b.pipelineType === batchPipelineFilter),
-    [batchesWithType, batchPipelineFilter]
-  );
+  const visibleBatches = useMemo(() => {
+    let list = batchPipelineFilter === "all" ? batchesWithType : batchesWithType.filter((b) => b.pipelineType === batchPipelineFilter);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const matchingKeys = new Set<string>();
+      for (const l of leads) {
+        const hay = [l.full_name, l.phone, l.email, l.program_name, l.webinar_source].filter(Boolean).join(" ").toLowerCase();
+        if (hay.includes(q)) matchingKeys.add(`${l.webinar_source || "—"}__${l.webinar_date || ""}`);
+      }
+      list = list.filter((b) => b.name.toLowerCase().includes(q) || matchingKeys.has(b.key));
+    }
+    return list;
+  }, [batchesWithType, batchPipelineFilter, searchQuery, leads]);
 
 
   type BatchCategory = "all" | "super-hot" | "hot" | "warm" | "cold" | "absentees";
@@ -600,13 +609,13 @@ export default function Crm() {
             <button onClick={() => setView("stages")} className={`px-2.5 py-1 rounded-md text-[11px] flex items-center gap-1 ${view === "stages" ? "bg-black text-white" : "text-muted-foreground hover:text-black"}`}><Settings2 className="w-3 h-3" /> Stages</button>
           </div>
 
-          {(view === "kanban" || view === "list") && (
+          {(view === "kanban" || view === "list" || view === "batches") && (
             <div className="relative flex-1 min-w-[200px] max-w-[320px]">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name, phone, email…"
+                placeholder={view === "batches" ? "Search batches or leads…" : "Search name, phone, email…"}
                 className="ipc-input !h-9 !text-xs !pl-7 w-full"
               />
               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">⌕</span>
@@ -715,6 +724,11 @@ export default function Crm() {
       {(view === "kanban" || view === "list") && (
         <div className="text-[11px] text-muted-foreground mb-2">
           Showing <span className="font-medium text-foreground">{pipelineLeads.length}</span> of <span className="font-medium text-foreground">{leads.filter((l) => l.pipeline_id === activePipeline).length}</span> leads
+        </div>
+      )}
+      {view === "batches" && (
+        <div className="text-[11px] text-muted-foreground mb-2">
+          Showing <span className="font-medium text-foreground">{visibleBatches.length}</span> of <span className="font-medium text-foreground">{batchesWithType.length}</span> batches
         </div>
       )}
 
