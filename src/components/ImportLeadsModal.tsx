@@ -274,11 +274,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             invalid,
             existingByEmail,
           });
-          // If every duplicate is only in the archive, recommend "Import as new active lead"
-          // so a fresh re-import after a batch reset is not silently blocked.
-          if (dupCount > 0 && archivedDupCount === dupCount) {
-            setDuplicatePolicy("new_only");
-          }
+          // NOTE: We intentionally do NOT auto-switch the duplicate policy here.
+          // Previously this forced "new_only" when all dups were archived, which
+          // silently skipped archived rows the user wanted to restore via "move".
         }
       } finally {
         if (!cancelled) setPreflightLoading(false);
