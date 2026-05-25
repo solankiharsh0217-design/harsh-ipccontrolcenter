@@ -5247,6 +5247,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_hard_wipe_all_lead_data: {
+        Args: { _dry_run?: boolean }
+        Returns: Json
+      }
       admin_wipe_demo_lead_data: { Args: { _dry_run?: boolean }; Returns: Json }
       has_role: {
         Args: {
