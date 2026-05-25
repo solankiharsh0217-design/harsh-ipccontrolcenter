@@ -1243,6 +1243,34 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             </div>
           </Section>
 
+          {/* 3b. Linked Calling CRM Stage */}
+          {lead.crm_lead_id && (
+            <Section title="Linked Calling CRM Stage">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="qsi-label">Current CRM stage</label>
+                  <select
+                    className="qsi-input"
+                    value={crmStageId || ""}
+                    onChange={(e) => changeCrmStage(e.target.value)}
+                  >
+                    <option value="">— Select stage —</option>
+                    {crmStages
+                      .filter(s => !crmPipelineId || s.pipeline_id === crmPipelineId)
+                      .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <Link
+                  to={`/crm?lead=${lead.crm_lead_id}`}
+                  className="ipc-btn ipc-btn-ghost !h-9 whitespace-nowrap mt-5"
+                >Open in CRM</Link>
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-2">
+                Changes here update the linked Calling CRM lead's stage. Operations handoff rules still apply.
+              </div>
+            </Section>
+          )}
+
           {/* 4. Batch information — read-only by default */}
           <Section title="Batch information">
             {!editBatch ? (
