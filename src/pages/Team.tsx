@@ -367,6 +367,7 @@ export default function Team() {
                   ["can_receive_follow_up_tasks", "Can receive Follow-Up tasks"],
                   ["can_receive_payment_recovery_leads", "Can receive Payment Recovery leads"],
                   ["can_receive_media_buyer_cases", "Can receive Media Buyer cases"],
+                  ["can_receive_operations_leads", "Can receive Operations CRM leads"],
                   ["include_in_round_robin", "Include in Round Robin"],
                 ] as [keyof EligibilityFlags, string][]).map(([key, label]) => (
                   <label key={key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editEligibility[key] ? "bg-off border-line" : "border-line hover:bg-off"}`}>
