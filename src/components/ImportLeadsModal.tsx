@@ -904,19 +904,100 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             </div>
 
             <div>
-              <label className="form-label">Assignment (applies to new leads only)</label>
-              <select className="ipc-input" value={assignment} onChange={(e) => setAssignment(e.target.value as any)}>
-                <option value="unassigned">Leave unassigned</option>
-                <option value="round_robin">Round-robin to all agents ({agents.length})</option>
-                <option value="hot_to_top">Hot + Super Hot to top 2 agents only</option>
+              <label className="form-label">Assignment (applies to all imported leads)</label>
+              <select className="ipc-input" value={assignment} onChange={(e) => setAssignment(e.target.value as AssignmentMode)}>
+                <option value="unassigned">Keep unassigned</option>
+                <option value="assign_to_me">Assign all to me{profile?.full_name ? ` (${profile.full_name})` : ""}</option>
+                <option value="assign_to_member" disabled={agents.length === 0}>Assign all to selected team member…</option>
+                <option value="round_robin" disabled={agents.length === 0}>Round-robin among eligible sales team ({agents.length})</option>
+                <option value="hot_to_top" disabled={agents.length === 0}>Hot + Super Hot to top 2 agents only</option>
               </select>
+              {assignment === "assign_to_member" && (
+                <select
+                  className="ipc-input mt-2"
+                  value={selectedAssigneeId}
+                  onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                >
+                  <option value="">— pick a team member —</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>{a.full_name}{a.role ? ` · ${a.role}` : ""}</option>
+                  ))}
+                </select>
+              )}
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Eligible list = active members with “Can receive Calling CRM leads”. Round-robin requires “Include in round-robin” too.
+              </p>
             </div>
 
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(3)} className="ipc-btn ipc-btn-ghost">Back</button>
-              <button onClick={importNow} disabled={importing || preflightLoading || targetMismatch || (resolvedTarget.isNew && !newPipeName.trim())} className="ipc-btn ipc-btn-black disabled:opacity-50">
+              <button
+                onClick={importNow}
+                disabled={
+                  importing || preflightLoading || targetMismatch ||
+                  (resolvedTarget.isNew && !newPipeName.trim()) ||
+                  (assignment === "assign_to_member" && !selectedAssigneeId)
+                }
+                className="ipc-btn ipc-btn-black disabled:opacity-50"
+              >
                 {importing ? "Importing…" : `Import ${validRows} rows`}
               </button>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && result && (
+          <div className="p-6 space-y-4">
+            <div className="flex items-start gap-3 p-4 rounded-lg border border-emerald-200 bg-emerald-50">
+              <CheckCircle2 className="w-5 h-5 text-emerald-700 mt-0.5" />
+              <div className="text-sm">
+                <div className="font-medium text-emerald-900">Import complete</div>
+                <div className="text-emerald-800/80 text-xs mt-0.5">
+                  Batch <b>"{result.batchName}"</b> → {result.pipelineName} ({result.pipelineType})
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm p-4 rounded-lg border border-line">
+              <div className="uppercase-label col-span-2 mb-1">Calling CRM</div>
+              <div><span className="text-muted-foreground">Total rows processed:</span> <b>{result.newImported + result.updated + result.moved + result.skippedDuplicates + result.failed}</b></div>
+              <div><span className="text-muted-foreground">Created (new):</span> <b className="text-emerald-700">{result.newImported}</b></div>
+              <div><span className="text-muted-foreground">Moved:</span> <b>{result.moved}</b></div>
+              <div><span className="text-muted-foreground">Updated:</span> <b>{result.updated}</b></div>
+              <div><span className="text-muted-foreground">Restored from archive:</span> <b>{result.restored}</b></div>
+              <div><span className="text-muted-foreground">Skipped duplicates:</span> <b className="text-amber-700">{result.skippedDuplicates}</b></div>
+              <div><span className="text-muted-foreground">Failed:</span> <b className={result.failed ? "text-red-700" : ""}>{result.failed}</b></div>
+            </div>
+
+            {result.pipelineType === "paid" && (
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm p-4 rounded-lg border border-line">
+                <div className="uppercase-label col-span-2 mb-1">Paid Pipeline sync</div>
+                <div><span className="text-muted-foreground">Created in Paid Pipeline:</span> <b className="text-emerald-700">{result.paidCreated}</b></div>
+                <div><span className="text-muted-foreground">Linked to existing buyer:</span> <b>{result.paidLinked}</b></div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Unlinked (CRM leads with no Paid Pipeline row):</span>{" "}
+                  <b className={result.paidUnlinked > 0 ? "text-amber-700" : "text-emerald-700"}>{result.paidUnlinked}</b>
+                </div>
+                {result.paidUnlinked > 0 && (
+                  <div className="col-span-2 flex items-start gap-2 mt-1 p-2.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5" />
+                    <span>Some paid CRM leads are not linked to Paid Pipeline. Re-running the import will retry the link/backfill.</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {result.errors.length > 0 && (
+              <details className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs">
+                <summary className="cursor-pointer font-medium text-red-800">Errors ({result.errors.length})</summary>
+                <ul className="list-disc pl-4 mt-2 space-y-0.5 text-red-700">
+                  {result.errors.slice(0, 10).map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              </details>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button onClick={() => onDone(result)} className="ipc-btn ipc-btn-black">Done</button>
             </div>
           </div>
         )}
