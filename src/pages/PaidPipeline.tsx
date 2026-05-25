@@ -1233,7 +1233,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-full max-w-[720px] bg-white overflow-y-auto pb-32 relative">
+      <div className="w-full max-w-[720px] bg-white overflow-y-auto pb-44 relative">
         <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b border-line flex justify-between items-start">
           <div>
             <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
@@ -1323,8 +1323,6 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           {(() => {
             const current = crmStages.find(s => s.id === crmStageId) || null;
             const chip = current ? stageChip(current.name, current.color) : null;
-            const filtered = crmStages
-              .filter(s => !crmStageSearch.trim() || s.name.toLowerCase().includes(crmStageSearch.trim().toLowerCase()));
             return (
               <div className="rounded-xl border border-[#C7D2FE] bg-gradient-to-br from-[#EEF2FF] to-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
@@ -1357,56 +1355,18 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
                     ) : (
                       <span className="px-2.5 py-1 rounded-full text-xs bg-off border border-line">—</span>
                     )}
-                    <Popover open={crmPickerOpen} onOpenChange={(v) => { setCrmPickerOpen(v); if (!v) setCrmStageSearch(""); }}>
-                      <PopoverTrigger asChild>
-                        <button className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-black text-white hover:opacity-90">
-                          Change Stage
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" side="bottom" sideOffset={6} collisionPadding={16} className="z-[1100] w-[320px] p-0 bg-white border border-line rounded-md shadow-lg overflow-hidden">
-                        <div className="px-3 py-2 border-b border-line">
-                          <div className="text-[11px] font-semibold uppercase tracking-wider mb-1.5">Change CRM Stage <span className="text-muted-foreground font-normal">({crmStages.length})</span></div>
-                          <input autoFocus value={crmStageSearch} onChange={(e) => setCrmStageSearch(e.target.value)} placeholder="Search stages…" className="w-full text-xs outline-none bg-transparent" />
-                        </div>
-                        <div className="max-h-[260px] overflow-y-auto">
-                          {filtered.length === 0 && <div className="px-3 py-4 text-[12px] text-muted-foreground">No stages found.</div>}
-                          {filtered.map((s) => {
-                            const ch = stageChip(s.name, s.color);
-                            const isCurrent = s.id === crmStageId;
-                            return (
-                              <div key={s.id} className={`group flex items-center hover:bg-off ${isCurrent ? "bg-off" : ""}`}>
-                                <button onClick={() => changeCrmStage(s.id)} className="flex-1 flex items-center gap-2 text-left px-3 py-2 text-xs">
-                                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: ch.dot }} />
-                                  <span className={`flex-1 truncate ${isCurrent ? "font-medium" : ""}`}>{s.name}</span>
-                                  {isCurrent && <span className="text-[10px] text-muted-foreground">current</span>}
-                                </button>
-                                {!isCurrent && (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); deleteCrmStageInline({ id: s.id, name: s.name }); }}
-                                    className="opacity-0 group-hover:opacity-100 px-2 py-2 text-muted-foreground hover:text-[#DC2626]"
-                                    title="Delete or deactivate stage"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="border-t border-line p-2 flex items-center gap-1.5">
-                          <input
-                            value={newCrmStageName}
-                            onChange={(e) => setNewCrmStageName(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") addCrmStageInline(); }}
-                            placeholder="+ Add new CRM stage…"
-                            className="ipc-input !h-8 !text-xs flex-1"
-                          />
-                          <button disabled={addingStage} onClick={addCrmStageInline} className="ipc-btn ipc-btn-black !h-8 !text-xs">
-                            {addingStage ? "Adding…" : "Add"}
-                          </button>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <CrmStagePicker
+                      stages={crmStages}
+                      currentStageId={crmStageId}
+                      open={crmPickerOpen}
+                      onOpenChange={(v) => { setCrmPickerOpen(v); if (!v) setNewCrmStageName(""); }}
+                      newStageName={newCrmStageName}
+                      onNewStageNameChange={setNewCrmStageName}
+                      onChangeStage={changeCrmStage}
+                      onAddStage={addCrmStageInline}
+                      onDeleteStage={deleteCrmStageInline}
+                      addingStage={addingStage}
+                    />
                   </div>
                 )}
                 <div className="text-[11px] text-muted-foreground mt-2">
@@ -1445,6 +1405,8 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
                   crmLeadId={lead.crm_lead_id || null}
                   leadName={lead.name || undefined}
                   defaultPriority={temperature || "Normal"}
+                  ownerId={lead.assigned_sales_executive || user?.id || null}
+                  source="paid_pipeline_drawer"
                   onSaved={() => { loadInner(); onChanged(); }}
                 />
               </div>
