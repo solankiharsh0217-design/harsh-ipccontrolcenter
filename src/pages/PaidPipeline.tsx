@@ -915,12 +915,18 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [financeNotes, setFinanceNotes] = useState(lead.finance_notes || "");
   const [financeFu, setFinanceFu] = useState(lead.finance_follow_up_date || "");
   const [openPay, setOpenPay] = useState(false);
+  const [payPrefill, setPayPrefill] = useState<any | null>(null);
+  const [payHeaderNote, setPayHeaderNote] = useState<string | undefined>(undefined);
+  const [postPayAction, setPostPayAction] = useState<null | "setTokenPaid">(null);
   const [openFu, setOpenFu] = useState(false);
   const [openFin, setOpenFin] = useState(false);
   const [editBatch, setEditBatch] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedTpl, setCopiedTpl] = useState<string | null>(null);
+  const [crmStages, setCrmStages] = useState<{ id: string; name: string; pipeline_id: string | null }[]>([]);
+  const [crmStageId, setCrmStageId] = useState<string | null>(null);
+  const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
@@ -929,8 +935,113 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     ]);
     setPayments((p as any) || []);
     setActivity((a as any) || []);
+    if (lead.crm_lead_id) {
+      const [{ data: crmLead }, { data: stagesData }] = await Promise.all([
+        supabase.from("leads").select("id, stage_id, pipeline_id").eq("id", lead.crm_lead_id).maybeSingle(),
+        supabase.from("stages").select("id, name, pipeline_id").order("sort_order", { ascending: true }),
+      ]);
+      setCrmStageId((crmLead as any)?.stage_id || null);
+      setCrmPipelineId((crmLead as any)?.pipeline_id || null);
+      setCrmStages((stagesData as any) || []);
+    }
   };
   useEffect(() => { loadInner(); }, [lead.id]);
+
+  const hasToken = Number(lead.token_amount_collected || 0) > 0 ||
+    payments.some((p: any) => p.is_token || /token/i.test(p.payment_type || "") || /token/i.test(p.payment_category || ""));
+  const lastPaymentDate = payments[0]?.payment_date || null;
+
+  const openTokenPayment = () => {
+    setPayPrefill({ type: "First Token", category: "Token Amount", description: "Token payment", isToken: true });
+    setPayHeaderNote("Please record the token amount before moving this buyer to Token Paid.");
+    setPostPayAction("setTokenPaid");
+    setOpenPay(true);
+  };
+  const openAddPayment = () => {
+    setPayPrefill(null);
+    setPayHeaderNote(undefined);
+    setPostPayAction(null);
+    setOpenPay(true);
+  };
+  const openRecordTokenSimple = () => {
+    setPayPrefill({ type: "First Token", category: "Token Amount", description: "Token payment", isToken: true });
+    setPayHeaderNote(undefined);
+    setPostPayAction(null);
+    setOpenPay(true);
+  };
+
+  const handlePaymentSaved = async () => {
+    await loadInner();
+    if (postPayAction === "setTokenPaid") {
+      await supabase.from("paid_pipeline_leads").update({ pipeline_stage: "Token Paid" } as any).eq("id", lead.id);
+      setStage("Token Paid");
+      await recomputePaidLead(lead.id);
+      logActivity({
+        module_key: "paid_pipeline", module_label: "Paid Pipeline",
+        action_type: "paid_pipeline_stage_changed", action_label: "Stage changed via suggestion",
+        entity_type: "paid_pipeline_lead", entity_id: lead.id, entity_label: lead.name || undefined,
+        old_values: { pipeline_stage: lead.pipeline_stage },
+        new_values: { pipeline_stage: "Token Paid" },
+        metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, source: "suggested_action" },
+        summary: `Paid Pipeline stage set to 'Token Paid' after token recorded.`,
+      });
+      toast.success("Token recorded and stage set to Token Paid");
+    }
+    setPostPayAction(null);
+    onChanged();
+  };
+
+  const changePaidStage = async (newStage: string) => {
+    if (!newStage || newStage === stage) { setStage(newStage); return; }
+    const tokenMissing = /token paid/i.test(newStage) && !hasToken;
+    if (tokenMissing) {
+      const ok = confirm("Token amount is not recorded. Move stage to 'Token Paid' anyway?");
+      if (!ok) return;
+      logActivity({
+        module_key: "paid_pipeline", module_label: "Paid Pipeline",
+        action_type: "paid_pipeline_stage_change_without_payment_confirmed",
+        entity_type: "paid_pipeline_lead", entity_id: lead.id, entity_label: lead.name || undefined,
+        metadata: { paid_pipeline_lead_id: lead.id, attempted_stage: newStage },
+        severity: "warning",
+        summary: `User moved to '${newStage}' without recorded token.`,
+      });
+    }
+    const oldStage = stage;
+    setStage(newStage);
+    await supabase.from("paid_pipeline_leads").update({ pipeline_stage: newStage } as any).eq("id", lead.id);
+    await recomputePaidLead(lead.id);
+    logActivity({
+      module_key: "paid_pipeline", module_label: "Paid Pipeline",
+      action_type: "paid_pipeline_stage_changed", action_label: "Stage changed",
+      entity_type: "paid_pipeline_lead", entity_id: lead.id, entity_label: lead.name || undefined,
+      old_values: { pipeline_stage: oldStage },
+      new_values: { pipeline_stage: newStage },
+      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id },
+      summary: `Paid Pipeline stage changed from '${oldStage || "—"}' to '${newStage}'.`,
+    });
+    toast.success(`Stage → ${newStage}`);
+    onChanged();
+  };
+
+  const changeCrmStage = async (newStageId: string) => {
+    if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) return;
+    const oldName = crmStages.find(s => s.id === crmStageId)?.name || "—";
+    const newName = crmStages.find(s => s.id === newStageId)?.name || "—";
+    setCrmStageId(newStageId);
+    await supabase.from("leads").update({ stage_id: newStageId }).eq("id", lead.crm_lead_id);
+    logActivity({
+      module_key: "paid_pipeline", module_label: "Paid Pipeline",
+      action_type: "linked_crm_stage_changed_from_paid_pipeline",
+      entity_type: "lead", entity_id: lead.crm_lead_id, entity_label: lead.name || undefined,
+      old_values: { stage: oldName },
+      new_values: { stage: newName },
+      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id },
+      summary: `Linked CRM stage changed from '${oldName}' to '${newName}' from Paid Pipeline drawer.`,
+    });
+    toast.success(`CRM stage → ${newName}`);
+    onChanged();
+  };
+
 
   const save = async (patch: Partial<Lead>) => {
     await supabase.from("paid_pipeline_leads").update(patch as any).eq("id", lead.id);
@@ -993,7 +1104,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               <button onClick={() => setOpenFin(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#15803D] text-white hover:opacity-90">
                 Update Finance
               </button>
-              <button onClick={() => setOpenPay(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+              <button onClick={openAddPayment} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
                 + Add Payment
               </button>
               <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
@@ -1020,6 +1131,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             crmLeadId={lead.crm_lead_id || null}
             onApplied={() => { loadInner(); onChanged(); }}
             onOpenFollowUp={() => setOpenFu(true)}
+            onOpenTokenPayment={openTokenPayment}
           />
         </div>
 
@@ -1036,6 +1148,33 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               <Field label="To be realized" value={inr(lead.revenue_to_be_realized ?? lead.balance_pending)} />
             </div>
           </Section>
+
+          {/* 1b. Token / Payment Recording */}
+          <Section title="Token / Payment Recording">
+            <div className="grid grid-cols-4 gap-2 mb-3">
+              <Field label="Token collected" value={inr(lead.token_amount_collected)} tone={hasToken ? "green" : undefined} />
+              <Field label="Total collected" value={inr(lead.total_collected)} tone={Number(lead.total_collected) > 0 ? "green" : undefined} />
+              <Field label="Balance pending" value={inr(lead.balance_pending)} tone={Number(lead.balance_pending) > 0 ? "amber" : "green"} />
+              <Field label="Last payment" value={lastPaymentDate ? fmtDate(lastPaymentDate) : "—"} />
+            </div>
+            {!hasToken ? (
+              <div className="rounded-md border border-[#F5D78A] bg-gold-pale px-3 py-2.5 flex items-center justify-between gap-3">
+                <div className="text-[12.5px]">
+                  <div className="font-medium">No token recorded yet</div>
+                  <div className="text-[11.5px] text-muted-foreground">Record the token payment before moving this buyer to Token Paid.</div>
+                </div>
+                <button onClick={openRecordTokenSimple} className="ipc-btn ipc-btn-black !h-9 whitespace-nowrap">Record Token Payment</button>
+              </div>
+            ) : (
+              <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] px-3 py-2.5 flex items-center justify-between gap-3">
+                <div className="text-[12.5px] text-[#15803D]">
+                  Token recorded: <b>{inr(lead.token_amount_collected)}</b>
+                </div>
+                <button onClick={openAddPayment} className="ipc-btn ipc-btn-ghost !h-9 whitespace-nowrap">+ Add Another Payment</button>
+              </div>
+            )}
+          </Section>
+
 
           {/* 2. Next action / Follow-up — unified, high in drawer */}
           <Section title="Next action · Follow-up">
@@ -1079,7 +1218,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="qsi-label">Pipeline stage</label>
-                <InlineManagedSelect settingType="pipeline_stage" value={stage} onChange={setStage} width="100%"
+                <InlineManagedSelect settingType="pipeline_stage" value={stage} onChange={(v) => changePaidStage(v)} width="100%"
                   triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
               </div>
               <div>
@@ -1103,6 +1242,34 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               </div>
             </div>
           </Section>
+
+          {/* 3b. Linked Calling CRM Stage */}
+          {lead.crm_lead_id && (
+            <Section title="Linked Calling CRM Stage">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="qsi-label">Current CRM stage</label>
+                  <select
+                    className="qsi-input"
+                    value={crmStageId || ""}
+                    onChange={(e) => changeCrmStage(e.target.value)}
+                  >
+                    <option value="">— Select stage —</option>
+                    {crmStages
+                      .filter(s => !crmPipelineId || s.pipeline_id === crmPipelineId)
+                      .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <Link
+                  to={`/crm?lead=${lead.crm_lead_id}`}
+                  className="ipc-btn ipc-btn-ghost !h-9 whitespace-nowrap mt-5"
+                >Open in CRM</Link>
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-2">
+                Changes here update the linked Calling CRM lead's stage. Operations handoff rules still apply.
+              </div>
+            </Section>
+          )}
 
           {/* 4. Batch information — read-only by default */}
           <Section title="Batch information">
@@ -1246,7 +1413,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
         </div>
       </div>
 
-      {openPay && <QuickAddPaymentModal leadId={lead.id} leadName={lead.name || undefined} onClose={() => setOpenPay(false)} onSaved={() => { loadInner(); onChanged(); }} />}
+      {openPay && <QuickAddPaymentModal leadId={lead.id} leadName={lead.name || undefined} prefill={payPrefill || undefined} headerNote={payHeaderNote} onClose={() => { setOpenPay(false); setPostPayAction(null); }} onSaved={handlePaymentSaved} />}
       {openFu && <QuickFollowUpModal leadId={lead.id} leadName={lead.name || undefined} crmLeadId={lead.crm_lead_id || null} defaults={{ priority: temperature || "Normal" }} onClose={() => setOpenFu(false)} onSaved={() => { loadInner(); onChanged(); }} />}
       {openFin && <QuickFinanceModal lead={lead as any} onClose={() => setOpenFin(false)} onSaved={() => { loadInner(); onChanged(); }} />}
     </div>

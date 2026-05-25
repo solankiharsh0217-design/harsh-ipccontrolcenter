@@ -77,12 +77,16 @@ export function computeSuggestions(ctx: SuggestionContext, rules: SyncRule[]): S
 
   // 1. CRM = Payment Confirmed → Paid pipeline_stage = Token Paid
   if (paid && crmStageName && norm(crmStageName) === "payment confirmed" && norm(paid.pipeline_stage) !== "token paid") {
+    const hasToken = Number(paid.token_amount_collected || 0) > 0 || Number(paid.total_collected || 0) > 0;
     out.push({
       id: "crm-pay-confirmed-to-token-paid",
-      title: "Set Paid Pipeline stage to 'Token Paid'",
-      reason: "CRM stage is 'Payment Confirmed' and a Paid Pipeline record exists.",
-      confirm: "Move this Paid Pipeline lead to stage 'Token Paid'?",
+      title: hasToken ? "Set Paid Pipeline stage to 'Token Paid'" : "Record token payment and set stage to 'Token Paid'",
+      reason: hasToken
+        ? "CRM stage is 'Payment Confirmed' and a Paid Pipeline record exists."
+        : "CRM stage is 'Payment Confirmed' but no token payment is recorded yet.",
+      confirm: hasToken ? "Move this Paid Pipeline lead to stage 'Token Paid'?" : undefined,
       apply: async () => {
+        if (!hasToken) return "OPEN_TOKEN_PAYMENT";
         await setPaidField(ctx, { pipeline_stage: "Token Paid" }, "stage → Token Paid");
         return "Paid Pipeline stage set to Token Paid";
       },

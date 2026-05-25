@@ -13,25 +13,47 @@ const PAYMENT_TYPES = [
 const PAYMENT_MODES = ["UPI","Bank Transfer","Cash","Card","Razorpay","Finance Partner","Other"];
 
 export default function QuickAddPaymentModal({
-  leadId, leadName, onClose, onSaved,
-}: { leadId: string; leadName?: string; onClose: () => void; onSaved: () => void }) {
+  leadId, leadName, onClose, onSaved, prefill, headerNote,
+}: {
+  leadId: string;
+  leadName?: string;
+  onClose: () => void;
+  onSaved: () => void;
+  prefill?: { type?: string; category?: string; amount?: number; description?: string; isToken?: boolean; mode?: string };
+  headerNote?: string;
+}) {
   const { user } = useAuth();
-  const [category, setCategory] = useState("Token Amount");
-  const [type, setType] = useState("First Token");
-  const [amount, setAmount] = useState<number>(0);
+  const [category, setCategory] = useState(prefill?.category || "Token Amount");
+  const [type, setType] = useState(prefill?.type || "First Token");
+  const [amount, setAmount] = useState<number>(prefill?.amount || 0);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [mode, setMode] = useState("UPI");
+  const [mode, setMode] = useState(prefill?.mode || "UPI");
   const [financePartner, setFinancePartner] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(prefill?.description || "");
   const [reference, setReference] = useState("");
   const [nextDate, setNextDate] = useState("");
-  const [isToken, setIsToken] = useState(true);
+  const [isToken, setIsToken] = useState(prefill?.isToken ?? true);
   const [isFinal, setIsFinal] = useState(false);
   const [financeLinked, setFinanceLinked] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
     if (!amount || amount <= 0) { toast.error("Amount required"); return; }
+    const isTokenPayment = isToken || /token/i.test(type) || /token/i.test(category);
+    if (isTokenPayment) {
+      const { data: existing } = await supabase
+        .from("paid_pipeline_payments")
+        .select("id, amount, payment_type, payment_category, is_token")
+        .eq("paid_pipeline_lead_id", leadId)
+        .eq("is_deleted", false);
+      const hasToken = ((existing as any[]) || []).some(p =>
+        p.is_token || /token/i.test(p.payment_type || "") || /token/i.test(p.payment_category || "")
+      );
+      if (hasToken) {
+        const ok = confirm("A token payment already exists for this buyer. Add another token payment?\n\nClick Cancel to go back and change the payment type to Balance Payment instead.");
+        if (!ok) return;
+      }
+    }
     setBusy(true);
     try {
       const { error } = await supabase.from("paid_pipeline_payments").insert({
@@ -88,6 +110,7 @@ export default function QuickAddPaymentModal({
         <div className="px-6 py-4 border-b border-line sticky top-0 bg-white z-10">
           <div className="font-serif text-[20px]">Add payment</div>
           {leadName && <div className="text-[12px] text-muted-foreground mt-0.5">{leadName}</div>}
+          {headerNote && <div className="mt-2 text-[12px] rounded-md bg-gold-pale border border-[#F5D78A] px-2.5 py-1.5 text-foreground">{headerNote}</div>}
         </div>
         <div className="p-6 space-y-3">
           <div className="grid grid-cols-2 gap-3">
