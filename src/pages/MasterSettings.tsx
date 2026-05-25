@@ -45,6 +45,7 @@ const SECTIONS = [
   { key: "payments", label: "Payment Settings" },
   { key: "paid_pipeline", label: "Paid Pipeline" },
   { key: "calling_crm", label: "Calling CRM" },
+  { key: "operations_handoff", label: "Operations Handoff Rules" },
   { key: "followup", label: "Follow-Up" },
   { key: "recovery", label: "Payment Recovery" },
   { key: "finance", label: "Finance / EMI" },
