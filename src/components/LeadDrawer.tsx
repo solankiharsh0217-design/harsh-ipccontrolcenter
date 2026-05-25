@@ -31,7 +31,7 @@ const channelStyle: Record<string, string> = {
 };
 
 export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged, onStageChanged }: Props) {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -46,6 +46,12 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
   const [extraOpen, setExtraOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveLinks, setArchiveLinks] = useState<{ paid: number; ops: number } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteBlocked, setDeleteBlocked] = useState<string | null>(null);
   const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, { id: s.id, name: s.name }])), [stages]);
 
 
