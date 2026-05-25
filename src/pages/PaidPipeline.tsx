@@ -1527,9 +1527,15 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
         </div>
 
         {/* Sticky footer */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex justify-end gap-2">
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-line px-6 py-3 flex justify-end gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Close</button>
-          <button onClick={saveAll} className="ipc-btn ipc-btn-black">Save</button>
+          <button onClick={saveAll} className="ipc-btn ipc-btn-ghost">Save</button>
+          <button
+            onClick={async () => { await saveAll(); onClose(); }}
+            className="ipc-btn !bg-[#16A34A] hover:!bg-[#15803D] !text-white"
+          >
+            Save & Close
+          </button>
         </div>
       </div>
 
