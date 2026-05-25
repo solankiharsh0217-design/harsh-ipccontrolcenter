@@ -419,7 +419,17 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
-              <span className="px-2.5 py-1 rounded-full text-xs bg-off border border-line font-medium">{currentStage?.name || "—"}</span>
+              {(() => {
+                const ch = stageChip(currentStage?.name, (currentStage as any)?.color);
+                return currentStage ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border" style={{ background: ch.bg, color: ch.text, borderColor: ch.border }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: ch.dot }} />
+                    {currentStage.name}
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-full text-xs bg-off border border-line">—</span>
+                );
+              })()}
             </div>
 
             {/* Operations handoff suggestion */}
