@@ -10,7 +10,22 @@ async function sha256(s: string) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function publicRequestPayload(r: any, t: any) {
+function extractBucketPath(publicOrAnyUrl: string | null): string | null {
+  if (!publicOrAnyUrl) return null;
+  // Matches both .../object/public/code-of-conduct/<path> and .../object/sign/code-of-conduct/<path>
+  const m = publicOrAnyUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/code-of-conduct\/([^?]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+async function resolvePdfUrl(admin: any, rawUrl: string | null): Promise<string | null> {
+  if (!rawUrl) return null;
+  const path = extractBucketPath(rawUrl);
+  if (!path) return rawUrl; // external URL, return as-is
+  const { data } = await admin.storage.from('code-of-conduct').createSignedUrl(path, 60 * 60); // 1h
+  return data?.signedUrl || null;
+}
+
+function publicRequestPayload(r: any, t: any, signedPdfUrl: string | null) {
   return {
     request: {
       id: r.id,
@@ -29,7 +44,7 @@ function publicRequestPayload(r: any, t: any) {
       program_name: t.program_name,
       version: t.version,
       party_a_name: t.party_a_name,
-      template_pdf_url: t.template_pdf_url,
+      template_pdf_url: signedPdfUrl,
       html_content: t.html_content,
       success_page_message: t.success_page_message,
     } : null,
@@ -85,7 +100,8 @@ Deno.serve(async (req) => {
         reqRow.status = 'viewed';
         reqRow.viewed_at = now;
       }
-      return new Response(JSON.stringify(publicRequestPayload(reqRow, tpl)), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+      return new Response(JSON.stringify(publicRequestPayload(reqRow, tpl, signedPdf)), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (action === 'whatsapp_click') {
@@ -99,7 +115,8 @@ Deno.serve(async (req) => {
 
     // action === 'sign'
     if (reqRow.status === 'signed') {
-      return new Response(JSON.stringify({ ok: true, already_signed: true, ...publicRequestPayload(reqRow, tpl) }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+      return new Response(JSON.stringify({ ok: true, already_signed: true, ...publicRequestPayload(reqRow, tpl, signedPdf) }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { signature_name, signature_data_url, acknowledgements } = body;
