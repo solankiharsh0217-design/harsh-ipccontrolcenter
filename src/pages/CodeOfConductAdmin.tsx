@@ -2,9 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
-import { toast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import CodeOfConductRulesTab from "@/components/admin/CodeOfConductRulesTab";
+
+const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
+  if (variant === "destructive") sonnerToast.error(title, { description });
+  else sonnerToast.success(title, { description });
+};
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft", ready_to_send: "Ready", sent: "Sent", viewed: "Viewed",
@@ -67,6 +72,10 @@ export default function CodeOfConductAdmin() {
   const [diag, setDiag] = useState<any>(null);
   const [diagLoading, setDiagLoading] = useState(false);
   const [lastTestResult, setLastTestResult] = useState<{ ok: boolean; message?: string; provider_message_id?: string | null; sent_at?: string | null; error_code?: string } | null>(null);
+  const [savedEmailFlash, setSavedEmailFlash] = useState(false);
+  const [savedTemplateFlash, setSavedTemplateFlash] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({});
 
   const loadTpl = async () => {
     const { data } = await (supabase as any).from("code_of_conduct_templates").select("*").eq("is_active", true).order("created_at", { ascending: false }).limit(1);
@@ -161,6 +170,7 @@ export default function CodeOfConductAdmin() {
 
   const saveEmailSettings = async (): Promise<boolean> => {
     if (savingTpl) return false;
+    setSaveError(null);
     if (!validateEmailSettings()) {
       toast({ title: "Please fix the highlighted email fields", variant: "destructive" });
       return false;
@@ -169,12 +179,15 @@ export default function CodeOfConductAdmin() {
     try {
       const res = await persistTpl();
       if (!res.ok) {
+        setSaveError(res.error || "Email settings failed to save");
         toast({ title: "Email settings failed to save", description: res.error, variant: "destructive" });
         return false;
       }
       if (res.row) setTpl(res.row);
       setLastSavedAt(new Date().toISOString());
-      toast({ title: "Email settings saved successfully" });
+      setSavedEmailFlash(true);
+      toast({ title: "Saved successfully", description: "Email settings are ready for testing." });
+      window.setTimeout(() => setSavedEmailFlash(false), 2000);
       await loadDiag();
       return true;
     } finally { setSavingTpl(false); }
@@ -182,6 +195,7 @@ export default function CodeOfConductAdmin() {
 
   const saveTpl = async (silent = false) => {
     if (savingTpl) return false;
+    setSaveError(null);
     if (!validate()) {
       if (!silent) toast({ title: "Please fix missing fields", description: "Required fields are highlighted in red.", variant: "destructive" });
       return false;
@@ -190,12 +204,15 @@ export default function CodeOfConductAdmin() {
     try {
       const res = await persistTpl();
       if (!res.ok) {
+        setSaveError(res.error || "Template failed to save");
         toast({ title: "Save failed", description: res.error, variant: "destructive" });
         return false;
       }
       if (res.row) setTpl(res.row);
       setLastSavedAt(new Date().toISOString());
-      toast({ title: silent ? "Email settings saved" : "Code of Conduct template saved" });
+      setSavedTemplateFlash(true);
+      toast({ title: "Saved successfully", description: silent ? "Email settings were saved." : "Code of Conduct template was saved." });
+      window.setTimeout(() => setSavedTemplateFlash(false), 2000);
       await loadDiag();
       return true;
     } finally { setSavingTpl(false); }
@@ -276,6 +293,30 @@ export default function CodeOfConductAdmin() {
     } catch (e: any) {
       toast({ title: "Resend failed", description: e?.message, variant: "destructive" });
     } finally { setRetryingId(null); }
+  };
+
+  const copySigningLink = async (r: any) => {
+    try {
+      const existing = generatedLinks[r.id];
+      if (existing) {
+        await navigator.clipboard.writeText(existing);
+        toast({ title: "Signing link copied" });
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("send-code-of-conduct-email", {
+        body: { action: "generate_signing_link", request_id: r.id, origin: window.location.origin },
+      });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error(`[${(data as any).error_code}] ${(data as any).message}`);
+      const link = (data as any)?.signing_url;
+      if (!link) throw new Error("No signing link returned");
+      setGeneratedLinks((prev) => ({ ...prev, [r.id]: link }));
+      await navigator.clipboard.writeText(link);
+      toast({ title: "Signing link copied", description: "A fresh token was generated for this request." });
+      await loadRequests();
+    } catch (e: any) {
+      toast({ title: "Copy link failed", description: e?.message || "Unknown error", variant: "destructive" });
+    }
   };
 
   const filtered = filter === "all"
@@ -363,8 +404,9 @@ export default function CodeOfConductAdmin() {
 
             <div className="flex items-center justify-end gap-3 pt-2">
               {lastSavedAt && <span className="text-[11.5px] text-muted-foreground">Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
-              <button onClick={saveEmailSettings} disabled={savingTpl} className="ipc-btn ipc-btn-black">{savingTpl ? "Saving…" : "Save Email Settings"}</button>
+              <button onClick={saveEmailSettings} disabled={savingTpl} className={`ipc-btn ${savedEmailFlash ? "bg-[hsl(var(--success))] text-primary-foreground" : "ipc-btn-black"}`}>{savingTpl ? "Saving..." : savedEmailFlash ? "Saved ✓" : "Save Email Settings"}</button>
             </div>
+            {saveError && <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">Save failed: {saveError}</div>}
           </div>
 
 
@@ -454,10 +496,11 @@ export default function CodeOfConductAdmin() {
 
           <div className="flex items-center justify-end gap-3 pt-2">
             {lastSavedAt && <span className="text-[11.5px] text-muted-foreground">Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
-            <button onClick={() => saveTpl()} disabled={savingTpl} className="ipc-btn ipc-btn-black">
-              {savingTpl ? "Saving…" : "Save Template"}
+            <button onClick={() => saveTpl()} disabled={savingTpl} className={`ipc-btn ${savedTemplateFlash ? "bg-[hsl(var(--success))] text-primary-foreground" : "ipc-btn-black"}`}>
+              {savingTpl ? "Saving..." : savedTemplateFlash ? "Saved ✓" : "Save Template"}
             </button>
           </div>
+          {saveError && <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">Save failed: {saveError}</div>}
         </div>
       )}
 
@@ -475,25 +518,29 @@ export default function CodeOfConductAdmin() {
             <table className="w-full text-[12.5px]">
               <thead className="text-left text-muted-foreground border-b border-line">
                 <tr>
+                  <th className="py-2 pr-3 font-medium">Request ID</th>
                   <th className="py-2 pr-3 font-medium">Member</th>
                   <th className="py-2 pr-3 font-medium">Email</th>
-                  <th className="py-2 pr-3 font-medium">Phone</th>
                   <th className="py-2 pr-3 font-medium">Program</th>
                   <th className="py-2 pr-3 font-medium">Status</th>
                   <th className="py-2 pr-3 font-medium">Sent</th>
                   <th className="py-2 pr-3 font-medium">Viewed</th>
                   <th className="py-2 pr-3 font-medium">Signed</th>
-                  <th className="py-2 pr-3 font-medium">Error</th>
+                  <th className="py-2 pr-3 font-medium">Token expires</th>
+                  <th className="py-2 pr-3 font-medium">Active token</th>
+                  <th className="py-2 pr-3 font-medium">Last error</th>
                   <th className="py-2 pr-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 && <tr><td colSpan={10} className="py-6 text-center text-muted-foreground">No requests.</td></tr>}
-                {filtered.map((r) => (
+                {filtered.length === 0 && <tr><td colSpan={12} className="py-6 text-center text-muted-foreground">No requests.</td></tr>}
+                {filtered.map((r) => {
+                  const hasActiveToken = !!r.token_hash && !!r.token_expires_at && new Date(r.token_expires_at) > new Date() && !["cancelled", "expired"].includes(r.status);
+                  return (
                   <tr key={r.id} className="border-b border-line/50 align-top">
-                    <td className="py-2 pr-3">{r.member_name}</td>
+                    <td className="py-2 pr-3"><code className="text-[11px]">{r.id}</code></td>
+                    <td className="py-2 pr-3 min-w-[140px]">{r.member_name}</td>
                     <td className="py-2 pr-3 text-muted-foreground">{r.member_email}</td>
-                    <td className="py-2 pr-3 text-muted-foreground">{r.member_phone || "—"}</td>
                     <td className="py-2 pr-3 text-muted-foreground">{r.program_name || "—"}</td>
                     <td className="py-2 pr-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10.5px] font-medium border ${r.last_email_error_code ? "bg-rose-50 text-rose-700 border-rose-200" : r.status === "signed" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : r.status === "sent" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
@@ -503,10 +550,13 @@ export default function CodeOfConductAdmin() {
                     <td className="py-2 pr-3 text-muted-foreground">{r.sent_at ? new Date(r.sent_at).toLocaleString() : "—"}</td>
                     <td className="py-2 pr-3 text-muted-foreground">{r.viewed_at ? new Date(r.viewed_at).toLocaleString() : "—"}</td>
                     <td className="py-2 pr-3 text-muted-foreground">{r.signed_at ? new Date(r.signed_at).toLocaleString() : "—"}</td>
+                    <td className="py-2 pr-3 text-muted-foreground">{r.token_expires_at ? new Date(r.token_expires_at).toLocaleString() : "—"}</td>
+                    <td className="py-2 pr-3"><span className={hasActiveToken ? "text-emerald-700" : "text-muted-foreground"}>{hasActiveToken ? "Yes" : "No"}</span></td>
                     <td className="py-2 pr-3 text-rose-600 max-w-[220px] truncate" title={r.last_email_error || ""}>{r.last_email_error_code ? `[${r.last_email_error_code}] ${r.last_email_error || ""}` : "—"}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">
                       <div className="flex gap-1.5 flex-wrap">
                         <button onClick={() => retrySend(r)} disabled={retryingId === r.id} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">{retryingId === r.id ? "Sending…" : (r.sent_at ? "Resend" : "Send")}</button>
+                        <button onClick={() => copySigningLink(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Copy Signing Link</button>
                         <button onClick={() => openEvents(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Events</button>
                         {r.paid_pipeline_lead_id ? <Link to={`/paid-pipeline?lead=${r.paid_pipeline_lead_id}`} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-blue-700">Open Lead</Link>
                           : r.crm_lead_id ? <Link to={`/crm?lead=${r.crm_lead_id}`} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-blue-700">Open Lead</Link>
@@ -514,7 +564,8 @@ export default function CodeOfConductAdmin() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

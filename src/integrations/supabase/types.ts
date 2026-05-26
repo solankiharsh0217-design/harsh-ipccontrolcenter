@@ -666,7 +666,7 @@ export type Database = {
           event_type: string
           id: string
           metadata: Json | null
-          request_id: string
+          request_id: string | null
         }
         Insert: {
           created_at?: string
@@ -674,7 +674,7 @@ export type Database = {
           event_type: string
           id?: string
           metadata?: Json | null
-          request_id: string
+          request_id?: string | null
         }
         Update: {
           created_at?: string
@@ -682,7 +682,7 @@ export type Database = {
           event_type?: string
           id?: string
           metadata?: Json | null
-          request_id?: string
+          request_id?: string | null
         }
         Relationships: [
           {
