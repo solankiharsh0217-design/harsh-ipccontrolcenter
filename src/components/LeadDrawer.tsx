@@ -19,6 +19,8 @@ import { recomputePaidLead } from "@/lib/paidPipeline";
 import { logActivity as auditLog } from "@/lib/auditLog";
 import { stageChip } from "@/lib/stageColors";
 import CrmStagePicker from "@/components/crm/CrmStagePicker";
+import CodeOfConductCard from "@/components/crm/CodeOfConductCard";
+
 
 interface Props {
   leadId: string;
@@ -464,6 +466,20 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             )}
           </div>
         </div>
+
+        <CodeOfConductCard
+          crmLeadId={lead.id}
+          paidLeadId={(lead as any).paid_pipeline_lead_id || null}
+          pipelineId={lead.pipeline_id}
+          stageId={lead.stage_id}
+          memberName={lead.full_name || "Member"}
+          memberEmail={lead.email}
+          memberPhone={lead.phone}
+          programName={lead.program_name}
+          dealValue={lead.deal_value}
+        />
+
+
 
         {/* Next Follow-up — high-visibility, daily-use card (moved up) */}
         <div className="px-6 py-4 border-b border-line">

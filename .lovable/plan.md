@@ -1,175 +1,67 @@
-## Code of Conduct — Signed Evidence System (P0)
+# Phase 1.1 — Code of Conduct Stage-Trigger Automation
 
-This plan delivers retrievable proof of signed Code of Conduct in 11 parts. No stage-trigger automation, no payment/CRM/Ops changes.
+Much of the foundation already exists: the `code_of_conduct_rules` table, the Admin "Trigger Rules" UI (`CodeOfConductRulesTab`), the runtime evaluator `evaluateStageTrigger()`, and one wiring point in the CRM Lead Drawer. This plan finishes the remaining gaps so the feature ships end-to-end without disturbing the working signed-PDF flow.
 
----
+## Scope (only)
+- Wire the existing evaluator into every stage-change path (CRM kanban DnD, CRM bulk move, Paid Pipeline drawer CRM-stage change, Paid Pipeline pipeline-stage change).
+- Show CoC status in the CRM Lead Drawer + small chips on CRM kanban cards.
+- Sync signed status across CRM + Paid Pipeline + apply tag + optional stage move + notifications when a lead signs.
+- Persist "suggestion ignored" state per (lead, rule).
+- Admin Requests filters: status, trigger type, rule, pipeline, stage.
+- Audit events for every runtime action.
 
-### 1. Database migration (new columns + storage bucket)
+## Out of scope
+Payments, follow-ups, imports, Operations rewards, LMS automation, signed-PDF generation logic, Team Directory, hard wipe.
 
-`code_of_conduct_templates`:
-- `html_content` (text) — already exists; ensure used as primary doc body
-- `default_html_template` (text) — auto-generated Diamond Membership default
-- `signed_copy_recipient_emails` (text[]) — archive emails
-- `send_signed_copy_to_member` (boolean default true)
+## What's already done (reused as-is)
+- `code_of_conduct_rules` table + `CodeOfConductRulesTab` admin UI (Part 1 ✓)
+- `evaluateStageTrigger` / `findMatchingRule` / `logManualSendEvent` (Part 2 ✓)
+- LeadDrawer (CRM) calls evaluator on dropdown stage change ✓
+- `CodeOfConductPanel` on Paid Pipeline drawer ✓
+- Signed PDF generation, evidence appendix, email links ✓
 
-`code_of_conduct_requests`:
-- `signed_receipt_url` (text)
-- `signed_pdf_url` (text)
-- `signed_html_url` (text)
-- `signed_receipt_generated_at` (timestamptz)
-- `admin_copy_email_sent_at` (timestamptz)
-- `member_copy_email_sent_at` (timestamptz)
-- `corrected_contact_email` (text) — post-sign corrections only
-- `email_change_history` (jsonb) — array of {old, new, reason, at, by}
-- `signed_member_email` (text) — immutable copy of email used at signing
-- `signed_member_name` (text) — immutable copy
+## Implementation
 
-New storage bucket: `signed-code-of-conduct` (private). RLS:
-- Admins SELECT/INSERT/UPDATE
-- Public can read via signed URLs only (no public policy)
+### 1. New DB pieces (one migration)
+- `code_of_conduct_suggestion_ignores` (request_id nullable, crm_lead_id nullable, paid_pipeline_lead_id nullable, rule_id, stage_id, ignored_by, ignored_at) — admin/active-user insert; admin select.
+- Add columns on `leads` and `paid_pipeline_leads`: `coc_status text`, `coc_request_id uuid`, `coc_signed_at timestamptz` (denormalised cache for fast chip rendering; updated by triggers/edge function).
+- Trigger on `code_of_conduct_requests` AFTER UPDATE to mirror status → both leads tables, apply configured tag, optional stage move, fire notifications.
 
-New event types added to allowed list via no constraint change (events table is open text).
+### 2. Runtime evaluator integration
+- `src/pages/Crm.tsx` line ~398: after kanban drop stage update → call `evaluateStageTrigger({source:"crm"...})` and toast.
+- `src/pages/Crm.tsx` line ~928: bulk stage update → loop minimal evaluator (skip if same stage) with throttle, surface summary toast.
+- `src/pages/PaidPipeline.tsx` line ~1061 (CRM stage change from paid drawer) → evaluator with `source:"paid_pipeline"`.
+- `src/pages/PaidPipeline.tsx` pipeline_stage change (line ~1038) → already linked through CRM stage; no extra trigger needed.
 
----
+### 3. CRM Lead Drawer — CoC card
+New component `src/components/crm/CodeOfConductCard.tsx`:
+- Loads matched rule + latest request for the lead.
+- Renders one of 8 states (Not Required / Required / Suggested / Sent / Viewed / Signed / Expired / Failed) with the buttons specified.
+- Reuses `send-code-of-conduct-email` + `code-of-conduct-public` edge functions; reuses `ensureSignedPdf` pattern.
+- "Ignore" inserts into `code_of_conduct_suggestion_ignores`; Suggested banner suppressed until rule/stage changes.
+- Mounted in `LeadDrawer.tsx` between activity and follow-ups.
 
-### 2. Public Signing Page (`/code-of-conduct/sign/:token`)
+### 4. CRM Kanban chips
+- Read `coc_status` denorm column on lead cards in `Crm.tsx`; render a small pill (`CoC Signed` green, `CoC Sent`/`Viewed` blue, `Required`/`Expired` amber/red, `Failed` red) only when the value is set.
 
-Replace the embedded-PDF feel with a Google Docs-style layout:
+### 5. Paid Pipeline drawer improvements
+- `CodeOfConductPanel.tsx`: display matched rule name + trigger reason + suggested/auto-sent badge using `code_of_conduct_events`. Show "Code of Conduct Signed — ready for Diamond access review" banner when signed.
 
-```
-┌──────────────────────────────────────┐
-│  [IPC Logo]   Diamond Membership     │
-│  Code of Conduct                     │
-│  Member: Jane Doe • jane@x.com       │
-├──────────────────────────────────────┤
-│                                      │
-│   [Rendered html_content]            │
-│   ─ sections, headings, paragraphs ─ │
-│                                      │
-│   [Reference: View / Download PDF]   │
-│                                      │
-├──────────────────────────────────────┤
-│  Acknowledgements (4 checkboxes)     │
-│  Typed Name: [______]                │
-│  Signature: [canvas pad]             │
-│  [ Submit Acknowledgement ]          │
-└──────────────────────────────────────┘
-```
+### 6. After-signing automation
+Implemented in the DB trigger described above (runs with definer rights so it can touch leads/notifications/tags safely). Events written: `code_of_conduct_signed_status_synced`, `code_of_conduct_signed_tag_applied`, `code_of_conduct_signed_stage_updated`, `code_of_conduct_signed_notification_sent`.
 
-- HTML content sanitized via DOMPurify before render
-- If only PDF: show preview card with View/Download buttons + optional inline iframe below the fold
-- Sticky bottom signature section on mobile
-- Uses semantic tokens (no hardcoded colors)
+### 7. Admin Requests filters
+- `CodeOfConductAdmin.tsx` Requests tab: add filter chips/selects for status, trigger source (manual/auto/suggested), rule, pipeline, stage. All client-side filtering over the already-loaded list to avoid query rewrites.
 
----
+### 8. Audit events
+All evaluator branches and trigger actions write to `code_of_conduct_events`; `logManualSendEvent` is already wired for manual sends.
 
-### 3. Admin Template Editor (HTML body + recipients)
+## Files touched
+- New: `supabase/migrations/<ts>_coc_stage_triggers.sql`, `src/components/crm/CodeOfConductCard.tsx`
+- Edited: `src/pages/Crm.tsx`, `src/pages/PaidPipeline.tsx`, `src/components/LeadDrawer.tsx`, `src/components/paid-pipeline/CodeOfConductPanel.tsx`, `src/pages/CodeOfConductAdmin.tsx`
 
-In `CodeOfConductAdmin.tsx` → Templates tab:
-- Textarea for `html_content` (Agreement HTML Body) with "Generate Default Agreement Text" button populating a structured Diamond Membership template
-- Tags input for `signed_copy_recipient_emails`
-- Toggle for `send_signed_copy_to_member`
-
----
-
-### 4. Signed Receipt Generation (HTML-first, PDF via pdf-lib)
-
-In `code-of-conduct-public/index.ts` after successful sign:
-1. Build receipt HTML (server-side string template) with all evidence fields
-2. Upload HTML to `signed-code-of-conduct/{request_id}/signed-receipt.html`
-3. Generate PDF using `pdf-lib` (npm: `pdf-lib`) — text + embedded signature PNG
-4. Upload PDF to `signed-code-of-conduct/{request_id}/signed-receipt.pdf`
-5. Update request with `signed_pdf_url`, `signed_html_url`, `signed_receipt_url`, `signed_receipt_generated_at`
-6. Log events: `signed_receipt_generation_started`, `signed_receipt_generated` (or `_failed`)
-
-Receipt contains: title, template name+version, program, Party A, member name/email/phone, lead IDs, request ID, signed_at, typed name, signature image, IP, UA, acknowledgement checklist (✓ items), template PDF URL, WhatsApp clicked Y/N, immutable footer.
-
----
-
-### 5. Email Delivery via Resend
-
-After receipt generation, invoke a new edge function `send-coc-signed-copy`:
-- Sends to all `signed_copy_recipient_emails` (admin/archive)
-- Sends to `signed_member_email` if `send_signed_copy_to_member`
-- Subject + body per spec; includes signed link (signed URL valid 7d) and PDF link
-- Uses RESEND_API_KEY / EMAIL_FROM_*
-- Updates `admin_copy_email_sent_at`, `member_copy_email_sent_at`
-- Logs events `signed_copy_email_sent_to_admin/_member` or `_failed_*`
-
-PDF attached if size < 5MB (Resend supports attachments).
-
----
-
-### 6. Admin/Drawer UI for signed copy
-
-**Paid Pipeline drawer `CodeOfConductPanel.tsx`** (when signed):
-- Status row + Signed at + Signed by + email used
-- Buttons: View Signed Copy, Download Signed Copy, Copy Link, Send Copy to Member, Send Copy to Admin
-- Edit Member Email button (modal)
-
-**`CodeOfConductAdmin.tsx` Requests tab**:
-- Per-row dropdown: View Signed Record, View/Download Signed Copy, Send Copy Email, Copy Link, Open Paid Pipeline Lead, Change Email & Resend
-- "View Signed Record" drawer shows full evidence (signature image, all metadata, event timeline)
-
----
-
-### 7. Email Correction Flow
-
-New modal `EditMemberEmailModal.tsx`:
-- Inputs: new email, reason
-- Validates email format
-- Calls edge function `coc-update-email` (new):
-  - If status ∈ {sent, viewed, expired}: updates `member_email`, cancels old token (status='cancelled' or new token issued), generates new signing link if "resend" chosen, logs `code_of_conduct_email_updated_and_resent` + `_old_token_cancelled_after_email_change`
-  - If signed: refuses to mutate `signed_member_email`; sets `corrected_contact_email` only, appends to `email_change_history`, logs `code_of_conduct_member_email_updated`
-  - Also updates `paid_pipeline_leads.email` / `leads.email` when admin opts in
-
----
-
-### 8. Immutability
-
-Send edge function: snapshot `signed_member_email`, `signed_member_name` at sign time (filled in DB during sign action). Post-sign update path never touches these or signature fields.
-
----
-
-### 9. Public Success Page
-
-After sign, show:
-- ✓ "Your Code of Conduct has been acknowledged successfully."
-- Signed at timestamp
-- Button: Join Diamond Members WhatsApp Group (only if signed + URL configured)
-- Button: Download Your Acknowledgement Copy (signed PDF URL)
-- Note text per spec
-
----
-
-### 10. Event log additions
-
-All emitted from edge functions; rendered in existing events drawer.
-
----
-
-### Technical Files Touched
-
-**Migration**: 1 new migration (columns + storage bucket + RLS)
-**Edge functions**:
-- `code-of-conduct-public/index.ts` — receipt generation hook
-- `send-coc-signed-copy/index.ts` — new
-- `coc-update-email/index.ts` — new
-
-**Frontend**:
-- `src/pages/CodeOfConductSign.tsx` — doc-style redesign
-- `src/pages/CodeOfConductAdmin.tsx` — HTML body field, recipients, request actions, signed record drawer
-- `src/components/paid-pipeline/CodeOfConductPanel.tsx` — signed-copy actions, edit email
-- `src/components/paid-pipeline/EditMemberEmailModal.tsx` — new
-- `src/components/admin/SignedRecordDrawer.tsx` — new
-- `src/lib/codeOfConductDefaults.ts` — default agreement HTML template
-
-**Deps**: add `pdf-lib`, `dompurify`, `@types/dompurify`
-
----
-
-### Out of scope (will not touch)
-
-Stage-trigger automation, payments, import, follow-ups, Team Directory, Operations CRM, hard wipe, AI Insights.
-
-Reply **"go"** to start with the migration, or specify any tweaks (e.g. skip PDF and ship HTML-only receipt first).
+## Risk controls
+- Evaluator already has duplicate-protection (existing active request guard).
+- Bulk move throttles to avoid email storms (sequential, max 25/batch).
+- DB trigger is idempotent (only acts when status transitions to `signed` and not already synced).
+- No changes to signed-PDF generation, RLS on private bucket, or public token logic.

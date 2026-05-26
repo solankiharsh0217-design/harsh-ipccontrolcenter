@@ -190,6 +190,33 @@ export default function Crm() {
     }
   };
 
+  /** Evaluate Code of Conduct trigger rules for a CRM stage change. */
+  const evaluateCoCForLeads = async (leadIds: string[], pipelineId: string | null, newStageId: string | null) => {
+    if (!pipelineId || !newStageId) return;
+    try {
+      const { evaluateStageTrigger } = await import("@/lib/codeOfConductRules");
+      let autoSent = 0, suggested = 0, failed = 0;
+      for (const id of leadIds) {
+        const l = leads.find((x) => x.id === id);
+        if (!l) continue;
+        const res = await evaluateStageTrigger({
+          source: "crm", pipelineId, stageId: newStageId, crmLeadId: id,
+          memberName: l.full_name || "Member", memberEmail: l.email, memberPhone: l.phone,
+          programName: (l as any).program_name, dealValue: (l as any).deal_value,
+        });
+        if (res.action === "auto_sent") autoSent++;
+        else if (res.action === "suggested") suggested++;
+        else if (res.action === "auto_send_failed" || res.action === "missing_email") failed++;
+      }
+      if (autoSent) toast.success(`Code of Conduct auto-sent to ${autoSent} lead${autoSent === 1 ? "" : "s"}`);
+      if (suggested && leadIds.length === 1) toast.message("Code of Conduct suggested for this stage");
+      else if (suggested) toast.message(`Code of Conduct suggested for ${suggested} lead${suggested === 1 ? "" : "s"}`);
+      if (failed) toast.error(`Code of Conduct auto-send failed for ${failed} lead${failed === 1 ? "" : "s"}`);
+    } catch (e) { console.warn("[crm] evaluateCoCForLeads crashed", e); }
+  };
+
+
+
 
   const handleImportDone = async (result?: ImportResult) => {
     setImportOpen(false);
@@ -408,7 +435,9 @@ export default function Crm() {
     if (oldStageId !== stageId) {
       const lead2 = leads.find((l) => l.id === id);
       evaluateHandoffForLeads([id], lead2?.pipeline_id ?? activePipeline, stageId).catch(() => {});
+      evaluateCoCForLeads([id], lead2?.pipeline_id ?? activePipeline, stageId).catch(() => {});
     }
+
   };
 
   const createPipeline = async () => {
@@ -940,6 +969,8 @@ export default function Crm() {
                   setBulkMoveStageId("");
                   clearSelection();
                   evaluateHandoffForLeads(ids, activePipeline, stageId).catch(() => {});
+                  evaluateCoCForLeads(ids, activePipeline, stageId).catch(() => {});
+
                 }}
                 className="ipc-btn ipc-btn-black !h-9 !text-xs disabled:opacity-50"
               >Move</button>
@@ -1245,9 +1276,26 @@ export default function Crm() {
                                   </div>
                                 )}
                                 <div className="flex items-center justify-between mt-2 gap-2">
-                                  <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
+                                    {(() => {
+                                      const cs = (l as any).code_of_conduct_status as string | null;
+                                      if (!cs) return null;
+                                      const map: Record<string, { l: string; cls: string }> = {
+                                        signed: { l: "CoC Signed", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                                        sent: { l: "CoC Sent", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+                                        viewed: { l: "CoC Viewed", cls: "bg-violet-50 text-violet-700 border-violet-200" },
+                                        expired: { l: "CoC Expired", cls: "bg-rose-50 text-rose-700 border-rose-200" },
+                                        failed: { l: "CoC Failed", cls: "bg-rose-50 text-rose-700 border-rose-200" },
+                                        required: { l: "CoC Required", cls: "bg-amber-50 text-amber-800 border-amber-200" },
+                                      };
+                                      const m = map[cs]; if (!m) return null;
+                                      return <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-medium border ${m.cls}`}>{m.l}</span>;
+                                    })()}
+                                  </div>
                                   {ag && <div className="w-5 h-5 rounded-full bg-black text-gold font-serif text-[9px] flex items-center justify-center" title={ag.full_name}>{ag.full_name.slice(0,1)}</div>}
                                 </div>
+
                               </div>
                             </div>
 
