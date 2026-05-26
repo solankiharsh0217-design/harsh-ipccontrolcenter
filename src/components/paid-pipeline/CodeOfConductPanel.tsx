@@ -190,7 +190,8 @@ export default function CodeOfConductPanel(props: Props) {
   const load = async () => {
     setLoading(true);
     let q = (supabase as any).from("code_of_conduct_requests").select("*").order("created_at", { ascending: false }).limit(1);
-    if (paidLeadId) q = q.eq("paid_pipeline_lead_id", paidLeadId);
+    if (paidLeadId && crmLeadId) q = q.or(`paid_pipeline_lead_id.eq.${paidLeadId},crm_lead_id.eq.${crmLeadId}`);
+    else if (paidLeadId) q = q.eq("paid_pipeline_lead_id", paidLeadId);
     else if (crmLeadId) q = q.eq("crm_lead_id", crmLeadId);
     else { setLoading(false); return; }
     const { data } = await q;
