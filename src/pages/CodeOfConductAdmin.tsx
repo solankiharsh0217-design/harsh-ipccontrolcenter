@@ -603,7 +603,7 @@ export default function CodeOfConductAdmin() {
 
           <div className="flex items-center justify-end gap-3 pt-2">
             {lastSavedAt && <span className="text-[11.5px] text-muted-foreground">Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
-            <button onClick={() => saveTpl()} disabled={savingTpl} className={`ipc-btn ${savedTemplateFlash ? "bg-[hsl(var(--success))] text-primary-foreground" : "ipc-btn-black"}`}>
+            <button onClick={() => { if (applyArchiveRecipients()) saveTpl(); }} disabled={savingTpl} className={`ipc-btn ${savedTemplateFlash ? "bg-[hsl(var(--success))] text-primary-foreground" : "ipc-btn-black"}`}>
               {savingTpl ? "Saving..." : savedTemplateFlash ? "Saved ✓" : "Save Template"}
             </button>
           </div>
