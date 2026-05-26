@@ -328,12 +328,12 @@ export default function CodeOfConductAdmin() {
             <SectionLabel>Email Sending Setup</SectionLabel>
             <div className="text-[12.5px] text-muted-foreground -mt-2">Tell members who the email comes from. The API key stays in backend secrets — never entered here.</div>
             <Grid>
-              <Field label="Sender email (must be verified in your email provider)" error={errors.from_email}>
-                <Input value={tpl.from_email || ""} onChange={(v) => setTpl({ ...tpl, from_email: v })} placeholder="team@yourdomain.com" />
-                <div className="text-[10.5px] text-muted-foreground mt-1">Use the verified domain in your Resend account. <code>onboarding@resend.dev</code> only delivers to your Resend account owner.</div>
+              <Field label="Sender email override (leave blank to use EMAIL_FROM_ADDRESS secret)" error={errors.from_email}>
+                <Input value={tpl.from_email || ""} onChange={(v) => setTpl({ ...tpl, from_email: v })} placeholder={diag?.has_email_from_address ? "(using secret)" : "team@yourdomain.com"} />
+                <div className="text-[10.5px] text-muted-foreground mt-1">{diag?.has_email_from_address ? "Backend secret EMAIL_FROM_ADDRESS is set — leave blank to use it." : "No secret set. Use a verified domain in your Resend account."}</div>
               </Field>
-              <Field label="Sender name shown to members" error={errors.from_name}>
-                <Input value={tpl.from_name || ""} onChange={(v) => setTpl({ ...tpl, from_name: v })} placeholder="IPC Control Center" />
+              <Field label="Sender name override (leave blank to use EMAIL_FROM_NAME secret)" error={errors.from_name}>
+                <Input value={tpl.from_name || ""} onChange={(v) => setTpl({ ...tpl, from_name: v })} placeholder={diag?.has_email_from_name ? "(using secret)" : "IPC Control Center"} />
               </Field>
               <Field label="Reply-to email (optional)" error={errors.reply_to_email}>
                 <Input value={tpl.reply_to_email || ""} onChange={(v) => setTpl({ ...tpl, reply_to_email: v })} placeholder="support@yourdomain.com" />
@@ -342,11 +342,27 @@ export default function CodeOfConductAdmin() {
                 <Input value={tpl.test_recipient_email || ""} onChange={(v) => setTpl({ ...tpl, test_recipient_email: v })} placeholder="your-own@email.com" />
               </Field>
             </Grid>
+
+            <div className="border-t border-line pt-4 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <SectionLabel>Email Copy</SectionLabel>
+                <button type="button" onClick={applyDefaultEmailCopy} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Use Default Email Copy</button>
+              </div>
+              <div className="text-[11.5px] text-muted-foreground -mt-2">Supports {"{{member_name}}"}, {"{{program_name}}"}, {"{{signing_link}}"}, {"{{expiry_days}}"}, {"{{expiry_date}}"}, {"{{company_name}}"}, {"{{support_email}}"}.</div>
+              <Field label="Email subject" error={errors.email_subject}>
+                <Input value={tpl.email_subject || ""} onChange={(v) => setTpl({ ...tpl, email_subject: v })} placeholder={DEFAULT_EMAIL_SUBJECT} />
+              </Field>
+              <Field label="Email body" error={errors.email_body}>
+                <TextArea value={tpl.email_body || ""} onChange={(v) => setTpl({ ...tpl, email_body: v })} rows={10} />
+              </Field>
+            </div>
+
             <div className="flex items-center justify-end gap-3 pt-2">
               {lastSavedAt && <span className="text-[11.5px] text-muted-foreground">Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
-              <button onClick={() => saveTpl(true)} disabled={savingTpl} className="ipc-btn ipc-btn-black">{savingTpl ? "Saving…" : "Save Email Settings"}</button>
+              <button onClick={saveEmailSettings} disabled={savingTpl} className="ipc-btn ipc-btn-black">{savingTpl ? "Saving…" : "Save Email Settings"}</button>
             </div>
           </div>
+
 
           <div className="bg-white border border-line rounded-xl p-6 space-y-3">
             <SectionLabel>Email Setup Checklist</SectionLabel>
