@@ -393,9 +393,9 @@ function Row({ k, v }: { k: string; v: string }) {
 }
 
 function SignedMoreMenu(props: {
-  onCopyAdmin: () => void; onCopyMember: () => void;
+  onCopyPdf: () => void; onCopyMember: () => void; onViewReceipt: () => void;
   onSendAdmin: () => void; onSendMember: () => void;
-  onEditEmail: () => void; onRegen: () => void; hasStored: boolean;
+  onEditEmail: () => void; onRegenPdf: () => void; onRegenReceipt: () => void; hasPdf: boolean; hasReceipt: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const close = (fn: () => void) => () => { setOpen(false); fn(); };
@@ -406,13 +406,15 @@ function SignedMoreMenu(props: {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 mt-1 z-50 bg-white border border-line rounded-md shadow-lg w-56 py-1 text-[12.5px]">
-            <MenuItem onClick={close(props.onCopyAdmin)}>Copy Admin Receipt Link</MenuItem>
-            <MenuItem onClick={close(props.onCopyMember)} disabled={!props.hasStored}>Copy Temporary Member Link</MenuItem>
+            <MenuItem onClick={close(props.onCopyPdf)} disabled={!props.hasPdf}>Copy Signed PDF Link</MenuItem>
+            <MenuItem onClick={close(props.onCopyMember)} disabled={!props.hasPdf}>Copy Member PDF Link</MenuItem>
             <div className="border-t border-line my-1" />
-            <MenuItem onClick={close(props.onSendAdmin)}>Send Copy to Admin</MenuItem>
-            <MenuItem onClick={close(props.onSendMember)}>Send Copy to Member</MenuItem>
+            <MenuItem onClick={close(props.onSendAdmin)}>Send Signed PDF to Admin</MenuItem>
+            <MenuItem onClick={close(props.onSendMember)}>Send Signed PDF to Member</MenuItem>
             <div className="border-t border-line my-1" />
-            <MenuItem onClick={close(props.onRegen)}>Regenerate Signed Copy</MenuItem>
+            <MenuItem onClick={close(props.onViewReceipt)} disabled={!props.hasReceipt}>View HTML Receipt</MenuItem>
+            <MenuItem onClick={close(props.onRegenPdf)}>Regenerate Signed PDF</MenuItem>
+            <MenuItem onClick={close(props.onRegenReceipt)}>Regenerate HTML Receipt</MenuItem>
             <MenuItem onClick={close(props.onEditEmail)}>Edit Contact Email</MenuItem>
           </div>
         </>
