@@ -437,8 +437,12 @@ export default function CodeOfConductAdmin() {
             <TextArea value={tpl.success_page_message || ""} onChange={(v) => setTpl({ ...tpl, success_page_message: v })} rows={2} placeholder="Your Code of Conduct has been acknowledged successfully." />
           </Field>
 
-          <SectionLabel>Email Body</SectionLabel>
-          <div className="text-[11.5px] text-muted-foreground -mt-2">Sender email and name are set in the <button onClick={() => setTab("setup")} className="underline">Email Setup</button> tab.</div>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <SectionLabel>Email Body</SectionLabel>
+            <button type="button" onClick={applyDefaultEmailCopy} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Use Default Email Copy</button>
+          </div>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">Sender is set in the <button onClick={() => setTab("setup")} className="underline">Email Setup</button> tab. Body must include {"{{signing_link}}"}.</div>
+
           <Field label="Email subject" error={errors.email_subject}><Input value={tpl.email_subject || ""} onChange={(v) => setTpl({ ...tpl, email_subject: v })} placeholder="Action Required: Sign Your IPC Diamond Membership Code of Conduct" /></Field>
           <Field label="Email body (supports {{member_name}}, {{program_name}}, {{signing_link}}, {{expiry_date}}, {{company_name}})" error={errors.email_body}>
             <TextArea value={tpl.email_body || ""} onChange={(v) => setTpl({ ...tpl, email_body: v })} rows={8} />
