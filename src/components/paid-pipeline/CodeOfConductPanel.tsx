@@ -262,18 +262,21 @@ export default function CodeOfConductPanel(props: Props) {
           <div className="flex flex-wrap gap-2 pt-1">
             {req.status === "signed" ? (
               <>
+                <button onClick={viewSigned} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
                 {(req.signed_html_url || req.signed_receipt_url) ? (
-                  <>
-                    <button onClick={viewSigned} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
-                    <button onClick={downloadSigned} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
-                    <button onClick={copySignedLink} className="ipc-btn ipc-btn-ghost !h-8">Copy Link</button>
-                  </>
+                  <button onClick={downloadSigned} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
                 ) : (
-                  <button onClick={regenReceipt} disabled={busy} className="ipc-btn ipc-btn-black !h-8 disabled:opacity-50">{busy ? "Generating…" : "Generate Signed Copy"}</button>
+                  <button onClick={regenReceipt} disabled={busy} className="ipc-btn ipc-btn-ghost !h-8 disabled:opacity-50">{busy ? "Generating…" : "Generate Signed Copy"}</button>
                 )}
-                <button onClick={() => sendSignedCopy("admin")} className="ipc-btn ipc-btn-ghost !h-8">Send Copy to Admin</button>
-                <button onClick={() => sendSignedCopy("member")} className="ipc-btn ipc-btn-ghost !h-8">Send Copy to Member</button>
-                <button onClick={() => setEditEmailOpen(true)} className="ipc-btn ipc-btn-ghost !h-8">Edit Contact Email</button>
+                <SignedMoreMenu
+                  onCopyAdmin={copyAdminReceiptLink}
+                  onCopyMember={copyMemberReceiptLink}
+                  onSendAdmin={() => sendSignedCopy("admin")}
+                  onSendMember={() => sendSignedCopy("member")}
+                  onEditEmail={() => setEditEmailOpen(true)}
+                  onRegen={regenReceipt}
+                  hasStored={!!(req.signed_html_url || req.signed_receipt_url)}
+                />
               </>
             ) : req.status === "cancelled" || req.status === "expired" ? (
               <>
