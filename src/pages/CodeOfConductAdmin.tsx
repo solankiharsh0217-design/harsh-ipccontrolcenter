@@ -340,38 +340,63 @@ export default function CodeOfConductAdmin() {
   const getReceiptSignedUrl = async (r: any): Promise<string | null> => getStorageSignedUrl(r.signed_html_url || r.signed_receipt_url || null);
   const getPdfSignedUrl = async (r: any): Promise<string | null> => getStorageSignedUrl(r.signed_pdf_url || null);
 
-  const viewSigned = (r: any) => {
-    window.open(`${window.location.origin}/code-of-conduct/signed-pdf/${r.id}`, "_blank");
-    (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_viewed_by_admin" });
+  const ensureSignedPdf = async (r: any): Promise<any> => {
+    if (r.signed_pdf_url) return r;
+    if (r.status !== "signed") throw new Error("Request is not signed yet.");
+    toast({ title: "Generating signed PDF…" });
+    const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_signed_pdf", request_id: r.id } });
+    if (error) throw error;
+    if ((data as any)?.ok === false) throw new Error((data as any).message || "Signed PDF generation failed");
+    const { data: refreshed } = await (supabase as any).from("code_of_conduct_requests").select("*").eq("id", r.id).maybeSingle();
+    if (!refreshed?.signed_pdf_url) throw new Error(refreshed?.signed_pdf_generation_error || "Signed PDF still missing after generation.");
+    loadRequests();
+    return refreshed;
+  };
+
+  const viewSigned = async (r: any) => {
+    try {
+      const fresh = await ensureSignedPdf(r);
+      window.open(`${window.location.origin}/code-of-conduct/signed-pdf/${fresh.id}`, "_blank");
+      (supabase as any).from("code_of_conduct_events").insert({ request_id: fresh.id, event_type: "signed_pdf_viewed_by_admin" });
+    } catch (e: any) {
+      toast({ title: "Signed PDF not available", description: e?.message, variant: "destructive" });
+    }
   };
   const viewReceipt = (r: any) => {
     window.open(`${window.location.origin}/code-of-conduct/receipt/${r.id}`, "_blank");
   };
   const downloadSigned = async (r: any) => {
     try {
-      const u = await getPdfSignedUrl(r);
-      if (!u) { toast({ title: "Signed PDF not available", description: r.signed_pdf_generation_error || undefined, variant: "destructive" }); return; }
+      const fresh = await ensureSignedPdf(r);
+      const u = await getPdfSignedUrl(fresh);
+      if (!u) throw new Error(fresh.signed_pdf_generation_error || "Signed PDF link unavailable.");
       const resp = await fetch(u);
       const blob = new Blob([await resp.blob()], { type: "application/pdf" });
       const dl = URL.createObjectURL(blob);
-      const safeName = (r.signed_member_name || r.member_name || "member").replace(/[^\w-]+/g, "_");
-      const a = document.createElement("a"); a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-${safeName}-${r.id.slice(0,8)}.pdf`; document.body.appendChild(a); a.click(); a.remove();
+      const safeName = (fresh.signed_member_name || fresh.member_name || "member").replace(/[^\w-]+/g, "_");
+      const a = document.createElement("a"); a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-${safeName}-${fresh.id.slice(0,8)}.pdf`; document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(dl);
-      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_downloaded_by_admin" });
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: fresh.id, event_type: "signed_pdf_downloaded_by_admin" });
     } catch (e: any) {
       toast({ title: "Download failed", description: e?.message, variant: "destructive" });
       await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_link_open_failed", metadata: { error: e?.message } });
     }
   };
   const copySignedPdfLink = async (r: any) => {
-    const u = await getPdfSignedUrl(r);
-    if (!u) { toast({ title: "Signed PDF not available", variant: "destructive" }); return; }
-    await navigator.clipboard.writeText(u);
-    toast({ title: "Temporary signed PDF link copied (valid 7 days)" });
-    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_link_copied", metadata: { scope: "temporary_pdf" } });
+    try {
+      const fresh = await ensureSignedPdf(r);
+      const u = await getPdfSignedUrl(fresh);
+      if (!u) throw new Error("Signed PDF link unavailable.");
+      await navigator.clipboard.writeText(u);
+      toast({ title: "Temporary signed PDF link copied (valid 7 days)" });
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: fresh.id, event_type: "signed_pdf_link_copied", metadata: { scope: "temporary_pdf" } });
+    } catch (e: any) {
+      toast({ title: "Signed PDF not available", description: e?.message, variant: "destructive" });
+    }
   };
   const sendSignedCopyRow = async (r: any, mode: "admin" | "member") => {
     try {
+      await ensureSignedPdf(r);
       const { data, error } = await supabase.functions.invoke("send-coc-signed-copy", { body: { request_id: r.id, mode } });
       if (error) throw error;
       if ((data as any)?.ok === false) throw new Error((data as any).message);
