@@ -9,6 +9,18 @@ interface Payload {
   template: any;
 }
 
+const ERROR_MESSAGES: Record<string, string> = {
+  INVALID_TOKEN: "This signing link is invalid.",
+  REQUEST_NOT_FOUND: "Link not found or invalid.",
+  REQUEST_CANCELLED: "This request is no longer active.",
+  TOKEN_EXPIRED: "This link has expired. Please contact Team IPC.",
+  TEMPLATE_NOT_FOUND: "The agreement template is no longer available. Please contact Team IPC.",
+  DOCUMENT_NOT_FOUND: "The agreement document is not configured yet. Please contact Team IPC.",
+  SIGNATURE_REQUIRED: "Please type your full name.",
+  ACKNOWLEDGEMENT_REQUIRED: "Please acknowledge all items.",
+  SIGN_SUBMIT_FAILED: "We could not submit your signature. Please try again.",
+};
+
 const ACK_ITEMS = [
   "I have read and understood the Code of Conduct.",
   "I agree to the responsibilities and terms of the Diamond Membership.",
@@ -28,6 +40,7 @@ export default function CodeOfConductSign() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const [hasDrawn, setHasDrawn] = useState(false);
+  const canSubmit = !!name.trim() && acks.every(Boolean) && !submitting;
 
   useEffect(() => {
     (async () => {
@@ -39,7 +52,7 @@ export default function CodeOfConductSign() {
         });
         const json = await resp.json();
         if (!resp.ok) {
-          setError(json.error || "Failed to load");
+          setError(ERROR_MESSAGES[json.error_code] || json.message || json.error || "Failed to load");
           setErrorStatus(json.status || null);
         } else {
           setData(json);
@@ -60,30 +73,46 @@ export default function CodeOfConductSign() {
     if (!c) return;
     const ctx = c.getContext("2d");
     if (!ctx) return;
-    ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.strokeStyle = "#111";
-    const getPos = (e: any) => {
+
+    const resize = () => {
       const r = c.getBoundingClientRect();
-      const p = "touches" in e ? e.touches[0] : e;
-      return { x: p.clientX - r.left, y: p.clientY - r.top };
+      const ratio = window.devicePixelRatio || 1;
+      c.width = Math.max(1, Math.floor(r.width * ratio));
+      c.height = Math.max(1, Math.floor(r.height * ratio));
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#111";
     };
-    const start = (e: any) => { e.preventDefault(); drawingRef.current = true; const { x, y } = getPos(e); ctx.beginPath(); ctx.moveTo(x, y); };
-    const move = (e: any) => { if (!drawingRef.current) return; e.preventDefault(); const { x, y } = getPos(e); ctx.lineTo(x, y); ctx.stroke(); setHasDrawn(true); };
-    const end = () => { drawingRef.current = false; };
-    c.addEventListener("mousedown", start); c.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", end);
-    c.addEventListener("touchstart", start, { passive: false }); c.addEventListener("touchmove", move, { passive: false });
-    window.addEventListener("touchend", end);
+    resize();
+
+    const getPos = (e: PointerEvent) => {
+      const r = c.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const start = (e: PointerEvent) => { e.preventDefault(); c.setPointerCapture?.(e.pointerId); drawingRef.current = true; const { x, y } = getPos(e); ctx.beginPath(); ctx.moveTo(x, y); };
+    const move = (e: PointerEvent) => { if (!drawingRef.current) return; e.preventDefault(); const { x, y } = getPos(e); ctx.lineTo(x, y); ctx.stroke(); setHasDrawn(true); };
+    const end = (e: PointerEvent) => { drawingRef.current = false; c.releasePointerCapture?.(e.pointerId); };
+    c.addEventListener("pointerdown", start);
+    c.addEventListener("pointermove", move);
+    c.addEventListener("pointerup", end);
+    c.addEventListener("pointercancel", end);
+    window.addEventListener("resize", resize);
     return () => {
-      c.removeEventListener("mousedown", start); c.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", end);
-      c.removeEventListener("touchstart", start); c.removeEventListener("touchmove", move);
-      window.removeEventListener("touchend", end);
+      c.removeEventListener("pointerdown", start);
+      c.removeEventListener("pointermove", move);
+      c.removeEventListener("pointerup", end);
+      c.removeEventListener("pointercancel", end);
+      window.removeEventListener("resize", resize);
     };
   }, [data]);
 
   const clearSig = () => {
     const c = canvasRef.current; if (!c) return;
-    c.getContext("2d")!.clearRect(0, 0, c.width, c.height); setHasDrawn(false);
+    const ctx = c.getContext("2d"); if (!ctx) return;
+    const r = c.getBoundingClientRect();
+    ctx.clearRect(0, 0, r.width, r.height); setHasDrawn(false);
   };
 
   const submit = async () => {
@@ -98,7 +127,7 @@ export default function CodeOfConductSign() {
         body: JSON.stringify({ token, action: "sign", signature_name: name, signature_data_url: sig, acknowledgements: acks }),
       });
       const json = await resp.json();
-      if (!resp.ok) { setError(json.error || "Failed to submit"); }
+      if (!resp.ok) { setError(ERROR_MESSAGES[json.error_code] || json.message || json.error || "Failed to submit"); }
       else { setData(json); }
     } catch (e: any) { setError(e?.message || "Network error"); }
     finally { setSubmitting(false); }
