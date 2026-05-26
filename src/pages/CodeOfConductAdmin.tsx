@@ -381,12 +381,21 @@ export default function CodeOfConductAdmin() {
   };
   const regenSigned = async (r: any) => {
     try {
+      const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_signed_pdf", request_id: r.id } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: "Signed PDF regenerated" });
+      loadRequests();
+    } catch (e: any) { toast({ title: "Could not regenerate", description: e?.message, variant: "destructive" }); }
+  };
+  const regenReceipt = async (r: any) => {
+    try {
       const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_receipt", request_id: r.id } });
       if (error) throw error;
       if ((data as any)?.ok === false) throw new Error((data as any).message);
-      toast({ title: "Signed copy regenerated" });
+      toast({ title: "HTML receipt regenerated" });
       loadRequests();
-    } catch (e: any) { toast({ title: "Could not regenerate", description: e?.message, variant: "destructive" }); }
+    } catch (e: any) { toast({ title: "Could not regenerate receipt", description: e?.message, variant: "destructive" }); }
   };
   const openSignedRecord = async (r: any) => {
     setSignedRecord(r);
@@ -683,11 +692,12 @@ export default function CodeOfConductAdmin() {
                         onView={() => viewSigned(r)}
                         onViewRecord={() => openSignedRecord(r)}
                         onDownload={() => downloadSigned(r)}
-                        onCopyAdmin={() => copyAdminReceiptLink(r)}
-                        onCopyMember={() => copyMemberReceiptLink(r)}
+                        onCopyAdmin={() => copySignedPdfLink(r)}
+                        onCopyMember={() => copySignedPdfLink(r)}
                         onSendAdmin={() => sendSignedCopyRow(r, "admin")}
                         onSendMember={() => sendSignedCopyRow(r, "member")}
                         onRegen={() => regenSigned(r)}
+                        onRegenReceipt={() => regenReceipt(r)}
                         onEditEmail={() => setEditEmailReq(r)}
                         onRetry={() => retrySend(r)}
                         onCancel={() => cancelRequestRow(r)}
