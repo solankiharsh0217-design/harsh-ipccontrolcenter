@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import DOMPurify from "dompurify";
 
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/code-of-conduct-public`;
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -27,6 +28,10 @@ const ACK_ITEMS = [
   "I understand that group/program access may be provided only after acknowledgement.",
   "I confirm that the name and email shown belong to me.",
 ];
+
+function fillVars(html: string, vars: Record<string, string>) {
+  return Object.entries(vars).reduce((acc, [k, v]) => acc.split(`{{${k}}}`).join(v), html || "");
+}
 
 export default function CodeOfConductSign() {
   const { token } = useParams<{ token: string }>();
@@ -73,7 +78,6 @@ export default function CodeOfConductSign() {
     if (!c) return;
     const ctx = c.getContext("2d");
     if (!ctx) return;
-
     const resize = () => {
       const r = c.getBoundingClientRect();
       const ratio = window.devicePixelRatio || 1;
@@ -86,7 +90,6 @@ export default function CodeOfConductSign() {
       ctx.strokeStyle = "#111";
     };
     resize();
-
     const getPos = (e: PointerEvent) => {
       const r = c.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -124,7 +127,7 @@ export default function CodeOfConductSign() {
       const resp = await fetch(FN_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: ANON, Authorization: `Bearer ${ANON}` },
-        body: JSON.stringify({ token, action: "sign", signature_name: name, signature_data_url: sig, acknowledgements: acks }),
+        body: JSON.stringify({ token, action: "sign", signature_name: name, signature_data_url: sig, acknowledgements: acks, acknowledgement_labels: ACK_ITEMS }),
       });
       const json = await resp.json();
       if (!resp.ok) { setError(ERROR_MESSAGES[json.error_code] || json.message || json.error || "Failed to submit"); }
@@ -142,6 +145,19 @@ export default function CodeOfConductSign() {
       });
     } catch {}
   };
+
+  const renderedHtml = useMemo(() => {
+    if (!data?.template?.html_content || !data?.request) return null;
+    const vars = {
+      member_name: data.request.member_name || "",
+      member_email: data.request.member_email || "",
+      program_name: data.template.program_name || data.request.program_name || "IPC Diamond Membership",
+      party_a_name: data.template.party_a_name || "India Photographers' Club",
+      today: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }),
+    };
+    const filled = fillVars(data.template.html_content, vars);
+    return DOMPurify.sanitize(filled, { USE_PROFILES: { html: true } });
+  }, [data]);
 
   if (loading) return <FullCenter><div className="text-sm text-slate-500">Loading…</div></FullCenter>;
 
@@ -163,67 +179,108 @@ export default function CodeOfConductSign() {
 
   if (isSigned) {
     const waUrl = request.whatsapp_redirect_url_visible;
+    const receipt = request.signed_receipt_url;
     return (
       <FullCenter>
         <div className="max-w-lg w-full bg-white border rounded-xl p-8 shadow-sm">
           <div className="text-emerald-600 text-3xl mb-2">✓</div>
-          <h1 className="text-xl font-semibold mb-1">Thank you, {request.member_name}.</h1>
-          <p className="text-sm text-slate-600 mb-5">{template?.success_page_message || "Your Code of Conduct has been acknowledged successfully."}</p>
-          <ol className="text-sm text-slate-700 space-y-2 mb-6 list-decimal pl-5">
-            <li>Join the IPC Diamond Members WhatsApp Group below.</li>
-            <li>Our team will review and activate your remaining access manually.</li>
-            <li>Please use the official support channels only.</li>
-          </ol>
-          {waUrl ? (
-            <a href={waUrl} target="_blank" rel="noreferrer" onClick={onWhatsAppClick}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#25D366] text-white font-medium text-sm hover:bg-[#1ebe5c]">
-              Join Diamond Members WhatsApp Group →
-            </a>
-          ) : (
-            <p className="text-xs text-slate-500">The team will share the WhatsApp group link shortly.</p>
-          )}
-          <p className="text-[11px] text-slate-400 mt-6">Signed {request.signed_at ? new Date(request.signed_at).toLocaleString() : ""} · v{template?.version || "1.0"}</p>
+          <h1 className="text-xl font-semibold mb-1">Your Code of Conduct has been acknowledged successfully.</h1>
+          <p className="text-sm text-slate-600 mb-4">{template?.success_page_message || "Thank you for completing the digital acknowledgement."}</p>
+          <p className="text-[12.5px] text-slate-500 mb-5">Signed at {request.signed_at ? new Date(request.signed_at).toLocaleString() : "—"}</p>
+
+          <div className="flex flex-col gap-2.5 mb-5">
+            {waUrl && (
+              <a href={waUrl} target="_blank" rel="noreferrer" onClick={onWhatsAppClick}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#25D366] text-white font-medium text-sm hover:bg-[#1ebe5c]">
+                Join Diamond Members WhatsApp Group →
+              </a>
+            )}
+            {receipt && (
+              <a href={receipt} target="_blank" rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-slate-300 text-slate-800 font-medium text-sm hover:bg-slate-50">
+                Download Your Acknowledgement Copy
+              </a>
+            )}
+          </div>
+
+          <p className="text-[12px] text-slate-500">Our team will review and activate the next access steps.</p>
+          <p className="text-[11px] text-slate-400 mt-4">Request ID {request.id?.slice(0, 8)} · Template v{template?.version || "1.0"}</p>
         </div>
       </FullCenter>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
-      <div className="max-w-2xl mx-auto bg-white border rounded-xl shadow-sm overflow-hidden">
-        <div className="px-7 pt-7 pb-5 border-b">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">{template?.party_a_name || "India Photographers' Club"}</div>
-          <h1 className="text-xl font-semibold">{template?.document_title || "Code of Conduct"}</h1>
-          <p className="text-sm text-slate-600 mt-1">{template?.program_name || request.program_name || "Diamond Membership"}</p>
-          <div className="mt-4 grid grid-cols-2 gap-3 text-[12.5px]">
-            <div><div className="text-slate-500">Member</div><div className="font-medium">{request.member_name}</div></div>
-            <div><div className="text-slate-500">Email</div><div className="font-medium">{request.member_email}</div></div>
+    <div className="min-h-screen bg-slate-100 py-8 px-4">
+      <div className="max-w-3xl mx-auto">
+        {/* Header strip */}
+        <div className="bg-white border border-slate-200 rounded-t-xl px-7 py-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">{template?.party_a_name || "India Photographers' Club"}</div>
+              <h1 className="text-xl font-semibold text-slate-900">{template?.document_title || "Code of Conduct"}</h1>
+              <p className="text-sm text-slate-600 mt-1">{template?.program_name || request.program_name || "Diamond Membership"}</p>
+            </div>
+            <div className="text-right text-[11.5px] text-slate-500">
+              <div>Template v{template?.version || "1.0"}</div>
+              <div className="mt-0.5">Request {request.id?.slice(0, 8)}</div>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-[12.5px] border-t pt-3">
+            <div><div className="text-slate-500">Member</div><div className="font-medium text-slate-800">{request.member_name}</div></div>
+            <div><div className="text-slate-500">Email</div><div className="font-medium text-slate-800">{request.member_email}</div></div>
           </div>
         </div>
 
-        <div className="px-7 py-6 space-y-6">
-          <section>
-            <h2 className="text-sm font-semibold mb-2">1. Agreement Document</h2>
-            {template?.template_pdf_url ? (
-              <div className="border rounded-lg overflow-hidden bg-slate-100" style={{ height: 480 }}>
-                <iframe src={template.template_pdf_url} className="w-full h-full" title="Code of Conduct PDF" />
-              </div>
-            ) : template?.html_content ? (
-              <div className="border rounded-lg p-4 bg-slate-50 max-h-[480px] overflow-auto text-[13px] leading-relaxed whitespace-pre-wrap">{template.html_content}</div>
-            ) : (
-              <div className="border rounded-lg p-4 bg-amber-50 text-amber-800 text-[13px]">The agreement document is being prepared. Please continue with your acknowledgement below — Team IPC will share the signed document copy with you over email.</div>
-            )}
-            {template?.template_pdf_url && (
-              <a href={template.template_pdf_url} target="_blank" rel="noreferrer" className="inline-block mt-2 text-[12px] text-blue-600 hover:underline">Open PDF in new tab ↗</a>
-            )}
-          </section>
+        {/* Document body (Google Docs-style paper) */}
+        <div className="bg-white border-x border-slate-200 px-7 sm:px-12 py-10 shadow-sm">
+          <p className="text-[12px] text-slate-500 mb-4 italic">Please read the agreement carefully before signing.</p>
 
+          {renderedHtml ? (
+            <article
+              className="prose prose-slate max-w-none prose-headings:font-semibold prose-h2:text-lg prose-h2:mt-6 prose-h3:text-base prose-h3:mt-5 prose-p:text-[14px] prose-p:leading-relaxed prose-li:text-[14px] prose-li:leading-relaxed prose-ul:my-2"
+              dangerouslySetInnerHTML={{ __html: renderedHtml }}
+            />
+          ) : template?.template_pdf_url ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+                <h2 className="text-base font-semibold text-slate-800 mb-1">Agreement Document</h2>
+                <p className="text-[13px] text-slate-600 mb-3">The full agreement is provided as a PDF. Please open or download it below, read it carefully, and acknowledge at the bottom of this page.</p>
+                <div className="flex flex-wrap gap-2">
+                  <a href={template.template_pdf_url} target="_blank" rel="noreferrer" className="inline-flex items-center px-4 py-2 rounded-md bg-slate-900 text-white text-[12.5px] font-medium hover:bg-black">View original PDF ↗</a>
+                  <a href={template.template_pdf_url} download className="inline-flex items-center px-4 py-2 rounded-md border border-slate-300 text-slate-800 text-[12.5px] font-medium hover:bg-slate-50">Download original PDF</a>
+                </div>
+              </div>
+              <details className="rounded-lg border border-slate-200">
+                <summary className="cursor-pointer px-4 py-2.5 text-[12.5px] text-slate-700 hover:bg-slate-50">Show inline preview</summary>
+                <div className="border-t" style={{ height: 480 }}>
+                  <iframe src={template.template_pdf_url} className="w-full h-full" title="Code of Conduct PDF" />
+                </div>
+              </details>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-800">
+              The agreement document is being prepared. Please continue with your acknowledgement below — Team IPC will share the signed document copy with you over email.
+            </div>
+          )}
+
+          {renderedHtml && template?.template_pdf_url && (
+            <p className="text-[12px] text-slate-500 mt-6">
+              Reference copy: <a href={template.template_pdf_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">View original PDF ↗</a>
+              {" · "}
+              <a href={template.template_pdf_url} download className="text-blue-600 hover:underline">Download</a>
+            </p>
+          )}
+        </div>
+
+        {/* Sign-off panel */}
+        <div className="bg-white border border-slate-200 rounded-b-xl px-7 py-7 shadow-sm space-y-6">
           <section>
-            <h2 className="text-sm font-semibold mb-2">2. Acknowledgement</h2>
+            <h2 className="text-sm font-semibold text-slate-800 mb-2">Acknowledgement</h2>
             <div className="space-y-2">
               {ACK_ITEMS.map((label, i) => (
-                <label key={i} className="flex items-start gap-3 text-[13px]">
-                  <input type="checkbox" className="mt-0.5 w-4 h-4" checked={acks[i]} onChange={(e) => setAcks((a) => { const n = [...a]; n[i] = e.target.checked; return n; })} />
+                <label key={i} className="flex items-start gap-3 text-[13.5px] text-slate-700">
+                  <input type="checkbox" className="mt-0.5 w-4 h-4 accent-slate-900" checked={acks[i]} onChange={(e) => setAcks((a) => { const n = [...a]; n[i] = e.target.checked; return n; })} />
                   <span>{label}</span>
                 </label>
               ))}
@@ -231,12 +288,12 @@ export default function CodeOfConductSign() {
           </section>
 
           <section>
-            <h2 className="text-sm font-semibold mb-2">3. Signature</h2>
+            <h2 className="text-sm font-semibold text-slate-800 mb-2">Signature</h2>
             <label className="block text-[12px] text-slate-600 mb-1">Typed full name <span className="text-rose-500">*</span></label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm mb-3" placeholder="Type your full legal name" />
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Type your full legal name" />
             <label className="block text-[12px] text-slate-600 mb-1">Draw signature (optional)</label>
-            <div className="border rounded-md bg-white">
+            <div className="border border-slate-300 rounded-md bg-white">
               <canvas ref={canvasRef} className="w-full block touch-none" style={{ height: 140 }} />
             </div>
             <button type="button" onClick={clearSig} className="text-[11.5px] text-slate-500 hover:text-slate-700 mt-1">Clear signature</button>
@@ -249,10 +306,10 @@ export default function CodeOfConductSign() {
           {error && <div className="text-sm text-rose-600 border border-rose-200 bg-rose-50 rounded-md px-3 py-2">{error}</div>}
 
           <button onClick={submit} disabled={!canSubmit}
-            className="w-full bg-black hover:bg-[#222] disabled:opacity-60 text-white py-3 rounded-md text-sm font-medium">
+            className="w-full bg-slate-900 hover:bg-black disabled:opacity-60 text-white py-3 rounded-md text-sm font-semibold">
             {submitting ? "Submitting…" : "Submit & Acknowledge"}
           </button>
-          <p className="text-[11px] text-slate-400 text-center">By submitting, you agree your typed name acts as your electronic signature.</p>
+          <p className="text-[11px] text-slate-400 text-center">By submitting, your typed name acts as your electronic signature. Your IP address, browser and timestamp are recorded as evidence.</p>
         </div>
       </div>
     </div>
@@ -260,5 +317,5 @@ export default function CodeOfConductSign() {
 }
 
 function FullCenter({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">{children}</div>;
+  return <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">{children}</div>;
 }
