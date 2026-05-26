@@ -426,6 +426,8 @@ export default function CodeOfConductPanel(props: Props) {
   }
   const cls = STATUS_STYLES[displayStatus] || STATUS_STYLES.not_required;
   const sendDisabled = busy || !setupComplete;
+  const effectiveEmail = emailOverride || memberEmail || "";
+  const effectiveEmailValid = effectiveEmail.includes("@");
 
   return (
     <div className="rounded-xl border border-[#E5E7EB] bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm">
@@ -604,8 +606,8 @@ export default function CodeOfConductPanel(props: Props) {
               <div>Last send attempt: {req?.last_email_attempt_at ? new Date(req.last_email_attempt_at).toLocaleString() : "—"}</div>
               <div>Last error: {req?.last_email_error || evalResult?.message || "—"}</div>
               <div className="font-sans font-semibold text-slate-800 pt-1">Auto-send</div>
-              <div>Eligible: {matchedRule?.mode === "auto_send" && !!(emailOverride || memberEmail)?.includes("@") && !req ? "yes" : "no"}</div>
-              <div>Reason if no: {req ? `existing request ${req.status}` : !(emailOverride || memberEmail)?.includes("@") ? "missing email" : matchedRule?.mode !== "auto_send" ? "no auto-send rule matched" : "—"}</div>
+              <div>Eligible: {matchedRule?.mode === "auto_send" && effectiveEmailValid && !req ? "yes" : "no"}</div>
+              <div>Reason if no: {req ? `existing request ${req.status}` : !effectiveEmailValid ? "missing email" : matchedRule?.mode !== "auto_send" ? "no auto-send rule matched" : "—"}</div>
               <div>Attempted keys: {autoSendAttemptedKeys.length ? autoSendAttemptedKeys.join(" | ") : "—"}</div>
               <div>Last evaluator: {evalResult ? `${evalResult.action}${evalResult.message ? ` — ${evalResult.message}` : ""} @ ${new Date(evalResult.at).toLocaleTimeString()}` : "—"}</div>
             </div>
