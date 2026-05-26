@@ -786,6 +786,9 @@ export default function CodeOfConductAdmin() {
               <KV k="Typed signature" v={signedRecord.signature_name || "—"} />
               <KV k="IP address" v={signedRecord.acknowledgement_ip || "—"} />
               <KV k="User agent" v={signedRecord.acknowledgement_user_agent || "—"} />
+              <KV k="Signed PDF generated" v={signedRecord.signed_pdf_generated_at ? new Date(signedRecord.signed_pdf_generated_at).toLocaleString() : "No"} />
+              <KV k="Signed PDF URL exists" v={signedRecord.signed_pdf_url ? "Yes" : "No"} />
+              <KV k="Last PDF generation error" v={signedRecord.signed_pdf_generation_error || "—"} />
               <KV k="Paid pipeline lead" v={signedRecord.paid_pipeline_lead_id || "—"} />
               <KV k="Calling CRM lead" v={signedRecord.crm_lead_id || "—"} />
             </div>
@@ -797,18 +800,18 @@ export default function CodeOfConductAdmin() {
                 <ul className="list-disc pl-5 text-[12.5px]">{signedRecord.acknowledgement_checklist.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul></div>
             )}
             <div className="flex gap-2 mb-4 flex-wrap">
-              <button onClick={() => viewSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
-              {signedRecordReceiptUrl ? (
+              <button onClick={() => viewSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">View Signed PDF</button>
+              {signedRecord.signed_pdf_url ? (
                 <>
-                  <button onClick={() => downloadSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
-                  <button onClick={() => copyAdminReceiptLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Admin Link</button>
-                  <button onClick={() => copyMemberReceiptLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Member Temp Link</button>
+                  <button onClick={() => downloadSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Download PDF</button>
+                  <button onClick={() => copySignedPdfLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy PDF Link</button>
                 </>
               ) : (
-                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Generate Signed Copy</button>
+                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Generate Signed PDF</button>
               )}
-              <button onClick={() => sendSignedCopyRow(signedRecord, "admin")} className="ipc-btn ipc-btn-ghost !h-8">Send to Admin</button>
-              <button onClick={() => sendSignedCopyRow(signedRecord, "member")} className="ipc-btn ipc-btn-ghost !h-8">Send to Member</button>
+              {signedRecordReceiptUrl && <button onClick={() => viewReceipt(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">View HTML Receipt</button>}
+              <button onClick={() => sendSignedCopyRow(signedRecord, "admin")} className="ipc-btn ipc-btn-ghost !h-8">Send PDF to Admin</button>
+              <button onClick={() => sendSignedCopyRow(signedRecord, "member")} className="ipc-btn ipc-btn-ghost !h-8">Send PDF to Member</button>
             </div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Event timeline</div>
             <div className="space-y-1.5">
