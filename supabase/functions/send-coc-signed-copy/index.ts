@@ -123,16 +123,18 @@ Deno.serve(async (req) => {
 </div></body></html>`;
 
     const results: any = { admin: [], member: null };
+    await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_pdf_email_send_attempted', metadata: { mode, copy_type: 'Signed PDF', delivery: 'signed_url', pdf_path: pdfPath } });
 
     if (mode === 'all' || mode === 'admin') {
+      if (recipientsAdmin.length === 0) return fail('MISSING_RECIPIENT', 'No admin/archive recipient is configured.', 400);
       for (const to of recipientsAdmin) {
         try {
-          await sendOne(to, adminSubject, adminHtml, adminText);
-          results.admin.push({ to, ok: true });
-          await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_copy_email_sent_to_admin', metadata: { to } });
+          const sent = await sendOne(to, adminSubject, adminHtml, adminText);
+          results.admin.push({ to, ok: true, provider_message_id: sent.provider_message_id, sent_at: sent.sent_at, copy_type: 'Signed PDF', method: 'signed_url' });
+          await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_pdf_email_sent_to_admin', metadata: { to, provider_message_id: sent.provider_message_id, sent_at: sent.sent_at, copy_type: 'Signed PDF', method: 'signed_url' } });
         } catch (e) {
           results.admin.push({ to, ok: false, error: (e as Error).message });
-          await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_copy_email_failed_to_admin', metadata: { to, error: (e as Error).message } });
+          await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_pdf_email_failed_to_admin', metadata: { to, error_code: 'EMAIL_PROVIDER_REJECTED', error: (e as Error).message } });
         }
       }
       if (results.admin.some((x: any) => x.ok)) {
@@ -142,17 +144,19 @@ Deno.serve(async (req) => {
 
     if ((mode === 'all' || mode === 'member') && (tpl?.send_signed_copy_to_member !== false) && memberEmail) {
       try {
-        await sendOne(memberEmail, memberSubject, memberHtml, memberText);
-        results.member = { to: memberEmail, ok: true };
-        await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_copy_email_sent_to_member', metadata: { to: memberEmail } });
+        const sent = await sendOne(memberEmail, memberSubject, memberHtml, memberText);
+        results.member = { to: memberEmail, ok: true, provider_message_id: sent.provider_message_id, sent_at: sent.sent_at, copy_type: 'Signed PDF', method: 'signed_url' };
+        await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_pdf_email_sent_to_member', metadata: { to: memberEmail, provider_message_id: sent.provider_message_id, sent_at: sent.sent_at, copy_type: 'Signed PDF', method: 'signed_url' } });
         await admin.from('code_of_conduct_requests').update({ member_copy_email_sent_at: new Date().toISOString() }).eq('id', r.id);
       } catch (e) {
         results.member = { to: memberEmail, ok: false, error: (e as Error).message };
-        await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_copy_email_failed_to_member', metadata: { to: memberEmail, error: (e as Error).message } });
+        await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_pdf_email_failed_to_member', metadata: { to: memberEmail, error_code: 'EMAIL_PROVIDER_REJECTED', error: (e as Error).message } });
       }
+    } else if (mode === 'member' && !memberEmail) {
+      return fail('MISSING_RECIPIENT', 'Member email is missing.', 400);
     }
 
-    return jsonResponse({ ok: true, results, receipt_link: receiptLink });
+    return jsonResponse({ ok: true, results, pdf_link: pdfLink, copy_type: 'Signed PDF', method: 'signed_url' });
   } catch (e) {
     console.error('send-coc-signed-copy error', e);
     return fail('SEND_FAILED', (e as Error).message || 'Server error', 500);
