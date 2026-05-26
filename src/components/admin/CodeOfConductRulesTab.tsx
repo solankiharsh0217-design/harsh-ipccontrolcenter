@@ -384,6 +384,7 @@ export default function CodeOfConductRulesTab() {
                       <button onClick={() => toggleActive(r)} className={`text-[11px] px-2 py-0.5 rounded border ${r.is_active ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"}`}>{r.is_active ? "Active" : "Inactive"}</button>
                     </td>
                     <td className="p-3 text-right whitespace-nowrap">
+                      <button onClick={() => runBackfill(r)} disabled={!r.is_active} className="text-[11.5px] underline mr-3 disabled:opacity-40" title="Apply this rule to leads already in the trigger stage">Run on existing</button>
                       <button onClick={() => setEditing(r)} className="text-[11.5px] underline mr-3">Edit</button>
                       <button onClick={() => deleteRule(r)} className="text-[11.5px] text-rose-600">Delete</button>
                     </td>
