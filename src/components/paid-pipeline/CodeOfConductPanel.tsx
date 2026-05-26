@@ -283,20 +283,24 @@ export default function CodeOfConductPanel(props: Props) {
           <div className="flex flex-wrap gap-2 pt-1">
             {req.status === "signed" ? (
               <>
-                <button onClick={viewSigned} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
-                {(req.signed_html_url || req.signed_receipt_url) ? (
-                  <button onClick={downloadSigned} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
+                <button onClick={viewSignedPdf} className="ipc-btn ipc-btn-black !h-8">View Signed PDF</button>
+                {req.signed_pdf_url ? (
+                  <button onClick={downloadSignedPdf} className="ipc-btn ipc-btn-ghost !h-8">Download PDF</button>
                 ) : (
-                  <button onClick={regenReceipt} disabled={busy} className="ipc-btn ipc-btn-ghost !h-8 disabled:opacity-50">{busy ? "Generating…" : "Generate Signed Copy"}</button>
+                  <button onClick={regenPdf} disabled={busy} className="ipc-btn ipc-btn-ghost !h-8 disabled:opacity-50">{busy ? "Generating…" : "Generate Signed PDF"}</button>
                 )}
+                {req.signed_pdf_generation_error && <div className="basis-full text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1">PDF error: {req.signed_pdf_generation_error}</div>}
                 <SignedMoreMenu
-                  onCopyAdmin={copyAdminReceiptLink}
-                  onCopyMember={copyMemberReceiptLink}
+                  onCopyPdf={copySignedPdfLink}
+                  onCopyMember={copyMemberPdfLink}
                   onSendAdmin={() => sendSignedCopy("admin")}
                   onSendMember={() => sendSignedCopy("member")}
+                  onViewReceipt={viewHtmlReceipt}
                   onEditEmail={() => setEditEmailOpen(true)}
-                  onRegen={regenReceipt}
-                  hasStored={!!(req.signed_html_url || req.signed_receipt_url)}
+                  onRegenPdf={regenPdf}
+                  onRegenReceipt={regenReceipt}
+                  hasPdf={!!req.signed_pdf_url}
+                  hasReceipt={!!(req.signed_html_url || req.signed_receipt_url)}
                 />
               </>
             ) : req.status === "cancelled" || req.status === "expired" ? (
