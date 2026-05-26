@@ -339,16 +339,26 @@ export default function CodeOfConductAdmin() {
     return data?.signedUrl || null;
   };
 
-  const viewSigned = async (r: any) => {
-    const u = await getReceiptSignedUrl(r);
-    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
-    window.open(u, "_blank");
-    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_viewed_by_admin" });
+  const viewSigned = (r: any) => {
+    window.open(`${window.location.origin}/code-of-conduct/receipt/${r.id}`, "_blank");
+    (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_viewed_by_admin" });
   };
   const downloadSigned = async (r: any) => {
-    const u = await getReceiptSignedUrl(r);
-    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
-    const a = document.createElement("a"); a.href = u; a.download = `signed-coc-${r.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
+    try {
+      const u = await getReceiptSignedUrl(r);
+      if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+      const resp = await fetch(u);
+      const text = await resp.text();
+      const blob = new Blob([text], { type: "text/html;charset=utf-8" });
+      const dl = URL.createObjectURL(blob);
+      const safeName = (r.signed_member_name || r.member_name || "member").replace(/[^\w-]+/g, "_");
+      const a = document.createElement("a"); a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-Receipt-${safeName}-${r.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(dl);
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_downloaded_by_admin" });
+    } catch (e: any) {
+      toast({ title: "Download failed", description: e?.message, variant: "destructive" });
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_receipt_download_failed", metadata: { error: e?.message } });
+    }
   };
   const copySignedLinkRow = async (r: any) => {
     const u = await getReceiptSignedUrl(r);
