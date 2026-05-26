@@ -39,6 +39,7 @@ import OperationsCrm from "./pages/OperationsCrm";
 import NotFound from "./pages/NotFound";
 import CodeOfConductSign from "./pages/CodeOfConductSign";
 import CodeOfConductAdmin from "./pages/CodeOfConductAdmin";
+import CodeOfConductReceipt from "./pages/CodeOfConductReceipt";
 
 import type { ModuleKey } from "@/lib/modules";
 
