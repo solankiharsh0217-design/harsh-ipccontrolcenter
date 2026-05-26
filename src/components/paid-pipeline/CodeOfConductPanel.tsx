@@ -46,7 +46,9 @@ export default function CodeOfConductPanel(props: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editEmailOpen, setEditEmailOpen] = useState(false);
 
-  const getSignedReceiptUrl = async (): Promise<string | null> => {
+  const adminReceiptUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/receipt/${req.id}` : null);
+
+  const getStorageReceiptUrl = async (): Promise<string | null> => {
     if (!req) return null;
     const stored: string | null = req.signed_html_url || req.signed_receipt_url || null;
     if (!stored) return null;
@@ -57,23 +59,45 @@ export default function CodeOfConductPanel(props: Props) {
     return data?.signedUrl || null;
   };
 
-  const viewSigned = async () => {
-    const url = await getSignedReceiptUrl();
+  const viewSigned = () => {
+    const url = adminReceiptUrl();
     if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
     window.open(url, "_blank");
-    if (req) await (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_viewed_by_admin" });
+    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_viewed_by_admin" });
   };
   const downloadSigned = async () => {
-    const url = await getSignedReceiptUrl();
-    if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
-    const a = document.createElement("a"); a.href = url; a.download = `signed-coc-${req.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
-    if (req) await (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_downloaded_by_admin" });
+    if (!req) return;
+    try {
+      const url = await getStorageReceiptUrl();
+      if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
+      const resp = await fetch(url);
+      const text = await resp.text();
+      const blob = new Blob([text], { type: "text/html;charset=utf-8" });
+      const dl = URL.createObjectURL(blob);
+      const safeName = (req.signed_member_name || req.member_name || "member").replace(/[^\w-]+/g, "_");
+      const a = document.createElement("a");
+      a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-Receipt-${safeName}-${req.id.slice(0,8)}.html`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(dl);
+      (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_downloaded_by_admin" });
+    } catch (e: any) {
+      toast({ title: "Download failed", description: e?.message, variant: "destructive" });
+      if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_receipt_download_failed", metadata: { error: e?.message } });
+    }
   };
-  const copySignedLink = async () => {
-    const url = await getSignedReceiptUrl();
+  const copyAdminReceiptLink = async () => {
+    const url = adminReceiptUrl();
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Admin receipt link copied" });
+    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_link_copied", metadata: { scope: "admin" } });
+  };
+  const copyMemberReceiptLink = async () => {
+    const url = await getStorageReceiptUrl();
     if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
     await navigator.clipboard.writeText(url);
-    toast({ title: "Signed copy link copied (valid 7 days)" });
+    toast({ title: "Temporary member copy link copied (valid 7 days)" });
+    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_link_copied", metadata: { scope: "member_temp" } });
   };
   const sendSignedCopy = async (mode: "admin" | "member") => {
     if (!req) return;
@@ -238,18 +262,21 @@ export default function CodeOfConductPanel(props: Props) {
           <div className="flex flex-wrap gap-2 pt-1">
             {req.status === "signed" ? (
               <>
+                <button onClick={viewSigned} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
                 {(req.signed_html_url || req.signed_receipt_url) ? (
-                  <>
-                    <button onClick={viewSigned} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
-                    <button onClick={downloadSigned} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
-                    <button onClick={copySignedLink} className="ipc-btn ipc-btn-ghost !h-8">Copy Link</button>
-                  </>
+                  <button onClick={downloadSigned} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
                 ) : (
-                  <button onClick={regenReceipt} disabled={busy} className="ipc-btn ipc-btn-black !h-8 disabled:opacity-50">{busy ? "Generating…" : "Generate Signed Copy"}</button>
+                  <button onClick={regenReceipt} disabled={busy} className="ipc-btn ipc-btn-ghost !h-8 disabled:opacity-50">{busy ? "Generating…" : "Generate Signed Copy"}</button>
                 )}
-                <button onClick={() => sendSignedCopy("admin")} className="ipc-btn ipc-btn-ghost !h-8">Send Copy to Admin</button>
-                <button onClick={() => sendSignedCopy("member")} className="ipc-btn ipc-btn-ghost !h-8">Send Copy to Member</button>
-                <button onClick={() => setEditEmailOpen(true)} className="ipc-btn ipc-btn-ghost !h-8">Edit Contact Email</button>
+                <SignedMoreMenu
+                  onCopyAdmin={copyAdminReceiptLink}
+                  onCopyMember={copyMemberReceiptLink}
+                  onSendAdmin={() => sendSignedCopy("admin")}
+                  onSendMember={() => sendSignedCopy("member")}
+                  onEditEmail={() => setEditEmailOpen(true)}
+                  onRegen={regenReceipt}
+                  hasStored={!!(req.signed_html_url || req.signed_receipt_url)}
+                />
               </>
             ) : req.status === "cancelled" || req.status === "expired" ? (
               <>
@@ -337,5 +364,39 @@ function Row({ k, v }: { k: string; v: string }) {
       <span className="text-muted-foreground">{k}</span>
       <span className="text-slate-800 text-right truncate" title={v}>{v}</span>
     </div>
+  );
+}
+
+function SignedMoreMenu(props: {
+  onCopyAdmin: () => void; onCopyMember: () => void;
+  onSendAdmin: () => void; onSendMember: () => void;
+  onEditEmail: () => void; onRegen: () => void; hasStored: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = (fn: () => void) => () => { setOpen(false); fn(); };
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((v) => !v)} className="ipc-btn ipc-btn-ghost !h-8" aria-label="More actions">More ▾</button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-1 z-50 bg-white border border-line rounded-md shadow-lg w-56 py-1 text-[12.5px]">
+            <MenuItem onClick={close(props.onCopyAdmin)}>Copy Admin Receipt Link</MenuItem>
+            <MenuItem onClick={close(props.onCopyMember)} disabled={!props.hasStored}>Copy Temporary Member Link</MenuItem>
+            <div className="border-t border-line my-1" />
+            <MenuItem onClick={close(props.onSendAdmin)}>Send Copy to Admin</MenuItem>
+            <MenuItem onClick={close(props.onSendMember)}>Send Copy to Member</MenuItem>
+            <div className="border-t border-line my-1" />
+            <MenuItem onClick={close(props.onRegen)}>Regenerate Signed Copy</MenuItem>
+            <MenuItem onClick={close(props.onEditEmail)}>Edit Contact Email</MenuItem>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+function MenuItem({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button onClick={onClick} disabled={disabled} className="w-full text-left px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white">{children}</button>
   );
 }

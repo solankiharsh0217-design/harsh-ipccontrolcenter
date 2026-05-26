@@ -339,23 +339,38 @@ export default function CodeOfConductAdmin() {
     return data?.signedUrl || null;
   };
 
-  const viewSigned = async (r: any) => {
-    const u = await getReceiptSignedUrl(r);
-    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
-    window.open(u, "_blank");
-    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_viewed_by_admin" });
+  const viewSigned = (r: any) => {
+    window.open(`${window.location.origin}/code-of-conduct/receipt/${r.id}`, "_blank");
+    (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_viewed_by_admin" });
   };
   const downloadSigned = async (r: any) => {
-    const u = await getReceiptSignedUrl(r);
-    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
-    const a = document.createElement("a"); a.href = u; a.download = `signed-coc-${r.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
+    try {
+      const u = await getReceiptSignedUrl(r);
+      if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+      const resp = await fetch(u);
+      const text = await resp.text();
+      const blob = new Blob([text], { type: "text/html;charset=utf-8" });
+      const dl = URL.createObjectURL(blob);
+      const safeName = (r.signed_member_name || r.member_name || "member").replace(/[^\w-]+/g, "_");
+      const a = document.createElement("a"); a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-Receipt-${safeName}-${r.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(dl);
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_downloaded_by_admin" });
+    } catch (e: any) {
+      toast({ title: "Download failed", description: e?.message, variant: "destructive" });
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_receipt_download_failed", metadata: { error: e?.message } });
+    }
   };
-  const copySignedLinkRow = async (r: any) => {
+  const copyAdminReceiptLink = async (r: any) => {
+    await navigator.clipboard.writeText(`${window.location.origin}/code-of-conduct/receipt/${r.id}`);
+    toast({ title: "Admin receipt link copied" });
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied", metadata: { scope: "admin" } });
+  };
+  const copyMemberReceiptLink = async (r: any) => {
     const u = await getReceiptSignedUrl(r);
     if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
     await navigator.clipboard.writeText(u);
-    toast({ title: "Signed copy link copied (valid 7 days)" });
-    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied" });
+    toast({ title: "Temporary member link copied (valid 7 days)" });
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied", metadata: { scope: "member_temp" } });
   };
   const sendSignedCopyRow = async (r: any, mode: "admin" | "member") => {
     try {
@@ -661,36 +676,24 @@ export default function CodeOfConductAdmin() {
                     <td className="py-2 pr-3"><span className={hasActiveToken ? "text-emerald-700" : "text-muted-foreground"}>{hasActiveToken ? "Yes" : "No"}</span></td>
                     <td className="py-2 pr-3 text-rose-600 max-w-[220px] truncate" title={r.last_email_error || ""}>{r.last_email_error_code ? `[${r.last_email_error_code}] ${r.last_email_error || ""}` : "—"}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">
-                      <div className="flex gap-1.5 flex-wrap">
-                        <button onClick={() => openEvents(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Events</button>
-                        {r.paid_pipeline_lead_id ? <Link to={`/paid-pipeline?lead=${r.paid_pipeline_lead_id}`} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-blue-700">Open Lead</Link>
-                          : r.crm_lead_id ? <Link to={`/crm?lead=${r.crm_lead_id}`} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-blue-700">Open Lead</Link>
-                          : null}
-                        {hasActiveToken && <button onClick={() => copySigningLink(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Copy Signing Link</button>}
-                        {r.status === "signed" ? (
-                          <>
-                            <button onClick={() => openSignedRecord(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-emerald-700">View Signed Record</button>
-                            {(r.signed_html_url || r.signed_receipt_url) ? (
-                              <>
-                                <button onClick={() => viewSigned(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">View Copy</button>
-                                <button onClick={() => downloadSigned(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Download</button>
-                                <button onClick={() => copySignedLinkRow(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Copy Copy Link</button>
-                              </>
-                            ) : (
-                              <button onClick={() => regenSigned(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-amber-700">Generate Signed Copy</button>
-                            )}
-                            <button onClick={() => sendSignedCopyRow(r, "admin")} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Send→Admin</button>
-                            <button onClick={() => sendSignedCopyRow(r, "member")} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Send→Member</button>
-                            <button onClick={() => setEditEmailReq(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Edit Contact Email</button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => retrySend(r)} disabled={retryingId === r.id} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">{retryingId === r.id ? "Sending…" : (r.sent_at ? "Resend" : "Send")}</button>
-                            <button onClick={() => setEditEmailReq(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Change Email & Resend</button>
-                            {!["cancelled", "expired"].includes(r.status) && <button onClick={() => cancelRequestRow(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-rose-700">Cancel</button>}
-                          </>
-                        )}
-                      </div>
+                      <RowActions
+                        r={r}
+                        hasActiveToken={hasActiveToken}
+                        retryingId={retryingId}
+                        onOpenEvents={() => openEvents(r)}
+                        onCopySigningLink={() => copySigningLink(r)}
+                        onView={() => viewSigned(r)}
+                        onViewRecord={() => openSignedRecord(r)}
+                        onDownload={() => downloadSigned(r)}
+                        onCopyAdmin={() => copyAdminReceiptLink(r)}
+                        onCopyMember={() => copyMemberReceiptLink(r)}
+                        onSendAdmin={() => sendSignedCopyRow(r, "admin")}
+                        onSendMember={() => sendSignedCopyRow(r, "member")}
+                        onRegen={() => regenSigned(r)}
+                        onEditEmail={() => setEditEmailReq(r)}
+                        onRetry={() => retrySend(r)}
+                        onCancel={() => cancelRequestRow(r)}
+                      />
                     </td>
                   </tr>
                   );
@@ -782,15 +785,18 @@ export default function CodeOfConductAdmin() {
                 <ul className="list-disc pl-5 text-[12.5px]">{signedRecord.acknowledgement_checklist.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul></div>
             )}
             <div className="flex gap-2 mb-4 flex-wrap">
+              <button onClick={() => viewSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
               {signedRecordReceiptUrl ? (
                 <>
-                  <a href={signedRecordReceiptUrl} target="_blank" rel="noreferrer" className="ipc-btn ipc-btn-black !h-8">View Signed Copy</a>
                   <button onClick={() => downloadSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
-                  <button onClick={() => copySignedLinkRow(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Link</button>
+                  <button onClick={() => copyAdminReceiptLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Admin Link</button>
+                  <button onClick={() => copyMemberReceiptLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Member Temp Link</button>
                 </>
               ) : (
-                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">Generate Signed Copy</button>
+                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Generate Signed Copy</button>
               )}
+              <button onClick={() => sendSignedCopyRow(signedRecord, "admin")} className="ipc-btn ipc-btn-ghost !h-8">Send to Admin</button>
+              <button onClick={() => sendSignedCopyRow(signedRecord, "member")} className="ipc-btn ipc-btn-ghost !h-8">Send to Member</button>
             </div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Event timeline</div>
             <div className="space-y-1.5">
@@ -895,4 +901,67 @@ function DiagRow({ label, value, hint, bad }: { label: string; value: string; hi
       {hint && <div className="text-[10.5px] text-muted-foreground mt-0.5">{hint}</div>}
     </div>
   );
+}
+
+function RowActions(props: {
+  r: any; hasActiveToken: boolean; retryingId: string | null;
+  onOpenEvents: () => void; onCopySigningLink: () => void;
+  onView: () => void; onViewRecord: () => void; onDownload: () => void;
+  onCopyAdmin: () => void; onCopyMember: () => void;
+  onSendAdmin: () => void; onSendMember: () => void;
+  onRegen: () => void; onEditEmail: () => void;
+  onRetry: () => void; onCancel: () => void;
+}) {
+  const { r, hasActiveToken, retryingId } = props;
+  const [open, setOpen] = useState(false);
+  const close = (fn: () => void) => () => { setOpen(false); fn(); };
+  const isSigned = r.status === "signed";
+  const isFailed = !!r.last_email_error_code;
+  const hasStored = !!(r.signed_html_url || r.signed_receipt_url);
+  const leadHref = r.paid_pipeline_lead_id ? `/paid-pipeline?lead=${r.paid_pipeline_lead_id}` : r.crm_lead_id ? `/crm?lead=${r.crm_lead_id}` : null;
+
+  let primary: { label: string; onClick: () => void; disabled?: boolean };
+  if (isSigned) primary = { label: "View Record", onClick: props.onViewRecord };
+  else if (isFailed) primary = { label: retryingId === r.id ? "Retrying…" : "Retry", onClick: props.onRetry, disabled: retryingId === r.id };
+  else if (r.status === "cancelled" || r.status === "expired") primary = { label: retryingId === r.id ? "…" : "Resend", onClick: props.onRetry, disabled: retryingId === r.id };
+  else if (hasActiveToken) primary = { label: "Copy Link", onClick: props.onCopySigningLink };
+  else primary = { label: retryingId === r.id ? "Sending…" : (r.sent_at ? "Resend" : "Send"), onClick: props.onRetry, disabled: retryingId === r.id };
+
+  return (
+    <div className="flex items-center gap-1 relative">
+      <button onClick={primary.onClick} disabled={primary.disabled} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50 disabled:opacity-50">{primary.label}</button>
+      <button onClick={() => setOpen((v) => !v)} className="text-[13px] px-2 py-1 border border-line rounded hover:bg-slate-50" aria-label="More">⋯</button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-line rounded-md shadow-lg w-56 py-1 text-[12.5px]">
+            <RAItem onClick={close(props.onOpenEvents)}>View Events</RAItem>
+            {leadHref && <RAItem asLink href={leadHref} onClick={() => setOpen(false)}>Open Lead</RAItem>}
+            {hasActiveToken && <RAItem onClick={close(props.onCopySigningLink)}>Copy Signing Link</RAItem>}
+            {isSigned && (
+              <>
+                <div className="border-t border-line my-1" />
+                <RAItem onClick={close(props.onView)}>View Signed Copy</RAItem>
+                <RAItem onClick={close(props.onViewRecord)}>View Signed Record</RAItem>
+                <RAItem onClick={close(props.onDownload)} disabled={!hasStored}>Download Signed Copy</RAItem>
+                <RAItem onClick={close(props.onCopyAdmin)}>Copy Admin Receipt Link</RAItem>
+                <RAItem onClick={close(props.onCopyMember)} disabled={!hasStored}>Copy Temporary Member Link</RAItem>
+                <RAItem onClick={close(props.onSendAdmin)}>Send Copy to Admin</RAItem>
+                <RAItem onClick={close(props.onSendMember)}>Send Copy to Member</RAItem>
+                <RAItem onClick={close(props.onRegen)}>Regenerate Signed Copy</RAItem>
+              </>
+            )}
+            <div className="border-t border-line my-1" />
+            <RAItem onClick={close(props.onEditEmail)}>{isSigned ? "Edit Contact Email" : "Change Email & Resend"}</RAItem>
+            {!isSigned && !["cancelled", "expired"].includes(r.status) && <RAItem danger onClick={close(props.onCancel)}>Cancel Request</RAItem>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+function RAItem({ children, onClick, disabled, danger, asLink, href }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; danger?: boolean; asLink?: boolean; href?: string }) {
+  const cls = `w-full text-left px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white block ${danger ? "text-rose-700" : ""}`;
+  if (asLink && href) return <Link to={href} onClick={onClick} className={cls}>{children}</Link>;
+  return <button onClick={onClick} disabled={disabled} className={cls}>{children}</button>;
 }
