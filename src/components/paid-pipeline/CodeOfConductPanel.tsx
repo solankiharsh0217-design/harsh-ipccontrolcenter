@@ -44,6 +44,47 @@ export default function CodeOfConductPanel(props: Props) {
   const [signingUrl, setSigningUrl] = useState<string | null>(null);
   const [diag, setDiag] = useState<any>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [editEmailOpen, setEditEmailOpen] = useState(false);
+
+  const getSignedReceiptUrl = async (): Promise<string | null> => {
+    if (!req) return null;
+    const stored: string | null = req.signed_html_url || req.signed_receipt_url || null;
+    if (!stored) return null;
+    const m = stored.match(/(?:storage:|\/storage\/v1\/object\/(?:public|sign)\/)signed-code-of-conduct\/(.+?)(?:\?|$)/);
+    const path = m ? m[1] : null;
+    if (!path) return stored;
+    const { data } = await supabase.storage.from("signed-code-of-conduct").createSignedUrl(path, 60 * 60 * 24 * 7);
+    return data?.signedUrl || null;
+  };
+
+  const viewSigned = async () => {
+    const url = await getSignedReceiptUrl();
+    if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
+    window.open(url, "_blank");
+    if (req) await (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_viewed_by_admin" });
+  };
+  const downloadSigned = async () => {
+    const url = await getSignedReceiptUrl();
+    if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
+    const a = document.createElement("a"); a.href = url; a.download = `signed-coc-${req.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
+    if (req) await (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_downloaded_by_admin" });
+  };
+  const copySignedLink = async () => {
+    const url = await getSignedReceiptUrl();
+    if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Signed copy link copied (valid 7 days)" });
+  };
+  const sendSignedCopy = async (mode: "admin" | "member") => {
+    if (!req) return;
+    try {
+      const { data, error } = await supabase.functions.invoke("send-coc-signed-copy", { body: { request_id: req.id, mode } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: `Signed copy email sent to ${mode}` });
+      load();
+    } catch (e: any) { toast({ title: "Failed to send signed copy", description: e?.message, variant: "destructive" }); }
+  };
 
   const load = async () => {
     setLoading(true);
