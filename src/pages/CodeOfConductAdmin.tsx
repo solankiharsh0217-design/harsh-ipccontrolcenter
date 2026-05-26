@@ -924,7 +924,7 @@ function RowActions(props: {
   onView: () => void; onViewRecord: () => void; onDownload: () => void;
   onCopyAdmin: () => void; onCopyMember: () => void;
   onSendAdmin: () => void; onSendMember: () => void;
-  onRegen: () => void; onEditEmail: () => void;
+  onRegen: () => void; onRegenReceipt: () => void; onEditEmail: () => void;
   onRetry: () => void; onCancel: () => void;
 }) {
   const { r, hasActiveToken, retryingId } = props;
@@ -932,7 +932,8 @@ function RowActions(props: {
   const close = (fn: () => void) => () => { setOpen(false); fn(); };
   const isSigned = r.status === "signed";
   const isFailed = !!r.last_email_error_code;
-  const hasStored = !!(r.signed_html_url || r.signed_receipt_url);
+  const hasPdf = !!r.signed_pdf_url;
+  const hasReceipt = !!(r.signed_html_url || r.signed_receipt_url);
   const leadHref = r.paid_pipeline_lead_id ? `/paid-pipeline?lead=${r.paid_pipeline_lead_id}` : r.crm_lead_id ? `/crm?lead=${r.crm_lead_id}` : null;
 
   let primary: { label: string; onClick: () => void; disabled?: boolean };
@@ -956,14 +957,16 @@ function RowActions(props: {
             {isSigned && (
               <>
                 <div className="border-t border-line my-1" />
-                <RAItem onClick={close(props.onView)}>View Signed Copy</RAItem>
+                <RAItem onClick={close(props.onView)} disabled={!hasPdf}>View Signed PDF</RAItem>
                 <RAItem onClick={close(props.onViewRecord)}>View Signed Record</RAItem>
-                <RAItem onClick={close(props.onDownload)} disabled={!hasStored}>Download Signed Copy</RAItem>
-                <RAItem onClick={close(props.onCopyAdmin)}>Copy Admin Receipt Link</RAItem>
-                <RAItem onClick={close(props.onCopyMember)} disabled={!hasStored}>Copy Temporary Member Link</RAItem>
-                <RAItem onClick={close(props.onSendAdmin)}>Send Copy to Admin</RAItem>
-                <RAItem onClick={close(props.onSendMember)}>Send Copy to Member</RAItem>
-                <RAItem onClick={close(props.onRegen)}>Regenerate Signed Copy</RAItem>
+                <RAItem onClick={close(props.onDownload)} disabled={!hasPdf}>Download Signed PDF</RAItem>
+                <RAItem onClick={close(props.onCopyAdmin)} disabled={!hasPdf}>Copy Signed PDF Link</RAItem>
+                <RAItem onClick={close(props.onCopyMember)} disabled={!hasPdf}>Copy Member PDF Link</RAItem>
+                <RAItem onClick={close(props.onSendAdmin)}>Send Signed PDF to Admin</RAItem>
+                <RAItem onClick={close(props.onSendMember)}>Send Signed PDF to Member</RAItem>
+                <RAItem onClick={close(props.onViewRecord)} disabled={!hasReceipt}>View Signing Evidence</RAItem>
+                <RAItem onClick={close(props.onRegen)}>Regenerate Signed PDF</RAItem>
+                <RAItem onClick={close(props.onRegenReceipt)}>Regenerate HTML Receipt</RAItem>
               </>
             )}
             <div className="border-t border-line my-1" />
