@@ -1,98 +1,175 @@
-# Safe Archive & Delete System
+## Code of Conduct — Signed Evidence System (P0)
 
-A non-destructive cleanup workflow for Calling CRM and Paid Pipeline. Soft archive is the default; permanent delete is admin-only and blocked when linked payment/operations/conversion data exists.
+This plan delivers retrievable proof of signed Code of Conduct in 11 parts. No stage-trigger automation, no payment/CRM/Ops changes.
 
-## 1. Schema (additive migration)
+---
 
-Add nullable columns — no data loss, no destructive changes.
+### 1. Database migration (new columns + storage bucket)
 
-**`crm_leads`** (and **`paid_pipeline_leads`** for Part 7):
-- `archived_at timestamptz`
-- `archived_by uuid`
-- `archive_reason text`
-- `deleted_at timestamptz`
-- `deleted_by uuid`
-- `delete_reason text`
+`code_of_conduct_templates`:
+- `html_content` (text) — already exists; ensure used as primary doc body
+- `default_html_template` (text) — auto-generated Diamond Membership default
+- `signed_copy_recipient_emails` (text[]) — archive emails
+- `send_signed_copy_to_member` (boolean default true)
 
-**New table `crm_batch_archives`** (batches are derived from `webinar_source` + `pipeline_id`, no separate batch table exists):
-- `pipeline_id`, `batch_name`, `archived_at`, `archived_by`, `archive_reason`, `affected_lead_count`
+`code_of_conduct_requests`:
+- `signed_receipt_url` (text)
+- `signed_pdf_url` (text)
+- `signed_html_url` (text)
+- `signed_receipt_generated_at` (timestamptz)
+- `admin_copy_email_sent_at` (timestamptz)
+- `member_copy_email_sent_at` (timestamptz)
+- `corrected_contact_email` (text) — post-sign corrections only
+- `email_change_history` (jsonb) — array of {old, new, reason, at, by}
+- `signed_member_email` (text) — immutable copy of email used at signing
+- `signed_member_name` (text) — immutable copy
 
-RLS: admins full access; managers/sales executives bounded by existing module access patterns. Restore = clear the archive columns.
+New storage bucket: `signed-code-of-conduct` (private). RLS:
+- Admins SELECT/INSERT/UPDATE
+- Public can read via signed URLs only (no public policy)
 
-## 2. Calling CRM — Batches view
+New event types added to allowed list via no constraint change (events table is open text).
 
-Replace the lone edit pencil on each batch card with a `⋯` menu:
-- View leads
-- Rename batch (existing)
-- Archive batch (amber)
-- Permanent delete (admin only, red, hidden if unsafe)
+---
 
-**Archive batch**: confirm modal showing affected lead count, mixed-link summary (X total / Y linked to Paid Pipeline / Z linked to Operations CRM), optional reason. Soft-archives all active leads in batch + writes a `crm_batch_archives` row. Audit log `crm_batch_archived`.
+### 2. Public Signing Page (`/code-of-conduct/sign/:token`)
 
-**Permanent delete batch**: only enabled when no leads in batch have `paid_pipeline_lead_id`, no linked operations records, no conversions/rewards. Otherwise shows "Archive instead" notice. Requires typing `DELETE`.
+Replace the embedded-PDF feel with a Google Docs-style layout:
 
-Add `Show archived batches` toggle in the Batches view header; archived batch cards render muted with `Restore batch` button.
+```
+┌──────────────────────────────────────┐
+│  [IPC Logo]   Diamond Membership     │
+│  Code of Conduct                     │
+│  Member: Jane Doe • jane@x.com       │
+├──────────────────────────────────────┤
+│                                      │
+│   [Rendered html_content]            │
+│   ─ sections, headings, paragraphs ─ │
+│                                      │
+│   [Reference: View / Download PDF]   │
+│                                      │
+├──────────────────────────────────────┤
+│  Acknowledgements (4 checkboxes)     │
+│  Typed Name: [______]                │
+│  Signature: [canvas pad]             │
+│  [ Submit Acknowledgement ]          │
+└──────────────────────────────────────┘
+```
 
-## 3. Calling CRM — Kanban bulk bar
+- HTML content sanitized via DOMPurify before render
+- If only PDF: show preview card with View/Download buttons + optional inline iframe below the fold
+- Sticky bottom signature section on mobile
+- Uses semantic tokens (no hardcoded colors)
 
-Add `Archive Selected` action between Assign and Clear. Confirm modal with count + optional reason. Bulk soft-archive + audit `crm_leads_bulk_archived`. Permanent delete intentionally not exposed here.
+---
 
-## 4. Individual lead actions
+### 3. Admin Template Editor (HTML body + recipients)
 
-In `LeadDrawer` and the lead card `⋯` menu:
-- Archive lead (amber)
-- Restore lead (visible only when viewing archived)
-- Permanent delete (admin only, blocked when linked to Paid Pipeline / Operations / payments)
+In `CodeOfConductAdmin.tsx` → Templates tab:
+- Textarea for `html_content` (Agreement HTML Body) with "Generate Default Agreement Text" button populating a structured Diamond Membership template
+- Tags input for `signed_copy_recipient_emails`
+- Toggle for `send_signed_copy_to_member`
 
-Confirmation copy adapts when the lead has `paid_pipeline_lead_id` or operations link — explicitly states the linked record is preserved.
+---
 
-## 5. Show archived / restore
+### 4. Signed Receipt Generation (HTML-first, PDF via pdf-lib)
 
-Add `Show archived` toggle in the CRM filter row. Default off. When on:
-- Archived leads appear muted, no drag/drop, show archived date + reason
-- Restore button per lead and per batch
-- Restore writes `crm_lead_restored` / `crm_batch_restored`
+In `code-of-conduct-public/index.ts` after successful sign:
+1. Build receipt HTML (server-side string template) with all evidence fields
+2. Upload HTML to `signed-code-of-conduct/{request_id}/signed-receipt.html`
+3. Generate PDF using `pdf-lib` (npm: `pdf-lib`) — text + embedded signature PNG
+4. Upload PDF to `signed-code-of-conduct/{request_id}/signed-receipt.pdf`
+5. Update request with `signed_pdf_url`, `signed_html_url`, `signed_receipt_url`, `signed_receipt_generated_at`
+6. Log events: `signed_receipt_generation_started`, `signed_receipt_generated` (or `_failed`)
 
-## 6. Paid Pipeline safety
+Receipt contains: title, template name+version, program, Party A, member name/email/phone, lead IDs, request ID, signed_at, typed name, signature image, IP, UA, acknowledgement checklist (✓ items), template PDF URL, WhatsApp clicked Y/N, immutable footer.
 
-`src/pages/PaidPipeline.tsx` `RowActionsMenu` gains `Archive Buyer` action (amber). Soft-archive only — payments, finance history, activity preserved. Add `Show archived` filter. Permanent delete blocked whenever payment rows exist; shows the "Archive instead" message. Audit `paid_pipeline_buyer_archived` / `_restored`.
+---
 
-## 7. Import duplicate handling
+### 5. Email Delivery via Resend
 
-`ImportLeadsModal` duplicate check: queries active leads first. If email/phone matches only archived leads, prompts per-row: Restore existing | Import as new | Skip. Fresh imports work after archiving wrong batches.
+After receipt generation, invoke a new edge function `send-coc-signed-copy`:
+- Sends to all `signed_copy_recipient_emails` (admin/archive)
+- Sends to `signed_member_email` if `send_signed_copy_to_member`
+- Subject + body per spec; includes signed link (signed URL valid 7d) and PDF link
+- Uses RESEND_API_KEY / EMAIL_FROM_*
+- Updates `admin_copy_email_sent_at`, `member_copy_email_sent_at`
+- Logs events `signed_copy_email_sent_to_admin/_member` or `_failed_*`
 
-## 8. Permissions
+PDF attached if size < 5MB (Resend supports attachments).
 
-- **Admin**: archive, restore, permanent delete (with safety checks)
-- **Manager**: archive/restore if has CRM module
-- **Sales exec**: archive own leads only (existing assignment logic)
-- **Media buyer**: no archive/delete UI
+---
 
-Unauthorized actions are hidden, not disabled.
+### 6. Admin/Drawer UI for signed copy
 
-## 9. Audit logs
+**Paid Pipeline drawer `CodeOfConductPanel.tsx`** (when signed):
+- Status row + Signed at + Signed by + email used
+- Buttons: View Signed Copy, Download Signed Copy, Copy Link, Send Copy to Member, Send Copy to Admin
+- Edit Member Email button (modal)
 
-All actions go through `logActivity()` with module `calling_crm` / `paid_pipeline`:
-`crm_lead_archived`, `crm_lead_restored`, `crm_leads_bulk_archived`, `crm_batch_archived`, `crm_batch_restored`, `crm_lead_permanently_deleted`, `crm_batch_permanently_deleted`, `paid_pipeline_buyer_archived`, `paid_pipeline_buyer_restored`. Metadata includes lead/batch ids, counts, reason, linked counts.
+**`CodeOfConductAdmin.tsx` Requests tab**:
+- Per-row dropdown: View Signed Record, View/Download Signed Copy, Send Copy Email, Copy Link, Open Paid Pipeline Lead, Change Email & Resend
+- "View Signed Record" drawer shows full evidence (signature image, all metadata, event timeline)
 
-## 10. UI rules
+---
 
-- Archive = amber confirm dialog with plain copy
-- Permanent delete = red dialog requiring typed `DELETE`
-- All active CRM list/kanban/batches queries exclude `archived_at IS NOT NULL` by default
+### 7. Email Correction Flow
 
-## Technical sections
+New modal `EditMemberEmailModal.tsx`:
+- Inputs: new email, reason
+- Validates email format
+- Calls edge function `coc-update-email` (new):
+  - If status ∈ {sent, viewed, expired}: updates `member_email`, cancels old token (status='cancelled' or new token issued), generates new signing link if "resend" chosen, logs `code_of_conduct_email_updated_and_resent` + `_old_token_cancelled_after_email_change`
+  - If signed: refuses to mutate `signed_member_email`; sets `corrected_contact_email` only, appends to `email_change_history`, logs `code_of_conduct_member_email_updated`
+  - Also updates `paid_pipeline_leads.email` / `leads.email` when admin opts in
 
-**Files to add**:
-- `supabase/migrations/<ts>_crm_archive_system.sql`
-- `src/lib/crmArchive.ts` — archive/restore/permanent-delete helpers + safety checks
-- `src/components/crm/ArchiveConfirmModal.tsx` + `PermanentDeleteModal.tsx`
+---
 
-**Files to edit**:
-- `src/pages/Crm.tsx` — batch card menu, `Show archived` toggle, exclude archived by default, bulk bar action
-- `src/components/LeadDrawer.tsx` — individual archive/restore/delete
-- `src/components/ImportLeadsModal.tsx` — archived-duplicate prompt
-- `src/pages/PaidPipeline.tsx` — `RowActionsMenu` archive entry + show-archived filter
-- `src/lib/auditLog.ts` — register new action labels (optional, generic insert already works)
+### 8. Immutability
 
-**Out of scope**: schema changes to Operations CRM, payments, conversions, reports. None of those are touched.
+Send edge function: snapshot `signed_member_email`, `signed_member_name` at sign time (filled in DB during sign action). Post-sign update path never touches these or signature fields.
+
+---
+
+### 9. Public Success Page
+
+After sign, show:
+- ✓ "Your Code of Conduct has been acknowledged successfully."
+- Signed at timestamp
+- Button: Join Diamond Members WhatsApp Group (only if signed + URL configured)
+- Button: Download Your Acknowledgement Copy (signed PDF URL)
+- Note text per spec
+
+---
+
+### 10. Event log additions
+
+All emitted from edge functions; rendered in existing events drawer.
+
+---
+
+### Technical Files Touched
+
+**Migration**: 1 new migration (columns + storage bucket + RLS)
+**Edge functions**:
+- `code-of-conduct-public/index.ts` — receipt generation hook
+- `send-coc-signed-copy/index.ts` — new
+- `coc-update-email/index.ts` — new
+
+**Frontend**:
+- `src/pages/CodeOfConductSign.tsx` — doc-style redesign
+- `src/pages/CodeOfConductAdmin.tsx` — HTML body field, recipients, request actions, signed record drawer
+- `src/components/paid-pipeline/CodeOfConductPanel.tsx` — signed-copy actions, edit email
+- `src/components/paid-pipeline/EditMemberEmailModal.tsx` — new
+- `src/components/admin/SignedRecordDrawer.tsx` — new
+- `src/lib/codeOfConductDefaults.ts` — default agreement HTML template
+
+**Deps**: add `pdf-lib`, `dompurify`, `@types/dompurify`
+
+---
+
+### Out of scope (will not touch)
+
+Stage-trigger automation, payments, import, follow-ups, Team Directory, Operations CRM, hard wipe, AI Insights.
+
+Reply **"go"** to start with the migration, or specify any tweaks (e.g. skip PDF and ship HTML-only receipt first).
