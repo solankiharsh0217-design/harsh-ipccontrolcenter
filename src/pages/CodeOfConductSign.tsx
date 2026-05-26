@@ -40,12 +40,13 @@ export default function CodeOfConductSign() {
   const [error, setError] = useState<string | null>(null);
   const [errorStatus, setErrorStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pdfPreparing, setPdfPreparing] = useState(false);
   const [name, setName] = useState("");
   const [acks, setAcks] = useState<boolean[]>([false, false, false, false]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const [hasDrawn, setHasDrawn] = useState(false);
-  const canSubmit = !!name.trim() && acks.every(Boolean) && !submitting;
+  const canSubmit = !!name.trim() && acks.every(Boolean) && hasDrawn && !submitting;
 
   useEffect(() => {
     (async () => {
@@ -71,6 +72,34 @@ export default function CodeOfConductSign() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  useEffect(() => {
+    if (data?.request?.status !== "signed" || data.request.signed_pdf_url || data.request.signed_pdf_generation_error || !token) return;
+    setPdfPreparing(true);
+    let stopped = false;
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      try {
+        const resp = await fetch(FN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: ANON, Authorization: `Bearer ${ANON}` },
+          body: JSON.stringify({ token, action: "fetch" }),
+        });
+        const json = await resp.json();
+        if (!stopped && resp.ok) {
+          setData(json);
+          if (json?.request?.signed_pdf_url || json?.request?.signed_pdf_generation_error || attempts >= 8) setPdfPreparing(false);
+          else window.setTimeout(poll, 2500);
+        }
+      } catch {
+        if (!stopped && attempts < 8) window.setTimeout(poll, 2500);
+        else setPdfPreparing(false);
+      }
+    };
+    const id = window.setTimeout(poll, 1500);
+    return () => { stopped = true; window.clearTimeout(id); };
+  }, [data?.request?.status, data?.request?.signed_pdf_url, data?.request?.signed_pdf_generation_error, token]);
 
   // Signature canvas
   useEffect(() => {
@@ -121,6 +150,7 @@ export default function CodeOfConductSign() {
   const submit = async () => {
     if (!name.trim()) { setError("Please type your full name."); return; }
     if (acks.some((a) => !a)) { setError("Please acknowledge all items."); return; }
+    if (!hasDrawn) { setError("Please draw your signature before submitting."); return; }
     setSubmitting(true); setError(null);
     const sig = hasDrawn ? canvasRef.current?.toDataURL("image/png") : null;
     try {
@@ -179,26 +209,34 @@ export default function CodeOfConductSign() {
 
   if (isSigned) {
     const waUrl = request.whatsapp_redirect_url_visible;
-    const receipt = request.signed_receipt_url;
+    const signedPdf = request.signed_pdf_url;
     return (
       <FullCenter>
         <div className="max-w-lg w-full bg-white border rounded-xl p-8 shadow-sm">
           <div className="text-emerald-600 text-3xl mb-2">✓</div>
-          <h1 className="text-xl font-semibold mb-1">Your Code of Conduct has been acknowledged successfully.</h1>
+          <h1 className="text-xl font-semibold mb-1">Your Code of Conduct has been signed successfully.</h1>
           <p className="text-sm text-slate-600 mb-4">{template?.success_page_message || "Thank you for completing the digital acknowledgement."}</p>
           <p className="text-[12.5px] text-slate-500 mb-5">Signed at {request.signed_at ? new Date(request.signed_at).toLocaleString() : "—"}</p>
 
           <div className="flex flex-col gap-2.5 mb-5">
+            {signedPdf ? (
+              <a href={signedPdf} target="_blank" rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-slate-300 text-slate-800 font-medium text-sm hover:bg-slate-50">
+                Download Signed Code of Conduct PDF
+              </a>
+            ) : request.signed_pdf_generation_error ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-900">
+                Your acknowledgement was recorded, but signed PDF generation failed. Team IPC has been notified.
+              </div>
+            ) : (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[12.5px] text-slate-600">
+                {pdfPreparing ? "Preparing your signed PDF..." : "Preparing your signed PDF..."}
+              </div>
+            )}
             {waUrl && (
               <a href={waUrl} target="_blank" rel="noreferrer" onClick={onWhatsAppClick}
                 className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#25D366] text-white font-medium text-sm hover:bg-[#1ebe5c]">
                 Join Diamond Members WhatsApp Group →
-              </a>
-            )}
-            {receipt && (
-              <a href={receipt} target="_blank" rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-slate-300 text-slate-800 font-medium text-sm hover:bg-slate-50">
-                Download Your Acknowledgement Copy
               </a>
             )}
           </div>
@@ -292,7 +330,7 @@ export default function CodeOfConductSign() {
             <label className="block text-[12px] text-slate-600 mb-1">Typed full name <span className="text-rose-500">*</span></label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Type your full legal name" />
-            <label className="block text-[12px] text-slate-600 mb-1">Draw signature (optional)</label>
+            <label className="block text-[12px] text-slate-600 mb-1">Draw signature <span className="text-rose-500">*</span></label>
             <div className="border border-slate-300 rounded-md bg-white">
               <canvas ref={canvasRef} className="w-full block touch-none" style={{ height: 140 }} />
             </div>

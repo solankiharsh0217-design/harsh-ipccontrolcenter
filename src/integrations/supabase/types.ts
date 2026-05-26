@@ -729,6 +729,8 @@ export type Database = {
           signed_html_url: string | null
           signed_member_email: string | null
           signed_member_name: string | null
+          signed_pdf_generated_at: string | null
+          signed_pdf_generation_error: string | null
           signed_pdf_url: string | null
           signed_receipt_generated_at: string | null
           signed_receipt_url: string | null
@@ -775,6 +777,8 @@ export type Database = {
           signed_html_url?: string | null
           signed_member_email?: string | null
           signed_member_name?: string | null
+          signed_pdf_generated_at?: string | null
+          signed_pdf_generation_error?: string | null
           signed_pdf_url?: string | null
           signed_receipt_generated_at?: string | null
           signed_receipt_url?: string | null
@@ -821,6 +825,8 @@ export type Database = {
           signed_html_url?: string | null
           signed_member_email?: string | null
           signed_member_name?: string | null
+          signed_pdf_generated_at?: string | null
+          signed_pdf_generation_error?: string | null
           signed_pdf_url?: string | null
           signed_receipt_generated_at?: string | null
           signed_receipt_url?: string | null
@@ -951,6 +957,16 @@ export type Database = {
           is_active: boolean
           name: string
           party_a_name: string
+          pdf_signature_date_x: number | null
+          pdf_signature_date_y: number | null
+          pdf_signature_font_size: number | null
+          pdf_signature_image_height: number | null
+          pdf_signature_image_width: number | null
+          pdf_signature_image_x: number | null
+          pdf_signature_image_y: number | null
+          pdf_signature_name_x: number | null
+          pdf_signature_name_y: number | null
+          pdf_signature_page_number: number | null
           program_name: string | null
           reply_to_email: string | null
           send_signed_copy_to_member: boolean
@@ -976,6 +992,16 @@ export type Database = {
           is_active?: boolean
           name: string
           party_a_name?: string
+          pdf_signature_date_x?: number | null
+          pdf_signature_date_y?: number | null
+          pdf_signature_font_size?: number | null
+          pdf_signature_image_height?: number | null
+          pdf_signature_image_width?: number | null
+          pdf_signature_image_x?: number | null
+          pdf_signature_image_y?: number | null
+          pdf_signature_name_x?: number | null
+          pdf_signature_name_y?: number | null
+          pdf_signature_page_number?: number | null
           program_name?: string | null
           reply_to_email?: string | null
           send_signed_copy_to_member?: boolean
@@ -1001,6 +1027,16 @@ export type Database = {
           is_active?: boolean
           name?: string
           party_a_name?: string
+          pdf_signature_date_x?: number | null
+          pdf_signature_date_y?: number | null
+          pdf_signature_font_size?: number | null
+          pdf_signature_image_height?: number | null
+          pdf_signature_image_width?: number | null
+          pdf_signature_image_x?: number | null
+          pdf_signature_image_y?: number | null
+          pdf_signature_name_x?: number | null
+          pdf_signature_name_y?: number | null
+          pdf_signature_page_number?: number | null
           program_name?: string | null
           reply_to_email?: string | null
           send_signed_copy_to_member?: boolean

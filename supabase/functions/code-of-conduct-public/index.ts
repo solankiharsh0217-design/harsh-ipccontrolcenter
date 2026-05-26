@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,9 +25,18 @@ function escapeHtml(s: any) {
 
 function extractBucketPath(publicOrAnyUrl: string | null, bucket = 'code-of-conduct'): string | null {
   if (!publicOrAnyUrl) return null;
+  if (publicOrAnyUrl.startsWith(`storage:${bucket}/`)) return publicOrAnyUrl.slice(`storage:${bucket}/`.length);
   const re = new RegExp(`/storage/v1/object/(?:public|sign)/${bucket}/([^?]+)`);
   const m = publicOrAnyUrl.match(re);
   return m ? decodeURIComponent(m[1]) : null;
+}
+
+async function signedStorageUrl(admin: any, rawUrl: string | null, bucket: string, expires = 60 * 60 * 24 * 7): Promise<string | null> {
+  if (!rawUrl) return null;
+  const path = extractBucketPath(rawUrl, bucket);
+  if (!path) return rawUrl;
+  const { data } = await admin.storage.from(bucket).createSignedUrl(path, expires);
+  return data?.signedUrl || null;
 }
 
 async function resolvePdfUrl(admin: any, rawUrl: string | null): Promise<string | null> {
@@ -38,14 +48,14 @@ async function resolvePdfUrl(admin: any, rawUrl: string | null): Promise<string 
 }
 
 async function resolveSignedReceiptUrl(admin: any, rawUrl: string | null): Promise<string | null> {
-  if (!rawUrl) return null;
-  const path = extractBucketPath(rawUrl, 'signed-code-of-conduct');
-  if (!path) return rawUrl;
-  const { data } = await admin.storage.from('signed-code-of-conduct').createSignedUrl(path, 60 * 60 * 24 * 7);
-  return data?.signedUrl || null;
+  return signedStorageUrl(admin, rawUrl, 'signed-code-of-conduct');
 }
 
-function publicRequestPayload(r: any, t: any, signedPdfUrl: string | null, signedReceiptHtmlUrl: string | null) {
+async function resolveSignedPdfUrl(admin: any, rawUrl: string | null): Promise<string | null> {
+  return signedStorageUrl(admin, rawUrl, 'signed-code-of-conduct');
+}
+
+function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null) {
   return {
     ok: true,
     request: {
@@ -59,6 +69,9 @@ function publicRequestPayload(r: any, t: any, signedPdfUrl: string | null, signe
       signed_at: r.signed_at,
       token_expires_at: r.token_expires_at,
       whatsapp_redirect_url_visible: r.status === 'signed' ? (t?.whatsapp_redirect_url || null) : null,
+      signed_pdf_url: r.status === 'signed' ? signedRequestPdfUrl : null,
+      signed_pdf_generated_at: r.signed_pdf_generated_at || null,
+      signed_pdf_generation_error: r.signed_pdf_generation_error || null,
       signed_receipt_url: r.status === 'signed' ? signedReceiptHtmlUrl : null,
     },
     template: t ? {
@@ -67,7 +80,7 @@ function publicRequestPayload(r: any, t: any, signedPdfUrl: string | null, signe
       program_name: t.program_name,
       version: t.version,
       party_a_name: t.party_a_name,
-      template_pdf_url: signedPdfUrl,
+      template_pdf_url: originalPdfUrl,
       html_content: t.html_content,
       success_page_message: t.success_page_message,
     } : null,
@@ -202,6 +215,123 @@ async function generateAndStoreReceipt(admin: any, reqRow: any, tpl: any, ip: st
   }
 }
 
+async function fetchPdfBytes(admin: any, rawUrl: string | null) {
+  if (!rawUrl) throw new Error('Original template PDF is missing');
+  const path = extractBucketPath(rawUrl, 'code-of-conduct');
+  if (path) {
+    const { data, error } = await admin.storage.from('code-of-conduct').download(path);
+    if (error || !data) throw new Error(error?.message || 'Original PDF download failed');
+    return new Uint8Array(await data.arrayBuffer());
+  }
+  const resp = await fetch(rawUrl);
+  if (!resp.ok) throw new Error(`Original PDF fetch failed (${resp.status})`);
+  return new Uint8Array(await resp.arrayBuffer());
+}
+
+function dataUrlBytes(dataUrl: string | null) {
+  if (!dataUrl) return null;
+  const m = dataUrl.match(/^data:image\/(png|jpeg|jpg);base64,(.+)$/i);
+  if (!m) return null;
+  const bin = atob(m[2]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return { bytes, type: m[1].toLowerCase() };
+}
+
+function placement(tpl: any, pageCount: number) {
+  const num = (v: any, d: number) => Number.isFinite(Number(v)) ? Number(v) : d;
+  const configuredPage = Number(tpl?.pdf_signature_page_number || 0);
+  const pageIndex = configuredPage > 0 ? Math.max(0, Math.min(pageCount - 1, configuredPage - 1)) : pageCount - 1;
+  return {
+    pageIndex,
+    nameX: num(tpl?.pdf_signature_name_x, 150), nameY: num(tpl?.pdf_signature_name_y, 180),
+    sigX: num(tpl?.pdf_signature_image_x, 150), sigY: num(tpl?.pdf_signature_image_y, 110),
+    sigW: num(tpl?.pdf_signature_image_width, 220), sigH: num(tpl?.pdf_signature_image_height, 70),
+    dateX: num(tpl?.pdf_signature_date_x, 150), dateY: num(tpl?.pdf_signature_date_y, 70),
+    fontSize: num(tpl?.pdf_signature_font_size, 11),
+  };
+}
+
+function drawWrapped(page: any, text: string, x: number, y: number, opts: any) {
+  const clean = String(text || '—').replace(/\s+/g, ' ');
+  const words = clean.split(' ');
+  let line = '';
+  let yy = y;
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (opts.font.widthOfTextAtSize(next, opts.size) > opts.maxWidth && line) {
+      page.drawText(line, { x, y: yy, size: opts.size, font: opts.font, color: opts.color });
+      yy -= opts.lineHeight || opts.size + 4;
+      line = word;
+    } else line = next;
+  }
+  if (line) page.drawText(line, { x, y: yy, size: opts.size, font: opts.font, color: opts.color });
+  return yy;
+}
+
+async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: string | null, ua: string | null, regeneratedByAdmin = false) {
+  await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'signed_pdf_generation_started', metadata: regeneratedByAdmin ? { regenerated_by_admin: true } : null });
+  try {
+    if (!reqRow.signature_data_url) throw new Error('Cannot generate signed PDF because signature data is missing.');
+    const sig = dataUrlBytes(reqRow.signature_data_url);
+    if (!sig) throw new Error('Signature image format is invalid.');
+    const pdfDoc = await PDFDocument.load(await fetchPdfBytes(admin, tpl?.template_pdf_url || tpl?.pdf_url || null));
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const sigImage = sig.type === 'png' ? await pdfDoc.embedPng(sig.bytes) : await pdfDoc.embedJpg(sig.bytes);
+    const pages = pdfDoc.getPages();
+    const p = placement(tpl, pages.length);
+    const target = pages[p.pageIndex];
+    const memberName = reqRow.signed_member_name || reqRow.signature_name || reqRow.member_name || '—';
+    const signedAt = reqRow.signed_at ? new Date(reqRow.signed_at) : new Date();
+    const signedDate = signedAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    target.drawText(memberName, { x: p.nameX, y: p.nameY, size: p.fontSize, font, color: rgb(0.05, 0.05, 0.05) });
+    target.drawImage(sigImage, { x: p.sigX, y: p.sigY, width: p.sigW, height: p.sigH });
+    target.drawText(signedDate, { x: p.dateX, y: p.dateY, size: p.fontSize, font, color: rgb(0.05, 0.05, 0.05) });
+
+    const page = pdfDoc.addPage([595.28, 841.89]);
+    const ink = rgb(0.06, 0.09, 0.16), muted = rgb(0.36, 0.42, 0.5), line = rgb(0.86, 0.89, 0.93);
+    page.drawText('Digital Signing Evidence', { x: 48, y: 790, size: 22, font: bold, color: ink });
+    page.drawText('Secure IPC signing flow acknowledgement record', { x: 48, y: 768, size: 10, font, color: muted });
+    page.drawLine({ start: { x: 48, y: 748 }, end: { x: 547, y: 748 }, thickness: 1, color: line });
+    let y = 718;
+    const section = (title: string) => { page.drawText(title, { x: 48, y, size: 11, font: bold, color: muted }); y -= 20; };
+    const row = (k: string, v: string) => { page.drawText(k, { x: 58, y, size: 9.5, font, color: muted }); drawWrapped(page, v, 210, y, { font, size: 9.5, color: ink, maxWidth: 315, lineHeight: 13 }); y -= 18; };
+    section('Member details');
+    row('Member name', memberName); row('Member email used for signing', reqRow.signed_member_email || reqRow.member_email || '—'); row('Member phone', reqRow.member_phone || '—'); row('Program name', reqRow.program_name || tpl?.program_name || 'IPC Diamond Membership'); row('Request ID', reqRow.id); row('Template name/version', `${tpl?.name || reqRow.template_name || '—'} / v${tpl?.version || reqRow.template_version || '1.0'}`);
+    y -= 8; section('Signature evidence');
+    row('Signed at', signedAt.toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'medium' })); row('Typed signature name', reqRow.signature_name || '—'); row('IP address', ip || reqRow.acknowledgement_ip || '—'); row('User agent', ua || reqRow.acknowledgement_user_agent || '—');
+    page.drawText('Drawn signature', { x: 58, y, size: 9.5, font, color: muted });
+    page.drawRectangle({ x: 210, y: y - 45, width: 210, height: 58, borderColor: line, borderWidth: 1, color: rgb(1,1,1) });
+    page.drawImage(sigImage, { x: 218, y: y - 38, width: 190, height: 44 });
+    y -= 76; section('Acknowledgements');
+    const acks = Array.isArray(reqRow.acknowledgement_checklist) && reqRow.acknowledgement_checklist.length ? reqRow.acknowledgement_checklist : [
+      'I have read and understood the Code of Conduct.',
+      'I agree to the responsibilities and terms of the Diamond Membership.',
+      'I understand group/program access may be provided only after acknowledgement.',
+      'I confirm that the name and email shown belong to me.',
+    ];
+    for (const ack of acks) { page.drawText('[x]', { x: 58, y, size: 9.5, font: bold, color: rgb(0.09,0.55,0.25) }); y = drawWrapped(page, ack, 82, y, { font, size: 9.5, color: ink, maxWidth: 436, lineHeight: 13 }) - 16; }
+    page.drawLine({ start: { x: 48, y: 68 }, end: { x: 547, y: 68 }, thickness: 1, color: line });
+    page.drawText('This page records the digital acknowledgement evidence captured through the secure IPC signing flow.', { x: 48, y: 48, size: 8.5, font, color: muted });
+
+    const bytes = await pdfDoc.save();
+    const path = `${reqRow.id}/signed-code-of-conduct.pdf`;
+    const { error: upErr } = await admin.storage.from('signed-code-of-conduct').upload(path, new Blob([bytes], { type: 'application/pdf' }), { upsert: true, contentType: 'application/pdf' });
+    if (upErr) throw upErr;
+    const storedUrl = `storage:signed-code-of-conduct/${path}`;
+    const nowIso = new Date().toISOString();
+    await admin.from('code_of_conduct_requests').update({ signed_pdf_url: storedUrl, signed_pdf_generated_at: nowIso, signed_pdf_generation_error: null }).eq('id', reqRow.id);
+    await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: regeneratedByAdmin ? 'signed_pdf_regenerated_by_admin' : 'signed_pdf_generated', metadata: { path, page: p.pageIndex + 1 } });
+    return { ok: true, path, storedUrl };
+  } catch (e) {
+    const msg = (e as Error).message || 'Signed PDF generation failed';
+    await admin.from('code_of_conduct_requests').update({ signed_pdf_generation_error: msg }).eq('id', reqRow.id);
+    await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'signed_pdf_generation_failed', metadata: { error: msg } });
+    return { ok: false, error: msg };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   let admin: any = null;
@@ -216,8 +346,8 @@ Deno.serve(async (req) => {
     const token = body.token || url.searchParams.get('token');
     const action = body.action || url.searchParams.get('action') || (req.method === 'POST' ? 'sign' : 'fetch');
 
-    // Admin-only action: regenerate signed receipt for an already-signed request (no token needed)
-    if (action === 'admin_regenerate_receipt') {
+    // Admin-only actions: regenerate immutable signed outputs for an already-signed request
+    if (action === 'admin_regenerate_receipt' || action === 'admin_regenerate_signed_pdf') {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader?.startsWith('Bearer ')) return publicError('UNAUTHORIZED', 'Missing Authorization', 401);
       const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -236,8 +366,10 @@ Deno.serve(async (req) => {
       const { data: tpl0 } = r.template_id ? await admin.from('code_of_conduct_templates').select('*').eq('id', r.template_id).maybeSingle() : { data: null } as any;
       const ip = r.acknowledgement_ip || null;
       const ua = r.acknowledgement_user_agent || null;
-      const result = await generateAndStoreReceipt(admin, r, tpl0, ip, ua);
-      if (!result.ok) return publicError('RECEIPT_FAILED', result.error || 'Receipt generation failed', 500);
+      const result = action === 'admin_regenerate_signed_pdf'
+        ? await generateAndStoreSignedPdf(admin, r, tpl0, ip, ua, true)
+        : await generateAndStoreReceipt(admin, r, tpl0, ip, ua);
+      if (!result.ok) return publicError(action === 'admin_regenerate_signed_pdf' ? 'SIGNED_PDF_GENERATION_FAILED' : 'RECEIPT_FAILED', result.error || 'Generation failed', 500);
       return jsonResponse({ ok: true, path: result.path });
     }
 
@@ -270,10 +402,11 @@ Deno.serve(async (req) => {
       } else {
         await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'document_viewed' });
       }
-      const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
-      if (!signedPdf && !tpl?.html_content) return publicError('DOCUMENT_NOT_FOUND', 'The agreement document is not configured yet.', 404);
+      const originalPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+      if (!originalPdf && !tpl?.html_content) return publicError('DOCUMENT_NOT_FOUND', 'The agreement document is not configured yet.', 404);
       const receiptUrl = await resolveSignedReceiptUrl(admin, reqRow.signed_html_url || reqRow.signed_receipt_url || null);
-      return jsonResponse(publicRequestPayload(reqRow, tpl, signedPdf, receiptUrl));
+      const signedRequestPdf = await resolveSignedPdfUrl(admin, reqRow.signed_pdf_url || null);
+      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl));
     }
 
     if (action === 'whatsapp_click') {
@@ -287,9 +420,10 @@ Deno.serve(async (req) => {
 
     await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_attempted' });
     if (reqRow.status === 'signed') {
-      const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+      const originalPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
       const receiptUrl = await resolveSignedReceiptUrl(admin, reqRow.signed_html_url || reqRow.signed_receipt_url || null);
-      return jsonResponse({ already_signed: true, ...publicRequestPayload(reqRow, tpl, signedPdf, receiptUrl) });
+      const signedRequestPdf = await resolveSignedPdfUrl(admin, reqRow.signed_pdf_url || null);
+      return jsonResponse({ already_signed: true, ...publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl) });
     }
 
     const signatureName = body.signature_name || body.typed_name;
@@ -331,7 +465,8 @@ Deno.serve(async (req) => {
     if (reqRow.paid_pipeline_lead_id) await admin.from('paid_pipeline_leads').update({ code_of_conduct_status: 'signed', code_of_conduct_signed_at: now, code_of_conduct_request_id: reqRow.id }).eq('id', reqRow.paid_pipeline_lead_id);
     if (reqRow.crm_lead_id) await admin.from('leads').update({ code_of_conduct_status: 'signed', code_of_conduct_signed_at: now, code_of_conduct_request_id: reqRow.id }).eq('id', reqRow.crm_lead_id);
 
-    // Generate signed receipt HTML and store it
+    // Generate signed PDF as primary proof and keep HTML receipt as secondary evidence
+    const pdfResult = await generateAndStoreSignedPdf(admin, updated, tpl, ip, ua);
     const receiptResult = await generateAndStoreReceipt(admin, updated, tpl, ip, ua);
 
     // Fire-and-forget signed copy email
@@ -357,9 +492,10 @@ Deno.serve(async (req) => {
 
     // Re-read after receipt
     const { data: finalRow } = await admin.from('code_of_conduct_requests').select('*').eq('id', updated.id).maybeSingle();
-    const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+    const originalPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
     const receiptUrl = await resolveSignedReceiptUrl(admin, finalRow?.signed_html_url || finalRow?.signed_receipt_url || null);
-    return jsonResponse({ ...publicRequestPayload(finalRow || updated, tpl, signedPdf, receiptUrl), receipt_generated: receiptResult.ok });
+    const signedRequestPdf = await resolveSignedPdfUrl(admin, finalRow?.signed_pdf_url || null);
+    return jsonResponse({ ...publicRequestPayload(finalRow || updated, tpl, originalPdf, signedRequestPdf, receiptUrl), signed_pdf_generated: pdfResult.ok, receipt_generated: receiptResult.ok });
   } catch (e) {
     console.error('code-of-conduct-public error', e);
     try {

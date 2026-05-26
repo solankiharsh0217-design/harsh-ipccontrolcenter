@@ -329,48 +329,46 @@ export default function CodeOfConductAdmin() {
     }
   };
 
-  const getReceiptSignedUrl = async (r: any): Promise<string | null> => {
-    const stored: string | null = r.signed_html_url || r.signed_receipt_url || null;
+  const getStorageSignedUrl = async (stored: string | null): Promise<string | null> => {
     if (!stored) return null;
     const m = stored.match(/(?:storage:|\/storage\/v1\/object\/(?:public|sign)\/)signed-code-of-conduct\/(.+?)(?:\?|$)/);
-    const path = m ? m[1] : null;
+    const path = m ? decodeURIComponent(m[1]) : null;
     if (!path) return stored;
     const { data } = await supabase.storage.from("signed-code-of-conduct").createSignedUrl(path, 60 * 60 * 24 * 7);
     return data?.signedUrl || null;
   };
+  const getReceiptSignedUrl = async (r: any): Promise<string | null> => getStorageSignedUrl(r.signed_html_url || r.signed_receipt_url || null);
+  const getPdfSignedUrl = async (r: any): Promise<string | null> => getStorageSignedUrl(r.signed_pdf_url || null);
 
   const viewSigned = (r: any) => {
+    window.open(`${window.location.origin}/code-of-conduct/signed-pdf/${r.id}`, "_blank");
+    (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_viewed_by_admin" });
+  };
+  const viewReceipt = (r: any) => {
     window.open(`${window.location.origin}/code-of-conduct/receipt/${r.id}`, "_blank");
-    (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_viewed_by_admin" });
   };
   const downloadSigned = async (r: any) => {
     try {
-      const u = await getReceiptSignedUrl(r);
-      if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+      const u = await getPdfSignedUrl(r);
+      if (!u) { toast({ title: "Signed PDF not available", description: r.signed_pdf_generation_error || undefined, variant: "destructive" }); return; }
       const resp = await fetch(u);
-      const text = await resp.text();
-      const blob = new Blob([text], { type: "text/html;charset=utf-8" });
+      const blob = new Blob([await resp.blob()], { type: "application/pdf" });
       const dl = URL.createObjectURL(blob);
       const safeName = (r.signed_member_name || r.member_name || "member").replace(/[^\w-]+/g, "_");
-      const a = document.createElement("a"); a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-Receipt-${safeName}-${r.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
+      const a = document.createElement("a"); a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-${safeName}-${r.id.slice(0,8)}.pdf`; document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(dl);
-      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_downloaded_by_admin" });
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_downloaded_by_admin" });
     } catch (e: any) {
       toast({ title: "Download failed", description: e?.message, variant: "destructive" });
-      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_receipt_download_failed", metadata: { error: e?.message } });
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_link_open_failed", metadata: { error: e?.message } });
     }
   };
-  const copyAdminReceiptLink = async (r: any) => {
-    await navigator.clipboard.writeText(`${window.location.origin}/code-of-conduct/receipt/${r.id}`);
-    toast({ title: "Admin receipt link copied" });
-    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied", metadata: { scope: "admin" } });
-  };
-  const copyMemberReceiptLink = async (r: any) => {
-    const u = await getReceiptSignedUrl(r);
-    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+  const copySignedPdfLink = async (r: any) => {
+    const u = await getPdfSignedUrl(r);
+    if (!u) { toast({ title: "Signed PDF not available", variant: "destructive" }); return; }
     await navigator.clipboard.writeText(u);
-    toast({ title: "Temporary member link copied (valid 7 days)" });
-    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied", metadata: { scope: "member_temp" } });
+    toast({ title: "Temporary signed PDF link copied (valid 7 days)" });
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_link_copied", metadata: { scope: "temporary_pdf" } });
   };
   const sendSignedCopyRow = async (r: any, mode: "admin" | "member") => {
     try {
@@ -383,12 +381,21 @@ export default function CodeOfConductAdmin() {
   };
   const regenSigned = async (r: any) => {
     try {
+      const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_signed_pdf", request_id: r.id } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: "Signed PDF regenerated" });
+      loadRequests();
+    } catch (e: any) { toast({ title: "Could not regenerate", description: e?.message, variant: "destructive" }); }
+  };
+  const regenReceipt = async (r: any) => {
+    try {
       const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_receipt", request_id: r.id } });
       if (error) throw error;
       if ((data as any)?.ok === false) throw new Error((data as any).message);
-      toast({ title: "Signed copy regenerated" });
+      toast({ title: "HTML receipt regenerated" });
       loadRequests();
-    } catch (e: any) { toast({ title: "Could not regenerate", description: e?.message, variant: "destructive" }); }
+    } catch (e: any) { toast({ title: "Could not regenerate receipt", description: e?.message, variant: "destructive" }); }
   };
   const openSignedRecord = async (r: any) => {
     setSignedRecord(r);
@@ -604,6 +611,24 @@ export default function CodeOfConductAdmin() {
             <span>Also email the signed copy to the member after signing</span>
           </label>
 
+          <SectionLabel>PDF Signature Placement</SectionLabel>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">Coordinates are PDF points from the bottom-left of the selected page. Leave page blank to use the last page.</div>
+          <Grid>
+            <Field label="Signature page number"><Input type="number" value={tpl.pdf_signature_page_number == null ? "" : String(tpl.pdf_signature_page_number)} onChange={(v) => setTpl({ ...tpl, pdf_signature_page_number: v ? Number(v) : null })} placeholder="Last page" /></Field>
+            <Field label="Font size"><Input type="number" value={String(tpl.pdf_signature_font_size ?? 11)} onChange={(v) => setTpl({ ...tpl, pdf_signature_font_size: Number(v) || 11 })} /></Field>
+            <Field label="Member name X"><Input type="number" value={String(tpl.pdf_signature_name_x ?? 150)} onChange={(v) => setTpl({ ...tpl, pdf_signature_name_x: Number(v) || 0 })} /></Field>
+            <Field label="Member name Y"><Input type="number" value={String(tpl.pdf_signature_name_y ?? 180)} onChange={(v) => setTpl({ ...tpl, pdf_signature_name_y: Number(v) || 0 })} /></Field>
+            <Field label="Signature image X"><Input type="number" value={String(tpl.pdf_signature_image_x ?? 150)} onChange={(v) => setTpl({ ...tpl, pdf_signature_image_x: Number(v) || 0 })} /></Field>
+            <Field label="Signature image Y"><Input type="number" value={String(tpl.pdf_signature_image_y ?? 110)} onChange={(v) => setTpl({ ...tpl, pdf_signature_image_y: Number(v) || 0 })} /></Field>
+            <Field label="Signature image width"><Input type="number" value={String(tpl.pdf_signature_image_width ?? 220)} onChange={(v) => setTpl({ ...tpl, pdf_signature_image_width: Number(v) || 220 })} /></Field>
+            <Field label="Signature image height"><Input type="number" value={String(tpl.pdf_signature_image_height ?? 70)} onChange={(v) => setTpl({ ...tpl, pdf_signature_image_height: Number(v) || 70 })} /></Field>
+            <Field label="Date X"><Input type="number" value={String(tpl.pdf_signature_date_x ?? 150)} onChange={(v) => setTpl({ ...tpl, pdf_signature_date_x: Number(v) || 0 })} /></Field>
+            <Field label="Date Y"><Input type="number" value={String(tpl.pdf_signature_date_y ?? 70)} onChange={(v) => setTpl({ ...tpl, pdf_signature_date_y: Number(v) || 0 })} /></Field>
+          </Grid>
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => alert(`Placement preview\nPage: ${tpl.pdf_signature_page_number || "last"}\nName: ${tpl.pdf_signature_name_x ?? 150}, ${tpl.pdf_signature_name_y ?? 180}\nSignature: ${tpl.pdf_signature_image_x ?? 150}, ${tpl.pdf_signature_image_y ?? 110} (${tpl.pdf_signature_image_width ?? 220}×${tpl.pdf_signature_image_height ?? 70})\nDate: ${tpl.pdf_signature_date_x ?? 150}, ${tpl.pdf_signature_date_y ?? 70}`)} className="ipc-btn ipc-btn-ghost">Preview Signature Placement</button>
+            <button type="button" onClick={() => { if (applyArchiveRecipients()) saveTpl(); }} disabled={savingTpl} className="ipc-btn ipc-btn-black">Save Placement Settings</button>
+          </div>
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <SectionLabel>Email Body</SectionLabel>
@@ -650,6 +675,7 @@ export default function CodeOfConductAdmin() {
                   <th className="py-2 pr-3 font-medium">Signed</th>
                   <th className="py-2 pr-3 font-medium">Token expires</th>
                   <th className="py-2 pr-3 font-medium">Active token</th>
+                  <th className="py-2 pr-3 font-medium">Signed PDF</th>
                   <th className="py-2 pr-3 font-medium">Last error</th>
                   <th className="py-2 pr-3 font-medium">Actions</th>
                 </tr>
@@ -674,7 +700,10 @@ export default function CodeOfConductAdmin() {
                     <td className="py-2 pr-3 text-muted-foreground">{r.signed_at ? new Date(r.signed_at).toLocaleString() : "—"}</td>
                     <td className="py-2 pr-3 text-muted-foreground">{r.token_expires_at ? new Date(r.token_expires_at).toLocaleString() : "—"}</td>
                     <td className="py-2 pr-3"><span className={hasActiveToken ? "text-emerald-700" : "text-muted-foreground"}>{hasActiveToken ? "Yes" : "No"}</span></td>
-                    <td className="py-2 pr-3 text-rose-600 max-w-[220px] truncate" title={r.last_email_error || ""}>{r.last_email_error_code ? `[${r.last_email_error_code}] ${r.last_email_error || ""}` : "—"}</td>
+                    <td className="py-2 pr-3">
+                      {r.status === "signed" ? <span className={r.signed_pdf_url ? "text-emerald-700" : r.signed_pdf_generation_error ? "text-rose-700" : "text-amber-700"}>{r.signed_pdf_url ? "Generated" : r.signed_pdf_generation_error ? "Failed" : "Missing"}</span> : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="py-2 pr-3 text-rose-600 max-w-[220px] truncate" title={r.signed_pdf_generation_error || r.last_email_error || ""}>{r.signed_pdf_generation_error ? `PDF: ${r.signed_pdf_generation_error}` : r.last_email_error_code ? `[${r.last_email_error_code}] ${r.last_email_error || ""}` : "—"}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">
                       <RowActions
                         r={r}
@@ -685,11 +714,12 @@ export default function CodeOfConductAdmin() {
                         onView={() => viewSigned(r)}
                         onViewRecord={() => openSignedRecord(r)}
                         onDownload={() => downloadSigned(r)}
-                        onCopyAdmin={() => copyAdminReceiptLink(r)}
-                        onCopyMember={() => copyMemberReceiptLink(r)}
+                        onCopyAdmin={() => copySignedPdfLink(r)}
+                        onCopyMember={() => copySignedPdfLink(r)}
                         onSendAdmin={() => sendSignedCopyRow(r, "admin")}
                         onSendMember={() => sendSignedCopyRow(r, "member")}
                         onRegen={() => regenSigned(r)}
+                        onRegenReceipt={() => regenReceipt(r)}
                         onEditEmail={() => setEditEmailReq(r)}
                         onRetry={() => retrySend(r)}
                         onCancel={() => cancelRequestRow(r)}
@@ -774,6 +804,9 @@ export default function CodeOfConductAdmin() {
               <KV k="Typed signature" v={signedRecord.signature_name || "—"} />
               <KV k="IP address" v={signedRecord.acknowledgement_ip || "—"} />
               <KV k="User agent" v={signedRecord.acknowledgement_user_agent || "—"} />
+              <KV k="Signed PDF generated" v={signedRecord.signed_pdf_generated_at ? new Date(signedRecord.signed_pdf_generated_at).toLocaleString() : "No"} />
+              <KV k="Signed PDF URL exists" v={signedRecord.signed_pdf_url ? "Yes" : "No"} />
+              <KV k="Last PDF generation error" v={signedRecord.signed_pdf_generation_error || "—"} />
               <KV k="Paid pipeline lead" v={signedRecord.paid_pipeline_lead_id || "—"} />
               <KV k="Calling CRM lead" v={signedRecord.crm_lead_id || "—"} />
             </div>
@@ -785,18 +818,18 @@ export default function CodeOfConductAdmin() {
                 <ul className="list-disc pl-5 text-[12.5px]">{signedRecord.acknowledgement_checklist.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul></div>
             )}
             <div className="flex gap-2 mb-4 flex-wrap">
-              <button onClick={() => viewSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
-              {signedRecordReceiptUrl ? (
+              <button onClick={() => viewSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">View Signed PDF</button>
+              {signedRecord.signed_pdf_url ? (
                 <>
-                  <button onClick={() => downloadSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
-                  <button onClick={() => copyAdminReceiptLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Admin Link</button>
-                  <button onClick={() => copyMemberReceiptLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Member Temp Link</button>
+                  <button onClick={() => downloadSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Download PDF</button>
+                  <button onClick={() => copySignedPdfLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy PDF Link</button>
                 </>
               ) : (
-                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Generate Signed Copy</button>
+                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Generate Signed PDF</button>
               )}
-              <button onClick={() => sendSignedCopyRow(signedRecord, "admin")} className="ipc-btn ipc-btn-ghost !h-8">Send to Admin</button>
-              <button onClick={() => sendSignedCopyRow(signedRecord, "member")} className="ipc-btn ipc-btn-ghost !h-8">Send to Member</button>
+              {signedRecordReceiptUrl && <button onClick={() => viewReceipt(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">View HTML Receipt</button>}
+              <button onClick={() => sendSignedCopyRow(signedRecord, "admin")} className="ipc-btn ipc-btn-ghost !h-8">Send PDF to Admin</button>
+              <button onClick={() => sendSignedCopyRow(signedRecord, "member")} className="ipc-btn ipc-btn-ghost !h-8">Send PDF to Member</button>
             </div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Event timeline</div>
             <div className="space-y-1.5">
@@ -909,7 +942,7 @@ function RowActions(props: {
   onView: () => void; onViewRecord: () => void; onDownload: () => void;
   onCopyAdmin: () => void; onCopyMember: () => void;
   onSendAdmin: () => void; onSendMember: () => void;
-  onRegen: () => void; onEditEmail: () => void;
+  onRegen: () => void; onRegenReceipt: () => void; onEditEmail: () => void;
   onRetry: () => void; onCancel: () => void;
 }) {
   const { r, hasActiveToken, retryingId } = props;
@@ -917,7 +950,8 @@ function RowActions(props: {
   const close = (fn: () => void) => () => { setOpen(false); fn(); };
   const isSigned = r.status === "signed";
   const isFailed = !!r.last_email_error_code;
-  const hasStored = !!(r.signed_html_url || r.signed_receipt_url);
+  const hasPdf = !!r.signed_pdf_url;
+  const hasReceipt = !!(r.signed_html_url || r.signed_receipt_url);
   const leadHref = r.paid_pipeline_lead_id ? `/paid-pipeline?lead=${r.paid_pipeline_lead_id}` : r.crm_lead_id ? `/crm?lead=${r.crm_lead_id}` : null;
 
   let primary: { label: string; onClick: () => void; disabled?: boolean };
@@ -941,14 +975,16 @@ function RowActions(props: {
             {isSigned && (
               <>
                 <div className="border-t border-line my-1" />
-                <RAItem onClick={close(props.onView)}>View Signed Copy</RAItem>
+                <RAItem onClick={close(props.onView)} disabled={!hasPdf}>View Signed PDF</RAItem>
                 <RAItem onClick={close(props.onViewRecord)}>View Signed Record</RAItem>
-                <RAItem onClick={close(props.onDownload)} disabled={!hasStored}>Download Signed Copy</RAItem>
-                <RAItem onClick={close(props.onCopyAdmin)}>Copy Admin Receipt Link</RAItem>
-                <RAItem onClick={close(props.onCopyMember)} disabled={!hasStored}>Copy Temporary Member Link</RAItem>
-                <RAItem onClick={close(props.onSendAdmin)}>Send Copy to Admin</RAItem>
-                <RAItem onClick={close(props.onSendMember)}>Send Copy to Member</RAItem>
-                <RAItem onClick={close(props.onRegen)}>Regenerate Signed Copy</RAItem>
+                <RAItem onClick={close(props.onDownload)} disabled={!hasPdf}>Download Signed PDF</RAItem>
+                <RAItem onClick={close(props.onCopyAdmin)} disabled={!hasPdf}>Copy Signed PDF Link</RAItem>
+                <RAItem onClick={close(props.onCopyMember)} disabled={!hasPdf}>Copy Member PDF Link</RAItem>
+                <RAItem onClick={close(props.onSendAdmin)}>Send Signed PDF to Admin</RAItem>
+                <RAItem onClick={close(props.onSendMember)}>Send Signed PDF to Member</RAItem>
+                <RAItem onClick={close(props.onViewRecord)} disabled={!hasReceipt}>View Signing Evidence</RAItem>
+                <RAItem onClick={close(props.onRegen)}>Regenerate Signed PDF</RAItem>
+                <RAItem onClick={close(props.onRegenReceipt)}>Regenerate HTML Receipt</RAItem>
               </>
             )}
             <div className="border-t border-line my-1" />

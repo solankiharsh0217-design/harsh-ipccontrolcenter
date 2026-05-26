@@ -47,57 +47,65 @@ export default function CodeOfConductPanel(props: Props) {
   const [editEmailOpen, setEditEmailOpen] = useState(false);
 
   const adminReceiptUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/receipt/${req.id}` : null);
+  const adminSignedPdfUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/signed-pdf/${req.id}` : null);
 
-  const getStorageReceiptUrl = async (): Promise<string | null> => {
-    if (!req) return null;
-    const stored: string | null = req.signed_html_url || req.signed_receipt_url || null;
+  const getStorageUrl = async (stored: string | null): Promise<string | null> => {
     if (!stored) return null;
     const m = stored.match(/(?:storage:|\/storage\/v1\/object\/(?:public|sign)\/)signed-code-of-conduct\/(.+?)(?:\?|$)/);
-    const path = m ? m[1] : null;
+    const path = m ? decodeURIComponent(m[1]) : null;
     if (!path) return stored;
     const { data } = await supabase.storage.from("signed-code-of-conduct").createSignedUrl(path, 60 * 60 * 24 * 7);
     return data?.signedUrl || null;
   };
-
-  const viewSigned = () => {
-    const url = adminReceiptUrl();
-    if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
-    window.open(url, "_blank");
-    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_viewed_by_admin" });
+  const getStoragePdfUrl = async (): Promise<string | null> => req ? getStorageUrl(req.signed_pdf_url || null) : null;
+  const getStorageReceiptUrl = async (): Promise<string | null> => {
+    if (!req) return null;
+    return getStorageUrl(req.signed_html_url || req.signed_receipt_url || null);
   };
-  const downloadSigned = async () => {
+
+  const viewSignedPdf = () => {
+    const url = adminSignedPdfUrl();
+    if (!url) { toast({ title: "Signed PDF not available yet", variant: "destructive" }); return; }
+    window.open(url, "_blank");
+    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_pdf_viewed_by_admin" });
+  };
+  const viewHtmlReceipt = () => {
+    const url = adminReceiptUrl();
+    if (!url) { toast({ title: "Receipt not available yet", variant: "destructive" }); return; }
+    window.open(url, "_blank");
+  };
+  const downloadSignedPdf = async () => {
     if (!req) return;
     try {
-      const url = await getStorageReceiptUrl();
-      if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
+      const url = await getStoragePdfUrl();
+      if (!url) { toast({ title: "Signed PDF not available yet", description: req.signed_pdf_generation_error || undefined, variant: "destructive" }); return; }
       const resp = await fetch(url);
-      const text = await resp.text();
-      const blob = new Blob([text], { type: "text/html;charset=utf-8" });
+      const blob = new Blob([await resp.blob()], { type: "application/pdf" });
       const dl = URL.createObjectURL(blob);
       const safeName = (req.signed_member_name || req.member_name || "member").replace(/[^\w-]+/g, "_");
       const a = document.createElement("a");
-      a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-Receipt-${safeName}-${req.id.slice(0,8)}.html`;
+      a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-${safeName}-${req.id.slice(0,8)}.pdf`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(dl);
-      (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_downloaded_by_admin" });
+      (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_pdf_downloaded_by_admin" });
     } catch (e: any) {
       toast({ title: "Download failed", description: e?.message, variant: "destructive" });
-      if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_receipt_download_failed", metadata: { error: e?.message } });
+      if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_pdf_link_open_failed", metadata: { error: e?.message } });
     }
   };
-  const copyAdminReceiptLink = async () => {
-    const url = adminReceiptUrl();
+  const copySignedPdfLink = async () => {
+    const url = await getStoragePdfUrl();
     if (!url) return;
     await navigator.clipboard.writeText(url);
-    toast({ title: "Admin receipt link copied" });
-    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_link_copied", metadata: { scope: "admin" } });
+    toast({ title: "Temporary signed PDF link copied" });
+    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_pdf_link_copied", metadata: { scope: "temporary_pdf" } });
   };
-  const copyMemberReceiptLink = async () => {
-    const url = await getStorageReceiptUrl();
+  const copyMemberPdfLink = async () => {
+    const url = await getStoragePdfUrl();
     if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
     await navigator.clipboard.writeText(url);
-    toast({ title: "Temporary member copy link copied (valid 7 days)" });
-    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_link_copied", metadata: { scope: "member_temp" } });
+    toast({ title: "Temporary member PDF link copied (valid 7 days)" });
+    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_pdf_link_copied", metadata: { scope: "member_temp" } });
   };
   const sendSignedCopy = async (mode: "admin" | "member") => {
     if (!req) return;
@@ -105,9 +113,22 @@ export default function CodeOfConductPanel(props: Props) {
       const { data, error } = await supabase.functions.invoke("send-coc-signed-copy", { body: { request_id: req.id, mode } });
       if (error) throw error;
       if ((data as any)?.ok === false) throw new Error((data as any).message);
-      toast({ title: `Signed copy email sent to ${mode}` });
+      const result = mode === "admin" ? (data as any)?.results?.admin?.find((x: any) => x.ok) : (data as any)?.results?.member;
+      toast({ title: `Signed PDF sent to ${result?.to || mode}`, description: result?.provider_message_id ? `Provider id: ${result.provider_message_id}` : undefined });
       load();
     } catch (e: any) { toast({ title: "Failed to send signed copy", description: e?.message, variant: "destructive" }); }
+  };
+  const regenPdf = async () => {
+    if (!req) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_signed_pdf", request_id: req.id } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: "Signed PDF generated" });
+      await load();
+    } catch (e: any) { toast({ title: "Could not generate signed PDF", description: e?.message, variant: "destructive" }); }
+    finally { setBusy(false); }
   };
   const regenReceipt = async () => {
     if (!req) return;
@@ -262,20 +283,24 @@ export default function CodeOfConductPanel(props: Props) {
           <div className="flex flex-wrap gap-2 pt-1">
             {req.status === "signed" ? (
               <>
-                <button onClick={viewSigned} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
-                {(req.signed_html_url || req.signed_receipt_url) ? (
-                  <button onClick={downloadSigned} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
+                <button onClick={viewSignedPdf} className="ipc-btn ipc-btn-black !h-8">View Signed PDF</button>
+                {req.signed_pdf_url ? (
+                  <button onClick={downloadSignedPdf} className="ipc-btn ipc-btn-ghost !h-8">Download PDF</button>
                 ) : (
-                  <button onClick={regenReceipt} disabled={busy} className="ipc-btn ipc-btn-ghost !h-8 disabled:opacity-50">{busy ? "Generating…" : "Generate Signed Copy"}</button>
+                  <button onClick={regenPdf} disabled={busy} className="ipc-btn ipc-btn-ghost !h-8 disabled:opacity-50">{busy ? "Generating…" : "Generate Signed PDF"}</button>
                 )}
+                {req.signed_pdf_generation_error && <div className="basis-full text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1">PDF error: {req.signed_pdf_generation_error}</div>}
                 <SignedMoreMenu
-                  onCopyAdmin={copyAdminReceiptLink}
-                  onCopyMember={copyMemberReceiptLink}
+                  onCopyPdf={copySignedPdfLink}
+                  onCopyMember={copyMemberPdfLink}
                   onSendAdmin={() => sendSignedCopy("admin")}
                   onSendMember={() => sendSignedCopy("member")}
+                  onViewReceipt={viewHtmlReceipt}
                   onEditEmail={() => setEditEmailOpen(true)}
-                  onRegen={regenReceipt}
-                  hasStored={!!(req.signed_html_url || req.signed_receipt_url)}
+                  onRegenPdf={regenPdf}
+                  onRegenReceipt={regenReceipt}
+                  hasPdf={!!req.signed_pdf_url}
+                  hasReceipt={!!(req.signed_html_url || req.signed_receipt_url)}
                 />
               </>
             ) : req.status === "cancelled" || req.status === "expired" ? (
@@ -368,9 +393,9 @@ function Row({ k, v }: { k: string; v: string }) {
 }
 
 function SignedMoreMenu(props: {
-  onCopyAdmin: () => void; onCopyMember: () => void;
+  onCopyPdf: () => void; onCopyMember: () => void; onViewReceipt: () => void;
   onSendAdmin: () => void; onSendMember: () => void;
-  onEditEmail: () => void; onRegen: () => void; hasStored: boolean;
+  onEditEmail: () => void; onRegenPdf: () => void; onRegenReceipt: () => void; hasPdf: boolean; hasReceipt: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const close = (fn: () => void) => () => { setOpen(false); fn(); };
@@ -381,13 +406,15 @@ function SignedMoreMenu(props: {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 mt-1 z-50 bg-white border border-line rounded-md shadow-lg w-56 py-1 text-[12.5px]">
-            <MenuItem onClick={close(props.onCopyAdmin)}>Copy Admin Receipt Link</MenuItem>
-            <MenuItem onClick={close(props.onCopyMember)} disabled={!props.hasStored}>Copy Temporary Member Link</MenuItem>
+            <MenuItem onClick={close(props.onCopyPdf)} disabled={!props.hasPdf}>Copy Signed PDF Link</MenuItem>
+            <MenuItem onClick={close(props.onCopyMember)} disabled={!props.hasPdf}>Copy Member PDF Link</MenuItem>
             <div className="border-t border-line my-1" />
-            <MenuItem onClick={close(props.onSendAdmin)}>Send Copy to Admin</MenuItem>
-            <MenuItem onClick={close(props.onSendMember)}>Send Copy to Member</MenuItem>
+            <MenuItem onClick={close(props.onSendAdmin)}>Send Signed PDF to Admin</MenuItem>
+            <MenuItem onClick={close(props.onSendMember)}>Send Signed PDF to Member</MenuItem>
             <div className="border-t border-line my-1" />
-            <MenuItem onClick={close(props.onRegen)}>Regenerate Signed Copy</MenuItem>
+            <MenuItem onClick={close(props.onViewReceipt)} disabled={!props.hasReceipt}>View HTML Receipt</MenuItem>
+            <MenuItem onClick={close(props.onRegenPdf)}>Regenerate Signed PDF</MenuItem>
+            <MenuItem onClick={close(props.onRegenReceipt)}>Regenerate HTML Receipt</MenuItem>
             <MenuItem onClick={close(props.onEditEmail)}>Edit Contact Email</MenuItem>
           </div>
         </>
