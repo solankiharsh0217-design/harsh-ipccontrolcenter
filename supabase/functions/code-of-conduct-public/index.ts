@@ -55,7 +55,7 @@ async function resolveSignedPdfUrl(admin: any, rawUrl: string | null): Promise<s
   return signedStorageUrl(admin, rawUrl, 'signed-code-of-conduct');
 }
 
-function publicRequestPayload(r: any, t: any, signedPdfUrl: string | null, signedReceiptHtmlUrl: string | null) {
+function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null) {
   return {
     ok: true,
     request: {
@@ -69,7 +69,7 @@ function publicRequestPayload(r: any, t: any, signedPdfUrl: string | null, signe
       signed_at: r.signed_at,
       token_expires_at: r.token_expires_at,
       whatsapp_redirect_url_visible: r.status === 'signed' ? (t?.whatsapp_redirect_url || null) : null,
-      signed_pdf_url: r.status === 'signed' ? signedPdfUrl : null,
+      signed_pdf_url: r.status === 'signed' ? signedRequestPdfUrl : null,
       signed_pdf_generated_at: r.signed_pdf_generated_at || null,
       signed_pdf_generation_error: r.signed_pdf_generation_error || null,
       signed_receipt_url: r.status === 'signed' ? signedReceiptHtmlUrl : null,
@@ -80,7 +80,7 @@ function publicRequestPayload(r: any, t: any, signedPdfUrl: string | null, signe
       program_name: t.program_name,
       version: t.version,
       party_a_name: t.party_a_name,
-      template_pdf_url: signedPdfUrl,
+      template_pdf_url: originalPdfUrl,
       html_content: t.html_content,
       success_page_message: t.success_page_message,
     } : null,
