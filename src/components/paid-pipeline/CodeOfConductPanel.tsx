@@ -574,16 +574,40 @@ export default function CodeOfConductPanel(props: Props) {
             {debugOpen ? "▾" : "▸"} Trigger Debug
           </button>
           {debugOpen && (
-            <div className="mt-1.5 text-[10.5px] text-slate-600 space-y-0.5 font-mono">
-              <div>Eval source: {evalSource || (paidLeadId ? "paid_pipeline" : "crm")}</div>
-              <div>Resolved pipeline_id: {resolvedPipelineId || "—"}</div>
-              <div>Resolved stage_id: {resolvedStageId || "—"} {resolvedStageName ? `(${resolvedStageName})` : ""}</div>
-              <div>Rule matched: {matchedRule ? `Yes — ${matchedRule.name}` : "No"}</div>
+            <div className="mt-1.5 rounded-md border border-slate-200 bg-white p-2 text-[10.5px] text-slate-600 space-y-1 font-mono overflow-x-auto">
+              <div className="font-sans font-semibold text-slate-800">Lead</div>
+              <div>Name: {memberName || "—"}</div>
+              <div>paid_pipeline_lead_id: {paidLeadId || "—"}</div>
+              <div>crm_lead_id: {resolvedCrmLeadId || crmLeadId || "—"}</div>
+              <div>Email: {emailOverride || memberEmail || "—"}</div>
+              <div>Phone: {memberPhone || "—"}</div>
+              <div className="font-sans font-semibold text-slate-800 pt-1">Resolved current state</div>
+              <div>Resolved source: {resolvedSourceLabel}</div>
+              <div>Evaluator source: {evalSource || (paidLeadId ? "paid_pipeline" : "crm")}</div>
+              <div>Current pipeline: {resolvedPipelineName || "—"} ({resolvedPipelineId || "—"})</div>
+              <div>Current stage: {resolvedStageName || "—"} ({resolvedStageId || "—"})</div>
+              <div className="font-sans font-semibold text-slate-800 pt-1">Rule evaluation</div>
+              <div>Active rules loaded: {matchDiag?.activeRulesCount ?? "—"}</div>
+              <div>Matched rule: {matchedRule ? `Yes — ${matchedRule.name}` : "No"}</div>
+              <div>Matched by: {matchDiag?.matchedBy || "—"}</div>
+              <div>Stage name fallback used: {matchDiag?.stageNameFallbackUsed ? "yes" : "no"}</div>
               {matchedRule && (<>
                 <div>Rule source: {matchedRule.source} · pipeline_id: {matchedRule.pipeline_id} · stage_id: {matchedRule.stage_id}</div>
                 <div>Mode: {matchedRule.mode} · expiry: {matchedRule.link_expiry_days}d</div>
               </>)}
+              {(matchDiag?.comparisons || []).slice(0, 6).map((c) => (
+                <div key={c.rule_id} className="border-t border-slate-100 pt-1 mt-1">
+                  Rule compare: {c.rule_name} · source {c.source_match ? "✓" : "✕"} · pipeline {c.pipeline_match ? "✓" : "✕"} · stage_id {c.stage_match ? "✓" : "✕"} · stage_name {c.stage_name_match ? "✓" : "✕"} ({c.stage_name || "—"})
+                </div>
+              ))}
+              <div className="font-sans font-semibold text-slate-800 pt-1">Request state</div>
               <div>Existing request: {req ? `${req.status} (${req.id.slice(0,8)})` : "none"}</div>
+              <div>Last send attempt: {req?.last_email_attempt_at ? new Date(req.last_email_attempt_at).toLocaleString() : "—"}</div>
+              <div>Last error: {req?.last_email_error || evalResult?.message || "—"}</div>
+              <div className="font-sans font-semibold text-slate-800 pt-1">Auto-send</div>
+              <div>Eligible: {matchedRule?.mode === "auto_send" && !!(emailOverride || memberEmail)?.includes("@") && !req ? "yes" : "no"}</div>
+              <div>Reason if no: {req ? `existing request ${req.status}` : !(emailOverride || memberEmail)?.includes("@") ? "missing email" : matchedRule?.mode !== "auto_send" ? "no auto-send rule matched" : "—"}</div>
+              <div>Attempted keys: {autoSendAttemptedKeys.length ? autoSendAttemptedKeys.join(" | ") : "—"}</div>
               <div>Last evaluator: {evalResult ? `${evalResult.action}${evalResult.message ? ` — ${evalResult.message}` : ""} @ ${new Date(evalResult.at).toLocaleTimeString()}` : "—"}</div>
             </div>
           )}
