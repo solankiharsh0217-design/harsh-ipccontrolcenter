@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
+import EditMemberEmailModal from "./EditMemberEmailModal";
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
   if (variant === "destructive") sonnerToast.error(title, { description });
