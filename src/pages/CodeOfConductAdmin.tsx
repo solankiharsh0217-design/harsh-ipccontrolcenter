@@ -360,12 +360,17 @@ export default function CodeOfConductAdmin() {
       await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_receipt_download_failed", metadata: { error: e?.message } });
     }
   };
-  const copySignedLinkRow = async (r: any) => {
+  const copyAdminReceiptLink = async (r: any) => {
+    await navigator.clipboard.writeText(`${window.location.origin}/code-of-conduct/receipt/${r.id}`);
+    toast({ title: "Admin receipt link copied" });
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied", metadata: { scope: "admin" } });
+  };
+  const copyMemberReceiptLink = async (r: any) => {
     const u = await getReceiptSignedUrl(r);
     if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
     await navigator.clipboard.writeText(u);
-    toast({ title: "Signed copy link copied (valid 7 days)" });
-    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied" });
+    toast({ title: "Temporary member link copied (valid 7 days)" });
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied", metadata: { scope: "member_temp" } });
   };
   const sendSignedCopyRow = async (r: any, mode: "admin" | "member") => {
     try {
