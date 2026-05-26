@@ -224,11 +224,15 @@ export default function CodeOfConductAdmin() {
   const sendTestEmail = async () => {
     const to = tpl?.test_recipient_email;
     if (!to || !to.includes("@")) { toast({ title: "Add a test recipient email first", variant: "destructive" }); return; }
+    if (!tpl?.email_subject || !tpl?.email_body || !String(tpl.email_body).includes("{{signing_link}}")) {
+      toast({ title: "Email settings incomplete", description: "Save email settings (subject + body with {{signing_link}}) first.", variant: "destructive" });
+      return;
+    }
     if (!tpl?.id) {
-      toast({ title: "Saving template first…" });
-      const saved = await saveTpl(true);
+      const saved = await saveEmailSettings();
       if (!saved) return;
     }
+
     setSendingTest(true);
     setLastTestResult(null);
     try {
