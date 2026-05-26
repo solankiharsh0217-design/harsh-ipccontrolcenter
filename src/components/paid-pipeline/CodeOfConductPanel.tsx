@@ -366,3 +366,37 @@ function Row({ k, v }: { k: string; v: string }) {
     </div>
   );
 }
+
+function SignedMoreMenu(props: {
+  onCopyAdmin: () => void; onCopyMember: () => void;
+  onSendAdmin: () => void; onSendMember: () => void;
+  onEditEmail: () => void; onRegen: () => void; hasStored: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = (fn: () => void) => () => { setOpen(false); fn(); };
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((v) => !v)} className="ipc-btn ipc-btn-ghost !h-8" aria-label="More actions">More ▾</button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-1 z-50 bg-white border border-line rounded-md shadow-lg w-56 py-1 text-[12.5px]">
+            <MenuItem onClick={close(props.onCopyAdmin)}>Copy Admin Receipt Link</MenuItem>
+            <MenuItem onClick={close(props.onCopyMember)} disabled={!props.hasStored}>Copy Temporary Member Link</MenuItem>
+            <div className="border-t border-line my-1" />
+            <MenuItem onClick={close(props.onSendAdmin)}>Send Copy to Admin</MenuItem>
+            <MenuItem onClick={close(props.onSendMember)}>Send Copy to Member</MenuItem>
+            <div className="border-t border-line my-1" />
+            <MenuItem onClick={close(props.onRegen)}>Regenerate Signed Copy</MenuItem>
+            <MenuItem onClick={close(props.onEditEmail)}>Edit Contact Email</MenuItem>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+function MenuItem({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button onClick={onClick} disabled={disabled} className="w-full text-left px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white">{children}</button>
+  );
+}
