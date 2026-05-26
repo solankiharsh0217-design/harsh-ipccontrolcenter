@@ -329,6 +329,83 @@ export default function CodeOfConductAdmin() {
     }
   };
 
+  const getReceiptSignedUrl = async (r: any): Promise<string | null> => {
+    const stored: string | null = r.signed_html_url || r.signed_receipt_url || null;
+    if (!stored) return null;
+    const m = stored.match(/(?:storage:|\/storage\/v1\/object\/(?:public|sign)\/)signed-code-of-conduct\/(.+?)(?:\?|$)/);
+    const path = m ? m[1] : null;
+    if (!path) return stored;
+    const { data } = await supabase.storage.from("signed-code-of-conduct").createSignedUrl(path, 60 * 60 * 24 * 7);
+    return data?.signedUrl || null;
+  };
+
+  const viewSigned = async (r: any) => {
+    const u = await getReceiptSignedUrl(r);
+    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+    window.open(u, "_blank");
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_viewed_by_admin" });
+  };
+  const downloadSigned = async (r: any) => {
+    const u = await getReceiptSignedUrl(r);
+    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+    const a = document.createElement("a"); a.href = u; a.download = `signed-coc-${r.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
+  };
+  const copySignedLinkRow = async (r: any) => {
+    const u = await getReceiptSignedUrl(r);
+    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+    await navigator.clipboard.writeText(u);
+    toast({ title: "Signed copy link copied (valid 7 days)" });
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied" });
+  };
+  const sendSignedCopyRow = async (r: any, mode: "admin" | "member") => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-coc-signed-copy", { body: { request_id: r.id, mode } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: `Signed copy emailed to ${mode}` });
+      loadRequests();
+    } catch (e: any) { toast({ title: "Send failed", description: e?.message, variant: "destructive" }); }
+  };
+  const regenSigned = async (r: any) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_receipt", request_id: r.id } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: "Signed copy regenerated" });
+      loadRequests();
+    } catch (e: any) { toast({ title: "Could not regenerate", description: e?.message, variant: "destructive" }); }
+  };
+  const openSignedRecord = async (r: any) => {
+    setSignedRecord(r);
+    const [{ data: ev }, url] = await Promise.all([
+      (supabase as any).from("code_of_conduct_events").select("*").eq("request_id", r.id).order("created_at", { ascending: true }),
+      getReceiptSignedUrl(r),
+    ]);
+    setSignedRecordEvents(ev || []);
+    setSignedRecordReceiptUrl(url);
+  };
+  const cancelRequestRow = async (r: any) => {
+    if (!confirm("Cancel this request? Link will stop working.")) return;
+    await (supabase as any).from("code_of_conduct_requests").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", r.id);
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "request_cancelled" });
+    toast({ title: "Request cancelled" });
+    loadRequests();
+  };
+  const applyDefaultAgreementHtml = () => {
+    const hasContent = tpl?.html_content && tpl.html_content.trim() !== "" && tpl.html_content !== DEFAULT_AGREEMENT_HTML;
+    if (hasContent && !confirm("This will replace the current agreement body. Continue?")) return;
+    setTpl({ ...tpl, html_content: DEFAULT_AGREEMENT_HTML });
+    toast({ title: "Default agreement text applied", description: "Click Save Template to persist." });
+  };
+  const applyArchiveRecipients = () => {
+    const list = archiveInput.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+    const invalid = list.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (invalid.length) { toast({ title: "Invalid email(s)", description: invalid.join(", "), variant: "destructive" }); return false; }
+    setTpl({ ...tpl, signed_copy_recipient_emails: list });
+    return true;
+  };
+
+
   const filtered = filter === "all"
     ? requests
     : filter === "failed"
