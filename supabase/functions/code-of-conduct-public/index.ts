@@ -216,10 +216,36 @@ Deno.serve(async (req) => {
     const token = body.token || url.searchParams.get('token');
     const action = body.action || url.searchParams.get('action') || (req.method === 'POST' ? 'sign' : 'fetch');
 
+    // Admin-only action: regenerate signed receipt for an already-signed request (no token needed)
+    if (action === 'admin_regenerate_receipt') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader?.startsWith('Bearer ')) return publicError('UNAUTHORIZED', 'Missing Authorization', 401);
+      const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const userClient = createClient(SUPABASE_URL, ANON, { global: { headers: { Authorization: authHeader } } });
+      const { data: claims } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
+      const uid = claims?.claims?.sub as string | undefined;
+      if (!uid) return publicError('UNAUTHORIZED', 'Invalid session', 401);
+      const { data: isAdmin } = await admin.rpc('has_role', { _user_id: uid, _role: 'admin' });
+      if (!isAdmin) return publicError('FORBIDDEN', 'Admin only', 403);
+      const rid = body.request_id;
+      if (!rid) return publicError('MISSING_REQUEST_ID', 'request_id required', 400);
+      const { data: r } = await admin.from('code_of_conduct_requests').select('*').eq('id', rid).maybeSingle();
+      if (!r) return publicError('REQUEST_NOT_FOUND', 'Not found', 404);
+      if (r.status !== 'signed') return publicError('NOT_SIGNED', 'Request is not signed', 400);
+      if (!r.signature_name && !r.signature_data_url) return publicError('SIGNATURE_MISSING', 'Signed copy cannot be generated because signature data is missing.', 400);
+      const { data: tpl0 } = r.template_id ? await admin.from('code_of_conduct_templates').select('*').eq('id', r.template_id).maybeSingle() : { data: null } as any;
+      const ip = r.acknowledgement_ip || null;
+      const ua = r.acknowledgement_user_agent || null;
+      const result = await generateAndStoreReceipt(admin, r, tpl0, ip, ua);
+      if (!result.ok) return publicError('RECEIPT_FAILED', result.error || 'Receipt generation failed', 500);
+      return jsonResponse({ ok: true, path: result.path });
+    }
+
     const loaded = await loadRequest(admin, token, req);
     if (loaded.error) return loaded.error;
     activeRequest = loaded.reqRow;
     const reqRow = activeRequest;
+
 
     let tpl: any = null;
     if (reqRow.template_id) {
