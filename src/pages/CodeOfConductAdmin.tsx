@@ -6,6 +6,7 @@ import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import CodeOfConductRulesTab from "@/components/admin/CodeOfConductRulesTab";
 import { DEFAULT_AGREEMENT_HTML } from "@/lib/codeOfConductDefaults";
+import EditMemberEmailModal from "@/components/paid-pipeline/EditMemberEmailModal";
 
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
