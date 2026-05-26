@@ -164,8 +164,6 @@ export default function CodeOfConductRulesTab() {
         .is("archived_at", null)
         .is("deleted_at", null);
       if (crmErr) throw crmErr;
-      const crmIds = (crmLeads || []).map((l: any) => l.id);
-      const emails = Array.from(new Set((crmLeads || []).map((l: any) => (l.email || "").toLowerCase()).filter(Boolean)));
       const { data: paidRows, error: paidErr } = rule.source === "paid_pipeline"
         ? await supabase.from("paid_pipeline_leads").select("id, name, email, phone, crm_lead_id").is("archived_at", null)
         : { data: [] as any[], error: null } as any;
