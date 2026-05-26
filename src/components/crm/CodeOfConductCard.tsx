@@ -85,6 +85,9 @@ export default function CodeOfConductCard(props: Props) {
         memberPhone={props.memberPhone}
         programName={props.programName}
         dealValue={props.dealValue}
+        evalSource="crm"
+        evalPipelineId={pipelineId}
+        evalStageId={stageId}
       />
     </div>
   );
