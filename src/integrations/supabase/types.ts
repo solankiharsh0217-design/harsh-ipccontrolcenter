@@ -697,20 +697,25 @@ export type Database = {
       code_of_conduct_requests: {
         Row: {
           acknowledgement_checkbox: boolean
+          acknowledgement_checklist: Json | null
           acknowledgement_email: string | null
           acknowledgement_ip: string | null
           acknowledgement_user_agent: string | null
+          admin_copy_email_sent_at: string | null
           cancelled_at: string | null
           cancelled_reason: string | null
+          corrected_contact_email: string | null
           created_at: string
           created_by: string | null
           crm_lead_id: string | null
           deal_value: number | null
+          email_change_history: Json
           email_error: string | null
           id: string
           last_email_attempt_at: string | null
           last_email_error: string | null
           last_email_error_code: string | null
+          member_copy_email_sent_at: string | null
           member_email: string
           member_name: string
           member_phone: string | null
@@ -721,7 +726,12 @@ export type Database = {
           signature_data_url: string | null
           signature_name: string | null
           signed_at: string | null
+          signed_html_url: string | null
+          signed_member_email: string | null
+          signed_member_name: string | null
           signed_pdf_url: string | null
+          signed_receipt_generated_at: string | null
+          signed_receipt_url: string | null
           status: string
           template_id: string | null
           template_version: string | null
@@ -733,20 +743,25 @@ export type Database = {
         }
         Insert: {
           acknowledgement_checkbox?: boolean
+          acknowledgement_checklist?: Json | null
           acknowledgement_email?: string | null
           acknowledgement_ip?: string | null
           acknowledgement_user_agent?: string | null
+          admin_copy_email_sent_at?: string | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
+          corrected_contact_email?: string | null
           created_at?: string
           created_by?: string | null
           crm_lead_id?: string | null
           deal_value?: number | null
+          email_change_history?: Json
           email_error?: string | null
           id?: string
           last_email_attempt_at?: string | null
           last_email_error?: string | null
           last_email_error_code?: string | null
+          member_copy_email_sent_at?: string | null
           member_email: string
           member_name: string
           member_phone?: string | null
@@ -757,7 +772,12 @@ export type Database = {
           signature_data_url?: string | null
           signature_name?: string | null
           signed_at?: string | null
+          signed_html_url?: string | null
+          signed_member_email?: string | null
+          signed_member_name?: string | null
           signed_pdf_url?: string | null
+          signed_receipt_generated_at?: string | null
+          signed_receipt_url?: string | null
           status?: string
           template_id?: string | null
           template_version?: string | null
@@ -769,20 +789,25 @@ export type Database = {
         }
         Update: {
           acknowledgement_checkbox?: boolean
+          acknowledgement_checklist?: Json | null
           acknowledgement_email?: string | null
           acknowledgement_ip?: string | null
           acknowledgement_user_agent?: string | null
+          admin_copy_email_sent_at?: string | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
+          corrected_contact_email?: string | null
           created_at?: string
           created_by?: string | null
           crm_lead_id?: string | null
           deal_value?: number | null
+          email_change_history?: Json
           email_error?: string | null
           id?: string
           last_email_attempt_at?: string | null
           last_email_error?: string | null
           last_email_error_code?: string | null
+          member_copy_email_sent_at?: string | null
           member_email?: string
           member_name?: string
           member_phone?: string | null
@@ -793,7 +818,12 @@ export type Database = {
           signature_data_url?: string | null
           signature_name?: string | null
           signed_at?: string | null
+          signed_html_url?: string | null
+          signed_member_email?: string | null
+          signed_member_name?: string | null
           signed_pdf_url?: string | null
+          signed_receipt_generated_at?: string | null
+          signed_receipt_url?: string | null
           status?: string
           template_id?: string | null
           template_version?: string | null
@@ -923,6 +953,8 @@ export type Database = {
           party_a_name: string
           program_name: string | null
           reply_to_email: string | null
+          send_signed_copy_to_member: boolean
+          signed_copy_recipient_emails: string[] | null
           success_page_message: string | null
           template_pdf_url: string | null
           test_recipient_email: string | null
@@ -946,6 +978,8 @@ export type Database = {
           party_a_name?: string
           program_name?: string | null
           reply_to_email?: string | null
+          send_signed_copy_to_member?: boolean
+          signed_copy_recipient_emails?: string[] | null
           success_page_message?: string | null
           template_pdf_url?: string | null
           test_recipient_email?: string | null
@@ -969,6 +1003,8 @@ export type Database = {
           party_a_name?: string
           program_name?: string | null
           reply_to_email?: string | null
+          send_signed_copy_to_member?: boolean
+          signed_copy_recipient_emails?: string[] | null
           success_page_message?: string | null
           template_pdf_url?: string | null
           test_recipient_email?: string | null
