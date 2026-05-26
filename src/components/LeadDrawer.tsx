@@ -112,7 +112,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
         const { evaluateStageTrigger } = await import("@/lib/codeOfConductRules");
         const res = await evaluateStageTrigger({
           source: "crm", pipelineId: lead.pipeline_id, stageId,
-          crmLeadId: lead.id, memberName: lead.full_name || "Member",
+          crmLeadId: lead.id, paidPipelineLeadId: (lead as any).paid_pipeline_lead_id || null, memberName: lead.full_name || "Member",
           memberEmail: lead.email, memberPhone: lead.phone,
           programName: lead.program_name, dealValue: lead.deal_value,
         });

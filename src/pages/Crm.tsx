@@ -200,7 +200,7 @@ export default function Crm() {
         const l = leads.find((x) => x.id === id);
         if (!l) continue;
         const res = await evaluateStageTrigger({
-          source: "crm", pipelineId, stageId: newStageId, crmLeadId: id,
+          source: "crm", pipelineId, stageId: newStageId, crmLeadId: id, paidPipelineLeadId: (l as any).paid_pipeline_lead_id || null,
           memberName: l.full_name || "Member", memberEmail: l.email, memberPhone: l.phone,
           programName: (l as any).program_name, dealValue: (l as any).deal_value,
         });

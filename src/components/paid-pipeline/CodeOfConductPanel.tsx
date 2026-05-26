@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 import EditMemberEmailModal from "./EditMemberEmailModal";
 import { useAuth } from "@/context/AuthContext";
-import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRule, type CodeOfConductRule, type CoCRuleSource } from "@/lib/codeOfConductRules";
+import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRuleDetailed, normalizeCoCName, type CodeOfConductRule, type CoCRuleSource, type RuleMatchDiagnostics } from "@/lib/codeOfConductRules";
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
   if (variant === "destructive") sonnerToast.error(title, { description });
@@ -41,6 +41,8 @@ const STATUS_LABELS: Record<string, string> = {
   sent: "Sent", viewed: "Viewed", signed: "Signed", expired: "Expired", cancelled: "Cancelled", failed: "Failed",
 };
 
+const normPhone = (v?: string | null) => (v || "").replace(/\D/g, "");
+
 export default function CodeOfConductPanel(props: Props) {
   const { paidLeadId, crmLeadId, memberName, memberEmail, memberPhone, programName, dealValue, evalSource, evalPipelineId, evalStageId } = props;
   const { isAdmin } = useAuth();
@@ -57,9 +59,13 @@ export default function CodeOfConductPanel(props: Props) {
   const [evalRunning, setEvalRunning] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
   const [resolvedPipelineId, setResolvedPipelineId] = useState<string | null>(evalPipelineId || null);
+  const [resolvedPipelineName, setResolvedPipelineName] = useState<string | null>(null);
   const [resolvedStageId, setResolvedStageId] = useState<string | null>(evalStageId || null);
   const [resolvedStageName, setResolvedStageName] = useState<string | null>(null);
-  const [autoSendAttempted, setAutoSendAttempted] = useState(false);
+  const [resolvedCrmLeadId, setResolvedCrmLeadId] = useState<string | null>(crmLeadId || null);
+  const [resolvedSourceLabel, setResolvedSourceLabel] = useState<string>(crmLeadId ? "CRM" : paidLeadId ? "Paid Pipeline fallback" : "No link");
+  const [matchDiag, setMatchDiag] = useState<RuleMatchDiagnostics | null>(null);
+  const [autoSendAttemptedKeys, setAutoSendAttemptedKeys] = useState<string[]>([]);
 
   const adminReceiptUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/receipt/${req.id}` : null);
   const adminSignedPdfUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/signed-pdf/${req.id}` : null);
@@ -184,7 +190,8 @@ export default function CodeOfConductPanel(props: Props) {
   const load = async () => {
     setLoading(true);
     let q = (supabase as any).from("code_of_conduct_requests").select("*").order("created_at", { ascending: false }).limit(1);
-    if (paidLeadId) q = q.eq("paid_pipeline_lead_id", paidLeadId);
+    if (paidLeadId && crmLeadId) q = q.or(`paid_pipeline_lead_id.eq.${paidLeadId},crm_lead_id.eq.${crmLeadId}`);
+    else if (paidLeadId) q = q.eq("paid_pipeline_lead_id", paidLeadId);
     else if (crmLeadId) q = q.eq("crm_lead_id", crmLeadId);
     else { setLoading(false); return; }
     const { data } = await q;
@@ -199,75 +206,106 @@ export default function CodeOfConductPanel(props: Props) {
     } catch { /* ignore */ }
   };
 
-  /** Resolve CRM pipeline/stage if not provided by caller. */
-  const resolveContext = async (): Promise<{ source: CoCRuleSource; pipelineId: string | null; stageId: string | null; stageName: string | null } | null> => {
-    let source = evalSource;
+  /** Resolve CRM pipeline/stage with paid→CRM fallback by link, email, then normalized phone. */
+  const resolveContext = async (repair = false): Promise<{ source: CoCRuleSource; pipelineId: string | null; stageId: string | null; stageName: string | null; crmId: string | null; resolution: string } | null> => {
+    let source = evalSource || (paidLeadId ? "paid_pipeline" : "crm");
     let pipelineId = evalPipelineId || null;
     let stageId = evalStageId || null;
     let stageName: string | null = null;
-    if (!source) source = paidLeadId ? "paid_pipeline" : "crm";
-    if (!pipelineId || !stageId) {
-      // Resolve by fetching linked lead
-      if (paidLeadId) {
-        const { data: paid } = await (supabase as any).from("paid_pipeline_leads").select("crm_lead_id").eq("id", paidLeadId).maybeSingle();
-        const cid = (paid as any)?.crm_lead_id;
-        if (cid) {
-          const { data: lead } = await supabase.from("leads").select("pipeline_id, stage_id").eq("id", cid).maybeSingle();
-          pipelineId = (lead as any)?.pipeline_id || null;
-          stageId = (lead as any)?.stage_id || null;
+    let pipelineName: string | null = null;
+    let crmId = crmLeadId || null;
+    let resolution = crmId ? "CRM" : paidLeadId ? "Paid Pipeline fallback" : "No link";
+
+    if (paidLeadId) {
+      const { data: paid } = await (supabase as any).from("paid_pipeline_leads").select("id,name,email,phone,crm_lead_id").eq("id", paidLeadId).maybeSingle();
+      crmId = crmId || (paid as any)?.crm_lead_id || null;
+      if (!crmId) {
+        const email = (paid as any)?.email || memberEmail || emailOverride || null;
+        const phone = normPhone((paid as any)?.phone || memberPhone);
+        let match: any = null;
+        if (email) {
+          const { data } = await supabase.from("leads").select("id,pipeline_id,stage_id,full_name,email,phone").ilike("email", email).is("archived_at", null).is("deleted_at", null).limit(1);
+          match = data?.[0] || null;
         }
-      } else if (crmLeadId) {
-        const { data: lead } = await supabase.from("leads").select("pipeline_id, stage_id").eq("id", crmLeadId).maybeSingle();
-        pipelineId = (lead as any)?.pipeline_id || null;
-        stageId = (lead as any)?.stage_id || null;
+        if (!match && phone) {
+          const { data } = await supabase.from("leads").select("id,pipeline_id,stage_id,full_name,email,phone").is("archived_at", null).is("deleted_at", null).limit(200);
+          match = (data || []).find((l: any) => normPhone(l.phone) === phone) || null;
+        }
+        if (match?.id) {
+          crmId = match.id;
+          resolution = "CRM repaired by email/phone";
+          await supabase.from("paid_pipeline_leads").update({ crm_lead_id: crmId } as any).eq("id", paidLeadId);
+          await supabase.from("leads").update({ paid_pipeline_lead_id: paidLeadId } as any).eq("id", crmId);
+          await (supabase as any).from("code_of_conduct_events").insert({ event_type: "code_of_conduct_crm_link_repaired_for_trigger", metadata: { crm_lead_id: crmId, paid_pipeline_lead_id: paidLeadId, manual_repair: repair } });
+        }
       }
+    }
+
+    if ((!pipelineId || !stageId) && crmId) {
+      const { data: lead } = await supabase.from("leads").select("pipeline_id, stage_id").eq("id", crmId).maybeSingle();
+      pipelineId = pipelineId || (lead as any)?.pipeline_id || null;
+      stageId = stageId || (lead as any)?.stage_id || null;
+      resolution = resolution === "No link" ? "CRM" : resolution;
     }
     if (stageId) {
       const { data: s } = await supabase.from("stages").select("name").eq("id", stageId).maybeSingle();
       stageName = (s as any)?.name || null;
     }
+    if (pipelineId) {
+      const { data: p } = await supabase.from("pipelines").select("name").eq("id", pipelineId).maybeSingle();
+      pipelineName = (p as any)?.name || null;
+    }
+    setResolvedCrmLeadId(crmId);
     setResolvedPipelineId(pipelineId);
+    setResolvedPipelineName(pipelineName);
     setResolvedStageId(stageId);
     setResolvedStageName(stageName);
-    return { source, pipelineId, stageId, stageName };
+    setResolvedSourceLabel(resolution);
+    return { source, pipelineId, stageId, stageName, crmId, resolution };
   };
 
   /** Evaluate rules; auto-fires once if mode=auto_send and no active request. */
   const runEvaluator = async (opts: { force?: boolean; verbose?: boolean } = {}): Promise<void> => {
     setEvalRunning(true);
     try {
-      const ctx = await resolveContext();
+      const ctx = await resolveContext(opts.force);
       if (!ctx) return;
-      const { source, pipelineId, stageId } = ctx;
+      const { source, pipelineId, stageId, stageName, crmId } = ctx;
       if (!pipelineId || !stageId) {
         setMatchedRule(null);
-        setEvalResult({ action: "none", message: "No CRM pipeline/stage to evaluate", at: new Date().toISOString() });
+        setMatchDiag(null);
+        setDebugOpen(true);
+        setEvalResult({ action: "missing_context", message: "Trigger cannot evaluate — CRM link/stage missing", at: new Date().toISOString() });
         if (opts.verbose) toast({ title: "No CRM stage to evaluate" });
         return;
       }
-      const rules = await loadActiveCoCRules(source);
-      const matched = findMatchingRule(rules, source, pipelineId, stageId);
+      const rules = await loadActiveCoCRules();
+      const { rule: matched, diagnostics } = await findMatchingRuleDetailed({ rules, source, pipelineId, stageId, stageName, crmLeadId: crmId, paidPipelineLeadId: paidLeadId || null });
+      setMatchDiag(diagnostics);
       setMatchedRule(matched);
       if (!matched) {
-        setEvalResult({ action: "none", message: "No active rule matched", at: new Date().toISOString() });
-        if (opts.verbose) toast({ title: "No active rule matched this lead's CRM stage" });
+        const possible = diagnostics.possibleStageNameMatch || normalizeCoCName(stageName).includes("code of conduct");
+        if (possible) setDebugOpen(true);
+        setEvalResult({ action: "none", message: possible ? "This lead is in a possible trigger stage but no rule matched." : "No active rule matched", at: new Date().toISOString() });
+        if (opts.verbose) toast({ title: "No active rule matched this lead's CRM stage", description: possible ? "Open Trigger Debug for mismatch details." : undefined });
         return;
       }
-      // Don't re-trigger auto-send more than once per panel mount unless forced
-      if (matched.mode === "auto_send" && autoSendAttempted && !opts.force) {
-        setEvalResult({ action: "duplicate_skipped", message: "Auto-send already attempted this session", at: new Date().toISOString() });
+      const guardKey = `${crmId || "no-crm"}:${paidLeadId || "no-paid"}:${matched.id}:${matched.template_id}`;
+      if (matched.mode === "auto_send" && autoSendAttemptedKeys.includes(guardKey) && !opts.force) {
+        setEvalResult({ action: "duplicate_skipped", message: "Auto-send already attempted for this lead/rule/template in this drawer", at: new Date().toISOString() });
         return;
       }
       const res = await evaluateStageTrigger({
-        source, pipelineId, stageId,
-        crmLeadId: crmLeadId || null,
+        source, pipelineId, stageId, stageName,
+        crmLeadId: crmId || null,
         paidPipelineLeadId: paidLeadId || null,
         memberName, memberEmail: emailOverride || memberEmail || null,
         memberPhone: memberPhone || null, programName, dealValue,
       });
       setMatchedRule(res.rule || matched);
+      if (res.diagnostics) setMatchDiag(res.diagnostics);
       setEvalResult({ action: res.action, message: res.message, at: new Date().toISOString() });
-      if (matched.mode === "auto_send") setAutoSendAttempted(true);
+      if (matched.mode === "auto_send") setAutoSendAttemptedKeys((prev) => prev.includes(guardKey) ? prev : [...prev, guardKey]);
       if (opts.verbose) {
         const label = `Rule matched: ${matched.name}`;
         const detail = res.action === "auto_sent" ? "Auto-send dispatched" :
@@ -280,6 +318,7 @@ export default function CodeOfConductPanel(props: Props) {
       if (res.action === "auto_sent" || res.action === "duplicate_skipped") await load();
     } catch (e: any) {
       setEvalResult({ action: "error", message: e?.message || String(e), at: new Date().toISOString() });
+      setDebugOpen(true);
       if (opts.verbose) toast({ title: "Trigger check failed", description: e?.message, variant: "destructive" });
     } finally {
       setEvalRunning(false);
@@ -331,7 +370,7 @@ export default function CodeOfConductPanel(props: Props) {
         body: {
           request_id: req?.id || undefined,
           paid_pipeline_lead_id: paidLeadId || undefined,
-          crm_lead_id: crmLeadId || undefined,
+          crm_lead_id: resolvedCrmLeadId || crmLeadId || undefined,
           member_name: memberName, member_email: emailOverride, member_phone: memberPhone,
           program_name: programName, deal_value: dealValue,
           origin: window.location.origin,
@@ -375,9 +414,20 @@ export default function CodeOfConductPanel(props: Props) {
     displayLabel = matchedRule!.mode === "auto_send"
       ? (evalRunning ? "Auto-send Pending…" : (evalResult?.action === "auto_send_failed" ? "Auto-send Failed" : "Required (auto-send)"))
       : "Required";
+  } else if (!req && evalResult?.action === "missing_email") {
+    displayStatus = "required";
+    displayLabel = "Required — Email Missing";
+  } else if (!req && ["missing_context", "error", "auto_send_failed"].includes(evalResult?.action || "")) {
+    displayStatus = "failed";
+    displayLabel = evalResult?.action === "missing_context" ? "Trigger Link Missing" : "Trigger Check Failed";
+  } else if (!req && evalResult?.message?.includes("possible trigger stage")) {
+    displayStatus = "required";
+    displayLabel = "Trigger Mismatch";
   }
   const cls = STATUS_STYLES[displayStatus] || STATUS_STYLES.not_required;
   const sendDisabled = busy || !setupComplete;
+  const effectiveEmail = emailOverride || memberEmail || "";
+  const effectiveEmailValid = effectiveEmail.includes("@");
 
   return (
     <div className="rounded-xl border border-[#E5E7EB] bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm">
@@ -394,12 +444,24 @@ export default function CodeOfConductPanel(props: Props) {
         <div className="flex items-center gap-2">
           {req?.template_version && <span className="text-[10.5px] text-slate-400">v{req.template_version}</span>}
           {isAdmin && (
-            <button onClick={() => runEvaluator({ force: true, verbose: true })} disabled={evalRunning}
-              className="text-[10.5px] px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-              title="Re-evaluate trigger rules for this lead">{evalRunning ? "Checking…" : "Run Trigger Check"}</button>
+            <>
+              <button onClick={() => runEvaluator({ force: true, verbose: true })} disabled={evalRunning}
+                className="text-[10.5px] px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
+                title="Re-evaluate trigger rules for this lead">{evalRunning ? "Checking…" : "Run Trigger Check"}</button>
+              <button onClick={() => runEvaluator({ force: true, verbose: true })} disabled={evalRunning}
+                className="text-[10.5px] px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
+                title="Repair the paid/CRM link by email or phone, then run the trigger check">Repair Link + Check</button>
+            </>
           )}
         </div>
       </div>
+
+      {isAdmin && !req && evalResult?.message?.includes("possible trigger stage") && (
+        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-[11.5px] text-amber-900">
+          <div className="font-medium">This lead is in a possible trigger stage but no rule matched.</div>
+          <div className="opacity-80">Open Trigger Debug below to compare the current stage/source against active rules.</div>
+        </div>
+      )}
 
       {ruleActive && (
         <div className={`mb-3 rounded-md border p-2.5 text-[11.5px] ${matchedRule!.mode === "auto_send" ? "bg-violet-50 border-violet-200 text-violet-900" : "bg-amber-50 border-amber-200 text-amber-900"}`}>
@@ -427,7 +489,11 @@ export default function CodeOfConductPanel(props: Props) {
               ? (matchedRule!.mode === "auto_send"
                   ? "An active auto-send rule matches this lead. The email is being dispatched automatically."
                   : "An active rule requires sending the Code of Conduct for this stage.")
-              : "No Code of Conduct request created yet. Send the agreement to capture digital acknowledgement before adding the member to the Diamond group."}
+              : evalResult?.action === "missing_context"
+                ? "Trigger cannot evaluate because the CRM link or stage is missing. Repair the link, then run the trigger check."
+                : evalResult?.message?.includes("possible trigger stage")
+                  ? "This lead appears to be in a Code of Conduct trigger stage, but the saved rule did not match the resolved source/pipeline/stage."
+                  : "No active Code of Conduct rule truly matches this lead yet."}
           </p>
           <input type="email" value={emailOverride} onChange={(e) => setEmailOverride(e.target.value)}
             className="w-full border border-slate-200 rounded-md px-2.5 py-1.5 text-[12.5px]" placeholder="Member email" />
@@ -509,16 +575,40 @@ export default function CodeOfConductPanel(props: Props) {
             {debugOpen ? "▾" : "▸"} Trigger Debug
           </button>
           {debugOpen && (
-            <div className="mt-1.5 text-[10.5px] text-slate-600 space-y-0.5 font-mono">
-              <div>Eval source: {evalSource || (paidLeadId ? "paid_pipeline" : "crm")}</div>
-              <div>Resolved pipeline_id: {resolvedPipelineId || "—"}</div>
-              <div>Resolved stage_id: {resolvedStageId || "—"} {resolvedStageName ? `(${resolvedStageName})` : ""}</div>
-              <div>Rule matched: {matchedRule ? `Yes — ${matchedRule.name}` : "No"}</div>
+            <div className="mt-1.5 rounded-md border border-slate-200 bg-white p-2 text-[10.5px] text-slate-600 space-y-1 font-mono overflow-x-auto">
+              <div className="font-sans font-semibold text-slate-800">Lead</div>
+              <div>Name: {memberName || "—"}</div>
+              <div>paid_pipeline_lead_id: {paidLeadId || "—"}</div>
+              <div>crm_lead_id: {resolvedCrmLeadId || crmLeadId || "—"}</div>
+              <div>Email: {emailOverride || memberEmail || "—"}</div>
+              <div>Phone: {memberPhone || "—"}</div>
+              <div className="font-sans font-semibold text-slate-800 pt-1">Resolved current state</div>
+              <div>Resolved source: {resolvedSourceLabel}</div>
+              <div>Evaluator source: {evalSource || (paidLeadId ? "paid_pipeline" : "crm")}</div>
+              <div>Current pipeline: {resolvedPipelineName || "—"} ({resolvedPipelineId || "—"})</div>
+              <div>Current stage: {resolvedStageName || "—"} ({resolvedStageId || "—"})</div>
+              <div className="font-sans font-semibold text-slate-800 pt-1">Rule evaluation</div>
+              <div>Active rules loaded: {matchDiag?.activeRulesCount ?? "—"}</div>
+              <div>Matched rule: {matchedRule ? `Yes — ${matchedRule.name}` : "No"}</div>
+              <div>Matched by: {matchDiag?.matchedBy || "—"}</div>
+              <div>Stage name fallback used: {matchDiag?.stageNameFallbackUsed ? "yes" : "no"}</div>
               {matchedRule && (<>
                 <div>Rule source: {matchedRule.source} · pipeline_id: {matchedRule.pipeline_id} · stage_id: {matchedRule.stage_id}</div>
                 <div>Mode: {matchedRule.mode} · expiry: {matchedRule.link_expiry_days}d</div>
               </>)}
+              {(matchDiag?.comparisons || []).slice(0, 6).map((c) => (
+                <div key={c.rule_id} className="border-t border-slate-100 pt-1 mt-1">
+                  Rule compare: {c.rule_name} · source {c.source_match ? "✓" : "✕"} · pipeline {c.pipeline_match ? "✓" : "✕"} · stage_id {c.stage_match ? "✓" : "✕"} · stage_name {c.stage_name_match ? "✓" : "✕"} ({c.stage_name || "—"})
+                </div>
+              ))}
+              <div className="font-sans font-semibold text-slate-800 pt-1">Request state</div>
               <div>Existing request: {req ? `${req.status} (${req.id.slice(0,8)})` : "none"}</div>
+              <div>Last send attempt: {req?.last_email_attempt_at ? new Date(req.last_email_attempt_at).toLocaleString() : "—"}</div>
+              <div>Last error: {req?.last_email_error || evalResult?.message || "—"}</div>
+              <div className="font-sans font-semibold text-slate-800 pt-1">Auto-send</div>
+              <div>Eligible: {matchedRule?.mode === "auto_send" && effectiveEmailValid && !req ? "yes" : "no"}</div>
+              <div>Reason if no: {req ? `existing request ${req.status}` : !effectiveEmailValid ? "missing email" : matchedRule?.mode !== "auto_send" ? "no auto-send rule matched" : "—"}</div>
+              <div>Attempted keys: {autoSendAttemptedKeys.length ? autoSendAttemptedKeys.join(" | ") : "—"}</div>
               <div>Last evaluator: {evalResult ? `${evalResult.action}${evalResult.message ? ` — ${evalResult.message}` : ""} @ ${new Date(evalResult.at).toLocaleTimeString()}` : "—"}</div>
             </div>
           )}
