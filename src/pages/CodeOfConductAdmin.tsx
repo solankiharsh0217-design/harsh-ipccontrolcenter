@@ -329,48 +329,46 @@ export default function CodeOfConductAdmin() {
     }
   };
 
-  const getReceiptSignedUrl = async (r: any): Promise<string | null> => {
-    const stored: string | null = r.signed_html_url || r.signed_receipt_url || null;
+  const getStorageSignedUrl = async (stored: string | null): Promise<string | null> => {
     if (!stored) return null;
     const m = stored.match(/(?:storage:|\/storage\/v1\/object\/(?:public|sign)\/)signed-code-of-conduct\/(.+?)(?:\?|$)/);
-    const path = m ? m[1] : null;
+    const path = m ? decodeURIComponent(m[1]) : null;
     if (!path) return stored;
     const { data } = await supabase.storage.from("signed-code-of-conduct").createSignedUrl(path, 60 * 60 * 24 * 7);
     return data?.signedUrl || null;
   };
+  const getReceiptSignedUrl = async (r: any): Promise<string | null> => getStorageSignedUrl(r.signed_html_url || r.signed_receipt_url || null);
+  const getPdfSignedUrl = async (r: any): Promise<string | null> => getStorageSignedUrl(r.signed_pdf_url || null);
 
   const viewSigned = (r: any) => {
+    window.open(`${window.location.origin}/code-of-conduct/signed-pdf/${r.id}`, "_blank");
+    (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_viewed_by_admin" });
+  };
+  const viewReceipt = (r: any) => {
     window.open(`${window.location.origin}/code-of-conduct/receipt/${r.id}`, "_blank");
-    (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_viewed_by_admin" });
   };
   const downloadSigned = async (r: any) => {
     try {
-      const u = await getReceiptSignedUrl(r);
-      if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+      const u = await getPdfSignedUrl(r);
+      if (!u) { toast({ title: "Signed PDF not available", description: r.signed_pdf_generation_error || undefined, variant: "destructive" }); return; }
       const resp = await fetch(u);
-      const text = await resp.text();
-      const blob = new Blob([text], { type: "text/html;charset=utf-8" });
+      const blob = new Blob([await resp.blob()], { type: "application/pdf" });
       const dl = URL.createObjectURL(blob);
       const safeName = (r.signed_member_name || r.member_name || "member").replace(/[^\w-]+/g, "_");
-      const a = document.createElement("a"); a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-Receipt-${safeName}-${r.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
+      const a = document.createElement("a"); a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-${safeName}-${r.id.slice(0,8)}.pdf`; document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(dl);
-      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_downloaded_by_admin" });
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_downloaded_by_admin" });
     } catch (e: any) {
       toast({ title: "Download failed", description: e?.message, variant: "destructive" });
-      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_receipt_download_failed", metadata: { error: e?.message } });
+      await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_link_open_failed", metadata: { error: e?.message } });
     }
   };
-  const copyAdminReceiptLink = async (r: any) => {
-    await navigator.clipboard.writeText(`${window.location.origin}/code-of-conduct/receipt/${r.id}`);
-    toast({ title: "Admin receipt link copied" });
-    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied", metadata: { scope: "admin" } });
-  };
-  const copyMemberReceiptLink = async (r: any) => {
-    const u = await getReceiptSignedUrl(r);
-    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+  const copySignedPdfLink = async (r: any) => {
+    const u = await getPdfSignedUrl(r);
+    if (!u) { toast({ title: "Signed PDF not available", variant: "destructive" }); return; }
     await navigator.clipboard.writeText(u);
-    toast({ title: "Temporary member link copied (valid 7 days)" });
-    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied", metadata: { scope: "member_temp" } });
+    toast({ title: "Temporary signed PDF link copied (valid 7 days)" });
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_pdf_link_copied", metadata: { scope: "temporary_pdf" } });
   };
   const sendSignedCopyRow = async (r: any, mode: "admin" | "member") => {
     try {
