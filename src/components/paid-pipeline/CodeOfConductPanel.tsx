@@ -85,6 +85,19 @@ export default function CodeOfConductPanel(props: Props) {
       load();
     } catch (e: any) { toast({ title: "Failed to send signed copy", description: e?.message, variant: "destructive" }); }
   };
+  const regenReceipt = async () => {
+    if (!req) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_receipt", request_id: req.id } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: "Signed copy generated" });
+      await load();
+    } catch (e: any) { toast({ title: "Could not generate signed copy", description: e?.message, variant: "destructive" }); }
+    finally { setBusy(false); }
+  };
+
 
   const load = async () => {
     setLoading(true);
@@ -210,9 +223,9 @@ export default function CodeOfConductPanel(props: Props) {
             <Cell label="Viewed" value={req.viewed_at ? new Date(req.viewed_at).toLocaleString() : "—"} />
             <Cell label="Signed" value={req.signed_at ? new Date(req.signed_at).toLocaleString() : "—"} />
             <Cell label="Expires" value={req.token_expires_at ? new Date(req.token_expires_at).toLocaleDateString() : "—"} />
-            <Cell label="Member email" value={req.member_email} />
+            <Cell label="Member email" value={req.signed_member_email || req.member_email} />
             {req.signature_name && <Cell label="Signed by" value={req.signature_name} />}
-            {req.provider_message_id && <Cell label="Provider id" value={req.provider_message_id} />}
+            {req.corrected_contact_email && <Cell label="Corrected contact" value={req.corrected_contact_email} />}
             <Cell label="Request id" value={req.id.slice(0, 8)} />
           </div>
           {isFailed && (
@@ -224,16 +237,33 @@ export default function CodeOfConductPanel(props: Props) {
 
           <div className="flex flex-wrap gap-2 pt-1">
             {req.status === "signed" ? (
-              <span className="text-[11.5px] text-emerald-700">Signed — ready for Diamond group access.</span>
+              <>
+                {(req.signed_html_url || req.signed_receipt_url) ? (
+                  <>
+                    <button onClick={viewSigned} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
+                    <button onClick={downloadSigned} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
+                    <button onClick={copySignedLink} className="ipc-btn ipc-btn-ghost !h-8">Copy Link</button>
+                  </>
+                ) : (
+                  <button onClick={regenReceipt} disabled={busy} className="ipc-btn ipc-btn-black !h-8 disabled:opacity-50">{busy ? "Generating…" : "Generate Signed Copy"}</button>
+                )}
+                <button onClick={() => sendSignedCopy("admin")} className="ipc-btn ipc-btn-ghost !h-8">Send Copy to Admin</button>
+                <button onClick={() => sendSignedCopy("member")} className="ipc-btn ipc-btn-ghost !h-8">Send Copy to Member</button>
+                <button onClick={() => setEditEmailOpen(true)} className="ipc-btn ipc-btn-ghost !h-8">Edit Contact Email</button>
+              </>
             ) : req.status === "cancelled" || req.status === "expired" ? (
-              <button onClick={requestSend} disabled={sendDisabled} className="ipc-btn ipc-btn-black !h-8 disabled:opacity-50">
-                {busy ? "Sending…" : "Resend New Link"}
-              </button>
+              <>
+                <button onClick={requestSend} disabled={sendDisabled} className="ipc-btn ipc-btn-black !h-8 disabled:opacity-50">
+                  {busy ? "Sending…" : "Resend New Link"}
+                </button>
+                <button onClick={() => setEditEmailOpen(true)} className="ipc-btn ipc-btn-ghost !h-8">Change Email & Resend</button>
+              </>
             ) : (
               <>
                 <button onClick={requestSend} disabled={sendDisabled} className="ipc-btn ipc-btn-black !h-8 disabled:opacity-50">
                   {busy ? "Sending…" : isFailed ? "Retry Send" : req.status === "sent" || req.status === "viewed" ? "Resend Email" : "Send Email"}
                 </button>
+                <button onClick={() => setEditEmailOpen(true)} className="ipc-btn ipc-btn-ghost !h-8">Edit Email</button>
                 {signingUrl && (
                   <button onClick={copyLink} className="ipc-btn ipc-btn-ghost !h-8">Copy Signing Link</button>
                 )}
@@ -245,6 +275,17 @@ export default function CodeOfConductPanel(props: Props) {
             <div className="text-[10.5px] text-slate-400">Tip: click {isFailed ? "Retry Send" : "Resend Email"} to also receive a fresh copyable signing link.</div>
           )}
         </div>
+      )}
+
+      {req && (
+        <EditMemberEmailModal
+          open={editEmailOpen}
+          onClose={() => setEditEmailOpen(false)}
+          requestId={req.id}
+          currentEmail={req.member_email || ""}
+          isSigned={req.status === "signed"}
+          onUpdated={load}
+        />
       )}
 
       {confirmOpen && tpl && (() => {

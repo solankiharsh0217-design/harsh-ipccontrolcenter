@@ -5,6 +5,9 @@ import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import CodeOfConductRulesTab from "@/components/admin/CodeOfConductRulesTab";
+import { DEFAULT_AGREEMENT_HTML } from "@/lib/codeOfConductDefaults";
+import EditMemberEmailModal from "@/components/paid-pipeline/EditMemberEmailModal";
+
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
   if (variant === "destructive") sonnerToast.error(title, { description });
@@ -76,6 +79,11 @@ export default function CodeOfConductAdmin() {
   const [savedTemplateFlash, setSavedTemplateFlash] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({});
+  const [signedRecord, setSignedRecord] = useState<any | null>(null);
+  const [signedRecordReceiptUrl, setSignedRecordReceiptUrl] = useState<string | null>(null);
+  const [signedRecordEvents, setSignedRecordEvents] = useState<any[]>([]);
+  const [editEmailReq, setEditEmailReq] = useState<any | null>(null);
+  const [archiveInput, setArchiveInput] = useState("");
 
   const loadTpl = async () => {
     const { data } = await (supabase as any).from("code_of_conduct_templates").select("*").eq("is_active", true).order("created_at", { ascending: false }).limit(1);
@@ -86,8 +94,10 @@ export default function CodeOfConductAdmin() {
       if (!row.email_body || !String(row.email_body).trim()) row.email_body = DEFAULT_EMAIL_BODY;
       setTpl(row);
       if (row.updated_at) setLastSavedAt(row.updated_at);
+      setArchiveInput(Array.isArray(row.signed_copy_recipient_emails) ? row.signed_copy_recipient_emails.join(", ") : "");
     } else {
       setTpl(blankTpl());
+      setArchiveInput("");
     }
   };
   const loadRequests = async () => {
@@ -319,6 +329,83 @@ export default function CodeOfConductAdmin() {
     }
   };
 
+  const getReceiptSignedUrl = async (r: any): Promise<string | null> => {
+    const stored: string | null = r.signed_html_url || r.signed_receipt_url || null;
+    if (!stored) return null;
+    const m = stored.match(/(?:storage:|\/storage\/v1\/object\/(?:public|sign)\/)signed-code-of-conduct\/(.+?)(?:\?|$)/);
+    const path = m ? m[1] : null;
+    if (!path) return stored;
+    const { data } = await supabase.storage.from("signed-code-of-conduct").createSignedUrl(path, 60 * 60 * 24 * 7);
+    return data?.signedUrl || null;
+  };
+
+  const viewSigned = async (r: any) => {
+    const u = await getReceiptSignedUrl(r);
+    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+    window.open(u, "_blank");
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_viewed_by_admin" });
+  };
+  const downloadSigned = async (r: any) => {
+    const u = await getReceiptSignedUrl(r);
+    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+    const a = document.createElement("a"); a.href = u; a.download = `signed-coc-${r.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
+  };
+  const copySignedLinkRow = async (r: any) => {
+    const u = await getReceiptSignedUrl(r);
+    if (!u) { toast({ title: "Signed copy not available", variant: "destructive" }); return; }
+    await navigator.clipboard.writeText(u);
+    toast({ title: "Signed copy link copied (valid 7 days)" });
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "signed_copy_link_copied" });
+  };
+  const sendSignedCopyRow = async (r: any, mode: "admin" | "member") => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-coc-signed-copy", { body: { request_id: r.id, mode } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: `Signed copy emailed to ${mode}` });
+      loadRequests();
+    } catch (e: any) { toast({ title: "Send failed", description: e?.message, variant: "destructive" }); }
+  };
+  const regenSigned = async (r: any) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_receipt", request_id: r.id } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: "Signed copy regenerated" });
+      loadRequests();
+    } catch (e: any) { toast({ title: "Could not regenerate", description: e?.message, variant: "destructive" }); }
+  };
+  const openSignedRecord = async (r: any) => {
+    setSignedRecord(r);
+    const [{ data: ev }, url] = await Promise.all([
+      (supabase as any).from("code_of_conduct_events").select("*").eq("request_id", r.id).order("created_at", { ascending: true }),
+      getReceiptSignedUrl(r),
+    ]);
+    setSignedRecordEvents(ev || []);
+    setSignedRecordReceiptUrl(url);
+  };
+  const cancelRequestRow = async (r: any) => {
+    if (!confirm("Cancel this request? Link will stop working.")) return;
+    await (supabase as any).from("code_of_conduct_requests").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", r.id);
+    await (supabase as any).from("code_of_conduct_events").insert({ request_id: r.id, event_type: "request_cancelled" });
+    toast({ title: "Request cancelled" });
+    loadRequests();
+  };
+  const applyDefaultAgreementHtml = () => {
+    const hasContent = tpl?.html_content && tpl.html_content.trim() !== "" && tpl.html_content !== DEFAULT_AGREEMENT_HTML;
+    if (hasContent && !confirm("This will replace the current agreement body. Continue?")) return;
+    setTpl({ ...tpl, html_content: DEFAULT_AGREEMENT_HTML });
+    toast({ title: "Default agreement text applied", description: "Click Save Template to persist." });
+  };
+  const applyArchiveRecipients = () => {
+    const list = archiveInput.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+    const invalid = list.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (invalid.length) { toast({ title: "Invalid email(s)", description: invalid.join(", "), variant: "destructive" }); return false; }
+    setTpl({ ...tpl, signed_copy_recipient_emails: list });
+    return true;
+  };
+
+
   const filtered = filter === "all"
     ? requests
     : filter === "failed"
@@ -476,12 +563,32 @@ export default function CodeOfConductAdmin() {
             </Field>
             <Field label="WhatsApp group redirect URL" error={errors.whatsapp_redirect_url}><Input value={tpl.whatsapp_redirect_url || ""} onChange={(v) => setTpl({ ...tpl, whatsapp_redirect_url: v })} placeholder="https://chat.whatsapp.com/…" /></Field>
           </Grid>
-          <Field label="HTML body (used if no PDF)">
-            <TextArea value={tpl.html_content || ""} onChange={(v) => setTpl({ ...tpl, html_content: v })} rows={6} />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <SectionLabel>Agreement Document Body (HTML)</SectionLabel>
+            <div className="flex gap-2">
+              <button type="button" onClick={applyDefaultAgreementHtml} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Generate Default Agreement Text</button>
+              <button type="button" onClick={() => { const w = window.open("", "_blank"); if (w) { w.document.write(`<!doctype html><html><head><meta charset='utf-8'><title>Agreement Preview</title><style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:780px;margin:40px auto;padding:24px;color:#0f172a;line-height:1.55}h2{font-size:18px;margin-top:24px}h3{font-size:14px;margin-top:18px}</style></head><body>${tpl.html_content || "<p style='color:#94a3b8'>No agreement body yet — click Generate Default Agreement Text.</p>"}</body></html>`); w.document.close(); } }} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Preview Agreement</button>
+            </div>
+          </div>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">Rendered on the public signing page as the Google Docs-style agreement. PDF (above) remains available as a reference attachment.</div>
+          <Field label="HTML agreement body">
+            <TextArea value={tpl.html_content || ""} onChange={(v) => setTpl({ ...tpl, html_content: v })} rows={14} />
           </Field>
           <Field label="Success page message">
             <TextArea value={tpl.success_page_message || ""} onChange={(v) => setTpl({ ...tpl, success_page_message: v })} rows={2} placeholder="Your Code of Conduct has been acknowledged successfully." />
           </Field>
+
+          <SectionLabel>Signed Copy Distribution</SectionLabel>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">After a member signs, the signed receipt is generated and emailed to the recipients below.</div>
+          <Field label="Archive recipient emails (comma separated)">
+            <Input value={archiveInput} onChange={setArchiveInput} placeholder="ops@yourdomain.com, records@yourdomain.com" />
+            <div className="text-[10.5px] text-muted-foreground mt-1">If empty, EMAIL_REPLY_TO will be used as a fallback.</div>
+          </Field>
+          <label className="flex items-center gap-2 text-[12.5px]">
+            <input type="checkbox" checked={!!tpl.send_signed_copy_to_member} onChange={(e) => setTpl({ ...tpl, send_signed_copy_to_member: e.target.checked })} className="w-4 h-4" />
+            <span>Also email the signed copy to the member after signing</span>
+          </label>
+
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <SectionLabel>Email Body</SectionLabel>
@@ -496,7 +603,7 @@ export default function CodeOfConductAdmin() {
 
           <div className="flex items-center justify-end gap-3 pt-2">
             {lastSavedAt && <span className="text-[11.5px] text-muted-foreground">Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
-            <button onClick={() => saveTpl()} disabled={savingTpl} className={`ipc-btn ${savedTemplateFlash ? "bg-[hsl(var(--success))] text-primary-foreground" : "ipc-btn-black"}`}>
+            <button onClick={() => { if (applyArchiveRecipients()) saveTpl(); }} disabled={savingTpl} className={`ipc-btn ${savedTemplateFlash ? "bg-[hsl(var(--success))] text-primary-foreground" : "ipc-btn-black"}`}>
               {savingTpl ? "Saving..." : savedTemplateFlash ? "Saved ✓" : "Save Template"}
             </button>
           </div>
@@ -555,12 +662,34 @@ export default function CodeOfConductAdmin() {
                     <td className="py-2 pr-3 text-rose-600 max-w-[220px] truncate" title={r.last_email_error || ""}>{r.last_email_error_code ? `[${r.last_email_error_code}] ${r.last_email_error || ""}` : "—"}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">
                       <div className="flex gap-1.5 flex-wrap">
-                        <button onClick={() => retrySend(r)} disabled={retryingId === r.id} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">{retryingId === r.id ? "Sending…" : (r.sent_at ? "Resend" : "Send")}</button>
-                        <button onClick={() => copySigningLink(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Copy Signing Link</button>
                         <button onClick={() => openEvents(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Events</button>
                         {r.paid_pipeline_lead_id ? <Link to={`/paid-pipeline?lead=${r.paid_pipeline_lead_id}`} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-blue-700">Open Lead</Link>
                           : r.crm_lead_id ? <Link to={`/crm?lead=${r.crm_lead_id}`} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-blue-700">Open Lead</Link>
                           : null}
+                        {hasActiveToken && <button onClick={() => copySigningLink(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Copy Signing Link</button>}
+                        {r.status === "signed" ? (
+                          <>
+                            <button onClick={() => openSignedRecord(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-emerald-700">View Signed Record</button>
+                            {(r.signed_html_url || r.signed_receipt_url) ? (
+                              <>
+                                <button onClick={() => viewSigned(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">View Copy</button>
+                                <button onClick={() => downloadSigned(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Download</button>
+                                <button onClick={() => copySignedLinkRow(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Copy Copy Link</button>
+                              </>
+                            ) : (
+                              <button onClick={() => regenSigned(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-amber-700">Generate Signed Copy</button>
+                            )}
+                            <button onClick={() => sendSignedCopyRow(r, "admin")} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Send→Admin</button>
+                            <button onClick={() => sendSignedCopyRow(r, "member")} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Send→Member</button>
+                            <button onClick={() => setEditEmailReq(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Edit Contact Email</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => retrySend(r)} disabled={retryingId === r.id} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">{retryingId === r.id ? "Sending…" : (r.sent_at ? "Resend" : "Send")}</button>
+                            <button onClick={() => setEditEmailReq(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Change Email & Resend</button>
+                            {!["cancelled", "expired"].includes(r.status) && <button onClick={() => cancelRequestRow(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-rose-700">Cancel</button>}
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -607,6 +736,72 @@ export default function CodeOfConductAdmin() {
             </div>
           )}
           <button onClick={() => setTab("setup")} className="ipc-btn ipc-btn-ghost">Open Email Setup</button>
+        </div>
+      )}
+
+      {editEmailReq && (
+        <EditMemberEmailModal
+          open={!!editEmailReq}
+          onClose={() => setEditEmailReq(null)}
+          requestId={editEmailReq.id}
+          currentEmail={editEmailReq.member_email || ""}
+          isSigned={editEmailReq.status === "signed"}
+          onUpdated={() => { loadRequests(); }}
+        />
+      )}
+
+      {signedRecord && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex justify-end" onClick={() => setSignedRecord(null)}>
+          <div className="w-full max-w-[560px] bg-white h-full overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-[14px] font-semibold">Signed Record (immutable)</div>
+                <div className="text-[11.5px] text-muted-foreground">{signedRecord.signed_member_name || signedRecord.member_name}</div>
+              </div>
+              <button onClick={() => setSignedRecord(null)} className="text-[12px] text-muted-foreground">Close</button>
+            </div>
+            <div className="space-y-1.5 text-[12.5px] border border-line rounded p-3 mb-3">
+              <KV k="Request ID" v={signedRecord.id} />
+              <KV k="Template" v={`${signedRecord.template_name || "—"}${signedRecord.template_version ? ` v${signedRecord.template_version}` : ""}`} />
+              <KV k="Member name" v={signedRecord.signed_member_name || signedRecord.member_name} />
+              <KV k="Member email (signing)" v={signedRecord.signed_member_email || signedRecord.member_email} />
+              {signedRecord.corrected_contact_email && <KV k="Corrected contact email" v={signedRecord.corrected_contact_email} />}
+              <KV k="Member phone" v={signedRecord.member_phone || "—"} />
+              <KV k="Signed at" v={signedRecord.signed_at ? new Date(signedRecord.signed_at).toLocaleString() : "—"} />
+              <KV k="Typed signature" v={signedRecord.signature_name || "—"} />
+              <KV k="IP address" v={signedRecord.acknowledgement_ip || "—"} />
+              <KV k="User agent" v={signedRecord.acknowledgement_user_agent || "—"} />
+              <KV k="Paid pipeline lead" v={signedRecord.paid_pipeline_lead_id || "—"} />
+              <KV k="Calling CRM lead" v={signedRecord.crm_lead_id || "—"} />
+            </div>
+            {signedRecord.signature_data_url && (
+              <div className="mb-3"><div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Drawn signature</div><img src={signedRecord.signature_data_url} alt="Signature" className="border border-line rounded p-2 max-w-full" /></div>
+            )}
+            {Array.isArray(signedRecord.acknowledgement_checklist) && signedRecord.acknowledgement_checklist.length > 0 && (
+              <div className="mb-3"><div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Acknowledgements</div>
+                <ul className="list-disc pl-5 text-[12.5px]">{signedRecord.acknowledgement_checklist.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul></div>
+            )}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              {signedRecordReceiptUrl ? (
+                <>
+                  <a href={signedRecordReceiptUrl} target="_blank" rel="noreferrer" className="ipc-btn ipc-btn-black !h-8">View Signed Copy</a>
+                  <button onClick={() => downloadSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
+                  <button onClick={() => copySignedLinkRow(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Link</button>
+                </>
+              ) : (
+                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">Generate Signed Copy</button>
+              )}
+            </div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Event timeline</div>
+            <div className="space-y-1.5">
+              {signedRecordEvents.length === 0 && <div className="text-[12px] text-muted-foreground">No events.</div>}
+              {signedRecordEvents.map((ev) => (
+                <div key={ev.id} className="border border-line rounded p-2 text-[11.5px]">
+                  <div className="flex justify-between"><span className="font-medium">{ev.event_type}</span><span className="text-muted-foreground">{new Date(ev.created_at).toLocaleString()}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -688,6 +883,9 @@ function Input(p: { value: string; onChange: (v: string) => void; placeholder?: 
 }
 function TextArea(p: { value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
   return <textarea value={p.value} onChange={(e) => p.onChange(e.target.value)} placeholder={p.placeholder} rows={p.rows || 3} className="w-full border border-line rounded-md px-3 py-2 text-[13px] font-mono" />;
+}
+function KV({ k, v }: { k: string; v: string }) {
+  return <div className="flex justify-between gap-3"><span className="text-muted-foreground">{k}</span><span className="text-slate-800 text-right break-all">{v}</span></div>;
 }
 function DiagRow({ label, value, hint, bad }: { label: string; value: string; hint?: string; bad?: boolean }) {
   return (
