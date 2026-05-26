@@ -19,6 +19,8 @@ import { recomputePaidLead } from "@/lib/paidPipeline";
 import { logActivity as auditLog } from "@/lib/auditLog";
 import { stageChip } from "@/lib/stageColors";
 import CrmStagePicker from "@/components/crm/CrmStagePicker";
+import CodeOfConductCard from "@/components/crm/CodeOfConductCard";
+
 
 interface Props {
   leadId: string;
