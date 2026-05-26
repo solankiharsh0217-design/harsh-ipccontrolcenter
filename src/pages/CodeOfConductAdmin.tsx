@@ -94,8 +94,10 @@ export default function CodeOfConductAdmin() {
       if (!row.email_body || !String(row.email_body).trim()) row.email_body = DEFAULT_EMAIL_BODY;
       setTpl(row);
       if (row.updated_at) setLastSavedAt(row.updated_at);
+      setArchiveInput(Array.isArray(row.signed_copy_recipient_emails) ? row.signed_copy_recipient_emails.join(", ") : "");
     } else {
       setTpl(blankTpl());
+      setArchiveInput("");
     }
   };
   const loadRequests = async () => {
