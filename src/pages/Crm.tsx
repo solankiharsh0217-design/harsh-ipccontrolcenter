@@ -435,7 +435,9 @@ export default function Crm() {
     if (oldStageId !== stageId) {
       const lead2 = leads.find((l) => l.id === id);
       evaluateHandoffForLeads([id], lead2?.pipeline_id ?? activePipeline, stageId).catch(() => {});
+      evaluateCoCForLeads([id], lead2?.pipeline_id ?? activePipeline, stageId).catch(() => {});
     }
+
   };
 
   const createPipeline = async () => {
