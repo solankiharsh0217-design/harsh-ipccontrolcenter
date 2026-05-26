@@ -319,6 +319,7 @@ export default function CodeOfConductPanel(props: Props) {
       if (res.action === "auto_sent" || res.action === "duplicate_skipped") await load();
     } catch (e: any) {
       setEvalResult({ action: "error", message: e?.message || String(e), at: new Date().toISOString() });
+      setDebugOpen(true);
       if (opts.verbose) toast({ title: "Trigger check failed", description: e?.message, variant: "destructive" });
     } finally {
       setEvalRunning(false);
@@ -370,7 +371,7 @@ export default function CodeOfConductPanel(props: Props) {
         body: {
           request_id: req?.id || undefined,
           paid_pipeline_lead_id: paidLeadId || undefined,
-          crm_lead_id: crmLeadId || undefined,
+          crm_lead_id: resolvedCrmLeadId || crmLeadId || undefined,
           member_name: memberName, member_email: emailOverride, member_phone: memberPhone,
           program_name: programName, deal_value: dealValue,
           origin: window.location.origin,
@@ -414,6 +415,15 @@ export default function CodeOfConductPanel(props: Props) {
     displayLabel = matchedRule!.mode === "auto_send"
       ? (evalRunning ? "Auto-send Pending…" : (evalResult?.action === "auto_send_failed" ? "Auto-send Failed" : "Required (auto-send)"))
       : "Required";
+  } else if (!req && evalResult?.action === "missing_email") {
+    displayStatus = "required";
+    displayLabel = "Required — Email Missing";
+  } else if (!req && ["missing_context", "error", "auto_send_failed"].includes(evalResult?.action || "")) {
+    displayStatus = "failed";
+    displayLabel = evalResult?.action === "missing_context" ? "Trigger Link Missing" : "Trigger Check Failed";
+  } else if (!req && evalResult?.message?.includes("possible trigger stage")) {
+    displayStatus = "required";
+    displayLabel = "Trigger Mismatch";
   }
   const cls = STATUS_STYLES[displayStatus] || STATUS_STYLES.not_required;
   const sendDisabled = busy || !setupComplete;
