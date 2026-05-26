@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 import EditMemberEmailModal from "./EditMemberEmailModal";
+import { useAuth } from "@/context/AuthContext";
+import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRule, type CodeOfConductRule, type CoCRuleSource } from "@/lib/codeOfConductRules";
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
   if (variant === "destructive") sonnerToast.error(title, { description });
@@ -17,6 +19,10 @@ interface Props {
   memberPhone?: string | null;
   programName?: string | null;
   dealValue?: number | null;
+  /** Trigger-rule evaluation context. When provided, the panel auto-evaluates rules on mount. */
+  evalSource?: CoCRuleSource;
+  evalPipelineId?: string | null;
+  evalStageId?: string | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
