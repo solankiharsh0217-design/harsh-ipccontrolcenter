@@ -346,8 +346,8 @@ Deno.serve(async (req) => {
     const token = body.token || url.searchParams.get('token');
     const action = body.action || url.searchParams.get('action') || (req.method === 'POST' ? 'sign' : 'fetch');
 
-    // Admin-only action: regenerate signed receipt for an already-signed request (no token needed)
-    if (action === 'admin_regenerate_receipt') {
+    // Admin-only actions: regenerate immutable signed outputs for an already-signed request
+    if (action === 'admin_regenerate_receipt' || action === 'admin_regenerate_signed_pdf') {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader?.startsWith('Bearer ')) return publicError('UNAUTHORIZED', 'Missing Authorization', 401);
       const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -366,8 +366,10 @@ Deno.serve(async (req) => {
       const { data: tpl0 } = r.template_id ? await admin.from('code_of_conduct_templates').select('*').eq('id', r.template_id).maybeSingle() : { data: null } as any;
       const ip = r.acknowledgement_ip || null;
       const ua = r.acknowledgement_user_agent || null;
-      const result = await generateAndStoreReceipt(admin, r, tpl0, ip, ua);
-      if (!result.ok) return publicError('RECEIPT_FAILED', result.error || 'Receipt generation failed', 500);
+      const result = action === 'admin_regenerate_signed_pdf'
+        ? await generateAndStoreSignedPdf(admin, r, tpl0, ip, ua, true)
+        : await generateAndStoreReceipt(admin, r, tpl0, ip, ua);
+      if (!result.ok) return publicError(action === 'admin_regenerate_signed_pdf' ? 'SIGNED_PDF_GENERATION_FAILED' : 'RECEIPT_FAILED', result.error || 'Generation failed', 500);
       return jsonResponse({ ok: true, path: result.path });
     }
 
