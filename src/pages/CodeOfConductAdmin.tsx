@@ -2,9 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
-import { toast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import CodeOfConductRulesTab from "@/components/admin/CodeOfConductRulesTab";
+
+const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
+  if (variant === "destructive") sonnerToast.error(title, { description });
+  else sonnerToast.success(title, { description });
+};
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Draft", ready_to_send: "Ready", sent: "Sent", viewed: "Viewed",
@@ -67,6 +72,10 @@ export default function CodeOfConductAdmin() {
   const [diag, setDiag] = useState<any>(null);
   const [diagLoading, setDiagLoading] = useState(false);
   const [lastTestResult, setLastTestResult] = useState<{ ok: boolean; message?: string; provider_message_id?: string | null; sent_at?: string | null; error_code?: string } | null>(null);
+  const [savedEmailFlash, setSavedEmailFlash] = useState(false);
+  const [savedTemplateFlash, setSavedTemplateFlash] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({});
 
   const loadTpl = async () => {
     const { data } = await (supabase as any).from("code_of_conduct_templates").select("*").eq("is_active", true).order("created_at", { ascending: false }).limit(1);
