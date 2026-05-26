@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { evaluateStageTrigger } from "@/lib/codeOfConductRules";
 
 interface Pipeline { id: string; name: string; type: string }
 interface Stage { id: string; name: string; pipeline_id: string; is_active?: boolean; position: number }
@@ -25,6 +26,7 @@ interface Rule {
 }
 
 const SIGNED_TAG_NAME = "Code of Conduct Signed";
+const normPhone = (v?: string | null) => (v || "").replace(/\D/g, "");
 
 export default function CodeOfConductRulesTab() {
   const { profile, isAdmin } = useAuth();
