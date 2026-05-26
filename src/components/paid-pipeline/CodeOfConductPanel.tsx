@@ -443,12 +443,24 @@ export default function CodeOfConductPanel(props: Props) {
         <div className="flex items-center gap-2">
           {req?.template_version && <span className="text-[10.5px] text-slate-400">v{req.template_version}</span>}
           {isAdmin && (
-            <button onClick={() => runEvaluator({ force: true, verbose: true })} disabled={evalRunning}
-              className="text-[10.5px] px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
-              title="Re-evaluate trigger rules for this lead">{evalRunning ? "Checking…" : "Run Trigger Check"}</button>
+            <>
+              <button onClick={() => runEvaluator({ force: true, verbose: true })} disabled={evalRunning}
+                className="text-[10.5px] px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
+                title="Re-evaluate trigger rules for this lead">{evalRunning ? "Checking…" : "Run Trigger Check"}</button>
+              <button onClick={() => runEvaluator({ force: true, verbose: true })} disabled={evalRunning}
+                className="text-[10.5px] px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
+                title="Repair the paid/CRM link by email or phone, then run the trigger check">Repair Link + Check</button>
+            </>
           )}
         </div>
       </div>
+
+      {isAdmin && !req && evalResult?.message?.includes("possible trigger stage") && (
+        <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-[11.5px] text-amber-900">
+          <div className="font-medium">This lead is in a possible trigger stage but no rule matched.</div>
+          <div className="opacity-80">Open Trigger Debug below to compare the current stage/source against active rules.</div>
+        </div>
+      )}
 
       {ruleActive && (
         <div className={`mb-3 rounded-md border p-2.5 text-[11.5px] ${matchedRule!.mode === "auto_send" ? "bg-violet-50 border-violet-200 text-violet-900" : "bg-amber-50 border-amber-200 text-amber-900"}`}>
@@ -476,7 +488,11 @@ export default function CodeOfConductPanel(props: Props) {
               ? (matchedRule!.mode === "auto_send"
                   ? "An active auto-send rule matches this lead. The email is being dispatched automatically."
                   : "An active rule requires sending the Code of Conduct for this stage.")
-              : "No Code of Conduct request created yet. Send the agreement to capture digital acknowledgement before adding the member to the Diamond group."}
+              : evalResult?.action === "missing_context"
+                ? "Trigger cannot evaluate because the CRM link or stage is missing. Repair the link, then run the trigger check."
+                : evalResult?.message?.includes("possible trigger stage")
+                  ? "This lead appears to be in a Code of Conduct trigger stage, but the saved rule did not match the resolved source/pipeline/stage."
+                  : "No active Code of Conduct rule truly matches this lead yet."}
           </p>
           <input type="email" value={emailOverride} onChange={(e) => setEmailOverride(e.target.value)}
             className="w-full border border-slate-200 rounded-md px-2.5 py-1.5 text-[12.5px]" placeholder="Member email" />
