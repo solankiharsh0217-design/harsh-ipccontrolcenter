@@ -884,6 +884,9 @@ function Input(p: { value: string; onChange: (v: string) => void; placeholder?: 
 function TextArea(p: { value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
   return <textarea value={p.value} onChange={(e) => p.onChange(e.target.value)} placeholder={p.placeholder} rows={p.rows || 3} className="w-full border border-line rounded-md px-3 py-2 text-[13px] font-mono" />;
 }
+function KV({ k, v }: { k: string; v: string }) {
+  return <div className="flex justify-between gap-3"><span className="text-muted-foreground">{k}</span><span className="text-slate-800 text-right break-all">{v}</span></div>;
+}
 function DiagRow({ label, value, hint, bad }: { label: string; value: string; hint?: string; bad?: boolean }) {
   return (
     <div className={`border rounded p-2 ${bad ? "border-rose-200 bg-rose-50" : "border-line"}`}>
