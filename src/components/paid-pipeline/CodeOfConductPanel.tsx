@@ -85,6 +85,19 @@ export default function CodeOfConductPanel(props: Props) {
       load();
     } catch (e: any) { toast({ title: "Failed to send signed copy", description: e?.message, variant: "destructive" }); }
   };
+  const regenReceipt = async () => {
+    if (!req) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_receipt", request_id: req.id } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message);
+      toast({ title: "Signed copy generated" });
+      await load();
+    } catch (e: any) { toast({ title: "Could not generate signed copy", description: e?.message, variant: "destructive" }); }
+    finally { setBusy(false); }
+  };
+
 
   const load = async () => {
     setLoading(true);
