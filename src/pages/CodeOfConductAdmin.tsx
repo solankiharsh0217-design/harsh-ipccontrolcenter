@@ -612,8 +612,9 @@ function blankTpl() {
     from_name: "IPC Control Center",
     reply_to_email: "",
     test_recipient_email: "",
-    email_subject: "",
-    email_body: "",
+    email_subject: DEFAULT_EMAIL_SUBJECT,
+    email_body: DEFAULT_EMAIL_BODY,
+
   };
 }
 
