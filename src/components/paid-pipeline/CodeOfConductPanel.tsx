@@ -234,11 +234,9 @@ export default function CodeOfConductPanel(props: Props) {
         if (match?.id) {
           crmId = match.id;
           resolution = "CRM repaired by email/phone";
-          if (repair) {
-            await supabase.from("paid_pipeline_leads").update({ crm_lead_id: crmId } as any).eq("id", paidLeadId);
-            await supabase.from("leads").update({ paid_pipeline_lead_id: paidLeadId } as any).eq("id", crmId);
-            await (supabase as any).from("code_of_conduct_events").insert({ event_type: "code_of_conduct_crm_link_repaired_for_trigger", metadata: { crm_lead_id: crmId, paid_pipeline_lead_id: paidLeadId } });
-          }
+          await supabase.from("paid_pipeline_leads").update({ crm_lead_id: crmId } as any).eq("id", paidLeadId);
+          await supabase.from("leads").update({ paid_pipeline_lead_id: paidLeadId } as any).eq("id", crmId);
+          await (supabase as any).from("code_of_conduct_events").insert({ event_type: "code_of_conduct_crm_link_repaired_for_trigger", metadata: { crm_lead_id: crmId, paid_pipeline_lead_id: paidLeadId, manual_repair: repair } });
         }
       }
     }
