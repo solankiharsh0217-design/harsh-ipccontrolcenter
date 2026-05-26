@@ -404,8 +404,9 @@ export default function CodeOfConductAdmin() {
 
             <div className="flex items-center justify-end gap-3 pt-2">
               {lastSavedAt && <span className="text-[11.5px] text-muted-foreground">Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
-              <button onClick={saveEmailSettings} disabled={savingTpl} className="ipc-btn ipc-btn-black">{savingTpl ? "Saving…" : "Save Email Settings"}</button>
+              <button onClick={saveEmailSettings} disabled={savingTpl} className={`ipc-btn ${savedEmailFlash ? "bg-emerald-600 text-white" : "ipc-btn-black"}`}>{savingTpl ? "Saving..." : savedEmailFlash ? "Saved ✓" : "Save Email Settings"}</button>
             </div>
+            {saveError && <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">Save failed: {saveError}</div>}
           </div>
 
 
@@ -495,10 +496,11 @@ export default function CodeOfConductAdmin() {
 
           <div className="flex items-center justify-end gap-3 pt-2">
             {lastSavedAt && <span className="text-[11.5px] text-muted-foreground">Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
-            <button onClick={() => saveTpl()} disabled={savingTpl} className="ipc-btn ipc-btn-black">
-              {savingTpl ? "Saving…" : "Save Template"}
+            <button onClick={() => saveTpl()} disabled={savingTpl} className={`ipc-btn ${savedTemplateFlash ? "bg-emerald-600 text-white" : "ipc-btn-black"}`}>
+              {savingTpl ? "Saving..." : savedTemplateFlash ? "Saved ✓" : "Save Template"}
             </button>
           </div>
+          {saveError && <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">Save failed: {saveError}</div>}
         </div>
       )}
 
