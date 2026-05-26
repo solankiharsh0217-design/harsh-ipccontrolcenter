@@ -237,7 +237,7 @@ export default function CodeOfConductSign() {
               className="w-full border rounded-md px-3 py-2 text-sm mb-3" placeholder="Type your full legal name" />
             <label className="block text-[12px] text-slate-600 mb-1">Draw signature (optional)</label>
             <div className="border rounded-md bg-white">
-              <canvas ref={canvasRef} width={560} height={140} className="w-full block touch-none" style={{ height: 140 }} />
+              <canvas ref={canvasRef} className="w-full block touch-none" style={{ height: 140 }} />
             </div>
             <button type="button" onClick={clearSig} className="text-[11.5px] text-slate-500 hover:text-slate-700 mt-1">Clear signature</button>
             <div className="mt-3 grid grid-cols-2 gap-3 text-[12px] text-slate-600">
@@ -248,7 +248,7 @@ export default function CodeOfConductSign() {
 
           {error && <div className="text-sm text-rose-600 border border-rose-200 bg-rose-50 rounded-md px-3 py-2">{error}</div>}
 
-          <button onClick={submit} disabled={submitting}
+          <button onClick={submit} disabled={!canSubmit}
             className="w-full bg-black hover:bg-[#222] disabled:opacity-60 text-white py-3 rounded-md text-sm font-medium">
             {submitting ? "Submitting…" : "Submit & Acknowledge"}
           </button>
