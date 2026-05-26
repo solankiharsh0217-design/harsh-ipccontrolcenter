@@ -108,6 +108,30 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === 'generate_signing_link') {
+      if (!request_id) return fail('MISSING_REQUEST_ID', 'Request ID is required to generate a signing link.');
+      admin = createClient(SUPABASE_URL, SERVICE);
+      const { data: existing, error: existingErr } = await admin.from('code_of_conduct_requests').select('*').eq('id', request_id).maybeSingle();
+      if (existingErr) return fail('REQUEST_LOOKUP_FAILED', existingErr.message, existingErr, 500);
+      if (!existing) return fail('REQUEST_NOT_FOUND', 'Code of Conduct request not found.', null, 404);
+      if (existing.status === 'cancelled') return fail('REQUEST_CANCELLED', 'This request is no longer active.', null, 410);
+      const baseUrl = resolveBaseUrl(origin, req.headers.get('origin'));
+      if (!baseUrl) return fail('MISSING_PUBLIC_APP_URL', 'Public app URL is not configured. Set PUBLIC_APP_URL or send from the deployed Lovable app.', { origin: origin || null }, 400);
+      let expiryDays = 7;
+      if (existing.template_id) {
+        const { data: t } = await admin.from('code_of_conduct_templates').select('expiry_days').eq('id', existing.template_id).maybeSingle();
+        expiryDays = Number(t?.expiry_days || 7);
+      }
+      const token = randomToken();
+      const tokenHash = await sha256(token);
+      const expiresAt = new Date(Date.now() + expiryDays * 24 * 3600 * 1000).toISOString();
+      const { data: updated, error: updErr } = await admin.from('code_of_conduct_requests').update({ token_hash: tokenHash, token_expires_at: expiresAt }).eq('id', existing.id).select('id,status,token_expires_at').single();
+      if (updErr) return fail('TOKEN_GENERATION_FAILED', updErr.message, updErr, 500);
+      const signingLink = `${baseUrl}/code-of-conduct/sign/${token}`;
+      await admin.from('code_of_conduct_events').insert({ request_id: existing.id, event_type: 'token_generated', metadata: { expires_at: expiresAt, source: 'admin_copy_link' }, created_by: userId });
+      return jsonResponse({ ok: true, request_id: existing.id, signing_url: signingLink, token_expires_at: updated.token_expires_at, status: updated.status });
+    }
+
     if (!member_email || typeof member_email !== 'string' || !member_email.includes('@')) return fail('MISSING_RECIPIENT_EMAIL', 'A valid recipient email is required.');
     if (!member_name || typeof member_name !== 'string') return fail('MISSING_MEMBER_NAME', 'Member name is required.');
 
