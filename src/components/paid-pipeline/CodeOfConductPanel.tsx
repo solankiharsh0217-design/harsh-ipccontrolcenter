@@ -46,7 +46,9 @@ export default function CodeOfConductPanel(props: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editEmailOpen, setEditEmailOpen] = useState(false);
 
-  const getSignedReceiptUrl = async (): Promise<string | null> => {
+  const adminReceiptUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/receipt/${req.id}` : null);
+
+  const getStorageReceiptUrl = async (): Promise<string | null> => {
     if (!req) return null;
     const stored: string | null = req.signed_html_url || req.signed_receipt_url || null;
     if (!stored) return null;
@@ -57,23 +59,45 @@ export default function CodeOfConductPanel(props: Props) {
     return data?.signedUrl || null;
   };
 
-  const viewSigned = async () => {
-    const url = await getSignedReceiptUrl();
+  const viewSigned = () => {
+    const url = adminReceiptUrl();
     if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
     window.open(url, "_blank");
-    if (req) await (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_viewed_by_admin" });
+    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_viewed_by_admin" });
   };
   const downloadSigned = async () => {
-    const url = await getSignedReceiptUrl();
-    if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
-    const a = document.createElement("a"); a.href = url; a.download = `signed-coc-${req.id.slice(0,8)}.html`; document.body.appendChild(a); a.click(); a.remove();
-    if (req) await (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_downloaded_by_admin" });
+    if (!req) return;
+    try {
+      const url = await getStorageReceiptUrl();
+      if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
+      const resp = await fetch(url);
+      const text = await resp.text();
+      const blob = new Blob([text], { type: "text/html;charset=utf-8" });
+      const dl = URL.createObjectURL(blob);
+      const safeName = (req.signed_member_name || req.member_name || "member").replace(/[^\w-]+/g, "_");
+      const a = document.createElement("a");
+      a.href = dl; a.download = `IPC-Code-of-Conduct-Signed-Receipt-${safeName}-${req.id.slice(0,8)}.html`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(dl);
+      (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_downloaded_by_admin" });
+    } catch (e: any) {
+      toast({ title: "Download failed", description: e?.message, variant: "destructive" });
+      if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_receipt_download_failed", metadata: { error: e?.message } });
+    }
   };
-  const copySignedLink = async () => {
-    const url = await getSignedReceiptUrl();
+  const copyAdminReceiptLink = async () => {
+    const url = adminReceiptUrl();
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Admin receipt link copied" });
+    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_link_copied", metadata: { scope: "admin" } });
+  };
+  const copyMemberReceiptLink = async () => {
+    const url = await getStorageReceiptUrl();
     if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
     await navigator.clipboard.writeText(url);
-    toast({ title: "Signed copy link copied (valid 7 days)" });
+    toast({ title: "Temporary member copy link copied (valid 7 days)" });
+    if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_copy_link_copied", metadata: { scope: "member_temp" } });
   };
   const sendSignedCopy = async (mode: "admin" | "member") => {
     if (!req) return;
