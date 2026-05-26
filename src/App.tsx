@@ -40,6 +40,7 @@ import NotFound from "./pages/NotFound";
 import CodeOfConductSign from "./pages/CodeOfConductSign";
 import CodeOfConductAdmin from "./pages/CodeOfConductAdmin";
 import CodeOfConductReceipt from "./pages/CodeOfConductReceipt";
+import CodeOfConductSignedPdf from "./pages/CodeOfConductSignedPdf";
 
 import type { ModuleKey } from "@/lib/modules";
 
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/code-of-conduct/sign/:token" element={<CodeOfConductSign />} />
             <Route path="/admin-center/code-of-conduct" element={<Shell admin><CodeOfConductAdmin /></Shell>} />
+            <Route path="/code-of-conduct/signed-pdf/:requestId" element={<Shell admin><CodeOfConductSignedPdf /></Shell>} />
             <Route path="/code-of-conduct/receipt/:requestId" element={<Shell admin><CodeOfConductReceipt /></Shell>} />
             <Route path="/" element={<Shell moduleKey="dashboard"><Dashboard /></Shell>} />
             <Route path="/founder-dashboard" element={<Shell><FounderDashboard /></Shell>} />
