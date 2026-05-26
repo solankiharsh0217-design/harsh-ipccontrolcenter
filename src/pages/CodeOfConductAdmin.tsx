@@ -70,8 +70,16 @@ export default function CodeOfConductAdmin() {
 
   const loadTpl = async () => {
     const { data } = await (supabase as any).from("code_of_conduct_templates").select("*").eq("is_active", true).order("created_at", { ascending: false }).limit(1);
-    setTpl(data?.[0] || blankTpl());
-    if (data?.[0]?.updated_at) setLastSavedAt(data[0].updated_at);
+    const row = data?.[0];
+    if (row) {
+      // Auto-fill defaults in-memory if subject/body are empty so admin never has to write them.
+      if (!row.email_subject || !String(row.email_subject).trim()) row.email_subject = DEFAULT_EMAIL_SUBJECT;
+      if (!row.email_body || !String(row.email_body).trim()) row.email_body = DEFAULT_EMAIL_BODY;
+      setTpl(row);
+      if (row.updated_at) setLastSavedAt(row.updated_at);
+    } else {
+      setTpl(blankTpl());
+    }
   };
   const loadRequests = async () => {
     const { data } = await (supabase as any).from("code_of_conduct_requests").select("*").order("created_at", { ascending: false }).limit(200);
