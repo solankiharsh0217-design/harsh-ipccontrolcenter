@@ -63,7 +63,25 @@ export default function CodeOfConductPanel(props: Props) {
     return getStorageUrl(req.signed_html_url || req.signed_receipt_url || null);
   };
 
-  const viewSignedPdf = () => {
+  const ensureSignedPdf = async (): Promise<boolean> => {
+    if (!req) return false;
+    if (req.signed_pdf_url) return true;
+    if (req.status !== "signed") { toast({ title: "Request is not signed yet", variant: "destructive" }); return false; }
+    toast({ title: "Generating signed PDF…" });
+    try {
+      const { data, error } = await supabase.functions.invoke("code-of-conduct-public", { body: { action: "admin_regenerate_signed_pdf", request_id: req.id } });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error((data as any).message || "Generation failed");
+      await load();
+      return true;
+    } catch (e: any) {
+      toast({ title: "Signed PDF generation failed", description: e?.message, variant: "destructive" });
+      return false;
+    }
+  };
+
+  const viewSignedPdf = async () => {
+    if (!(await ensureSignedPdf())) return;
     const url = adminSignedPdfUrl();
     if (!url) { toast({ title: "Signed PDF not available yet", variant: "destructive" }); return; }
     window.open(url, "_blank");
@@ -76,9 +94,10 @@ export default function CodeOfConductPanel(props: Props) {
   };
   const downloadSignedPdf = async () => {
     if (!req) return;
+    if (!(await ensureSignedPdf())) return;
     try {
       const url = await getStoragePdfUrl();
-      if (!url) { toast({ title: "Signed PDF not available yet", description: req.signed_pdf_generation_error || undefined, variant: "destructive" }); return; }
+      if (!url) { toast({ title: "Signed PDF link unavailable", description: req.signed_pdf_generation_error || undefined, variant: "destructive" }); return; }
       const resp = await fetch(url);
       const blob = new Blob([await resp.blob()], { type: "application/pdf" });
       const dl = URL.createObjectURL(blob);
@@ -94,6 +113,7 @@ export default function CodeOfConductPanel(props: Props) {
     }
   };
   const copySignedPdfLink = async () => {
+    if (!(await ensureSignedPdf())) return;
     const url = await getStoragePdfUrl();
     if (!url) return;
     await navigator.clipboard.writeText(url);
@@ -101,6 +121,7 @@ export default function CodeOfConductPanel(props: Props) {
     if (req) (supabase as any).from("code_of_conduct_events").insert({ request_id: req.id, event_type: "signed_pdf_link_copied", metadata: { scope: "temporary_pdf" } });
   };
   const copyMemberPdfLink = async () => {
+    if (!(await ensureSignedPdf())) return;
     const url = await getStoragePdfUrl();
     if (!url) { toast({ title: "Signed copy not available yet", variant: "destructive" }); return; }
     await navigator.clipboard.writeText(url);
@@ -109,6 +130,7 @@ export default function CodeOfConductPanel(props: Props) {
   };
   const sendSignedCopy = async (mode: "admin" | "member") => {
     if (!req) return;
+    if (!(await ensureSignedPdf())) return;
     try {
       const { data, error } = await supabase.functions.invoke("send-coc-signed-copy", { body: { request_id: req.id, mode } });
       if (error) throw error;
