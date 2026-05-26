@@ -11,6 +11,28 @@ const STATUS_LABELS: Record<string, string> = {
   signed: "Signed", expired: "Expired", cancelled: "Cancelled", failed: "Failed",
 };
 
+const DEFAULT_EMAIL_SUBJECT = "Action Required: Sign Your IPC Diamond Membership Code of Conduct";
+const DEFAULT_EMAIL_BODY = `Hi {{member_name}},
+
+Welcome to the IPC Diamond Membership.
+
+Before we activate your next steps and add you to the official Diamond Members group, please review and acknowledge your Code of Conduct using the secure link below:
+
+{{signing_link}}
+
+This document confirms that you have understood the program guidelines, participation expectations, support process, communication rules, and membership responsibilities.
+
+Please complete this step within {{expiry_days}} days.
+
+Once you sign and submit the acknowledgement, you will be redirected to the IPC Diamond Members WhatsApp group link. Our team will then review and guide you for the next access steps.
+
+If you have any questions, you can reply to this email or contact Team IPC.
+
+Regards,
+Team IPC
+India Photographers Club`;
+
+// Full template required fields (used only for Save Template button on Template tab)
 const REQUIRED_FIELDS: { key: string; label: string }[] = [
   { key: "name", label: "Template name" },
   { key: "document_title", label: "Document title" },
@@ -19,11 +41,12 @@ const REQUIRED_FIELDS: { key: string; label: string }[] = [
   { key: "version", label: "Version" },
   { key: "expiry_days", label: "Link expiry days" },
   { key: "whatsapp_redirect_url", label: "WhatsApp group URL" },
-  { key: "from_name", label: "Sender name" },
-  { key: "from_email", label: "Sender email" },
   { key: "email_subject", label: "Email subject" },
   { key: "email_body", label: "Email body" },
 ];
+
+// Email-settings-only fields (used by Save Email Settings button on Setup tab)
+const EMAIL_SETTINGS_FIELDS = ["from_email", "from_name", "reply_to_email", "test_recipient_email", "email_subject", "email_body"];
 
 type ChecklistItem = { key: string; label: string; ok: boolean; required: boolean; hint?: string };
 
@@ -47,8 +70,16 @@ export default function CodeOfConductAdmin() {
 
   const loadTpl = async () => {
     const { data } = await (supabase as any).from("code_of_conduct_templates").select("*").eq("is_active", true).order("created_at", { ascending: false }).limit(1);
-    setTpl(data?.[0] || blankTpl());
-    if (data?.[0]?.updated_at) setLastSavedAt(data[0].updated_at);
+    const row = data?.[0];
+    if (row) {
+      // Auto-fill defaults in-memory if subject/body are empty so admin never has to write them.
+      if (!row.email_subject || !String(row.email_subject).trim()) row.email_subject = DEFAULT_EMAIL_SUBJECT;
+      if (!row.email_body || !String(row.email_body).trim()) row.email_body = DEFAULT_EMAIL_BODY;
+      setTpl(row);
+      if (row.updated_at) setLastSavedAt(row.updated_at);
+    } else {
+      setTpl(blankTpl());
+    }
   };
   const loadRequests = async () => {
     const { data } = await (supabase as any).from("code_of_conduct_requests").select("*").order("created_at", { ascending: false }).limit(200);
@@ -72,13 +103,81 @@ export default function CodeOfConductAdmin() {
       const v = tpl?.[f.key];
       if (v === undefined || v === null || String(v).trim() === "") e[f.key] = `${f.label} is required`;
     }
+    // Sender must come from template override OR backend secret
+    if (!tpl?.from_email && !diag?.has_email_from_address) e.from_email = "Sender email required (set here or add EMAIL_FROM_ADDRESS secret)";
+    if (!tpl?.from_name && !diag?.has_email_from_name) e.from_name = "Sender name required (set here or add EMAIL_FROM_NAME secret)";
     if (tpl?.from_email && !String(tpl.from_email).includes("@")) e.from_email = "From email looks invalid";
     if (tpl?.reply_to_email && !String(tpl.reply_to_email).includes("@")) e.reply_to_email = "Reply-to email looks invalid";
     if (tpl?.test_recipient_email && !String(tpl.test_recipient_email).includes("@")) e.test_recipient_email = "Test email looks invalid";
     if (tpl?.expiry_days && (Number(tpl.expiry_days) < 1 || Number(tpl.expiry_days) > 90)) e.expiry_days = "Expiry must be 1–90 days";
     if (!tpl?.template_pdf_url && !tpl?.html_content) e.template_pdf_url = "PDF URL or HTML body is required";
+    if (tpl?.email_body && !String(tpl.email_body).includes("{{signing_link}}")) e.email_body = "Email body must include {{signing_link}}";
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const validateEmailSettings = (): boolean => {
+    const e: Record<string, string> = { ...errors };
+    // Clear prior email-settings errors
+    for (const k of EMAIL_SETTINGS_FIELDS) delete e[k];
+
+    if (tpl?.from_email && !String(tpl.from_email).includes("@")) e.from_email = "From email looks invalid";
+    if (tpl?.reply_to_email && !String(tpl.reply_to_email).includes("@")) e.reply_to_email = "Reply-to email looks invalid";
+    if (tpl?.test_recipient_email && !String(tpl.test_recipient_email).includes("@")) e.test_recipient_email = "Test email looks invalid";
+    if (!tpl?.from_email && !diag?.has_email_from_address) e.from_email = "Sender email required (set here or add EMAIL_FROM_ADDRESS secret)";
+    if (!tpl?.from_name && !diag?.has_email_from_name) e.from_name = "Sender name required (set here or add EMAIL_FROM_NAME secret)";
+    if (!tpl?.email_subject || !String(tpl.email_subject).trim()) e.email_subject = "Email subject is required";
+    if (!tpl?.email_body || !String(tpl.email_body).trim()) e.email_body = "Email body is required";
+    if (tpl?.email_body && !String(tpl.email_body).includes("{{signing_link}}")) e.email_body = "Email body must include {{signing_link}} so the member can sign the document.";
+    setErrors(e);
+    return !EMAIL_SETTINGS_FIELDS.some((k) => e[k]);
+  };
+
+  const persistTpl = async (): Promise<{ ok: boolean; error?: string; row?: any }> => {
+    const payload = { ...tpl };
+    delete payload.id;
+    // Ensure new templates always have at least the minimum required NOT NULL fields
+    if (!payload.name) payload.name = "Diamond Membership Code of Conduct";
+    if (!payload.document_title) payload.document_title = payload.name;
+    if (!payload.program_name) payload.program_name = "IPC Diamond Membership";
+    if (!payload.party_a_name) payload.party_a_name = "India Photographers' Club";
+    if (!payload.version) payload.version = "1.0";
+    if (payload.is_active === undefined) payload.is_active = true;
+    if (!payload.expiry_days) payload.expiry_days = 7;
+    try {
+      if (tpl?.id) {
+        const { data, error } = await (supabase as any).from("code_of_conduct_templates").update(payload).eq("id", tpl.id).select().single();
+        if (error) throw error;
+        return { ok: true, row: data };
+      } else {
+        const { data, error } = await (supabase as any).from("code_of_conduct_templates").insert(payload).select().single();
+        if (error) throw error;
+        return { ok: true, row: data };
+      }
+    } catch (e: any) {
+      return { ok: false, error: e?.message || "Unknown database error" };
+    }
+  };
+
+  const saveEmailSettings = async (): Promise<boolean> => {
+    if (savingTpl) return false;
+    if (!validateEmailSettings()) {
+      toast({ title: "Please fix the highlighted email fields", variant: "destructive" });
+      return false;
+    }
+    setSavingTpl(true);
+    try {
+      const res = await persistTpl();
+      if (!res.ok) {
+        toast({ title: "Email settings failed to save", description: res.error, variant: "destructive" });
+        return false;
+      }
+      if (res.row) setTpl(res.row);
+      setLastSavedAt(new Date().toISOString());
+      toast({ title: "Email settings saved successfully" });
+      await loadDiag();
+      return true;
+    } finally { setSavingTpl(false); }
   };
 
   const saveTpl = async (silent = false) => {
@@ -89,24 +188,24 @@ export default function CodeOfConductAdmin() {
     }
     setSavingTpl(true);
     try {
-      const payload = { ...tpl }; delete payload.id;
-      if (tpl?.id) {
-        const { error } = await (supabase as any).from("code_of_conduct_templates").update(payload).eq("id", tpl.id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await (supabase as any).from("code_of_conduct_templates").insert(payload).select().single();
-        if (error) throw error;
-        setTpl(data);
+      const res = await persistTpl();
+      if (!res.ok) {
+        toast({ title: "Save failed", description: res.error, variant: "destructive" });
+        return false;
       }
-      toast({ title: silent ? "Email settings saved" : "Code of Conduct template saved" });
+      if (res.row) setTpl(res.row);
       setLastSavedAt(new Date().toISOString());
-      await loadTpl();
+      toast({ title: silent ? "Email settings saved" : "Code of Conduct template saved" });
       await loadDiag();
       return true;
-    } catch (e: any) {
-      toast({ title: "Save failed", description: e?.message || "Unknown error", variant: "destructive" });
-      return false;
     } finally { setSavingTpl(false); }
+  };
+
+  const applyDefaultEmailCopy = () => {
+    const hasContent = (tpl?.email_subject && tpl.email_subject !== DEFAULT_EMAIL_SUBJECT) || (tpl?.email_body && tpl.email_body !== DEFAULT_EMAIL_BODY && tpl.email_body.trim() !== "");
+    if (hasContent && !confirm("This will replace the current email copy. Continue?")) return;
+    setTpl({ ...tpl, email_subject: DEFAULT_EMAIL_SUBJECT, email_body: DEFAULT_EMAIL_BODY });
+    toast({ title: "Default email copy applied", description: "Click Save Email Settings to persist." });
   };
 
   const uploadPdf = async (file: File) => {
@@ -125,11 +224,15 @@ export default function CodeOfConductAdmin() {
   const sendTestEmail = async () => {
     const to = tpl?.test_recipient_email;
     if (!to || !to.includes("@")) { toast({ title: "Add a test recipient email first", variant: "destructive" }); return; }
+    if (!tpl?.email_subject || !tpl?.email_body || !String(tpl.email_body).includes("{{signing_link}}")) {
+      toast({ title: "Email settings incomplete", description: "Save email settings (subject + body with {{signing_link}}) first.", variant: "destructive" });
+      return;
+    }
     if (!tpl?.id) {
-      toast({ title: "Saving template first…" });
-      const saved = await saveTpl(true);
+      const saved = await saveEmailSettings();
       if (!saved) return;
     }
+
     setSendingTest(true);
     setLastTestResult(null);
     try {
@@ -229,12 +332,12 @@ export default function CodeOfConductAdmin() {
             <SectionLabel>Email Sending Setup</SectionLabel>
             <div className="text-[12.5px] text-muted-foreground -mt-2">Tell members who the email comes from. The API key stays in backend secrets — never entered here.</div>
             <Grid>
-              <Field label="Sender email (must be verified in your email provider)" error={errors.from_email}>
-                <Input value={tpl.from_email || ""} onChange={(v) => setTpl({ ...tpl, from_email: v })} placeholder="team@yourdomain.com" />
-                <div className="text-[10.5px] text-muted-foreground mt-1">Use the verified domain in your Resend account. <code>onboarding@resend.dev</code> only delivers to your Resend account owner.</div>
+              <Field label="Sender email override (leave blank to use EMAIL_FROM_ADDRESS secret)" error={errors.from_email}>
+                <Input value={tpl.from_email || ""} onChange={(v) => setTpl({ ...tpl, from_email: v })} placeholder={diag?.has_email_from_address ? "(using secret)" : "team@yourdomain.com"} />
+                <div className="text-[10.5px] text-muted-foreground mt-1">{diag?.has_email_from_address ? "Backend secret EMAIL_FROM_ADDRESS is set — leave blank to use it." : "No secret set. Use a verified domain in your Resend account."}</div>
               </Field>
-              <Field label="Sender name shown to members" error={errors.from_name}>
-                <Input value={tpl.from_name || ""} onChange={(v) => setTpl({ ...tpl, from_name: v })} placeholder="IPC Control Center" />
+              <Field label="Sender name override (leave blank to use EMAIL_FROM_NAME secret)" error={errors.from_name}>
+                <Input value={tpl.from_name || ""} onChange={(v) => setTpl({ ...tpl, from_name: v })} placeholder={diag?.has_email_from_name ? "(using secret)" : "IPC Control Center"} />
               </Field>
               <Field label="Reply-to email (optional)" error={errors.reply_to_email}>
                 <Input value={tpl.reply_to_email || ""} onChange={(v) => setTpl({ ...tpl, reply_to_email: v })} placeholder="support@yourdomain.com" />
@@ -243,11 +346,27 @@ export default function CodeOfConductAdmin() {
                 <Input value={tpl.test_recipient_email || ""} onChange={(v) => setTpl({ ...tpl, test_recipient_email: v })} placeholder="your-own@email.com" />
               </Field>
             </Grid>
+
+            <div className="border-t border-line pt-4 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <SectionLabel>Email Copy</SectionLabel>
+                <button type="button" onClick={applyDefaultEmailCopy} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Use Default Email Copy</button>
+              </div>
+              <div className="text-[11.5px] text-muted-foreground -mt-2">Supports {"{{member_name}}"}, {"{{program_name}}"}, {"{{signing_link}}"}, {"{{expiry_days}}"}, {"{{expiry_date}}"}, {"{{company_name}}"}, {"{{support_email}}"}.</div>
+              <Field label="Email subject" error={errors.email_subject}>
+                <Input value={tpl.email_subject || ""} onChange={(v) => setTpl({ ...tpl, email_subject: v })} placeholder={DEFAULT_EMAIL_SUBJECT} />
+              </Field>
+              <Field label="Email body" error={errors.email_body}>
+                <TextArea value={tpl.email_body || ""} onChange={(v) => setTpl({ ...tpl, email_body: v })} rows={10} />
+              </Field>
+            </div>
+
             <div className="flex items-center justify-end gap-3 pt-2">
               {lastSavedAt && <span className="text-[11.5px] text-muted-foreground">Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
-              <button onClick={() => saveTpl(true)} disabled={savingTpl} className="ipc-btn ipc-btn-black">{savingTpl ? "Saving…" : "Save Email Settings"}</button>
+              <button onClick={saveEmailSettings} disabled={savingTpl} className="ipc-btn ipc-btn-black">{savingTpl ? "Saving…" : "Save Email Settings"}</button>
             </div>
           </div>
+
 
           <div className="bg-white border border-line rounded-xl p-6 space-y-3">
             <SectionLabel>Email Setup Checklist</SectionLabel>
@@ -322,8 +441,12 @@ export default function CodeOfConductAdmin() {
             <TextArea value={tpl.success_page_message || ""} onChange={(v) => setTpl({ ...tpl, success_page_message: v })} rows={2} placeholder="Your Code of Conduct has been acknowledged successfully." />
           </Field>
 
-          <SectionLabel>Email Body</SectionLabel>
-          <div className="text-[11.5px] text-muted-foreground -mt-2">Sender email and name are set in the <button onClick={() => setTab("setup")} className="underline">Email Setup</button> tab.</div>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <SectionLabel>Email Body</SectionLabel>
+            <button type="button" onClick={applyDefaultEmailCopy} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Use Default Email Copy</button>
+          </div>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">Sender is set in the <button onClick={() => setTab("setup")} className="underline">Email Setup</button> tab. Body must include {"{{signing_link}}"}.</div>
+
           <Field label="Email subject" error={errors.email_subject}><Input value={tpl.email_subject || ""} onChange={(v) => setTpl({ ...tpl, email_subject: v })} placeholder="Action Required: Sign Your IPC Diamond Membership Code of Conduct" /></Field>
           <Field label="Email body (supports {{member_name}}, {{program_name}}, {{signing_link}}, {{expiry_date}}, {{company_name}})" error={errors.email_body}>
             <TextArea value={tpl.email_body || ""} onChange={(v) => setTpl({ ...tpl, email_body: v })} rows={8} />
@@ -493,8 +616,9 @@ function blankTpl() {
     from_name: "IPC Control Center",
     reply_to_email: "",
     test_recipient_email: "",
-    email_subject: "",
-    email_body: "",
+    email_subject: DEFAULT_EMAIL_SUBJECT,
+    email_body: DEFAULT_EMAIL_BODY,
+
   };
 }
 
