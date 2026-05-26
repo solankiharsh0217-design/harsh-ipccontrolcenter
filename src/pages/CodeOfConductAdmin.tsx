@@ -295,6 +295,30 @@ export default function CodeOfConductAdmin() {
     } finally { setRetryingId(null); }
   };
 
+  const copySigningLink = async (r: any) => {
+    try {
+      const existing = generatedLinks[r.id];
+      if (existing) {
+        await navigator.clipboard.writeText(existing);
+        toast({ title: "Signing link copied" });
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("send-code-of-conduct-email", {
+        body: { action: "generate_signing_link", request_id: r.id, origin: window.location.origin },
+      });
+      if (error) throw error;
+      if ((data as any)?.ok === false) throw new Error(`[${(data as any).error_code}] ${(data as any).message}`);
+      const link = (data as any)?.signing_url;
+      if (!link) throw new Error("No signing link returned");
+      setGeneratedLinks((prev) => ({ ...prev, [r.id]: link }));
+      await navigator.clipboard.writeText(link);
+      toast({ title: "Signing link copied", description: "A fresh token was generated for this request." });
+      await loadRequests();
+    } catch (e: any) {
+      toast({ title: "Copy link failed", description: e?.message || "Unknown error", variant: "destructive" });
+    }
+  };
+
   const filtered = filter === "all"
     ? requests
     : filter === "failed"
