@@ -739,6 +739,72 @@ export default function CodeOfConductAdmin() {
         </div>
       )}
 
+      {editEmailReq && (
+        <EditMemberEmailModal
+          open={!!editEmailReq}
+          onClose={() => setEditEmailReq(null)}
+          requestId={editEmailReq.id}
+          currentEmail={editEmailReq.member_email || ""}
+          isSigned={editEmailReq.status === "signed"}
+          onUpdated={() => { loadRequests(); }}
+        />
+      )}
+
+      {signedRecord && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex justify-end" onClick={() => setSignedRecord(null)}>
+          <div className="w-full max-w-[560px] bg-white h-full overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-[14px] font-semibold">Signed Record (immutable)</div>
+                <div className="text-[11.5px] text-muted-foreground">{signedRecord.signed_member_name || signedRecord.member_name}</div>
+              </div>
+              <button onClick={() => setSignedRecord(null)} className="text-[12px] text-muted-foreground">Close</button>
+            </div>
+            <div className="space-y-1.5 text-[12.5px] border border-line rounded p-3 mb-3">
+              <KV k="Request ID" v={signedRecord.id} />
+              <KV k="Template" v={`${signedRecord.template_name || "—"}${signedRecord.template_version ? ` v${signedRecord.template_version}` : ""}`} />
+              <KV k="Member name" v={signedRecord.signed_member_name || signedRecord.member_name} />
+              <KV k="Member email (signing)" v={signedRecord.signed_member_email || signedRecord.member_email} />
+              {signedRecord.corrected_contact_email && <KV k="Corrected contact email" v={signedRecord.corrected_contact_email} />}
+              <KV k="Member phone" v={signedRecord.member_phone || "—"} />
+              <KV k="Signed at" v={signedRecord.signed_at ? new Date(signedRecord.signed_at).toLocaleString() : "—"} />
+              <KV k="Typed signature" v={signedRecord.signature_name || "—"} />
+              <KV k="IP address" v={signedRecord.acknowledgement_ip || "—"} />
+              <KV k="User agent" v={signedRecord.acknowledgement_user_agent || "—"} />
+              <KV k="Paid pipeline lead" v={signedRecord.paid_pipeline_lead_id || "—"} />
+              <KV k="Calling CRM lead" v={signedRecord.crm_lead_id || "—"} />
+            </div>
+            {signedRecord.signature_data_url && (
+              <div className="mb-3"><div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Drawn signature</div><img src={signedRecord.signature_data_url} alt="Signature" className="border border-line rounded p-2 max-w-full" /></div>
+            )}
+            {Array.isArray(signedRecord.acknowledgement_checklist) && signedRecord.acknowledgement_checklist.length > 0 && (
+              <div className="mb-3"><div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Acknowledgements</div>
+                <ul className="list-disc pl-5 text-[12.5px]">{signedRecord.acknowledgement_checklist.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul></div>
+            )}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              {signedRecordReceiptUrl ? (
+                <>
+                  <a href={signedRecordReceiptUrl} target="_blank" rel="noreferrer" className="ipc-btn ipc-btn-black !h-8">View Signed Copy</a>
+                  <button onClick={() => downloadSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
+                  <button onClick={() => copySignedLinkRow(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Link</button>
+                </>
+              ) : (
+                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">Generate Signed Copy</button>
+              )}
+            </div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Event timeline</div>
+            <div className="space-y-1.5">
+              {signedRecordEvents.length === 0 && <div className="text-[12px] text-muted-foreground">No events.</div>}
+              {signedRecordEvents.map((ev) => (
+                <div key={ev.id} className="border border-line rounded p-2 text-[11.5px]">
+                  <div className="flex justify-between"><span className="font-medium">{ev.event_type}</span><span className="text-muted-foreground">{new Date(ev.created_at).toLocaleString()}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {eventsFor && (
         <div className="fixed inset-0 bg-black/40 z-50 flex justify-end" onClick={() => setEventsFor(null)}>
           <div className="w-full max-w-[480px] bg-white h-full overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
