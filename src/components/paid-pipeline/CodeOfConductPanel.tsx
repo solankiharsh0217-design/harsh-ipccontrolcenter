@@ -367,7 +367,15 @@ export default function CodeOfConductPanel(props: Props) {
   };
 
   const isFailed = !!req?.last_email_error_code;
-  const displayStatus = isFailed ? "failed" : (req?.status || "not_required");
+  const ruleActive = matchedRule && (!req || ["expired", "cancelled"].includes(req.status));
+  let displayStatus = isFailed ? "failed" : (req?.status || "not_required");
+  let displayLabel = STATUS_LABELS[displayStatus];
+  if (!req && ruleActive) {
+    displayStatus = "required";
+    displayLabel = matchedRule!.mode === "auto_send"
+      ? (evalRunning ? "Auto-send Pending…" : (evalResult?.action === "auto_send_failed" ? "Auto-send Failed" : "Required (auto-send)"))
+      : "Required";
+  }
   const cls = STATUS_STYLES[displayStatus] || STATUS_STYLES.not_required;
   const sendDisabled = busy || !setupComplete;
 
@@ -376,10 +384,31 @@ export default function CodeOfConductPanel(props: Props) {
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex items-center gap-2">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">📜 Code of Conduct</div>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium border ${cls}`}>{STATUS_LABELS[displayStatus]}</span>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium border ${cls}`}>{displayLabel}</span>
+          {matchedRule && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-violet-50 text-violet-700 border-violet-200" title={`Rule: ${matchedRule.name}`}>
+              {matchedRule.mode === "auto_send" ? "Auto-send rule" : "Suggest rule"}
+            </span>
+          )}
         </div>
-        {req?.template_version && <span className="text-[10.5px] text-slate-400">v{req.template_version}</span>}
+        <div className="flex items-center gap-2">
+          {req?.template_version && <span className="text-[10.5px] text-slate-400">v{req.template_version}</span>}
+          {isAdmin && (
+            <button onClick={() => runEvaluator({ force: true, verbose: true })} disabled={evalRunning}
+              className="text-[10.5px] px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50"
+              title="Re-evaluate trigger rules for this lead">{evalRunning ? "Checking…" : "Run Trigger Check"}</button>
+          )}
+        </div>
       </div>
+
+      {ruleActive && (
+        <div className={`mb-3 rounded-md border p-2.5 text-[11.5px] ${matchedRule!.mode === "auto_send" ? "bg-violet-50 border-violet-200 text-violet-900" : "bg-amber-50 border-amber-200 text-amber-900"}`}>
+          <div className="font-medium">
+            {matchedRule!.mode === "auto_send" ? "Auto-send rule matched" : "Code of Conduct required"}
+          </div>
+          <div className="opacity-80">Rule: {matchedRule!.name}{evalResult?.action === "auto_send_failed" ? ` — ${evalResult.message}` : ""}</div>
+        </div>
+      )}
 
       {!setupComplete && diag && (
         <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-[11.5px] text-amber-900">
@@ -393,7 +422,13 @@ export default function CodeOfConductPanel(props: Props) {
         <div className="text-[12px] text-slate-500">Loading…</div>
       ) : !req ? (
         <div className="space-y-2.5">
-          <p className="text-[12px] text-slate-600">No Code of Conduct request created yet. Send the agreement to capture digital acknowledgement before adding the member to the Diamond group.</p>
+          <p className="text-[12px] text-slate-600">
+            {ruleActive
+              ? (matchedRule!.mode === "auto_send"
+                  ? "An active auto-send rule matches this lead. The email is being dispatched automatically."
+                  : "An active rule requires sending the Code of Conduct for this stage.")
+              : "No Code of Conduct request created yet. Send the agreement to capture digital acknowledgement before adding the member to the Diamond group."}
+          </p>
           <input type="email" value={emailOverride} onChange={(e) => setEmailOverride(e.target.value)}
             className="w-full border border-slate-200 rounded-md px-2.5 py-1.5 text-[12.5px]" placeholder="Member email" />
           <button onClick={requestSend} disabled={sendDisabled} className="ipc-btn ipc-btn-black !h-9 w-full disabled:opacity-50">
