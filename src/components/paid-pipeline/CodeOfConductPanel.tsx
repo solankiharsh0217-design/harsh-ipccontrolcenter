@@ -503,6 +503,28 @@ export default function CodeOfConductPanel(props: Props) {
         </div>
       )}
 
+      {isAdmin && (
+        <div className="mt-3 border-t border-slate-200 pt-2">
+          <button onClick={() => setDebugOpen((v) => !v)} className="text-[10.5px] uppercase tracking-wider text-slate-500 hover:text-slate-700">
+            {debugOpen ? "▾" : "▸"} Trigger Debug
+          </button>
+          {debugOpen && (
+            <div className="mt-1.5 text-[10.5px] text-slate-600 space-y-0.5 font-mono">
+              <div>Eval source: {evalSource || (paidLeadId ? "paid_pipeline" : "crm")}</div>
+              <div>Resolved pipeline_id: {resolvedPipelineId || "—"}</div>
+              <div>Resolved stage_id: {resolvedStageId || "—"} {resolvedStageName ? `(${resolvedStageName})` : ""}</div>
+              <div>Rule matched: {matchedRule ? `Yes — ${matchedRule.name}` : "No"}</div>
+              {matchedRule && (<>
+                <div>Rule source: {matchedRule.source} · pipeline_id: {matchedRule.pipeline_id} · stage_id: {matchedRule.stage_id}</div>
+                <div>Mode: {matchedRule.mode} · expiry: {matchedRule.link_expiry_days}d</div>
+              </>)}
+              <div>Existing request: {req ? `${req.status} (${req.id.slice(0,8)})` : "none"}</div>
+              <div>Last evaluator: {evalResult ? `${evalResult.action}${evalResult.message ? ` — ${evalResult.message}` : ""} @ ${new Date(evalResult.at).toLocaleTimeString()}` : "—"}</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {req && (
         <EditMemberEmailModal
           open={editEmailOpen}
