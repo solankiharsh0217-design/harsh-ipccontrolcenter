@@ -969,6 +969,8 @@ export default function Crm() {
                   setBulkMoveStageId("");
                   clearSelection();
                   evaluateHandoffForLeads(ids, activePipeline, stageId).catch(() => {});
+                  evaluateCoCForLeads(ids, activePipeline, stageId).catch(() => {});
+
                 }}
                 className="ipc-btn ipc-btn-black !h-9 !text-xs disabled:opacity-50"
               >Move</button>
