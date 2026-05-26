@@ -676,36 +676,24 @@ export default function CodeOfConductAdmin() {
                     <td className="py-2 pr-3"><span className={hasActiveToken ? "text-emerald-700" : "text-muted-foreground"}>{hasActiveToken ? "Yes" : "No"}</span></td>
                     <td className="py-2 pr-3 text-rose-600 max-w-[220px] truncate" title={r.last_email_error || ""}>{r.last_email_error_code ? `[${r.last_email_error_code}] ${r.last_email_error || ""}` : "—"}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">
-                      <div className="flex gap-1.5 flex-wrap">
-                        <button onClick={() => openEvents(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Events</button>
-                        {r.paid_pipeline_lead_id ? <Link to={`/paid-pipeline?lead=${r.paid_pipeline_lead_id}`} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-blue-700">Open Lead</Link>
-                          : r.crm_lead_id ? <Link to={`/crm?lead=${r.crm_lead_id}`} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-blue-700">Open Lead</Link>
-                          : null}
-                        {hasActiveToken && <button onClick={() => copySigningLink(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Copy Signing Link</button>}
-                        {r.status === "signed" ? (
-                          <>
-                            <button onClick={() => openSignedRecord(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-emerald-700">View Signed Record</button>
-                            {(r.signed_html_url || r.signed_receipt_url) ? (
-                              <>
-                                <button onClick={() => viewSigned(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">View Copy</button>
-                                <button onClick={() => downloadSigned(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Download</button>
-                                <button onClick={() => copySignedLinkRow(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Copy Copy Link</button>
-                              </>
-                            ) : (
-                              <button onClick={() => regenSigned(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-amber-700">Generate Signed Copy</button>
-                            )}
-                            <button onClick={() => sendSignedCopyRow(r, "admin")} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Send→Admin</button>
-                            <button onClick={() => sendSignedCopyRow(r, "member")} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Send→Member</button>
-                            <button onClick={() => setEditEmailReq(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Edit Contact Email</button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => retrySend(r)} disabled={retryingId === r.id} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">{retryingId === r.id ? "Sending…" : (r.sent_at ? "Resend" : "Send")}</button>
-                            <button onClick={() => setEditEmailReq(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50">Change Email & Resend</button>
-                            {!["cancelled", "expired"].includes(r.status) && <button onClick={() => cancelRequestRow(r)} className="text-[11px] px-2 py-1 border border-line rounded hover:bg-slate-50 text-rose-700">Cancel</button>}
-                          </>
-                        )}
-                      </div>
+                      <RowActions
+                        r={r}
+                        hasActiveToken={hasActiveToken}
+                        retryingId={retryingId}
+                        onOpenEvents={() => openEvents(r)}
+                        onCopySigningLink={() => copySigningLink(r)}
+                        onView={() => viewSigned(r)}
+                        onViewRecord={() => openSignedRecord(r)}
+                        onDownload={() => downloadSigned(r)}
+                        onCopyAdmin={() => copyAdminReceiptLink(r)}
+                        onCopyMember={() => copyMemberReceiptLink(r)}
+                        onSendAdmin={() => sendSignedCopyRow(r, "admin")}
+                        onSendMember={() => sendSignedCopyRow(r, "member")}
+                        onRegen={() => regenSigned(r)}
+                        onEditEmail={() => setEditEmailReq(r)}
+                        onRetry={() => retrySend(r)}
+                        onCancel={() => cancelRequestRow(r)}
+                      />
                     </td>
                   </tr>
                   );
