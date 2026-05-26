@@ -19,6 +19,18 @@ function extractBucketPath(url: string | null, bucket: string) {
   return null;
 }
 
+async function validateCaller(admin: any, req: Request, serviceKey: string) {
+  const auth = req.headers.get('Authorization') || '';
+  if (auth === `Bearer ${serviceKey}`) return { ok: true, service: true };
+  if (!auth.startsWith('Bearer ')) return { ok: false, response: fail('UNAUTHORIZED', 'Missing Authorization', 401) };
+  const token = auth.replace('Bearer ', '');
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data?.user?.id) return { ok: false, response: fail('UNAUTHORIZED', 'Invalid session', 401) };
+  const { data: isAdmin } = await admin.rpc('has_role', { _user_id: data.user.id, _role: 'admin' });
+  if (!isAdmin) return { ok: false, response: fail('FORBIDDEN', 'Admin only', 403) };
+  return { ok: true, user_id: data.user.id };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
@@ -30,7 +42,9 @@ Deno.serve(async (req) => {
     const envReply = Deno.env.get('EMAIL_REPLY_TO') || '';
     const admin = createClient(SUPABASE_URL, SERVICE);
 
-    // Caller auth: allow service-to-service invokes (no caller validation needed for read of own request)
+    const caller = await validateCaller(admin, req, SERVICE);
+    if (!caller.ok) return caller.response as Response;
+
     const body = await req.json().catch(() => ({}));
     const { request_id, mode = 'all' } = body || {};
     if (!request_id) return fail('MISSING_REQUEST_ID', 'request_id required');
@@ -41,13 +55,17 @@ Deno.serve(async (req) => {
 
     const { data: tpl } = r.template_id ? await admin.from('code_of_conduct_templates').select('*').eq('id', r.template_id).maybeSingle() : { data: null } as any;
 
-    // Build signed URL for receipt (7d)
-    const receiptPath = extractBucketPath(r.signed_html_url || r.signed_receipt_url || null, 'signed-code-of-conduct');
-    let receiptLink = '';
-    if (receiptPath) {
-      const { data: signed } = await admin.storage.from('signed-code-of-conduct').createSignedUrl(receiptPath, 60 * 60 * 24 * 7);
-      receiptLink = signed?.signedUrl || '';
+    const pdfPath = extractBucketPath(r.signed_pdf_url || null, 'signed-code-of-conduct');
+    if (!pdfPath) {
+      await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_pdf_email_send_attempted', metadata: { mode, ok: false, error_code: 'MISSING_SIGNED_PDF' } });
+      return fail('MISSING_SIGNED_PDF', 'Signed PDF is missing. Regenerate the signed PDF before sending.', 400);
     }
+    const { data: signed, error: signedErr } = await admin.storage.from('signed-code-of-conduct').createSignedUrl(pdfPath, 60 * 60 * 24 * 7);
+    if (signedErr || !signed?.signedUrl) {
+      await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'signed_pdf_email_send_attempted', metadata: { mode, ok: false, error_code: 'SIGNED_URL_FAILED', error: signedErr?.message } });
+      return fail('SIGNED_URL_FAILED', 'Could not generate signed PDF download link.', 500);
+    }
+    const pdfLink = signed.signedUrl;
 
     const fromEmail = (tpl?.from_email && String(tpl.from_email).trim()) || envFrom;
     const fromName = (tpl?.from_name && String(tpl.from_name).trim()) || envFromName;
@@ -59,6 +77,7 @@ Deno.serve(async (req) => {
     if (recipientsAdmin.length === 0 && replyTo) recipientsAdmin.push(replyTo);
 
     const sendOne = async (to: string, subject: string, html: string, text: string) => {
+      const sentAt = new Date().toISOString();
       const resp = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -66,7 +85,9 @@ Deno.serve(async (req) => {
       });
       const t = await resp.text();
       if (!resp.ok) throw new Error(`Resend ${resp.status}: ${t}`);
-      return t;
+      let id: string | null = null;
+      try { id = JSON.parse(t)?.id || null; } catch { /* ignore */ }
+      return { raw: t, provider_message_id: id, sent_at: sentAt };
     };
 
     const memberName = r.signed_member_name || r.member_name;
@@ -75,7 +96,7 @@ Deno.serve(async (req) => {
     const signedAt = r.signed_at ? new Date(r.signed_at).toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' }) : '—';
 
     const adminSubject = `Signed Code of Conduct Received — ${memberName}`;
-    const adminText = `Hi Team,\n\n${memberName} has signed the IPC Diamond Membership Code of Conduct.\n\nDetails:\nMember: ${memberName}\nEmail: ${memberEmail}\nPhone: ${r.member_phone || '—'}\nProgram: ${programName}\nSigned at: ${signedAt}\nRequest ID: ${r.id}\n\nYou can view/download the signed copy here:\n${receiptLink || '(receipt not generated)'}\n\nRegards,\nIPC Control Center`;
+    const adminText = `Hi Team,\n\n${memberName} has signed the IPC Diamond Membership Code of Conduct.\n\nDetails:\nMember: ${memberName}\nEmail: ${memberEmail}\nPhone: ${r.member_phone || '—'}\nProgram: ${programName}\nSigned at: ${signedAt}\nRequest ID: ${r.id}\n\nDownload the signed PDF here (valid for 7 days):\n${pdfLink}\n\nRegards,\nIPC Control Center`;
     const adminHtml = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f6f7f9;padding:24px;color:#111">
 <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px">
 <h2 style="margin:0 0 8px;font-size:18px">Signed Code of Conduct Received</h2>
@@ -88,16 +109,16 @@ Deno.serve(async (req) => {
 <tr><td style="color:#64748b;padding:4px 0">Signed at</td><td>${esc(signedAt)}</td></tr>
 <tr><td style="color:#64748b;padding:4px 0">Request ID</td><td style="font-family:monospace;font-size:12px">${esc(r.id)}</td></tr>
 </tbody></table>
-${receiptLink ? `<p style="margin:20px 0"><a href="${esc(receiptLink)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600">View Signed Copy</a></p><p style="font-size:11px;color:#94a3b8">Link valid for 7 days.</p>` : '<p style="color:#b91c1c;font-size:12px">Signed receipt could not be generated. Please check Code of Conduct Admin → Requests.</p>'}
+<p style="margin:20px 0"><a href="${esc(pdfLink)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600">Download Signed PDF</a></p><p style="font-size:11px;color:#94a3b8">Signed PDF link valid for 7 days.</p>
 </div></body></html>`;
 
     const memberSubject = 'Your Signed IPC Diamond Membership Code of Conduct';
-    const memberText = `Hi ${memberName},\n\nThank you for acknowledging the IPC Diamond Membership Code of Conduct.\n\nYour signed acknowledgement has been recorded successfully.\n\nYou can keep a copy using the link below:\n${receiptLink}\n\nRegards,\nTeam IPC`;
+    const memberText = `Hi ${memberName},\n\nThank you for acknowledging the IPC Diamond Membership Code of Conduct.\n\nYour signed acknowledgement has been recorded successfully.\n\nDownload your signed Code of Conduct PDF below (valid for 7 days):\n${pdfLink}\n\nRegards,\nTeam IPC`;
     const memberHtml = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f6f7f9;padding:24px;color:#111">
 <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px">
 <h2 style="margin:0 0 8px;font-size:18px">Thank you, ${esc(memberName)}</h2>
 <p style="color:#475569;font-size:14px;margin:0 0 16px">Your signed acknowledgement of the IPC Diamond Membership Code of Conduct has been recorded successfully.</p>
-${receiptLink ? `<p style="margin:16px 0"><a href="${esc(receiptLink)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600">Download Your Copy</a></p><p style="font-size:11px;color:#94a3b8">Link valid for 7 days. Reach out to Team IPC if you need it again.</p>` : ''}
+<p style="margin:16px 0"><a href="${esc(pdfLink)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600">Download Your Signed Code of Conduct</a></p><p style="font-size:11px;color:#94a3b8">Signed PDF link valid for 7 days. Reach out to Team IPC if you need it again.</p>
 <p style="font-size:13px;color:#475569;margin-top:24px">Regards,<br/>Team IPC</p>
 </div></body></html>`;
 
