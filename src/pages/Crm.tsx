@@ -190,6 +190,33 @@ export default function Crm() {
     }
   };
 
+  /** Evaluate Code of Conduct trigger rules for a CRM stage change. */
+  const evaluateCoCForLeads = async (leadIds: string[], pipelineId: string | null, newStageId: string | null) => {
+    if (!pipelineId || !newStageId) return;
+    try {
+      const { evaluateStageTrigger } = await import("@/lib/codeOfConductRules");
+      let autoSent = 0, suggested = 0, failed = 0;
+      for (const id of leadIds) {
+        const l = leads.find((x) => x.id === id);
+        if (!l) continue;
+        const res = await evaluateStageTrigger({
+          source: "crm", pipelineId, stageId: newStageId, crmLeadId: id,
+          memberName: l.full_name || "Member", memberEmail: l.email, memberPhone: l.phone,
+          programName: (l as any).program_name, dealValue: (l as any).deal_value,
+        });
+        if (res.action === "auto_sent") autoSent++;
+        else if (res.action === "suggested") suggested++;
+        else if (res.action === "auto_send_failed" || res.action === "missing_email") failed++;
+      }
+      if (autoSent) toast.success(`Code of Conduct auto-sent to ${autoSent} lead${autoSent === 1 ? "" : "s"}`);
+      if (suggested && leadIds.length === 1) toast.message("Code of Conduct suggested for this stage");
+      else if (suggested) toast.message(`Code of Conduct suggested for ${suggested} lead${suggested === 1 ? "" : "s"}`);
+      if (failed) toast.error(`Code of Conduct auto-send failed for ${failed} lead${failed === 1 ? "" : "s"}`);
+    } catch (e) { console.warn("[crm] evaluateCoCForLeads crashed", e); }
+  };
+
+
+
 
   const handleImportDone = async (result?: ImportResult) => {
     setImportOpen(false);
