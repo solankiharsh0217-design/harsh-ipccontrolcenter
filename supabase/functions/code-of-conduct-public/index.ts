@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,9 +25,18 @@ function escapeHtml(s: any) {
 
 function extractBucketPath(publicOrAnyUrl: string | null, bucket = 'code-of-conduct'): string | null {
   if (!publicOrAnyUrl) return null;
+  if (publicOrAnyUrl.startsWith(`storage:${bucket}/`)) return publicOrAnyUrl.slice(`storage:${bucket}/`.length);
   const re = new RegExp(`/storage/v1/object/(?:public|sign)/${bucket}/([^?]+)`);
   const m = publicOrAnyUrl.match(re);
   return m ? decodeURIComponent(m[1]) : null;
+}
+
+async function signedStorageUrl(admin: any, rawUrl: string | null, bucket: string, expires = 60 * 60 * 24 * 7): Promise<string | null> {
+  if (!rawUrl) return null;
+  const path = extractBucketPath(rawUrl, bucket);
+  if (!path) return rawUrl;
+  const { data } = await admin.storage.from(bucket).createSignedUrl(path, expires);
+  return data?.signedUrl || null;
 }
 
 async function resolvePdfUrl(admin: any, rawUrl: string | null): Promise<string | null> {
@@ -38,11 +48,11 @@ async function resolvePdfUrl(admin: any, rawUrl: string | null): Promise<string 
 }
 
 async function resolveSignedReceiptUrl(admin: any, rawUrl: string | null): Promise<string | null> {
-  if (!rawUrl) return null;
-  const path = extractBucketPath(rawUrl, 'signed-code-of-conduct');
-  if (!path) return rawUrl;
-  const { data } = await admin.storage.from('signed-code-of-conduct').createSignedUrl(path, 60 * 60 * 24 * 7);
-  return data?.signedUrl || null;
+  return signedStorageUrl(admin, rawUrl, 'signed-code-of-conduct');
+}
+
+async function resolveSignedPdfUrl(admin: any, rawUrl: string | null): Promise<string | null> {
+  return signedStorageUrl(admin, rawUrl, 'signed-code-of-conduct');
 }
 
 function publicRequestPayload(r: any, t: any, signedPdfUrl: string | null, signedReceiptHtmlUrl: string | null) {
@@ -59,6 +69,9 @@ function publicRequestPayload(r: any, t: any, signedPdfUrl: string | null, signe
       signed_at: r.signed_at,
       token_expires_at: r.token_expires_at,
       whatsapp_redirect_url_visible: r.status === 'signed' ? (t?.whatsapp_redirect_url || null) : null,
+      signed_pdf_url: r.status === 'signed' ? signedPdfUrl : null,
+      signed_pdf_generated_at: r.signed_pdf_generated_at || null,
+      signed_pdf_generation_error: r.signed_pdf_generation_error || null,
       signed_receipt_url: r.status === 'signed' ? signedReceiptHtmlUrl : null,
     },
     template: t ? {
