@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
-import { loadActiveCoCRules, findMatchingRule, type CodeOfConductRule } from "@/lib/codeOfConductRules";
+import { loadActiveCoCRules, findMatchingRuleDetailed, type CodeOfConductRule } from "@/lib/codeOfConductRules";
 
 interface Props {
   crmLeadId: string;
@@ -26,8 +26,8 @@ export default function CodeOfConductCard(props: Props) {
   const [loaded, setLoaded] = useState(false);
 
   const load = async () => {
-    const rules = await loadActiveCoCRules("crm");
-    const matched = findMatchingRule(rules, "crm", pipelineId, stageId);
+    const rules = await loadActiveCoCRules();
+    const { rule: matched } = await findMatchingRuleDetailed({ rules, source: "crm", pipelineId, stageId, crmLeadId, paidPipelineLeadId: paidLeadId || null });
     setRule(matched);
     if (matched) {
       const [{ data: ig }, { data: rq }] = await Promise.all([
