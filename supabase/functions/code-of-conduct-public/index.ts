@@ -402,10 +402,11 @@ Deno.serve(async (req) => {
       } else {
         await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'document_viewed' });
       }
-      const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
-      if (!signedPdf && !tpl?.html_content) return publicError('DOCUMENT_NOT_FOUND', 'The agreement document is not configured yet.', 404);
+      const originalPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+      if (!originalPdf && !tpl?.html_content) return publicError('DOCUMENT_NOT_FOUND', 'The agreement document is not configured yet.', 404);
       const receiptUrl = await resolveSignedReceiptUrl(admin, reqRow.signed_html_url || reqRow.signed_receipt_url || null);
-      return jsonResponse(publicRequestPayload(reqRow, tpl, signedPdf, receiptUrl));
+      const signedRequestPdf = await resolveSignedPdfUrl(admin, reqRow.signed_pdf_url || null);
+      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl));
     }
 
     if (action === 'whatsapp_click') {
@@ -419,9 +420,10 @@ Deno.serve(async (req) => {
 
     await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_attempted' });
     if (reqRow.status === 'signed') {
-      const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+      const originalPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
       const receiptUrl = await resolveSignedReceiptUrl(admin, reqRow.signed_html_url || reqRow.signed_receipt_url || null);
-      return jsonResponse({ already_signed: true, ...publicRequestPayload(reqRow, tpl, signedPdf, receiptUrl) });
+      const signedRequestPdf = await resolveSignedPdfUrl(admin, reqRow.signed_pdf_url || null);
+      return jsonResponse({ already_signed: true, ...publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl) });
     }
 
     const signatureName = body.signature_name || body.typed_name;
@@ -463,7 +465,8 @@ Deno.serve(async (req) => {
     if (reqRow.paid_pipeline_lead_id) await admin.from('paid_pipeline_leads').update({ code_of_conduct_status: 'signed', code_of_conduct_signed_at: now, code_of_conduct_request_id: reqRow.id }).eq('id', reqRow.paid_pipeline_lead_id);
     if (reqRow.crm_lead_id) await admin.from('leads').update({ code_of_conduct_status: 'signed', code_of_conduct_signed_at: now, code_of_conduct_request_id: reqRow.id }).eq('id', reqRow.crm_lead_id);
 
-    // Generate signed receipt HTML and store it
+    // Generate signed PDF as primary proof and keep HTML receipt as secondary evidence
+    const pdfResult = await generateAndStoreSignedPdf(admin, updated, tpl, ip, ua);
     const receiptResult = await generateAndStoreReceipt(admin, updated, tpl, ip, ua);
 
     // Fire-and-forget signed copy email
@@ -489,9 +492,10 @@ Deno.serve(async (req) => {
 
     // Re-read after receipt
     const { data: finalRow } = await admin.from('code_of_conduct_requests').select('*').eq('id', updated.id).maybeSingle();
-    const signedPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
+    const originalPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
     const receiptUrl = await resolveSignedReceiptUrl(admin, finalRow?.signed_html_url || finalRow?.signed_receipt_url || null);
-    return jsonResponse({ ...publicRequestPayload(finalRow || updated, tpl, signedPdf, receiptUrl), receipt_generated: receiptResult.ok });
+    const signedRequestPdf = await resolveSignedPdfUrl(admin, finalRow?.signed_pdf_url || null);
+    return jsonResponse({ ...publicRequestPayload(finalRow || updated, tpl, originalPdf, signedRequestPdf, receiptUrl), signed_pdf_generated: pdfResult.ok, receipt_generated: receiptResult.ok });
   } catch (e) {
     console.error('code-of-conduct-public error', e);
     try {
