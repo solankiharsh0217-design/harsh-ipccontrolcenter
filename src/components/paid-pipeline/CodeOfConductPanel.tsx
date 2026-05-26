@@ -199,7 +199,109 @@ export default function CodeOfConductPanel(props: Props) {
     } catch { /* ignore */ }
   };
 
+  /** Resolve CRM pipeline/stage if not provided by caller. */
+  const resolveContext = async (): Promise<{ source: CoCRuleSource; pipelineId: string | null; stageId: string | null; stageName: string | null } | null> => {
+    let source = evalSource;
+    let pipelineId = evalPipelineId || null;
+    let stageId = evalStageId || null;
+    let stageName: string | null = null;
+    if (!source) source = paidLeadId ? "paid_pipeline" : "crm";
+    if (!pipelineId || !stageId) {
+      // Resolve by fetching linked lead
+      if (paidLeadId) {
+        const { data: paid } = await (supabase as any).from("paid_pipeline_leads").select("crm_lead_id").eq("id", paidLeadId).maybeSingle();
+        const cid = (paid as any)?.crm_lead_id;
+        if (cid) {
+          const { data: lead } = await supabase.from("leads").select("pipeline_id, stage_id").eq("id", cid).maybeSingle();
+          pipelineId = (lead as any)?.pipeline_id || null;
+          stageId = (lead as any)?.stage_id || null;
+        }
+      } else if (crmLeadId) {
+        const { data: lead } = await supabase.from("leads").select("pipeline_id, stage_id").eq("id", crmLeadId).maybeSingle();
+        pipelineId = (lead as any)?.pipeline_id || null;
+        stageId = (lead as any)?.stage_id || null;
+      }
+    }
+    if (stageId) {
+      const { data: s } = await supabase.from("stages").select("name").eq("id", stageId).maybeSingle();
+      stageName = (s as any)?.name || null;
+    }
+    setResolvedPipelineId(pipelineId);
+    setResolvedStageId(stageId);
+    setResolvedStageName(stageName);
+    return { source, pipelineId, stageId, stageName };
+  };
+
+  /** Evaluate rules; auto-fires once if mode=auto_send and no active request. */
+  const runEvaluator = async (opts: { force?: boolean; verbose?: boolean } = {}): Promise<void> => {
+    setEvalRunning(true);
+    try {
+      const ctx = await resolveContext();
+      if (!ctx) return;
+      const { source, pipelineId, stageId } = ctx;
+      if (!pipelineId || !stageId) {
+        setMatchedRule(null);
+        setEvalResult({ action: "none", message: "No CRM pipeline/stage to evaluate", at: new Date().toISOString() });
+        if (opts.verbose) toast({ title: "No CRM stage to evaluate" });
+        return;
+      }
+      const rules = await loadActiveCoCRules(source);
+      const matched = findMatchingRule(rules, source, pipelineId, stageId);
+      setMatchedRule(matched);
+      if (!matched) {
+        setEvalResult({ action: "none", message: "No active rule matched", at: new Date().toISOString() });
+        if (opts.verbose) toast({ title: "No active rule matched this lead's CRM stage" });
+        return;
+      }
+      // Don't re-trigger auto-send more than once per panel mount unless forced
+      if (matched.mode === "auto_send" && autoSendAttempted && !opts.force) {
+        setEvalResult({ action: "duplicate_skipped", message: "Auto-send already attempted this session", at: new Date().toISOString() });
+        return;
+      }
+      const res = await evaluateStageTrigger({
+        source, pipelineId, stageId,
+        crmLeadId: crmLeadId || null,
+        paidPipelineLeadId: paidLeadId || null,
+        memberName, memberEmail: emailOverride || memberEmail || null,
+        memberPhone: memberPhone || null, programName, dealValue,
+      });
+      setMatchedRule(res.rule || matched);
+      setEvalResult({ action: res.action, message: res.message, at: new Date().toISOString() });
+      if (matched.mode === "auto_send") setAutoSendAttempted(true);
+      if (opts.verbose) {
+        const label = `Rule matched: ${matched.name}`;
+        const detail = res.action === "auto_sent" ? "Auto-send dispatched" :
+                       res.action === "duplicate_skipped" ? `Skipped: ${res.message}` :
+                       res.action === "suggested" ? "Suggested (manual send required)" :
+                       res.action === "auto_send_failed" ? `Auto-send failed: ${res.message}` :
+                       res.action === "missing_email" ? "Missing email — cannot auto-send" : res.action;
+        toast({ title: label, description: detail });
+      }
+      if (res.action === "auto_sent" || res.action === "duplicate_skipped") await load();
+    } catch (e: any) {
+      setEvalResult({ action: "error", message: e?.message || String(e), at: new Date().toISOString() });
+      if (opts.verbose) toast({ title: "Trigger check failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setEvalRunning(false);
+    }
+  };
+
   useEffect(() => { load(); loadDiag(); /* eslint-disable-next-line */ }, [paidLeadId, crmLeadId]);
+
+  // After load resolves the request, evaluate trigger rules
+  useEffect(() => {
+    if (loading) return;
+    // Only auto-evaluate when there's no active/signed request that already covers it
+    const activeStatuses = ["sent", "viewed", "signed", "ready_to_send"];
+    if (req && activeStatuses.includes(req.status)) {
+      // Still resolve context for debug visibility
+      resolveContext();
+      return;
+    }
+    runEvaluator({ force: false, verbose: false });
+    // eslint-disable-next-line
+  }, [loading, req?.id, paidLeadId, crmLeadId, evalPipelineId, evalStageId, evalSource]);
+
 
   const tpl = diag?.template;
   const setupMissing: string[] = [];
