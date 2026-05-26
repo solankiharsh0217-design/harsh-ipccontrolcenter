@@ -151,52 +151,36 @@ export default function CodeOfConductRulesTab() {
   /** Apply rule to leads already in the trigger stage. Dry-run preview, then confirm. */
   const runBackfill = async (rule: Rule) => {
     try {
-      // 1) Find candidate leads
+      // 1) Find candidate leads in the trigger CRM stage, then attach paid links by id/email/phone.
       let candidates: Array<{
-        crm_lead_id: string; paid_pipeline_lead_id: string | null;
+        crm_lead_id: string; paid_pipeline_lead_id: string | null; link_status: "proper" | "email_phone" | "none";
         name: string; email: string | null; phone: string | null;
       }> = [];
-      if (rule.source === "crm") {
-        const { data, error } = await supabase
-          .from("leads")
-          .select("id, full_name, email, phone")
-          .eq("stage_id", rule.stage_id)
-          .eq("pipeline_id", rule.pipeline_id)
-          .is("archived_at", null)
-          .is("deleted_at", null);
-        if (error) throw error;
-        candidates = (data || []).map((l: any) => ({
-          crm_lead_id: l.id, paid_pipeline_lead_id: null,
-          name: l.full_name || "Member", email: l.email || null, phone: l.phone || null,
-        }));
-      } else {
-        // paid_pipeline source: paid leads whose linked CRM lead is in trigger stage
-        const { data: crmLeads, error: e1 } = await supabase
-          .from("leads").select("id, full_name, email, phone")
-          .eq("stage_id", rule.stage_id).eq("pipeline_id", rule.pipeline_id)
-          .is("archived_at", null).is("deleted_at", null);
-        if (e1) throw e1;
-        const crmIds = (crmLeads || []).map((l: any) => l.id);
-        if (crmIds.length === 0) candidates = [];
-        else {
-          const { data: paid, error: e2 } = await supabase
-            .from("paid_pipeline_leads")
-            .select("id, name, email, phone, crm_lead_id")
-            .in("crm_lead_id", crmIds)
-            .is("archived_at", null);
-          if (e2) throw e2;
-          const byCrm = new Map((crmLeads || []).map((l: any) => [l.id, l]));
-          candidates = (paid || []).map((p: any) => {
-            const c = byCrm.get(p.crm_lead_id) as any;
-            return {
-              crm_lead_id: p.crm_lead_id, paid_pipeline_lead_id: p.id,
-              name: p.name || c?.full_name || "Member",
-              email: p.email || c?.email || null,
-              phone: p.phone || c?.phone || null,
-            };
-          });
-        }
-      }
+      const { data: crmLeads, error: crmErr } = await supabase
+        .from("leads")
+        .select("id, full_name, email, phone, paid_pipeline_lead_id")
+        .eq("stage_id", rule.stage_id)
+        .eq("pipeline_id", rule.pipeline_id)
+        .is("archived_at", null)
+        .is("deleted_at", null);
+      if (crmErr) throw crmErr;
+      const crmIds = (crmLeads || []).map((l: any) => l.id);
+      const emails = Array.from(new Set((crmLeads || []).map((l: any) => (l.email || "").toLowerCase()).filter(Boolean)));
+      const { data: paidRows, error: paidErr } = rule.source === "paid_pipeline"
+        ? await supabase.from("paid_pipeline_leads").select("id, name, email, phone, crm_lead_id").is("archived_at", null)
+        : { data: [] as any[], error: null } as any;
+      if (paidErr) throw paidErr;
+      const paidByCrm = new Map((paidRows || []).filter((p: any) => p.crm_lead_id).map((p: any) => [p.crm_lead_id, p]));
+      const paidByEmail = new Map((paidRows || []).filter((p: any) => p.email).map((p: any) => [String(p.email).toLowerCase(), p]));
+      const paidByPhone = new Map((paidRows || []).filter((p: any) => normPhone(p.phone)).map((p: any) => [normPhone(p.phone), p]));
+      candidates = (crmLeads || []).map((l: any) => {
+        if (rule.source === "crm") return { crm_lead_id: l.id, paid_pipeline_lead_id: l.paid_pipeline_lead_id || null, link_status: l.paid_pipeline_lead_id ? "proper" : "none", name: l.full_name || "Member", email: l.email || null, phone: l.phone || null };
+        let p: any = paidByCrm.get(l.id);
+        let link_status: "proper" | "email_phone" | "none" = p ? "proper" : "none";
+        if (!p && l.email) { p = paidByEmail.get(String(l.email).toLowerCase()); if (p) link_status = "email_phone"; }
+        if (!p && normPhone(l.phone)) { p = paidByPhone.get(normPhone(l.phone)); if (p) link_status = "email_phone"; }
+        return { crm_lead_id: l.id, paid_pipeline_lead_id: p?.id || null, link_status, name: p?.name || l.full_name || "Member", email: p?.email || l.email || null, phone: p?.phone || l.phone || null };
+      });
 
       // 2) Classify against existing requests
       const ids = candidates.map((c) => rule.source === "crm" ? c.crm_lead_id : c.paid_pipeline_lead_id!).filter(Boolean);
@@ -213,10 +197,14 @@ export default function CodeOfConductRulesTab() {
         existingByLead.set(k, [...(existingByLead.get(k) || []), r]);
       }
 
-      let willSend = 0, alreadySent = 0, alreadySigned = 0, missingEmail = 0, alreadyActive = 0;
+      let willSend = 0, alreadySent = 0, alreadySigned = 0, missingEmail = 0, alreadyActive = 0, properLinks = 0, repairedLinks = 0, missingLinks = 0;
       const queue: typeof candidates = [];
       for (const c of candidates) {
+        if (c.link_status === "proper") properLinks++;
+        else if (c.link_status === "email_phone") repairedLinks++;
+        else missingLinks++;
         const k = (rule.source === "crm" ? c.crm_lead_id : c.paid_pipeline_lead_id) as string;
+        if (rule.source === "paid_pipeline" && !c.paid_pipeline_lead_id) continue;
         const reqs = existingByLead.get(k) || [];
         if (reqs.some((r) => r.status === "signed")) { alreadySigned++; continue; }
         if (reqs.some((r) => ["sent", "viewed", "ready_to_send"].includes(r.status))) { alreadySent++; continue; }
@@ -229,6 +217,9 @@ export default function CodeOfConductRulesTab() {
         `Rule: ${rule.name}\n` +
         `Mode: ${rule.mode}\n\n` +
         `Candidates in trigger stage: ${candidates.length}\n` +
+        `• Proper CRM/Paid links: ${properLinks}\n` +
+        `• Missing link but matched by email/phone: ${repairedLinks}\n` +
+        `• Missing paid link: ${missingLinks}\n` +
         `• Already signed: ${alreadySigned}\n` +
         `• Already sent/viewed/active: ${alreadySent + alreadyActive}\n` +
         `• Missing email (auto-send): ${missingEmail}\n` +
@@ -240,9 +231,12 @@ export default function CodeOfConductRulesTab() {
       // 3) Process (throttled, max 25 per batch to avoid email storms)
       const batch = queue.slice(0, 25);
       let sent = 0, failed = 0;
-      const { evaluateStageTrigger } = await import("@/lib/codeOfConductRules");
       for (const c of batch) {
         try {
+          if (rule.source === "paid_pipeline" && c.link_status === "email_phone" && c.paid_pipeline_lead_id) {
+            await supabase.from("paid_pipeline_leads").update({ crm_lead_id: c.crm_lead_id } as any).eq("id", c.paid_pipeline_lead_id);
+            await supabase.from("leads").update({ paid_pipeline_lead_id: c.paid_pipeline_lead_id } as any).eq("id", c.crm_lead_id);
+          }
           const res = await evaluateStageTrigger({
             source: rule.source,
             pipelineId: rule.pipeline_id,
