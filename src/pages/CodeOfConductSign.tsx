@@ -46,7 +46,7 @@ export default function CodeOfConductSign() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const [hasDrawn, setHasDrawn] = useState(false);
-  const canSubmit = !!name.trim() && acks.every(Boolean) && !submitting;
+  const canSubmit = !!name.trim() && acks.every(Boolean) && hasDrawn && !submitting;
 
   useEffect(() => {
     (async () => {
@@ -150,6 +150,7 @@ export default function CodeOfConductSign() {
   const submit = async () => {
     if (!name.trim()) { setError("Please type your full name."); return; }
     if (acks.some((a) => !a)) { setError("Please acknowledge all items."); return; }
+    if (!hasDrawn) { setError("Please draw your signature before submitting."); return; }
     setSubmitting(true); setError(null);
     const sig = hasDrawn ? canvasRef.current?.toDataURL("image/png") : null;
     try {
@@ -329,7 +330,7 @@ export default function CodeOfConductSign() {
             <label className="block text-[12px] text-slate-600 mb-1">Typed full name <span className="text-rose-500">*</span></label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-slate-900/20" placeholder="Type your full legal name" />
-            <label className="block text-[12px] text-slate-600 mb-1">Draw signature (optional)</label>
+            <label className="block text-[12px] text-slate-600 mb-1">Draw signature <span className="text-rose-500">*</span></label>
             <div className="border border-slate-300 rounded-md bg-white">
               <canvas ref={canvasRef} className="w-full block touch-none" style={{ height: 140 }} />
             </div>
