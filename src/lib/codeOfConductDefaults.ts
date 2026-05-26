@@ -87,7 +87,7 @@ export const DEFAULT_AGREEMENT_VARS = (input: {
 
 export function renderAgreementHtml(html: string, vars: Record<string, string>) {
   return Object.entries(vars).reduce(
-    (acc, [k, v]) => acc.replaceAll(`{{${k}}}`, v),
+    (acc, [k, v]) => acc.split(`{{${k}}}`).join(v),
     html || "",
   );
 }
