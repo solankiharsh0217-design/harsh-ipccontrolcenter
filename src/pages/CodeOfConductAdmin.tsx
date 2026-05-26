@@ -103,13 +103,81 @@ export default function CodeOfConductAdmin() {
       const v = tpl?.[f.key];
       if (v === undefined || v === null || String(v).trim() === "") e[f.key] = `${f.label} is required`;
     }
+    // Sender must come from template override OR backend secret
+    if (!tpl?.from_email && !diag?.has_email_from_address) e.from_email = "Sender email required (set here or add EMAIL_FROM_ADDRESS secret)";
+    if (!tpl?.from_name && !diag?.has_email_from_name) e.from_name = "Sender name required (set here or add EMAIL_FROM_NAME secret)";
     if (tpl?.from_email && !String(tpl.from_email).includes("@")) e.from_email = "From email looks invalid";
     if (tpl?.reply_to_email && !String(tpl.reply_to_email).includes("@")) e.reply_to_email = "Reply-to email looks invalid";
     if (tpl?.test_recipient_email && !String(tpl.test_recipient_email).includes("@")) e.test_recipient_email = "Test email looks invalid";
     if (tpl?.expiry_days && (Number(tpl.expiry_days) < 1 || Number(tpl.expiry_days) > 90)) e.expiry_days = "Expiry must be 1–90 days";
     if (!tpl?.template_pdf_url && !tpl?.html_content) e.template_pdf_url = "PDF URL or HTML body is required";
+    if (tpl?.email_body && !String(tpl.email_body).includes("{{signing_link}}")) e.email_body = "Email body must include {{signing_link}}";
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const validateEmailSettings = (): boolean => {
+    const e: Record<string, string> = { ...errors };
+    // Clear prior email-settings errors
+    for (const k of EMAIL_SETTINGS_FIELDS) delete e[k];
+
+    if (tpl?.from_email && !String(tpl.from_email).includes("@")) e.from_email = "From email looks invalid";
+    if (tpl?.reply_to_email && !String(tpl.reply_to_email).includes("@")) e.reply_to_email = "Reply-to email looks invalid";
+    if (tpl?.test_recipient_email && !String(tpl.test_recipient_email).includes("@")) e.test_recipient_email = "Test email looks invalid";
+    if (!tpl?.from_email && !diag?.has_email_from_address) e.from_email = "Sender email required (set here or add EMAIL_FROM_ADDRESS secret)";
+    if (!tpl?.from_name && !diag?.has_email_from_name) e.from_name = "Sender name required (set here or add EMAIL_FROM_NAME secret)";
+    if (!tpl?.email_subject || !String(tpl.email_subject).trim()) e.email_subject = "Email subject is required";
+    if (!tpl?.email_body || !String(tpl.email_body).trim()) e.email_body = "Email body is required";
+    if (tpl?.email_body && !String(tpl.email_body).includes("{{signing_link}}")) e.email_body = "Email body must include {{signing_link}} so the member can sign the document.";
+    setErrors(e);
+    return !EMAIL_SETTINGS_FIELDS.some((k) => e[k]);
+  };
+
+  const persistTpl = async (): Promise<{ ok: boolean; error?: string; row?: any }> => {
+    const payload = { ...tpl };
+    delete payload.id;
+    // Ensure new templates always have at least the minimum required NOT NULL fields
+    if (!payload.name) payload.name = "Diamond Membership Code of Conduct";
+    if (!payload.document_title) payload.document_title = payload.name;
+    if (!payload.program_name) payload.program_name = "IPC Diamond Membership";
+    if (!payload.party_a_name) payload.party_a_name = "India Photographers' Club";
+    if (!payload.version) payload.version = "1.0";
+    if (payload.is_active === undefined) payload.is_active = true;
+    if (!payload.expiry_days) payload.expiry_days = 7;
+    try {
+      if (tpl?.id) {
+        const { data, error } = await (supabase as any).from("code_of_conduct_templates").update(payload).eq("id", tpl.id).select().single();
+        if (error) throw error;
+        return { ok: true, row: data };
+      } else {
+        const { data, error } = await (supabase as any).from("code_of_conduct_templates").insert(payload).select().single();
+        if (error) throw error;
+        return { ok: true, row: data };
+      }
+    } catch (e: any) {
+      return { ok: false, error: e?.message || "Unknown database error" };
+    }
+  };
+
+  const saveEmailSettings = async (): Promise<boolean> => {
+    if (savingTpl) return false;
+    if (!validateEmailSettings()) {
+      toast({ title: "Please fix the highlighted email fields", variant: "destructive" });
+      return false;
+    }
+    setSavingTpl(true);
+    try {
+      const res = await persistTpl();
+      if (!res.ok) {
+        toast({ title: "Email settings failed to save", description: res.error, variant: "destructive" });
+        return false;
+      }
+      if (res.row) setTpl(res.row);
+      setLastSavedAt(new Date().toISOString());
+      toast({ title: "Email settings saved successfully" });
+      await loadDiag();
+      return true;
+    } finally { setSavingTpl(false); }
   };
 
   const saveTpl = async (silent = false) => {
@@ -120,24 +188,24 @@ export default function CodeOfConductAdmin() {
     }
     setSavingTpl(true);
     try {
-      const payload = { ...tpl }; delete payload.id;
-      if (tpl?.id) {
-        const { error } = await (supabase as any).from("code_of_conduct_templates").update(payload).eq("id", tpl.id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await (supabase as any).from("code_of_conduct_templates").insert(payload).select().single();
-        if (error) throw error;
-        setTpl(data);
+      const res = await persistTpl();
+      if (!res.ok) {
+        toast({ title: "Save failed", description: res.error, variant: "destructive" });
+        return false;
       }
-      toast({ title: silent ? "Email settings saved" : "Code of Conduct template saved" });
+      if (res.row) setTpl(res.row);
       setLastSavedAt(new Date().toISOString());
-      await loadTpl();
+      toast({ title: silent ? "Email settings saved" : "Code of Conduct template saved" });
       await loadDiag();
       return true;
-    } catch (e: any) {
-      toast({ title: "Save failed", description: e?.message || "Unknown error", variant: "destructive" });
-      return false;
     } finally { setSavingTpl(false); }
+  };
+
+  const applyDefaultEmailCopy = () => {
+    const hasContent = (tpl?.email_subject && tpl.email_subject !== DEFAULT_EMAIL_SUBJECT) || (tpl?.email_body && tpl.email_body !== DEFAULT_EMAIL_BODY && tpl.email_body.trim() !== "");
+    if (hasContent && !confirm("This will replace the current email copy. Continue?")) return;
+    setTpl({ ...tpl, email_subject: DEFAULT_EMAIL_SUBJECT, email_body: DEFAULT_EMAIL_BODY });
+    toast({ title: "Default email copy applied", description: "Click Save Email Settings to persist." });
   };
 
   const uploadPdf = async (file: File) => {
