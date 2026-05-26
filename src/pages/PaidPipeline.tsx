@@ -1402,6 +1402,9 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             memberPhone={(lead as any).phone || null}
             programName={null}
             dealValue={Number(lead.deal_value_including_gst || 0) || null}
+            evalSource="paid_pipeline"
+            evalPipelineId={crmPipelineId}
+            evalStageId={crmStageId}
           />
 
           {/* 2. Next Follow-up — high-visibility, daily-use card */}
