@@ -5,6 +5,8 @@ import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import CodeOfConductRulesTab from "@/components/admin/CodeOfConductRulesTab";
+import { DEFAULT_AGREEMENT_HTML } from "@/lib/codeOfConductDefaults";
+
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
   if (variant === "destructive") sonnerToast.error(title, { description });
