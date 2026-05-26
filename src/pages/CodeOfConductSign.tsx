@@ -218,12 +218,6 @@ export default function CodeOfConductSign() {
           <p className="text-[12.5px] text-slate-500 mb-5">Signed at {request.signed_at ? new Date(request.signed_at).toLocaleString() : "—"}</p>
 
           <div className="flex flex-col gap-2.5 mb-5">
-            {waUrl && (
-              <a href={waUrl} target="_blank" rel="noreferrer" onClick={onWhatsAppClick}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#25D366] text-white font-medium text-sm hover:bg-[#1ebe5c]">
-                Join Diamond Members WhatsApp Group →
-              </a>
-            )}
             {signedPdf ? (
               <a href={signedPdf} target="_blank" rel="noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-slate-300 text-slate-800 font-medium text-sm hover:bg-slate-50">
@@ -237,6 +231,12 @@ export default function CodeOfConductSign() {
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[12.5px] text-slate-600">
                 {pdfPreparing ? "Preparing your signed PDF..." : "Preparing your signed PDF..."}
               </div>
+            )}
+            {waUrl && (
+              <a href={waUrl} target="_blank" rel="noreferrer" onClick={onWhatsAppClick}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#25D366] text-white font-medium text-sm hover:bg-[#1ebe5c]">
+                Join Diamond Members WhatsApp Group →
+              </a>
             )}
           </div>
 
