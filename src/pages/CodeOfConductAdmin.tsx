@@ -902,3 +902,66 @@ function DiagRow({ label, value, hint, bad }: { label: string; value: string; hi
     </div>
   );
 }
+
+function RowActions(props: {
+  r: any; hasActiveToken: boolean; retryingId: string | null;
+  onOpenEvents: () => void; onCopySigningLink: () => void;
+  onView: () => void; onViewRecord: () => void; onDownload: () => void;
+  onCopyAdmin: () => void; onCopyMember: () => void;
+  onSendAdmin: () => void; onSendMember: () => void;
+  onRegen: () => void; onEditEmail: () => void;
+  onRetry: () => void; onCancel: () => void;
+}) {
+  const { r, hasActiveToken, retryingId } = props;
+  const [open, setOpen] = useState(false);
+  const close = (fn: () => void) => () => { setOpen(false); fn(); };
+  const isSigned = r.status === "signed";
+  const isFailed = !!r.last_email_error_code;
+  const hasStored = !!(r.signed_html_url || r.signed_receipt_url);
+  const leadHref = r.paid_pipeline_lead_id ? `/paid-pipeline?lead=${r.paid_pipeline_lead_id}` : r.crm_lead_id ? `/crm?lead=${r.crm_lead_id}` : null;
+
+  let primary: { label: string; onClick: () => void; disabled?: boolean };
+  if (isSigned) primary = { label: "View Record", onClick: props.onViewRecord };
+  else if (isFailed) primary = { label: retryingId === r.id ? "Retrying…" : "Retry", onClick: props.onRetry, disabled: retryingId === r.id };
+  else if (r.status === "cancelled" || r.status === "expired") primary = { label: retryingId === r.id ? "…" : "Resend", onClick: props.onRetry, disabled: retryingId === r.id };
+  else if (hasActiveToken) primary = { label: "Copy Link", onClick: props.onCopySigningLink };
+  else primary = { label: retryingId === r.id ? "Sending…" : (r.sent_at ? "Resend" : "Send"), onClick: props.onRetry, disabled: retryingId === r.id };
+
+  return (
+    <div className="flex items-center gap-1 relative">
+      <button onClick={primary.onClick} disabled={primary.disabled} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50 disabled:opacity-50">{primary.label}</button>
+      <button onClick={() => setOpen((v) => !v)} className="text-[13px] px-2 py-1 border border-line rounded hover:bg-slate-50" aria-label="More">⋯</button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-line rounded-md shadow-lg w-56 py-1 text-[12.5px]">
+            <RAItem onClick={close(props.onOpenEvents)}>View Events</RAItem>
+            {leadHref && <RAItem asLink href={leadHref} onClick={() => setOpen(false)}>Open Lead</RAItem>}
+            {hasActiveToken && <RAItem onClick={close(props.onCopySigningLink)}>Copy Signing Link</RAItem>}
+            {isSigned && (
+              <>
+                <div className="border-t border-line my-1" />
+                <RAItem onClick={close(props.onView)}>View Signed Copy</RAItem>
+                <RAItem onClick={close(props.onViewRecord)}>View Signed Record</RAItem>
+                <RAItem onClick={close(props.onDownload)} disabled={!hasStored}>Download Signed Copy</RAItem>
+                <RAItem onClick={close(props.onCopyAdmin)}>Copy Admin Receipt Link</RAItem>
+                <RAItem onClick={close(props.onCopyMember)} disabled={!hasStored}>Copy Temporary Member Link</RAItem>
+                <RAItem onClick={close(props.onSendAdmin)}>Send Copy to Admin</RAItem>
+                <RAItem onClick={close(props.onSendMember)}>Send Copy to Member</RAItem>
+                <RAItem onClick={close(props.onRegen)}>Regenerate Signed Copy</RAItem>
+              </>
+            )}
+            <div className="border-t border-line my-1" />
+            <RAItem onClick={close(props.onEditEmail)}>{isSigned ? "Edit Contact Email" : "Change Email & Resend"}</RAItem>
+            {!isSigned && !["cancelled", "expired"].includes(r.status) && <RAItem danger onClick={close(props.onCancel)}>Cancel Request</RAItem>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+function RAItem({ children, onClick, disabled, danger, asLink, href }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; danger?: boolean; asLink?: boolean; href?: string }) {
+  const cls = `w-full text-left px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white block ${danger ? "text-rose-700" : ""}`;
+  if (asLink && href) return <Link to={href} onClick={onClick} className={cls}>{children}</Link>;
+  return <button onClick={onClick} disabled={disabled} className={cls}>{children}</button>;
+}
