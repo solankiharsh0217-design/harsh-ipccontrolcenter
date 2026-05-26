@@ -11,6 +11,28 @@ const STATUS_LABELS: Record<string, string> = {
   signed: "Signed", expired: "Expired", cancelled: "Cancelled", failed: "Failed",
 };
 
+const DEFAULT_EMAIL_SUBJECT = "Action Required: Sign Your IPC Diamond Membership Code of Conduct";
+const DEFAULT_EMAIL_BODY = `Hi {{member_name}},
+
+Welcome to the IPC Diamond Membership.
+
+Before we activate your next steps and add you to the official Diamond Members group, please review and acknowledge your Code of Conduct using the secure link below:
+
+{{signing_link}}
+
+This document confirms that you have understood the program guidelines, participation expectations, support process, communication rules, and membership responsibilities.
+
+Please complete this step within {{expiry_days}} days.
+
+Once you sign and submit the acknowledgement, you will be redirected to the IPC Diamond Members WhatsApp group link. Our team will then review and guide you for the next access steps.
+
+If you have any questions, you can reply to this email or contact Team IPC.
+
+Regards,
+Team IPC
+India Photographers Club`;
+
+// Full template required fields (used only for Save Template button on Template tab)
 const REQUIRED_FIELDS: { key: string; label: string }[] = [
   { key: "name", label: "Template name" },
   { key: "document_title", label: "Document title" },
@@ -19,11 +41,12 @@ const REQUIRED_FIELDS: { key: string; label: string }[] = [
   { key: "version", label: "Version" },
   { key: "expiry_days", label: "Link expiry days" },
   { key: "whatsapp_redirect_url", label: "WhatsApp group URL" },
-  { key: "from_name", label: "Sender name" },
-  { key: "from_email", label: "Sender email" },
   { key: "email_subject", label: "Email subject" },
   { key: "email_body", label: "Email body" },
 ];
+
+// Email-settings-only fields (used by Save Email Settings button on Setup tab)
+const EMAIL_SETTINGS_FIELDS = ["from_email", "from_name", "reply_to_email", "test_recipient_email", "email_subject", "email_body"];
 
 type ChecklistItem = { key: string; label: string; ok: boolean; required: boolean; hint?: string };
 
