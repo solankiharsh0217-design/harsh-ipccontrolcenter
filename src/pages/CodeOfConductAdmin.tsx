@@ -170,6 +170,7 @@ export default function CodeOfConductAdmin() {
 
   const saveEmailSettings = async (): Promise<boolean> => {
     if (savingTpl) return false;
+    setSaveError(null);
     if (!validateEmailSettings()) {
       toast({ title: "Please fix the highlighted email fields", variant: "destructive" });
       return false;
@@ -178,12 +179,15 @@ export default function CodeOfConductAdmin() {
     try {
       const res = await persistTpl();
       if (!res.ok) {
+        setSaveError(res.error || "Email settings failed to save");
         toast({ title: "Email settings failed to save", description: res.error, variant: "destructive" });
         return false;
       }
       if (res.row) setTpl(res.row);
       setLastSavedAt(new Date().toISOString());
-      toast({ title: "Email settings saved successfully" });
+      setSavedEmailFlash(true);
+      toast({ title: "Saved successfully", description: "Email settings are ready for testing." });
+      window.setTimeout(() => setSavedEmailFlash(false), 2000);
       await loadDiag();
       return true;
     } finally { setSavingTpl(false); }
@@ -191,6 +195,7 @@ export default function CodeOfConductAdmin() {
 
   const saveTpl = async (silent = false) => {
     if (savingTpl) return false;
+    setSaveError(null);
     if (!validate()) {
       if (!silent) toast({ title: "Please fix missing fields", description: "Required fields are highlighted in red.", variant: "destructive" });
       return false;
@@ -199,12 +204,15 @@ export default function CodeOfConductAdmin() {
     try {
       const res = await persistTpl();
       if (!res.ok) {
+        setSaveError(res.error || "Template failed to save");
         toast({ title: "Save failed", description: res.error, variant: "destructive" });
         return false;
       }
       if (res.row) setTpl(res.row);
       setLastSavedAt(new Date().toISOString());
-      toast({ title: silent ? "Email settings saved" : "Code of Conduct template saved" });
+      setSavedTemplateFlash(true);
+      toast({ title: "Saved successfully", description: silent ? "Email settings were saved." : "Code of Conduct template was saved." });
+      window.setTimeout(() => setSavedTemplateFlash(false), 2000);
       await loadDiag();
       return true;
     } finally { setSavingTpl(false); }
