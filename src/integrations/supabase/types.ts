@@ -942,6 +942,44 @@ export type Database = {
           },
         ]
       }
+      code_of_conduct_suggestion_ignores: {
+        Row: {
+          crm_lead_id: string | null
+          id: string
+          ignored_at: string
+          ignored_by: string | null
+          paid_pipeline_lead_id: string | null
+          rule_id: string
+          stage_id: string | null
+        }
+        Insert: {
+          crm_lead_id?: string | null
+          id?: string
+          ignored_at?: string
+          ignored_by?: string | null
+          paid_pipeline_lead_id?: string | null
+          rule_id: string
+          stage_id?: string | null
+        }
+        Update: {
+          crm_lead_id?: string | null
+          id?: string
+          ignored_at?: string
+          ignored_by?: string | null
+          paid_pipeline_lead_id?: string | null
+          rule_id?: string
+          stage_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_of_conduct_suggestion_ignores_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "code_of_conduct_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       code_of_conduct_templates: {
         Row: {
           created_at: string
