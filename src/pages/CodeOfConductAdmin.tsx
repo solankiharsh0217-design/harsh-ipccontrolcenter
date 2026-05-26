@@ -563,12 +563,32 @@ export default function CodeOfConductAdmin() {
             </Field>
             <Field label="WhatsApp group redirect URL" error={errors.whatsapp_redirect_url}><Input value={tpl.whatsapp_redirect_url || ""} onChange={(v) => setTpl({ ...tpl, whatsapp_redirect_url: v })} placeholder="https://chat.whatsapp.com/…" /></Field>
           </Grid>
-          <Field label="HTML body (used if no PDF)">
-            <TextArea value={tpl.html_content || ""} onChange={(v) => setTpl({ ...tpl, html_content: v })} rows={6} />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <SectionLabel>Agreement Document Body (HTML)</SectionLabel>
+            <div className="flex gap-2">
+              <button type="button" onClick={applyDefaultAgreementHtml} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Generate Default Agreement Text</button>
+              <button type="button" onClick={() => { const w = window.open("", "_blank"); if (w) { w.document.write(`<!doctype html><html><head><meta charset='utf-8'><title>Agreement Preview</title><style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:780px;margin:40px auto;padding:24px;color:#0f172a;line-height:1.55}h2{font-size:18px;margin-top:24px}h3{font-size:14px;margin-top:18px}</style></head><body>${tpl.html_content || "<p style='color:#94a3b8'>No agreement body yet — click Generate Default Agreement Text.</p>"}</body></html>`); w.document.close(); } }} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Preview Agreement</button>
+            </div>
+          </div>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">Rendered on the public signing page as the Google Docs-style agreement. PDF (above) remains available as a reference attachment.</div>
+          <Field label="HTML agreement body">
+            <TextArea value={tpl.html_content || ""} onChange={(v) => setTpl({ ...tpl, html_content: v })} rows={14} />
           </Field>
           <Field label="Success page message">
             <TextArea value={tpl.success_page_message || ""} onChange={(v) => setTpl({ ...tpl, success_page_message: v })} rows={2} placeholder="Your Code of Conduct has been acknowledged successfully." />
           </Field>
+
+          <SectionLabel>Signed Copy Distribution</SectionLabel>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">After a member signs, the signed receipt is generated and emailed to the recipients below.</div>
+          <Field label="Archive recipient emails (comma separated)">
+            <Input value={archiveInput} onChange={setArchiveInput} placeholder="ops@yourdomain.com, records@yourdomain.com" />
+            <div className="text-[10.5px] text-muted-foreground mt-1">If empty, EMAIL_REPLY_TO will be used as a fallback.</div>
+          </Field>
+          <label className="flex items-center gap-2 text-[12.5px]">
+            <input type="checkbox" checked={!!tpl.send_signed_copy_to_member} onChange={(e) => setTpl({ ...tpl, send_signed_copy_to_member: e.target.checked })} className="w-4 h-4" />
+            <span>Also email the signed copy to the member after signing</span>
+          </label>
+
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <SectionLabel>Email Body</SectionLabel>
