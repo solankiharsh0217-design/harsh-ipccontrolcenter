@@ -205,75 +205,108 @@ export default function CodeOfConductPanel(props: Props) {
     } catch { /* ignore */ }
   };
 
-  /** Resolve CRM pipeline/stage if not provided by caller. */
-  const resolveContext = async (): Promise<{ source: CoCRuleSource; pipelineId: string | null; stageId: string | null; stageName: string | null } | null> => {
-    let source = evalSource;
+  /** Resolve CRM pipeline/stage with paid→CRM fallback by link, email, then normalized phone. */
+  const resolveContext = async (repair = false): Promise<{ source: CoCRuleSource; pipelineId: string | null; stageId: string | null; stageName: string | null; crmId: string | null; resolution: string } | null> => {
+    let source = evalSource || (paidLeadId ? "paid_pipeline" : "crm");
     let pipelineId = evalPipelineId || null;
     let stageId = evalStageId || null;
     let stageName: string | null = null;
-    if (!source) source = paidLeadId ? "paid_pipeline" : "crm";
-    if (!pipelineId || !stageId) {
-      // Resolve by fetching linked lead
-      if (paidLeadId) {
-        const { data: paid } = await (supabase as any).from("paid_pipeline_leads").select("crm_lead_id").eq("id", paidLeadId).maybeSingle();
-        const cid = (paid as any)?.crm_lead_id;
-        if (cid) {
-          const { data: lead } = await supabase.from("leads").select("pipeline_id, stage_id").eq("id", cid).maybeSingle();
-          pipelineId = (lead as any)?.pipeline_id || null;
-          stageId = (lead as any)?.stage_id || null;
+    let pipelineName: string | null = null;
+    let crmId = crmLeadId || null;
+    let resolution = crmId ? "CRM" : paidLeadId ? "Paid Pipeline fallback" : "No link";
+
+    if (paidLeadId) {
+      const { data: paid } = await (supabase as any).from("paid_pipeline_leads").select("id,name,email,phone,crm_lead_id").eq("id", paidLeadId).maybeSingle();
+      crmId = crmId || (paid as any)?.crm_lead_id || null;
+      if (!crmId) {
+        const email = (paid as any)?.email || memberEmail || emailOverride || null;
+        const phone = normPhone((paid as any)?.phone || memberPhone);
+        let match: any = null;
+        if (email) {
+          const { data } = await supabase.from("leads").select("id,pipeline_id,stage_id,full_name,email,phone").ilike("email", email).is("archived_at", null).is("deleted_at", null).limit(1);
+          match = data?.[0] || null;
         }
-      } else if (crmLeadId) {
-        const { data: lead } = await supabase.from("leads").select("pipeline_id, stage_id").eq("id", crmLeadId).maybeSingle();
-        pipelineId = (lead as any)?.pipeline_id || null;
-        stageId = (lead as any)?.stage_id || null;
+        if (!match && phone) {
+          const { data } = await supabase.from("leads").select("id,pipeline_id,stage_id,full_name,email,phone").is("archived_at", null).is("deleted_at", null).limit(200);
+          match = (data || []).find((l: any) => normPhone(l.phone) === phone) || null;
+        }
+        if (match?.id) {
+          crmId = match.id;
+          resolution = "CRM repaired by email/phone";
+          if (repair) {
+            await supabase.from("paid_pipeline_leads").update({ crm_lead_id: crmId } as any).eq("id", paidLeadId);
+            await supabase.from("leads").update({ paid_pipeline_lead_id: paidLeadId } as any).eq("id", crmId);
+            await (supabase as any).from("code_of_conduct_events").insert({ event_type: "code_of_conduct_crm_link_repaired_for_trigger", metadata: { crm_lead_id: crmId, paid_pipeline_lead_id: paidLeadId } });
+          }
+        }
       }
+    }
+
+    if ((!pipelineId || !stageId) && crmId) {
+      const { data: lead } = await supabase.from("leads").select("pipeline_id, stage_id").eq("id", crmId).maybeSingle();
+      pipelineId = pipelineId || (lead as any)?.pipeline_id || null;
+      stageId = stageId || (lead as any)?.stage_id || null;
+      resolution = resolution === "No link" ? "CRM" : resolution;
     }
     if (stageId) {
       const { data: s } = await supabase.from("stages").select("name").eq("id", stageId).maybeSingle();
       stageName = (s as any)?.name || null;
     }
+    if (pipelineId) {
+      const { data: p } = await supabase.from("pipelines").select("name").eq("id", pipelineId).maybeSingle();
+      pipelineName = (p as any)?.name || null;
+    }
+    setResolvedCrmLeadId(crmId);
     setResolvedPipelineId(pipelineId);
+    setResolvedPipelineName(pipelineName);
     setResolvedStageId(stageId);
     setResolvedStageName(stageName);
-    return { source, pipelineId, stageId, stageName };
+    setResolvedSourceLabel(resolution);
+    return { source, pipelineId, stageId, stageName, crmId, resolution };
   };
 
   /** Evaluate rules; auto-fires once if mode=auto_send and no active request. */
   const runEvaluator = async (opts: { force?: boolean; verbose?: boolean } = {}): Promise<void> => {
     setEvalRunning(true);
     try {
-      const ctx = await resolveContext();
+      const ctx = await resolveContext(opts.force);
       if (!ctx) return;
-      const { source, pipelineId, stageId } = ctx;
+      const { source, pipelineId, stageId, stageName, crmId } = ctx;
       if (!pipelineId || !stageId) {
         setMatchedRule(null);
-        setEvalResult({ action: "none", message: "No CRM pipeline/stage to evaluate", at: new Date().toISOString() });
+        setMatchDiag(null);
+        setDebugOpen(true);
+        setEvalResult({ action: "missing_context", message: "Trigger cannot evaluate — CRM link/stage missing", at: new Date().toISOString() });
         if (opts.verbose) toast({ title: "No CRM stage to evaluate" });
         return;
       }
-      const rules = await loadActiveCoCRules(source);
-      const matched = findMatchingRule(rules, source, pipelineId, stageId);
+      const rules = await loadActiveCoCRules();
+      const { rule: matched, diagnostics } = await findMatchingRuleDetailed({ rules, source, pipelineId, stageId, stageName, crmLeadId: crmId, paidPipelineLeadId: paidLeadId || null });
+      setMatchDiag(diagnostics);
       setMatchedRule(matched);
       if (!matched) {
-        setEvalResult({ action: "none", message: "No active rule matched", at: new Date().toISOString() });
-        if (opts.verbose) toast({ title: "No active rule matched this lead's CRM stage" });
+        const possible = diagnostics.possibleStageNameMatch || normalizeCoCName(stageName).includes("code of conduct");
+        if (possible) setDebugOpen(true);
+        setEvalResult({ action: "none", message: possible ? "This lead is in a possible trigger stage but no rule matched." : "No active rule matched", at: new Date().toISOString() });
+        if (opts.verbose) toast({ title: "No active rule matched this lead's CRM stage", description: possible ? "Open Trigger Debug for mismatch details." : undefined });
         return;
       }
-      // Don't re-trigger auto-send more than once per panel mount unless forced
-      if (matched.mode === "auto_send" && autoSendAttempted && !opts.force) {
-        setEvalResult({ action: "duplicate_skipped", message: "Auto-send already attempted this session", at: new Date().toISOString() });
+      const guardKey = `${crmId || "no-crm"}:${paidLeadId || "no-paid"}:${matched.id}:${matched.template_id}`;
+      if (matched.mode === "auto_send" && autoSendAttemptedKeys.includes(guardKey) && !opts.force) {
+        setEvalResult({ action: "duplicate_skipped", message: "Auto-send already attempted for this lead/rule/template in this drawer", at: new Date().toISOString() });
         return;
       }
       const res = await evaluateStageTrigger({
-        source, pipelineId, stageId,
-        crmLeadId: crmLeadId || null,
+        source, pipelineId, stageId, stageName,
+        crmLeadId: crmId || null,
         paidPipelineLeadId: paidLeadId || null,
         memberName, memberEmail: emailOverride || memberEmail || null,
         memberPhone: memberPhone || null, programName, dealValue,
       });
       setMatchedRule(res.rule || matched);
+      if (res.diagnostics) setMatchDiag(res.diagnostics);
       setEvalResult({ action: res.action, message: res.message, at: new Date().toISOString() });
-      if (matched.mode === "auto_send") setAutoSendAttempted(true);
+      if (matched.mode === "auto_send") setAutoSendAttemptedKeys((prev) => prev.includes(guardKey) ? prev : [...prev, guardKey]);
       if (opts.verbose) {
         const label = `Rule matched: ${matched.name}`;
         const detail = res.action === "auto_sent" ? "Auto-send dispatched" :
