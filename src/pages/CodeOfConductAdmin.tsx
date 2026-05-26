@@ -78,6 +78,11 @@ export default function CodeOfConductAdmin() {
   const [savedTemplateFlash, setSavedTemplateFlash] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({});
+  const [signedRecord, setSignedRecord] = useState<any | null>(null);
+  const [signedRecordReceiptUrl, setSignedRecordReceiptUrl] = useState<string | null>(null);
+  const [signedRecordEvents, setSignedRecordEvents] = useState<any[]>([]);
+  const [editEmailReq, setEditEmailReq] = useState<any | null>(null);
+  const [archiveInput, setArchiveInput] = useState("");
 
   const loadTpl = async () => {
     const { data } = await (supabase as any).from("code_of_conduct_templates").select("*").eq("is_active", true).order("created_at", { ascending: false }).limit(1);
