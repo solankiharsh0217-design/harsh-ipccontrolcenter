@@ -183,11 +183,12 @@ export default function CodeOfConductRulesTab() {
       // 2) Classify against existing requests
       const crmReqIds = candidates.map((c) => c.crm_lead_id).filter(Boolean);
       const paidReqIds = candidates.map((c) => c.paid_pipeline_lead_id).filter(Boolean) as string[];
-      const { data: existing } = ids.length > 0
+      const requestFilters = [crmReqIds.length ? `crm_lead_id.in.(${crmReqIds.join(",")})` : null, paidReqIds.length ? `paid_pipeline_lead_id.in.(${paidReqIds.join(",")})` : null].filter(Boolean).join(",");
+      const { data: existing } = requestFilters
         ? await (supabase as any).from("code_of_conduct_requests")
             .select("id,status,crm_lead_id,paid_pipeline_lead_id,template_id")
             .eq("template_id", rule.template_id)
-            .or([crmReqIds.length ? `crm_lead_id.in.(${crmReqIds.join(",")})` : null, paidReqIds.length ? `paid_pipeline_lead_id.in.(${paidReqIds.join(",")})` : null].filter(Boolean).join(","))
+            .or(requestFilters)
         : { data: [] as any[] };
       const existingByLead = new Map<string, any[]>();
       for (const r of (existing || []) as any[]) {
