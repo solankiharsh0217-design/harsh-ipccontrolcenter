@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
+
+const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
+  if (variant === "destructive") sonnerToast.error(title, { description });
+  else sonnerToast.success(title, { description });
+};
 
 interface Props {
   paidLeadId?: string | null;
