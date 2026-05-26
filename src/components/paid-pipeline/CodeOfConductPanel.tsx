@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 import EditMemberEmailModal from "./EditMemberEmailModal";
 import { useAuth } from "@/context/AuthContext";
-import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRule, type CodeOfConductRule, type CoCRuleSource } from "@/lib/codeOfConductRules";
+import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRuleDetailed, normalizeCoCName, type CodeOfConductRule, type CoCRuleSource, type RuleMatchDiagnostics } from "@/lib/codeOfConductRules";
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
   if (variant === "destructive") sonnerToast.error(title, { description });
@@ -41,6 +41,8 @@ const STATUS_LABELS: Record<string, string> = {
   sent: "Sent", viewed: "Viewed", signed: "Signed", expired: "Expired", cancelled: "Cancelled", failed: "Failed",
 };
 
+const normPhone = (v?: string | null) => (v || "").replace(/\D/g, "");
+
 export default function CodeOfConductPanel(props: Props) {
   const { paidLeadId, crmLeadId, memberName, memberEmail, memberPhone, programName, dealValue, evalSource, evalPipelineId, evalStageId } = props;
   const { isAdmin } = useAuth();
@@ -57,9 +59,13 @@ export default function CodeOfConductPanel(props: Props) {
   const [evalRunning, setEvalRunning] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
   const [resolvedPipelineId, setResolvedPipelineId] = useState<string | null>(evalPipelineId || null);
+  const [resolvedPipelineName, setResolvedPipelineName] = useState<string | null>(null);
   const [resolvedStageId, setResolvedStageId] = useState<string | null>(evalStageId || null);
   const [resolvedStageName, setResolvedStageName] = useState<string | null>(null);
-  const [autoSendAttempted, setAutoSendAttempted] = useState(false);
+  const [resolvedCrmLeadId, setResolvedCrmLeadId] = useState<string | null>(crmLeadId || null);
+  const [resolvedSourceLabel, setResolvedSourceLabel] = useState<string>(crmLeadId ? "CRM" : paidLeadId ? "Paid Pipeline fallback" : "No link");
+  const [matchDiag, setMatchDiag] = useState<RuleMatchDiagnostics | null>(null);
+  const [autoSendAttemptedKeys, setAutoSendAttemptedKeys] = useState<string[]>([]);
 
   const adminReceiptUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/receipt/${req.id}` : null);
   const adminSignedPdfUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/signed-pdf/${req.id}` : null);
