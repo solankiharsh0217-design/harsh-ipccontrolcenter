@@ -657,6 +657,7 @@ export default function CodeOfConductAdmin() {
                   <th className="py-2 pr-3 font-medium">Signed</th>
                   <th className="py-2 pr-3 font-medium">Token expires</th>
                   <th className="py-2 pr-3 font-medium">Active token</th>
+                  <th className="py-2 pr-3 font-medium">Signed PDF</th>
                   <th className="py-2 pr-3 font-medium">Last error</th>
                   <th className="py-2 pr-3 font-medium">Actions</th>
                 </tr>
@@ -681,7 +682,10 @@ export default function CodeOfConductAdmin() {
                     <td className="py-2 pr-3 text-muted-foreground">{r.signed_at ? new Date(r.signed_at).toLocaleString() : "—"}</td>
                     <td className="py-2 pr-3 text-muted-foreground">{r.token_expires_at ? new Date(r.token_expires_at).toLocaleString() : "—"}</td>
                     <td className="py-2 pr-3"><span className={hasActiveToken ? "text-emerald-700" : "text-muted-foreground"}>{hasActiveToken ? "Yes" : "No"}</span></td>
-                    <td className="py-2 pr-3 text-rose-600 max-w-[220px] truncate" title={r.last_email_error || ""}>{r.last_email_error_code ? `[${r.last_email_error_code}] ${r.last_email_error || ""}` : "—"}</td>
+                    <td className="py-2 pr-3">
+                      {r.status === "signed" ? <span className={r.signed_pdf_url ? "text-emerald-700" : r.signed_pdf_generation_error ? "text-rose-700" : "text-amber-700"}>{r.signed_pdf_url ? "Generated" : r.signed_pdf_generation_error ? "Failed" : "Missing"}</span> : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="py-2 pr-3 text-rose-600 max-w-[220px] truncate" title={r.signed_pdf_generation_error || r.last_email_error || ""}>{r.signed_pdf_generation_error ? `PDF: ${r.signed_pdf_generation_error}` : r.last_email_error_code ? `[${r.last_email_error_code}] ${r.last_email_error || ""}` : "—"}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">
                       <RowActions
                         r={r}
