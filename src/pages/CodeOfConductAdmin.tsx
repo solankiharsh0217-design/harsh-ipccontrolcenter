@@ -611,6 +611,24 @@ export default function CodeOfConductAdmin() {
             <span>Also email the signed copy to the member after signing</span>
           </label>
 
+          <SectionLabel>PDF Signature Placement</SectionLabel>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">Coordinates are PDF points from the bottom-left of the selected page. Leave page blank to use the last page.</div>
+          <Grid>
+            <Field label="Signature page number"><Input type="number" value={tpl.pdf_signature_page_number == null ? "" : String(tpl.pdf_signature_page_number)} onChange={(v) => setTpl({ ...tpl, pdf_signature_page_number: v ? Number(v) : null })} placeholder="Last page" /></Field>
+            <Field label="Font size"><Input type="number" value={String(tpl.pdf_signature_font_size ?? 11)} onChange={(v) => setTpl({ ...tpl, pdf_signature_font_size: Number(v) || 11 })} /></Field>
+            <Field label="Member name X"><Input type="number" value={String(tpl.pdf_signature_name_x ?? 150)} onChange={(v) => setTpl({ ...tpl, pdf_signature_name_x: Number(v) || 0 })} /></Field>
+            <Field label="Member name Y"><Input type="number" value={String(tpl.pdf_signature_name_y ?? 180)} onChange={(v) => setTpl({ ...tpl, pdf_signature_name_y: Number(v) || 0 })} /></Field>
+            <Field label="Signature image X"><Input type="number" value={String(tpl.pdf_signature_image_x ?? 150)} onChange={(v) => setTpl({ ...tpl, pdf_signature_image_x: Number(v) || 0 })} /></Field>
+            <Field label="Signature image Y"><Input type="number" value={String(tpl.pdf_signature_image_y ?? 110)} onChange={(v) => setTpl({ ...tpl, pdf_signature_image_y: Number(v) || 0 })} /></Field>
+            <Field label="Signature image width"><Input type="number" value={String(tpl.pdf_signature_image_width ?? 220)} onChange={(v) => setTpl({ ...tpl, pdf_signature_image_width: Number(v) || 220 })} /></Field>
+            <Field label="Signature image height"><Input type="number" value={String(tpl.pdf_signature_image_height ?? 70)} onChange={(v) => setTpl({ ...tpl, pdf_signature_image_height: Number(v) || 70 })} /></Field>
+            <Field label="Date X"><Input type="number" value={String(tpl.pdf_signature_date_x ?? 150)} onChange={(v) => setTpl({ ...tpl, pdf_signature_date_x: Number(v) || 0 })} /></Field>
+            <Field label="Date Y"><Input type="number" value={String(tpl.pdf_signature_date_y ?? 70)} onChange={(v) => setTpl({ ...tpl, pdf_signature_date_y: Number(v) || 0 })} /></Field>
+          </Grid>
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => alert(`Placement preview\nPage: ${tpl.pdf_signature_page_number || "last"}\nName: ${tpl.pdf_signature_name_x ?? 150}, ${tpl.pdf_signature_name_y ?? 180}\nSignature: ${tpl.pdf_signature_image_x ?? 150}, ${tpl.pdf_signature_image_y ?? 110} (${tpl.pdf_signature_image_width ?? 220}×${tpl.pdf_signature_image_height ?? 70})\nDate: ${tpl.pdf_signature_date_x ?? 150}, ${tpl.pdf_signature_date_y ?? 70}`)} className="ipc-btn ipc-btn-ghost">Preview Signature Placement</button>
+            <button type="button" onClick={() => { if (applyArchiveRecipients()) saveTpl(); }} disabled={savingTpl} className="ipc-btn ipc-btn-black">Save Placement Settings</button>
+          </div>
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <SectionLabel>Email Body</SectionLabel>
