@@ -42,7 +42,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function CodeOfConductPanel(props: Props) {
-  const { paidLeadId, crmLeadId, memberName, memberEmail, memberPhone, programName, dealValue } = props;
+  const { paidLeadId, crmLeadId, memberName, memberEmail, memberPhone, programName, dealValue, evalSource, evalPipelineId, evalStageId } = props;
+  const { isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [req, setReq] = useState<any>(null);
   const [busy, setBusy] = useState(false);
@@ -51,6 +52,14 @@ export default function CodeOfConductPanel(props: Props) {
   const [diag, setDiag] = useState<any>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editEmailOpen, setEditEmailOpen] = useState(false);
+  const [matchedRule, setMatchedRule] = useState<CodeOfConductRule | null>(null);
+  const [evalResult, setEvalResult] = useState<{ action: string; message?: string; at: string } | null>(null);
+  const [evalRunning, setEvalRunning] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [resolvedPipelineId, setResolvedPipelineId] = useState<string | null>(evalPipelineId || null);
+  const [resolvedStageId, setResolvedStageId] = useState<string | null>(evalStageId || null);
+  const [resolvedStageName, setResolvedStageName] = useState<string | null>(null);
+  const [autoSendAttempted, setAutoSendAttempted] = useState(false);
 
   const adminReceiptUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/receipt/${req.id}` : null);
   const adminSignedPdfUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/signed-pdf/${req.id}` : null);
