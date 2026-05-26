@@ -785,15 +785,18 @@ export default function CodeOfConductAdmin() {
                 <ul className="list-disc pl-5 text-[12.5px]">{signedRecord.acknowledgement_checklist.map((s: string, i: number) => <li key={i}>{s}</li>)}</ul></div>
             )}
             <div className="flex gap-2 mb-4 flex-wrap">
+              <button onClick={() => viewSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">View Signed Copy</button>
               {signedRecordReceiptUrl ? (
                 <>
-                  <a href={signedRecordReceiptUrl} target="_blank" rel="noreferrer" className="ipc-btn ipc-btn-black !h-8">View Signed Copy</a>
                   <button onClick={() => downloadSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Download</button>
-                  <button onClick={() => copySignedLinkRow(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Link</button>
+                  <button onClick={() => copyAdminReceiptLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Admin Link</button>
+                  <button onClick={() => copyMemberReceiptLink(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Copy Member Temp Link</button>
                 </>
               ) : (
-                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-black !h-8">Generate Signed Copy</button>
+                <button onClick={() => regenSigned(signedRecord)} className="ipc-btn ipc-btn-ghost !h-8">Generate Signed Copy</button>
               )}
+              <button onClick={() => sendSignedCopyRow(signedRecord, "admin")} className="ipc-btn ipc-btn-ghost !h-8">Send to Admin</button>
+              <button onClick={() => sendSignedCopyRow(signedRecord, "member")} className="ipc-btn ipc-btn-ghost !h-8">Send to Member</button>
             </div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Event timeline</div>
             <div className="space-y-1.5">
