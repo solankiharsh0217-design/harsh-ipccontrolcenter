@@ -181,18 +181,17 @@ export default function CodeOfConductRulesTab() {
       });
 
       // 2) Classify against existing requests
-      const ids = candidates.map((c) => rule.source === "crm" ? c.crm_lead_id : c.paid_pipeline_lead_id!).filter(Boolean);
+      const crmReqIds = candidates.map((c) => c.crm_lead_id).filter(Boolean);
+      const paidReqIds = candidates.map((c) => c.paid_pipeline_lead_id).filter(Boolean) as string[];
       const { data: existing } = ids.length > 0
         ? await (supabase as any).from("code_of_conduct_requests")
             .select("id,status,crm_lead_id,paid_pipeline_lead_id,template_id")
             .eq("template_id", rule.template_id)
-            .or(rule.source === "crm" ? `crm_lead_id.in.(${ids.join(",")})` : `paid_pipeline_lead_id.in.(${ids.join(",")})`)
+            .or([crmReqIds.length ? `crm_lead_id.in.(${crmReqIds.join(",")})` : null, paidReqIds.length ? `paid_pipeline_lead_id.in.(${paidReqIds.join(",")})` : null].filter(Boolean).join(","))
         : { data: [] as any[] };
       const existingByLead = new Map<string, any[]>();
       for (const r of (existing || []) as any[]) {
-        const k = rule.source === "crm" ? r.crm_lead_id : r.paid_pipeline_lead_id;
-        if (!k) continue;
-        existingByLead.set(k, [...(existingByLead.get(k) || []), r]);
+        for (const k of [r.crm_lead_id, r.paid_pipeline_lead_id].filter(Boolean)) existingByLead.set(k, [...(existingByLead.get(k) || []), r]);
       }
 
       let willSend = 0, alreadySent = 0, alreadySigned = 0, missingEmail = 0, alreadyActive = 0, properLinks = 0, repairedLinks = 0, missingLinks = 0;
