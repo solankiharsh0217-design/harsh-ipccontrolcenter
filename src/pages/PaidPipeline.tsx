@@ -1101,7 +1101,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
         source: "paid_pipeline", pipelineId: crmPipelineId, stageId: newStageId,
         crmLeadId: lead.crm_lead_id, paidPipelineLeadId: lead.id,
         memberName: lead.name || "Member", memberEmail: lead.email, memberPhone: lead.phone,
-        programName: lead.product_name_snapshot, dealValue: lead.deal_value,
+        programName: lead.product_name_snapshot, dealValue: (lead as any).deal_value,
       });
       if (res.action === "auto_sent") toast.success(`Code of Conduct auto-sent (rule: ${res.rule?.name})`);
       else if (res.action === "suggested") toast.info(`Code of Conduct suggested: ${res.rule?.name}`);
