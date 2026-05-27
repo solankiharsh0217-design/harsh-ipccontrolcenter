@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_readiness_logs: {
+        Row: {
+          action: string
+          blocker_reason: string | null
+          channel: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_status: string | null
+          note: string | null
+          paid_pipeline_lead_id: string
+          performed_by: string | null
+          performed_by_name: string | null
+          previous_status: string | null
+        }
+        Insert: {
+          action: string
+          blocker_reason?: string | null
+          channel?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string | null
+          note?: string | null
+          paid_pipeline_lead_id: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          previous_status?: string | null
+        }
+        Update: {
+          action?: string
+          blocker_reason?: string | null
+          channel?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string | null
+          note?: string | null
+          paid_pipeline_lead_id?: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_readiness_logs_paid_pipeline_lead_id_fkey"
+            columns: ["paid_pipeline_lead_id"]
+            isOneToOne: false
+            referencedRelation: "paid_pipeline_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_logs: {
         Row: {
           agent_id: string | null
@@ -3202,6 +3255,14 @@ export type Database = {
       }
       paid_pipeline_leads: {
         Row: {
+          access_blocked_at: string | null
+          access_blocked_by: string | null
+          access_blocker_reason: string | null
+          access_channel: string | null
+          access_given_at: string | null
+          access_given_by: string | null
+          access_note: string | null
+          access_status: string
           archive_reason: string | null
           archived_at: string | null
           archived_by: string | null
@@ -3278,6 +3339,14 @@ export type Database = {
           webinar_batch_id: string | null
         }
         Insert: {
+          access_blocked_at?: string | null
+          access_blocked_by?: string | null
+          access_blocker_reason?: string | null
+          access_channel?: string | null
+          access_given_at?: string | null
+          access_given_by?: string | null
+          access_note?: string | null
+          access_status?: string
           archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
@@ -3354,6 +3423,14 @@ export type Database = {
           webinar_batch_id?: string | null
         }
         Update: {
+          access_blocked_at?: string | null
+          access_blocked_by?: string | null
+          access_blocker_reason?: string | null
+          access_channel?: string | null
+          access_given_at?: string | null
+          access_given_by?: string | null
+          access_note?: string | null
+          access_status?: string
           archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
