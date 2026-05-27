@@ -20,6 +20,7 @@ import LeadQualifier from "./pages/LeadQualifier";
 import Crm from "./pages/Crm";
 import CrmOverview from "./pages/CrmOverview";
 import PaidPipeline from "./pages/PaidPipeline";
+import PaidPipelineAccessReadiness from "./pages/PaidPipelineAccessReadiness";
 import FollowUpCommandCenter from "./pages/FollowUpCommandCenter";
 import PaymentRecovery from "./pages/PaymentRecovery";
 import WebinarPerformance from "./pages/WebinarPerformance";
@@ -83,6 +84,7 @@ const App = () => (
             <Route path="/crm/overview" element={<Shell moduleKey="crm"><CrmOverview /></Shell>} />
             <Route path="/paid-pipeline" element={<Shell moduleKey="paid-pipeline"><PaidPipeline /></Shell>} />
             <Route path="/crm/paid-pipeline" element={<Shell moduleKey="paid-pipeline"><PaidPipeline /></Shell>} />
+            <Route path="/paid-pipeline/access-readiness" element={<Shell moduleKey="paid-pipeline"><PaidPipelineAccessReadiness /></Shell>} />
             <Route path="/follow-up-command-center" element={<Shell moduleKey="follow_up_command_center"><FollowUpCommandCenter /></Shell>} />
             <Route path="/payment-recovery" element={<Shell moduleKey="payment_recovery"><PaymentRecovery /></Shell>} />
             <Route path="/webinar-performance" element={<Shell moduleKey="webinar_performance"><WebinarPerformance /></Shell>} />
