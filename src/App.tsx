@@ -20,6 +20,7 @@ import LeadQualifier from "./pages/LeadQualifier";
 import Crm from "./pages/Crm";
 import CrmOverview from "./pages/CrmOverview";
 import PaidPipeline from "./pages/PaidPipeline";
+import PaidPipelineAccessReadiness from "./pages/PaidPipelineAccessReadiness";
 import FollowUpCommandCenter from "./pages/FollowUpCommandCenter";
 import PaymentRecovery from "./pages/PaymentRecovery";
 import WebinarPerformance from "./pages/WebinarPerformance";
