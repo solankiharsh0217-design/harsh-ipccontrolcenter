@@ -208,7 +208,11 @@ export default function InvoiceEditor() {
     if (!confirm("Issue this invoice? Invoice number will be assigned and cannot be changed.")) return;
     setBusy(true);
     try {
-      const saved = await issueInvoice(invoice, { company, settings, userId: user.id });
+      const latestCompany = await loadCompanySettings();
+      const invoiceToIssue = hydrateDraftSellerSnapshot(invoice, latestCompany || company);
+      setCompany(latestCompany || company);
+      setInvoice(invoiceToIssue);
+      const saved = await issueInvoice(invoiceToIssue, { company: latestCompany || company, settings, userId: user.id });
       setInvoice(saved);
       const ev = await listInvoiceEvents(saved.id!);
       setEvents(ev);
