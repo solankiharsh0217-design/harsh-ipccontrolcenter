@@ -503,8 +503,9 @@ export async function renderInvoicePdf(
   const lineY = sigY + sigBoxMaxH; // baseline of underline
 
   // Stamp (optional) — placed to the left of signature
-  if (seller.stamp_url) {
-    const stamp = await loadImageDataUrl(seller.stamp_url);
+  const stampUrl = assetUrl(seller.stamp_url, seller.stamp_path);
+  if (stampUrl) {
+    const stamp = await loadImageDataUrl(stampUrl);
     if (stamp) {
       try {
         const stampMax = 60;
@@ -520,8 +521,9 @@ export async function renderInvoicePdf(
   }
 
   let signatureRendered = false;
-  if (seller.signature_url) {
-    const img = await loadImageDataUrl(seller.signature_url);
+  const signatureUrl = assetUrl(seller.signature_url, seller.signature_path);
+  if (signatureUrl) {
+    const img = await loadImageDataUrl(signatureUrl);
     if (img) {
       try {
         let w = sigBoxMaxW;
@@ -554,7 +556,7 @@ export async function renderInvoicePdf(
       }
     } else {
       // eslint-disable-next-line no-console
-      console.warn("invoice_signature_render_failed: image fetch failed", seller.signature_url);
+      console.warn("invoice_signature_render_failed: image fetch failed", signatureUrl);
     }
   }
   // Always draw the line under signature
