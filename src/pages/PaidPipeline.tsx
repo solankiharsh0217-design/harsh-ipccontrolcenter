@@ -770,9 +770,10 @@ function FinanceCell({ lead, onClick }: { lead: any; onClick: () => void }) {
   );
 }
 
-function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen, onArchive, onRestore, archived }: {
+function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen, onArchive, onRestore, archived, onCreateInvoice, onViewInvoices }: {
   onAddPayment: () => void; onUpdateFinance: () => void; onSetFollowUp: () => void; onOpen: () => void;
   onArchive: () => void; onRestore: () => void; archived: boolean;
+  onCreateInvoice: () => void; onViewInvoices: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
