@@ -642,8 +642,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           if (ex) { existing = ex; matchedBy = "phone"; }
         }
         if (existing) { dupRows.push({ row: r, existing, matchedBy: matchedBy! }); continue; }
-        // No match — must have at least an email OR phone to insert.
-        if (!r.email && !r.phone) { failedNoKey++; continue; }
+        // No match — must have at least an email OR phone OR name to insert.
+        if (!r.email && !r.phone && !r.full_name) { failedNoKey++; continue; }
         newRows.push({ ...r, _phoneOnly: !r.email && !!r.phone });
       }
 
