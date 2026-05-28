@@ -8,6 +8,7 @@ import LeadDrawer from "@/components/LeadDrawer";
 import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload, Pencil, Calendar, ExternalLink, GripVertical } from "lucide-react";
 import ImportLeadsModal, { type ImportResult } from "@/components/ImportLeadsModal";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
+import AddSingleLeadModal from "@/components/crm/AddSingleLeadModal";
 import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
@@ -56,6 +57,7 @@ export default function Crm() {
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("gray");
   const [importOpen, setImportOpen] = useState(false);
+  const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addStageOpen, setAddStageOpen] = useState(false);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [editBatch, setEditBatch] = useState<{ origName: string; origDate: string | null; name: string; date: string } | null>(null);
@@ -786,7 +788,8 @@ export default function Crm() {
             >
               <Archive className="w-3.5 h-3.5" /> {showArchived ? "Showing archived" : "Show archived"}
             </button>
-            <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
+            <button onClick={() => setAddLeadOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs" title="Add a single lead manually"><Plus className="w-3.5 h-3.5" /> Add Lead</button>
+            <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
             <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
             {(() => {
               const pipe = pipelines.find((p) => p.id === activePipeline) as any;
@@ -888,6 +891,19 @@ export default function Crm() {
 
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
+      {addLeadOpen && (
+        <AddSingleLeadModal
+          pipelines={pipelines}
+          stages={stages}
+          defaultPipelineId={activePipeline}
+          onClose={() => setAddLeadOpen(false)}
+          onCreated={async (leadId, openDrawer) => {
+            setAddLeadOpen(false);
+            await load();
+            if (openDrawer) setOpenLead(leadId);
+          }}
+        />
+      )}
       {sendOpsOpen && (
         <SendToOperationsCrmModal
           candidateLeads={pipelineLeads.map((l) => ({
