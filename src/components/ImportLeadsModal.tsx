@@ -150,17 +150,33 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     return m ? m[1] : null;
   };
 
+  // Read a friendly error message from a supabase.functions.invoke() FunctionsHttpError
+  const readInvokeError = async (error: any, fallback: string): Promise<string> => {
+    try {
+      const ctx = error?.context;
+      if (ctx && typeof ctx.json === "function") {
+        const body = await ctx.json();
+        if (body?.error) return String(body.error);
+      } else if (ctx && typeof ctx.text === "function") {
+        const txt = await ctx.text();
+        try { const j = JSON.parse(txt); if (j?.error) return String(j.error); } catch {}
+        if (txt) return txt;
+      }
+    } catch {}
+    return error?.message || fallback;
+  };
+
   const handleFetchGsTabs = async () => {
     setGsError(null);
     const sid = extractSpreadsheetId(gsUrl.trim());
-    if (!sid) { setGsError("Please paste a valid Google Sheet URL."); return; }
+    if (!sid) { setGsError("Please paste a valid Google Sheet URL. It should look like https://docs.google.com/spreadsheets/d/…"); return; }
     setGsLoadingTabs(true);
     setGsTabs([]); setGsSelectedTab(""); setHeaders([]); setRows([]); setFileName("");
     try {
       const { data, error } = await supabase.functions.invoke("fetch-roas-master-sheet-tabs", {
         body: { masterSheetUrl: gsUrl.trim() },
       });
-      if (error) throw new Error(error.message || "Failed to fetch sheet tabs");
+      if (error) throw new Error(await readInvokeError(error, "Failed to fetch sheet tabs"));
       if ((data as any)?.error) throw new Error((data as any).error);
       const tabs = ((data as any)?.tabs || []) as any[];
       if (tabs.length === 0) { setGsError("No tabs were found in this spreadsheet."); return; }
@@ -187,7 +203,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       const { data, error } = await supabase.functions.invoke("google-sheets-fetch-rows", {
         body: { spreadsheetId: gsSpreadsheetId, tabName },
       });
-      if (error) throw new Error(error.message || "Failed to fetch rows");
+      if (error) throw new Error(await readInvokeError(error, "Failed to fetch rows"));
       if ((data as any)?.error) throw new Error((data as any).error);
       const hdrs = ((data as any)?.headers || []) as string[];
       const rws = ((data as any)?.rows || []) as Row[];

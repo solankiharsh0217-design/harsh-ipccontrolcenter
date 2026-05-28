@@ -43,10 +43,13 @@ Deno.serve(async (req) => {
 
     if (!spreadsheetId || !tabName) {
       return new Response(JSON.stringify({ error: "spreadsheetId and tabName are required", code: "BAD_REQUEST" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const range = `${tabName}!A1:ZZ${maxRows}`;
+    // Quote tab names so spaces, hyphens, digits, and special chars are handled correctly.
+    // Escape single quotes inside the tab name by doubling them (Sheets A1 notation rule).
+    const quotedTab = `'${tabName.replace(/'/g, "''")}'`;
+    const range = `${quotedTab}!A1:ZZ${maxRows}`;
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${apiKey}`;
     const res = await fetch(url);
     if (!res.ok) {
@@ -56,18 +59,18 @@ Deno.serve(async (req) => {
         : `Sheets API error (${res.status}): ${txt.slice(0, 200)}`;
       const code = res.status === 403 || res.status === 404 ? "SHEET_NOT_ACCESSIBLE" : "GOOGLE_API_ERROR";
       return new Response(JSON.stringify({ error: msg, code }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const json = await res.json();
     const values: string[][] = json.values || [];
     if (values.length === 0) {
       return new Response(JSON.stringify({ error: "This tab has no rows to import.", code: "TAB_HAS_NO_ROWS" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const rawHeaders = (values[0] || []).map((x) => String(x ?? "").trim());
     if (rawHeaders.every((h) => !h)) {
       return new Response(JSON.stringify({ error: "Header row is missing in the first row of this tab.", code: "HEADER_ROW_MISSING" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     // De-duplicate empty/duplicate headers
     const headers: string[] = [];

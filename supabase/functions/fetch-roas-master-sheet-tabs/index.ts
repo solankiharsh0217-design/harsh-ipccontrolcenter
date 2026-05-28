@@ -140,8 +140,10 @@ Deno.serve(async (req) => {
     const tabs = await Promise.all(sheets.map(async (s) => {
       const sheetId = String(s.properties?.sheetId ?? "");
       const tabName: string = s.properties?.title || "";
-      const headerRange = `${tabName}!A1:Z5`;
-      const countRange = `${tabName}!A1:A20000`;
+      // Quote tab names so spaces, hyphens, digits, and special chars are handled correctly.
+      const quotedTab = `'${tabName.replace(/'/g, "''")}'`;
+      const headerRange = `${quotedTab}!A1:Z5`;
+      const countRange = `${quotedTab}!A1:A20000`;
       const warnings: string[] = [];
       let detectedHeaders: string[] = [];
       let sampleRows: string[][] = [];
