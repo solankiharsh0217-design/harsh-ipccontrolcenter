@@ -6258,6 +6258,10 @@ export type Database = {
       }
       admin_wipe_demo_lead_data: { Args: { _dry_run?: boolean }; Returns: Json }
       assign_next_invoice_number: { Args: never; Returns: string }
+      can_manage_invoice_settings: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
