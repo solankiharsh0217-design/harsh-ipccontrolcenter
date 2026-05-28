@@ -715,6 +715,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         entity_label: segmentName,
         metadata: {
           batch_name: segmentName,
+          source_type: sourceType,
+          source_file_name: sourceType === "csv" ? fileName : null,
+          source_spreadsheet_id: sourceType === "google_sheet" ? gsSpreadsheetId : null,
+          source_spreadsheet_title: sourceType === "google_sheet" ? gsSpreadsheetTitle : null,
+          source_sheet_tab: sourceType === "google_sheet" ? gsSelectedTab : null,
           pipeline_id: pipelineId,
           pipeline_name: pipelineName,
           pipeline_type: pipelineType,
