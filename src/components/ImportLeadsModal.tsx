@@ -3,7 +3,7 @@ import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { X, Plus, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
+import { X, Plus, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, Link2, Loader2 } from "lucide-react";
 import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type LeadGrade } from "@/lib/crmTypes";
 import { logActivity } from "@/lib/auditLog";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
