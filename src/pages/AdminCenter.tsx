@@ -71,6 +71,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Invoice Settings",
+      desc: "Configure invoice numbering, default GST rates, tax mode, HSN/SAC and standard invoice text.",
+      cta: "Open Invoice Settings",
+      to: "/admin-center/invoice-settings",
+      show: isAdmin,
+    },
+    {
       title: "Media Buyer Dashboard Preview",
       desc: "View each media buyer's work dashboard, pending calls, active ad clients, and overdue tasks.",
       cta: "Open Media Buyer Desk",
