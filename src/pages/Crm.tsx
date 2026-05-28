@@ -8,6 +8,7 @@ import LeadDrawer from "@/components/LeadDrawer";
 import { Plus, LayoutGrid, List, Settings2, Download, ArrowUp, ArrowDown, Trash2, Trophy, X as XIcon, Users, Upload, Pencil, Calendar, ExternalLink, GripVertical } from "lucide-react";
 import ImportLeadsModal, { type ImportResult } from "@/components/ImportLeadsModal";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
+import AddSingleLeadModal from "@/components/crm/AddSingleLeadModal";
 import { toast } from "sonner";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
