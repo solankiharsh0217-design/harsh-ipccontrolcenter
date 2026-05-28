@@ -103,8 +103,15 @@ export async function renderInvoicePdf(
   invoice: Invoice,
   fallbackCompany: CompanySettings | null
 ): Promise<jsPDF> {
+  const snapshotSeller: any = invoice.seller_snapshot_json || {};
   const seller: any = invoice.status === "draft"
-    ? { ...(fallbackCompany || {}), ...(invoice.seller_snapshot_json || {}) }
+    ? {
+        ...(fallbackCompany || {}),
+        ...snapshotSeller,
+        logo_url: snapshotSeller.logo_url || fallbackCompany?.logo_url || null,
+        signature_url: snapshotSeller.signature_url || fallbackCompany?.signature_url || null,
+        stamp_url: snapshotSeller.stamp_url || fallbackCompany?.stamp_url || null,
+      }
     : (invoice.seller_snapshot_json || fallbackCompany || {});
   const buyer: any =
     invoice.buyer_snapshot_json || {
