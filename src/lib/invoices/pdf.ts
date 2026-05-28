@@ -4,18 +4,25 @@ import type { CompanySettings, Invoice } from "./types";
 import { amountToWordsINR } from "./amountInWords";
 
 // ---------- Currency ----------
-export function formatINR(amount: number | null | undefined): string {
-  const n = Number(amount) || 0;
-  const neg = n < 0;
-  const abs = Math.abs(n);
-  const fixed = abs.toFixed(2);
+function formatNumberINR(n: number): string {
+  const fixed = Math.abs(n).toFixed(2);
   const [intPart, decPart] = fixed.split(".");
-  // Indian grouping: last 3 digits, then groups of 2
-  let lastThree = intPart.slice(-3);
+  const lastThree = intPart.slice(-3);
   const otherNumbers = intPart.slice(0, -3);
   const formattedInt =
     (otherNumbers ? otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," : "") + lastThree;
-  return `${neg ? "(-) " : ""}Rs. ${formattedInt}.${decPart}`;
+  return `${formattedInt}.${decPart}`;
+}
+
+export function formatINR(amount: number | null | undefined): string {
+  const n = Number(amount) || 0;
+  return `${n < 0 ? "(-) " : ""}Rs. ${formatNumberINR(n)}`;
+}
+
+// Compact form for table cells (no currency prefix; saves column width)
+function formatAmt(amount: number | null | undefined): string {
+  const n = Number(amount) || 0;
+  return `${n < 0 ? "-" : ""}${formatNumberINR(n)}`;
 }
 
 async function loadImageDataUrl(url: string): Promise<string | null> {
