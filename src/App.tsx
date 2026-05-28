@@ -100,6 +100,7 @@ const App = () => (
             <Route path="/revenue-command-center" element={<Shell><RevenueCommandCenter /></Shell>} />
             <Route path="/analytics-center" element={<Shell><AnalyticsCenter /></Shell>} />
             <Route path="/admin-center" element={<Shell><AdminCenter /></Shell>} />
+            <Route path="/admin-center/company-settings" element={<Shell admin><CompanySettingsPage /></Shell>} />
             <Route path="/admin-center/system-refinement" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="/admin-center/eligibility" element={<Shell admin><BulkEligibility /></Shell>} />
             <Route path="/admin-center/clean-slate" element={<Shell admin><CleanSlate /></Shell>} />
