@@ -59,7 +59,18 @@ function autoMap(headers: string[]): Record<FieldKey, string> {
   return out;
 }
 
-const normEmail = (v: any) => String(v || "").trim().toLowerCase();
+const normEmail = (v: any) => {
+  const s = String(v ?? "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().toLowerCase();
+  return s;
+};
+const isValidEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+const normPhone = (v: any) => {
+  let s = String(v ?? "").replace(/\D/g, "");
+  if (s.length > 10 && s.startsWith("91")) s = s.slice(s.length - 10);
+  if (s.length > 10) s = s.slice(s.length - 10);
+  return s;
+};
+
 
 export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const { profile } = useAuth();
