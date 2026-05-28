@@ -1416,6 +1416,15 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               </p>
             </div>
 
+            {preflight && preflight.willSkip > 0 && (
+              <div className="text-[11px] text-muted-foreground">
+                {preflight.willSkip} row{preflight.willSkip === 1 ? "" : "s"} will be skipped
+                {preflight.invalid > 0 && <> · {preflight.invalid} invalid</>}
+                {preflight.sheetDuplicateEmails + preflight.sheetDuplicatePhones > 0 && <> · {preflight.sheetDuplicateEmails + preflight.sheetDuplicatePhones} in-sheet duplicate(s)</>}
+                {(duplicatePolicy === "skip" || duplicatePolicy === "new_only") && (preflight.existingByEmailCount + preflight.existingByPhoneCount) > 0 && <> · {preflight.existingByEmailCount + preflight.existingByPhoneCount} existing CRM match(es)</>}
+                .
+              </div>
+            )}
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(3)} className="ipc-btn ipc-btn-ghost">Back</button>
               <button
@@ -1423,11 +1432,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 disabled={
                   importing || preflightLoading || targetMismatch ||
                   (resolvedTarget.isNew && !newPipeName.trim()) ||
-                  (assignment === "assign_to_member" && !selectedAssigneeId)
+                  (assignment === "assign_to_member" && !selectedAssigneeId) ||
+                  (preflight ? preflight.willImport === 0 : false)
                 }
                 className="ipc-btn ipc-btn-black disabled:opacity-50"
               >
-                {importing ? "Importing…" : `Import ${validRows} rows`}
+                {importing ? "Importing…" : `Import ${preflight ? preflight.willImport : validRows} rows`}
               </button>
             </div>
           </div>
