@@ -277,17 +277,20 @@ export default function CompanySettingsPage() {
         </div>
         <div className="grid grid-cols-3 gap-4">
           {(["logo_url", "signature_url", "stamp_url"] as const).map((k) => {
-            const label = k === "logo_url" ? "Logo" : k === "signature_url" ? "Authorized Signature" : "Company Stamp";
+            const label = ASSET_LABEL[k];
+            const pathField = ASSET_PATH_FIELD[k];
             const present = !!s[k];
             const busy = busyKind === k;
             const url = s[k] as string | null | undefined;
-            const masked = url ? (url.length > 48 ? url.slice(0, 24) + "…" + url.slice(-16) : url) : "";
-            const status = busy ? "Uploading" : present ? "Uploaded" : "Missing";
+            const storedPath = ((s as any)[pathField] as string | null | undefined) || pathFromPublicUrl(url);
+            const status = busy ? "Uploading" : failedKind === k ? "Failed" : present ? "Uploaded" : "Missing";
             const statusCls = busy
-              ? "bg-blue-100 text-blue-800"
-              : present
-                ? "bg-green-100 text-green-800"
-                : "bg-amber-100 text-amber-800";
+              ? "bg-primary/10 text-primary"
+              : failedKind === k
+                ? "bg-destructive/10 text-destructive"
+                : present
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-muted text-muted-foreground";
             return (
               <div key={k} className="border border-line rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
@@ -297,8 +300,9 @@ export default function CompanySettingsPage() {
                 <div className="h-20 flex items-center justify-center bg-muted/30 rounded mb-2 overflow-hidden">
                   {url ? <img src={url} alt={label} className="max-h-20 max-w-full object-contain" /> : <span className="text-[11px] text-muted-foreground">No file</span>}
                 </div>
-                {present && <div className="text-[10px] text-muted-foreground mb-2 break-all">{masked}</div>}
+                {present && <div className="text-[10px] text-muted-foreground mb-2 break-all">Path: {maskPath(storedPath)}</div>}
                 <Input
+                  ref={(el) => { fileInputs.current[k] = el; }}
                   type="file"
                   accept="image/png,image/jpeg,image/jpg,image/webp"
                   disabled={busy}
@@ -307,12 +311,17 @@ export default function CompanySettingsPage() {
                     if (f) uploadAsset(k, f);
                     e.target.value = "";
                   }}
-                  className="text-[11px]"
+                  className="hidden"
                 />
+                <div className="flex gap-2">
+                  <Button size="sm" variant={present ? "outline" : "default"} className="h-7 text-[11px]" disabled={busy} onClick={() => fileInputs.current[k]?.click()}>
+                    {present ? "Replace" : "Upload"}
+                  </Button>
+                  {present && !busy && (
+                    <Button size="sm" variant="ghost" className="h-7 text-[11px] text-destructive hover:text-destructive" onClick={() => removeAsset(k)}>Remove</Button>
+                  )}
+                </div>
                 <div className="text-[10px] text-muted-foreground mt-1">PNG, JPG or WebP · up to 5 MB</div>
-                {present && !busy && (
-                  <Button size="sm" variant="ghost" className="mt-1 h-7 text-[11px] text-red-600 hover:text-red-700" onClick={() => removeAsset(k)}>Remove</Button>
-                )}
               </div>
             );
           })}
@@ -322,17 +331,30 @@ export default function CompanySettingsPage() {
       <details className="mb-8 bg-white border border-line rounded-xl p-4 text-[11px]">
         <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Admin debug · Invoice branding</summary>
         <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 font-mono">
-          <div>Bucket</div><div>invoice-assets</div>
+          <div>Bucket exists</div><div>{diag ? String(!!diag.bucket_exists) : "checking"}</div>
+          <div>Bucket public</div><div>{diag ? String(!!diag.bucket_public) : "checking"}</div>
           <div>Workspace</div><div>{s.workspace || "default"}</div>
-          <div>User</div><div className="break-all">{user?.email || "—"}</div>
+          <div>Current user id</div><div className="break-all">{user?.id || "—"}</div>
+          <div>Current role</div><div>{isAdmin ? "admin" : profile?.role || "—"}</div>
           <div>Is admin</div><div>{String(isAdmin)}</div>
-          <div>Can upload</div><div>{String(isAdmin)}</div>
+          <div>Can manage invoice settings</div><div>{diag ? String(!!diag.can_manage_invoice_settings) : String(isAdmin)}</div>
+          <div>Can upload logo</div><div>{diag ? String(!!diag.can_manage_invoice_settings) : String(isAdmin)}</div>
+          <div>Can upload signature</div><div>{diag ? String(!!diag.can_manage_invoice_settings) : String(isAdmin)}</div>
+          <div>Can upload stamp</div><div>{diag ? String(!!diag.can_manage_invoice_settings) : String(isAdmin)}</div>
           <div>logo_url</div><div>{s.logo_url ? "present" : "missing"}</div>
+          <div>logo_path</div><div className="break-all">{maskPath(s.logo_path)}</div>
           <div>signature_url</div><div>{s.signature_url ? "present" : "missing"}</div>
+          <div>signature_path</div><div className="break-all">{maskPath(s.signature_path)}</div>
           <div>stamp_url</div><div>{s.stamp_url ? "present" : "missing"}</div>
-          <div>Last upload error</div><div className="text-red-600 break-all">{lastUploadError || "—"}</div>
-          <div>Last save error</div><div className="text-red-600 break-all">{lastSaveError || "—"}</div>
+          <div>stamp_path</div><div className="break-all">{maskPath(s.stamp_path)}</div>
+          <div>Last upload path</div><div className="break-all">{lastUploadPath || "—"}</div>
+          <div>Last upload error</div><div className="text-destructive break-all">{lastUploadError || "—"}</div>
+          <div>Last settings save error</div><div className="text-destructive break-all">{lastSaveError || "—"}</div>
+          <div>Storage upload test</div><div>{testResult || "Not run"}</div>
         </div>
+        <Button size="sm" variant="outline" className="mt-3 h-8 text-xs" disabled={testRunning} onClick={runStorageUploadTest}>
+          {testRunning ? "Testing…" : "Run Storage Upload Test"}
+        </Button>
       </details>
 
       <div className="flex justify-end">
