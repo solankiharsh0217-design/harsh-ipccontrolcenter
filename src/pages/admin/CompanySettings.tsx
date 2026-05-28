@@ -110,6 +110,7 @@ export default function CompanySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [busyKind, setBusyKind] = useState<AssetKind | null>(null);
+  const [failedKind, setFailedKind] = useState<AssetKind | null>(null);
   const fileInputs = useRef<Record<AssetKind, HTMLInputElement | null>>({ logo_url: null, signature_url: null, stamp_url: null });
   const [lastUploadError, setLastUploadError] = useState<string | null>(null);
   const [lastSaveError, setLastSaveError] = useState<string | null>(null);
@@ -141,6 +142,7 @@ export default function CompanySettingsPage() {
       setLastUploadError(m); toast.error(m); return;
     }
     setBusyKind(kind);
+    setFailedKind(null);
     setLastUploadError(null);
     try {
       const path = buildAssetPath(s.workspace, ASSET_FOLDER[kind], file.name);
@@ -151,6 +153,7 @@ export default function CompanySettingsPage() {
         .upload(path, file, { upsert: false, contentType: file.type, cacheControl: "3600" });
       if (error) {
         const friendly = mapUploadError(error.message);
+        setFailedKind(kind);
         setLastUploadError(friendly);
         toast.error(friendly);
         return;
@@ -168,6 +171,7 @@ export default function CompanySettingsPage() {
           toast.success(`${ASSET_LABEL[kind]} uploaded successfully`);
         } catch (e: any) {
           const m = "File uploaded but settings could not be saved. Please retry Save Company Settings.";
+          setFailedKind(kind);
           setLastSaveError(e?.message || m);
           toast.error(m);
         }
@@ -208,8 +212,9 @@ export default function CompanySettingsPage() {
     try {
       const path = `debug/${user.id}-${Date.now()}.txt`;
       setLastUploadPath(path);
-      const file = new Blob([`invoice-assets upload test ${new Date().toISOString()}`], { type: "text/plain" });
-      const { error } = await supabase.storage.from("invoice-assets").upload(path, file, { contentType: "text/plain", upsert: false });
+      const bytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="), (c) => c.charCodeAt(0));
+      const file = new Blob([bytes], { type: "image/png" });
+      const { error } = await supabase.storage.from("invoice-assets").upload(path, file, { contentType: "image/png", upsert: false });
       if (error) throw error;
       const { error: removeError } = await supabase.storage.from("invoice-assets").remove([path]);
       if (removeError) throw removeError;
