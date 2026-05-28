@@ -42,6 +42,7 @@ import CodeOfConductSign from "./pages/CodeOfConductSign";
 import CodeOfConductAdmin from "./pages/CodeOfConductAdmin";
 import CodeOfConductReceipt from "./pages/CodeOfConductReceipt";
 import CodeOfConductSignedPdf from "./pages/CodeOfConductSignedPdf";
+import CompanySettingsPage from "./pages/admin/CompanySettings";
 
 import type { ModuleKey } from "@/lib/modules";
 
