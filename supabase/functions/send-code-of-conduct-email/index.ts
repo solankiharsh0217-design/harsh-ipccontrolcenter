@@ -68,9 +68,9 @@ Deno.serve(async (req) => {
     const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
     const SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const userClient = createClient(SUPABASE_URL, ANON, { global: { headers: { Authorization: authHeader } } });
-    const { data: claims, error: claimErr } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
-    if (claimErr || !claims?.claims?.sub) return fail('UNAUTHORIZED', 'Invalid session', null, 401);
-    userId = claims.claims.sub as string;
+    const { data: userData, error: claimErr } = await userClient.auth.getUser();
+    if (claimErr || !userData?.user?.id) return fail('UNAUTHORIZED', 'Invalid session', null, 401);
+    userId = userData.user.id;
 
     const body = await req.json().catch(() => ({}));
     const { action, request_id, paid_pipeline_lead_id, crm_lead_id, template_id, member_name, member_email, member_phone, program_name, deal_value, origin, is_test } = body || {};
