@@ -192,13 +192,7 @@ export default function InvoiceEditor() {
 
   const issueClick = async () => {
     if (!invoice || !user?.id || !settings) return;
-    if (!readiness.ok) { toast.error("Invoice setup incomplete"); return; }
-    // Per-line HSN/SAC check for GST invoices when required by settings
-    if (invoice.invoice_type === "gst" && settings.hsn_sac_required) {
-      const missing = (invoice.line_items || []).some((li) => !li.hsn_sac || !String(li.hsn_sac).trim());
-      if (missing) { toast.error("HSN/SAC is required on every line item"); return; }
-    }
-    if (!(invoice.line_items || []).length) { toast.error("Add at least one line item"); return; }
+    if (allBlockers.length > 0) { toast.error(allBlockers[0]); return; }
     if (!confirm("Issue this invoice? Invoice number will be assigned and cannot be changed.")) return;
     setBusy(true);
     try {
