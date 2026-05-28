@@ -891,6 +891,19 @@ export default function Crm() {
 
 
       {importOpen && <ImportLeadsModal onClose={() => setImportOpen(false)} onDone={handleImportDone} />}
+      {addLeadOpen && (
+        <AddSingleLeadModal
+          pipelines={pipelines}
+          stages={stages}
+          defaultPipelineId={activePipeline}
+          onClose={() => setAddLeadOpen(false)}
+          onCreated={async (leadId, openDrawer) => {
+            setAddLeadOpen(false);
+            await load();
+            if (openDrawer) setOpenLead(leadId);
+          }}
+        />
+      )}
       {sendOpsOpen && (
         <SendToOperationsCrmModal
           candidateLeads={pipelineLeads.map((l) => ({
