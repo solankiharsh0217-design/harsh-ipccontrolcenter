@@ -24,6 +24,7 @@ export default function InvoiceSettingsPage() {
     default_tax_mode: "exclusive",
     default_tax_split: "cgst_sgst",
     hsn_sac_required: true,
+    require_authorized_signature: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,6 +109,7 @@ export default function InvoiceSettingsPage() {
           <Field label="Default place of supply"><Input value={s.default_place_of_supply ?? ""} onChange={(e) => set("default_place_of_supply", e.target.value)} /></Field>
           <Field label="HSN/SAC required"><Toggle on={!!s.hsn_sac_required} onChange={(v) => set("hsn_sac_required", v)} /></Field>
           <Field label="Default HSN/SAC"><Input value={s.default_hsn_sac ?? ""} onChange={(e) => set("default_hsn_sac", e.target.value)} /></Field>
+          <Field label="Require authorized signature before issuing invoice"><Toggle on={!!s.require_authorized_signature} onChange={(v) => set("require_authorized_signature", v)} /></Field>
         </div>
       </div>
 

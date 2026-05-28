@@ -240,6 +240,13 @@ export default function InvoiceEditor() {
         </div>
       )}
 
+      {readiness.ok && !company?.signature_url && (
+        <div className="border border-amber-200 bg-amber-50/60 rounded-xl p-3 mb-4 text-[12.5px] text-amber-900">
+          Authorized signature is not uploaded. Invoice PDF will show a blank signature line.
+          <Button size="sm" variant="outline" className="ml-3 h-7" onClick={() => nav("/admin-center/company-settings")}>Upload signature</Button>
+        </div>
+      )}
+
       {/* Type + Mode */}
       <div className="border border-line bg-white rounded-xl p-5 mb-4">
         <div className="grid grid-cols-2 gap-6">
