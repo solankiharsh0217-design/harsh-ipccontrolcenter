@@ -108,7 +108,14 @@ export async function issueInvoice(inv: Invoice, opts: { company: CompanySetting
   if (numErr) throw numErr;
   const invoiceNumber = numData as string;
 
-  const sellerSnap = opts.company ? { ...opts.company } : {};
+  const draftSeller = (inv.seller_snapshot_json || {}) as Partial<CompanySettings>;
+  const sellerSnap = {
+    ...(opts.company || {}),
+    ...draftSeller,
+    logo_url: draftSeller.logo_url || opts.company?.logo_url || null,
+    signature_url: draftSeller.signature_url || opts.company?.signature_url || null,
+    stamp_url: draftSeller.stamp_url || opts.company?.stamp_url || null,
+  };
   const buyerSnap = {
     name: inv.member_name, email: inv.member_email, phone: inv.member_phone,
     billing_address: inv.billing_address, place_of_supply: inv.place_of_supply,
