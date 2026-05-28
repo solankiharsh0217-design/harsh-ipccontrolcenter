@@ -6271,6 +6271,7 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      get_invoice_assets_storage_diagnostics: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
