@@ -229,7 +229,7 @@ export async function renderInvoicePdf(
 
   if (hasCgstSgst) {
     head = ["#", "Item & Description", "HSN/SAC", "Qty", "Rate", "CGST", "SGST", "Amount"];
-    const widths = [0.05, 0.27, 0.1, 0.07, 0.12, 0.12, 0.12, 0.15];
+    const widths = [0.04, 0.32, 0.09, 0.06, 0.11, 0.115, 0.115, 0.14];
     widths.forEach((w, i) => {
       colStyles[i] = {
         cellWidth: contentW * w,
@@ -243,15 +243,15 @@ export async function renderInvoicePdf(
         desc,
         li.hsn_sac || "",
         String(li.quantity),
-        formatINR(li.rate),
-        `${formatINR(li.cgst_amount)}\n${li.tax_rate / 2}%`,
-        `${formatINR(li.sgst_amount)}\n${li.tax_rate / 2}%`,
-        formatINR(li.amount),
+        formatAmt(li.rate),
+        `${formatAmt(li.cgst_amount)}\n(${li.tax_rate / 2}%)`,
+        `${formatAmt(li.sgst_amount)}\n(${li.tax_rate / 2}%)`,
+        formatAmt(li.amount),
       ];
     });
   } else if (hasIgst) {
     head = ["#", "Item & Description", "HSN/SAC", "Qty", "Rate", "IGST", "Amount"];
-    const widths = [0.05, 0.3, 0.11, 0.08, 0.14, 0.16, 0.16];
+    const widths = [0.04, 0.36, 0.1, 0.07, 0.13, 0.15, 0.15];
     widths.forEach((w, i) => {
       colStyles[i] = {
         cellWidth: contentW * w,
@@ -265,14 +265,14 @@ export async function renderInvoicePdf(
         desc,
         li.hsn_sac || "",
         String(li.quantity),
-        formatINR(li.rate),
-        `${formatINR(li.igst_amount)}\n${li.tax_rate}%`,
-        formatINR(li.amount),
+        formatAmt(li.rate),
+        `${formatAmt(li.igst_amount)}\n(${li.tax_rate}%)`,
+        formatAmt(li.amount),
       ];
     });
   } else {
     head = ["#", "Item & Description", "HSN/SAC", "Qty", "Rate", "Amount"];
-    const widths = [0.06, 0.44, 0.12, 0.08, 0.15, 0.15];
+    const widths = [0.05, 0.47, 0.12, 0.08, 0.14, 0.14];
     widths.forEach((w, i) => {
       colStyles[i] = {
         cellWidth: contentW * w,
@@ -286,8 +286,8 @@ export async function renderInvoicePdf(
         desc,
         li.hsn_sac || "",
         String(li.quantity),
-        formatINR(li.rate),
-        formatINR(li.amount),
+        formatAmt(li.rate),
+        formatAmt(li.amount),
       ];
     });
   }
