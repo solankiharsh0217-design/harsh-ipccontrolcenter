@@ -76,14 +76,16 @@ export function applyTemplateVars(
 ): string {
   const c = ctx.company || ({} as CompanySettings);
   const i = ctx.invoice;
-  return (text || "")
-    .replaceAll("{{member_name}}", i.member_name || "")
-    .replaceAll("{{invoice_number}}", i.invoice_number || "")
-    .replaceAll("{{invoice_date}}", i.invoice_date || "")
-    .replaceAll("{{program_name}}", ctx.programName || (i.line_items?.[0]?.item_name ?? ""))
-    .replaceAll("{{total_amount}}", `₹${(i.total_amount || 0).toFixed(2)}`)
-    .replaceAll("{{balance_due}}", `₹${(i.balance_due || 0).toFixed(2)}`)
-    .replaceAll("{{company_name}}", c.legal_name || "")
-    .replaceAll("{{brand_name}}", c.brand_name || c.legal_name || "")
-    .replaceAll("{{support_email}}", c.support_email || c.email || "");
+  const vars: Record<string, string> = {
+    member_name: i.member_name || "",
+    invoice_number: i.invoice_number || "",
+    invoice_date: i.invoice_date || "",
+    program_name: ctx.programName || (i.line_items?.[0]?.item_name ?? ""),
+    total_amount: `₹${(i.total_amount || 0).toFixed(2)}`,
+    balance_due: `₹${(i.balance_due || 0).toFixed(2)}`,
+    company_name: c.legal_name || "",
+    brand_name: c.brand_name || c.legal_name || "",
+    support_email: c.support_email || c.email || "",
+  };
+  return (text || "").replace(/\{\{(\w+)\}\}/g, (_, k) => (k in vars ? vars[k] : ""));
 }
