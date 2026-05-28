@@ -133,6 +133,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     total: number;
     rowsWithEmail: number;
     missingEmail: number;
+    phoneOnlyCount: number;
+    nameOnlyCount: number;
     sheetDuplicateEmails: number;
     sheetDuplicatePhones: number;
     existingByEmailCount: number;
@@ -141,6 +143,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     archivedMatchCount: number;
     newCount: number;
     invalid: number;
+    willImport: number;
+    willSkip: number;
     existingByEmail: Map<string, any>;
     existingByPhone: Map<string, any>;
     rowDetails: {
@@ -154,7 +158,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         | "existing_by_phone"
         | "sheet_duplicate_email"
         | "sheet_duplicate_phone"
-        | "missing_email"
+        | "phone_only"
+        | "name_only"
         | "invalid";
       conflict: boolean;
       existing: {
@@ -439,25 +444,32 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
         // 5) Build per-row preflight detail
         let missingEmail = 0;
+        let phoneOnlyCount = 0;
+        let nameOnlyCount = 0;
         let invalid = 0;
         let existingByEmailCount = 0;
         let existingByPhoneCount = 0;
         let matchConflictCount = 0;
         let archivedMatchCount = 0;
         let newCount = 0;
+        let willImport = 0;
+        let willSkip = 0;
 
         const rowDetails = parsed.map((p) => {
-          // Invalid: no name and no usable email and no phone
+          const base = { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone };
+          // Invalid: no name AND no usable email AND no phone
           if (!p.name && !p.emailValid && p.phone.length !== 10) {
-            invalid++;
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "invalid" as const, conflict: false, existing: null };
+            invalid++; willSkip++;
+            return { ...base, status: "invalid" as const, conflict: false, existing: null };
           }
           // In-sheet duplicate (email takes precedence)
           if (sheetDupEmailIdx.has(p.idx)) {
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "sheet_duplicate_email" as const, conflict: false, existing: null };
+            willSkip++;
+            return { ...base, status: "sheet_duplicate_email" as const, conflict: false, existing: null };
           }
           if (sheetDupPhoneIdx.has(p.idx) && !p.emailValid) {
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "sheet_duplicate_phone" as const, conflict: false, existing: null };
+            willSkip++;
+            return { ...base, status: "sheet_duplicate_phone" as const, conflict: false, existing: null };
           }
           // Existing match (email → phone)
           const emailMatch = p.emailValid ? existingByEmail.get(p.email) : null;
@@ -467,20 +479,28 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             const conflict = !!(phoneMatch && phoneMatch.id !== emailMatch.id);
             if (conflict) matchConflictCount++;
             if (emailMatch.archived_at) archivedMatchCount++;
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
+            if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") willSkip++; else willImport++;
+            return { ...base, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
           }
           if (phoneMatch) {
             existingByPhoneCount++;
             if (phoneMatch.archived_at) archivedMatchCount++;
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
+            if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") willSkip++; else willImport++;
+            return { ...base, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
           }
-          // Missing email but has phone → phone-only new lead
+          // No email
           if (!p.emailValid) {
             missingEmail++;
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "missing_email" as const, conflict: false, existing: null };
+            if (p.phone.length === 10) {
+              phoneOnlyCount++; willImport++;
+              return { ...base, status: "phone_only" as const, conflict: false, existing: null };
+            }
+            // name only (no email, no phone, has name)
+            nameOnlyCount++; willImport++;
+            return { ...base, status: "name_only" as const, conflict: false, existing: null };
           }
-          newCount++;
-          return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "new" as const, conflict: false, existing: null };
+          newCount++; willImport++;
+          return { ...base, status: "new" as const, conflict: false, existing: null };
         });
 
         const rowsWithEmail = parsed.filter((p) => p.emailValid).length;
@@ -490,6 +510,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             total: rows.length,
             rowsWithEmail,
             missingEmail,
+            phoneOnlyCount,
+            nameOnlyCount,
             sheetDuplicateEmails,
             sheetDuplicatePhones,
             existingByEmailCount,
@@ -498,6 +520,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             archivedMatchCount,
             newCount,
             invalid,
+            willImport,
+            willSkip,
             existingByEmail,
             existingByPhone,
             rowDetails,
@@ -508,7 +532,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [step, rows, mapping, pipelines, stages]);
+  }, [step, rows, mapping, pipelines, stages, duplicatePolicy]);
 
 
 
@@ -618,8 +642,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           if (ex) { existing = ex; matchedBy = "phone"; }
         }
         if (existing) { dupRows.push({ row: r, existing, matchedBy: matchedBy! }); continue; }
-        // No match — must have at least an email OR phone to insert.
-        if (!r.email && !r.phone) { failedNoKey++; continue; }
+        // No match — must have at least an email OR phone OR name to insert.
+        if (!r.email && !r.phone && !r.full_name) { failedNoKey++; continue; }
         newRows.push({ ...r, _phoneOnly: !r.email && !!r.phone });
       }
 
@@ -1232,15 +1256,30 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     <div><span className="text-muted-foreground">Total rows:</span> <b>{preflight.total}</b></div>
                     <div><span className="text-muted-foreground">Rows with email:</span> <b>{preflight.rowsWithEmail}</b></div>
-                    <div><span className="text-muted-foreground">Missing email:</span> <b>{preflight.missingEmail}</b></div>
-                    <div><span className="text-muted-foreground">Invalid rows:</span> <b>{preflight.invalid}</b></div>
+                    <div><span className="text-muted-foreground">Rows missing email:</span> <b>{preflight.missingEmail}</b></div>
+                    <div><span className="text-muted-foreground">Invalid rows (no name/email/phone):</span> <b className={preflight.invalid ? "text-rose-700" : ""}>{preflight.invalid}</b></div>
+                    <div><span className="text-muted-foreground">Phone-only rows:</span> <b className={preflight.phoneOnlyCount ? "text-emerald-700" : ""}>{preflight.phoneOnlyCount}</b></div>
+                    <div><span className="text-muted-foreground">Name-only rows:</span> <b className={preflight.nameOnlyCount ? "text-emerald-700" : ""}>{preflight.nameOnlyCount}</b></div>
                     <div><span className="text-muted-foreground">Duplicate rows inside sheet (email):</span> <b className={preflight.sheetDuplicateEmails ? "text-amber-700" : ""}>{preflight.sheetDuplicateEmails}</b></div>
                     <div><span className="text-muted-foreground">Duplicate rows inside sheet (phone):</span> <b className={preflight.sheetDuplicatePhones ? "text-amber-700" : ""}>{preflight.sheetDuplicatePhones}</b></div>
                     <div><span className="text-muted-foreground">Existing CRM matches by email:</span> <b className="text-amber-700">{preflight.existingByEmailCount}</b></div>
                     <div><span className="text-muted-foreground">Existing CRM matches by phone:</span> <b className="text-amber-700">{preflight.existingByPhoneCount}</b></div>
-                    <div className="col-span-2"><span className="text-muted-foreground">New leads (no match in CRM):</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
+                    <div><span className="text-muted-foreground">New email leads:</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
+                    <div><span className="text-muted-foreground">New phone-only leads:</span> <b className="text-emerald-700">{preflight.phoneOnlyCount}</b></div>
+                    <div className="col-span-2 mt-1 pt-1 border-t border-line flex items-center justify-between">
+                      <span><span className="text-muted-foreground">Will be imported:</span> <b className="text-emerald-700">{preflight.willImport}</b></span>
+                      <span><span className="text-muted-foreground">Will be skipped:</span> <b className={preflight.willSkip ? "text-amber-700" : ""}>{preflight.willSkip}</b></span>
+                    </div>
                   </div>
 
+                  {preflight.missingEmail > 0 && (preflight.phoneOnlyCount + preflight.nameOnlyCount) > 0 && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800">
+                      <b>{preflight.missingEmail}</b> row{preflight.missingEmail === 1 ? "" : "s"} {preflight.missingEmail === 1 ? "is" : "are"} missing email but will still be imported because phone/name is available
+                      {preflight.phoneOnlyCount > 0 && <> · <b>{preflight.phoneOnlyCount}</b> phone-only</>}
+                      {preflight.nameOnlyCount > 0 && <> · <b>{preflight.nameOnlyCount}</b> name-only (manual follow-up needed)</>}
+                      .
+                    </div>
+                  )}
                   {(preflight.existingByEmailCount > 0 || preflight.existingByPhoneCount > 0) && (
                     <div className="mt-2 px-2.5 py-1.5 rounded-md bg-slate-50 border border-slate-200 text-[11px] text-slate-700">
                       These rows are <b>not duplicates inside your sheet</b>. They match leads already present in CRM and will be handled by the duplicate policy below.
@@ -1278,24 +1317,26 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                           <tbody>
                             {preflight.rowDetails.map((r) => {
                               const statusLabel: Record<typeof r.status, { text: string; cls: string }> = {
-                                new: { text: "New lead", cls: "text-emerald-700" },
+                                new: { text: "New email lead", cls: "text-emerald-700" },
                                 existing_by_email: { text: "Existing CRM match (email)", cls: "text-amber-700" },
                                 existing_by_phone: { text: "Existing CRM match (phone)", cls: "text-amber-700" },
                                 sheet_duplicate_email: { text: "Duplicate inside sheet (email)", cls: "text-amber-700" },
                                 sheet_duplicate_phone: { text: "Duplicate inside sheet (phone)", cls: "text-amber-700" },
-                                missing_email: { text: "Missing email", cls: "text-muted-foreground" },
+                                phone_only: { text: "Phone-only lead", cls: "text-emerald-700" },
+                                name_only: { text: "Name-only lead", cls: "text-emerald-700" },
                                 invalid: { text: "Invalid row", cls: "text-rose-700" },
                               };
                               let action = "";
-                              if (r.status === "new") action = "Create new lead";
-                              else if (r.status === "missing_email") action = r.phone.length === 10 ? "Create phone-only lead" : "Skip (no contact info)";
-                              else if (r.status === "invalid") action = "Skip (invalid)";
-                              else if (r.status === "sheet_duplicate_email" || r.status === "sheet_duplicate_phone") action = "Skip (duplicate inside sheet)";
+                              if (r.status === "new") action = "Will create email lead";
+                              else if (r.status === "phone_only") action = "Will create phone-only lead";
+                              else if (r.status === "name_only") action = "Will create name-only lead (manual follow-up)";
+                              else if (r.status === "invalid") action = "Will skip invalid row";
+                              else if (r.status === "sheet_duplicate_email" || r.status === "sheet_duplicate_phone") action = "Will skip (duplicate inside sheet)";
                               else if (r.status === "existing_by_email" || r.status === "existing_by_phone") {
-                                if (duplicatePolicy === "move") action = "Move existing → this batch";
-                                else if (duplicatePolicy === "update") action = "Update existing lead";
-                                else if (duplicatePolicy === "skip") action = "Skip (existing match)";
-                                else if (duplicatePolicy === "new_only") action = "Skip (reported as existing)";
+                                if (duplicatePolicy === "move") action = "Will move existing lead → this batch";
+                                else if (duplicatePolicy === "update") action = "Will update existing lead";
+                                else if (duplicatePolicy === "skip") action = "Will skip (existing match)";
+                                else if (duplicatePolicy === "new_only") action = "Will skip (reported as existing)";
                               }
                               const ex = r.existing;
                               return (
@@ -1375,6 +1416,15 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               </p>
             </div>
 
+            {preflight && preflight.willSkip > 0 && (
+              <div className="text-[11px] text-muted-foreground">
+                {preflight.willSkip} row{preflight.willSkip === 1 ? "" : "s"} will be skipped
+                {preflight.invalid > 0 && <> · {preflight.invalid} invalid</>}
+                {preflight.sheetDuplicateEmails + preflight.sheetDuplicatePhones > 0 && <> · {preflight.sheetDuplicateEmails + preflight.sheetDuplicatePhones} in-sheet duplicate(s)</>}
+                {(duplicatePolicy === "skip" || duplicatePolicy === "new_only") && (preflight.existingByEmailCount + preflight.existingByPhoneCount) > 0 && <> · {preflight.existingByEmailCount + preflight.existingByPhoneCount} existing CRM match(es)</>}
+                .
+              </div>
+            )}
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(3)} className="ipc-btn ipc-btn-ghost">Back</button>
               <button
@@ -1382,11 +1432,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 disabled={
                   importing || preflightLoading || targetMismatch ||
                   (resolvedTarget.isNew && !newPipeName.trim()) ||
-                  (assignment === "assign_to_member" && !selectedAssigneeId)
+                  (assignment === "assign_to_member" && !selectedAssigneeId) ||
+                  (preflight ? preflight.willImport === 0 : false)
                 }
                 className="ipc-btn ipc-btn-black disabled:opacity-50"
               >
-                {importing ? "Importing…" : `Import ${validRows} rows`}
+                {importing ? "Importing…" : `Import ${preflight ? preflight.willImport : validRows} rows`}
               </button>
             </div>
           </div>
