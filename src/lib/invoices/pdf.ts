@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { supabase } from "@/integrations/supabase/client";
 import type { CompanySettings, Invoice } from "./types";
 import { amountToWordsINR } from "./amountInWords";
 
@@ -93,6 +94,12 @@ async function loadImageDataUrl(
   }
 }
 
+function assetUrl(url?: string | null, path?: string | null): string | null {
+  if (url?.trim()) return url;
+  if (!path?.trim()) return null;
+  return supabase.storage.from("invoice-assets").getPublicUrl(path).data.publicUrl;
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const h = (hex || "#111827").replace("#", "");
   const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
@@ -109,8 +116,11 @@ export async function renderInvoicePdf(
         ...(fallbackCompany || {}),
         ...snapshotSeller,
         logo_url: snapshotSeller.logo_url || fallbackCompany?.logo_url || null,
+        logo_path: snapshotSeller.logo_path || fallbackCompany?.logo_path || null,
         signature_url: snapshotSeller.signature_url || fallbackCompany?.signature_url || null,
+        signature_path: snapshotSeller.signature_path || fallbackCompany?.signature_path || null,
         stamp_url: snapshotSeller.stamp_url || fallbackCompany?.stamp_url || null,
+        stamp_path: snapshotSeller.stamp_path || fallbackCompany?.stamp_path || null,
       }
     : (invoice.seller_snapshot_json || fallbackCompany || {});
   const buyer: any =
@@ -147,8 +157,9 @@ export async function renderInvoicePdf(
   // Logo
   let leftTextX = M;
   let leftTextY = y;
-  if (seller.logo_url) {
-    const img = await loadImageDataUrl(seller.logo_url);
+  const logoUrl = assetUrl(seller.logo_url, seller.logo_path);
+  if (logoUrl) {
+    const img = await loadImageDataUrl(logoUrl);
     if (img) {
       try {
         doc.addImage(img.data, img.format, M, y, 48, 48);
