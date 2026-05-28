@@ -133,6 +133,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     total: number;
     rowsWithEmail: number;
     missingEmail: number;
+    phoneOnlyCount: number;
+    nameOnlyCount: number;
     sheetDuplicateEmails: number;
     sheetDuplicatePhones: number;
     existingByEmailCount: number;
@@ -141,6 +143,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     archivedMatchCount: number;
     newCount: number;
     invalid: number;
+    willImport: number;
+    willSkip: number;
     existingByEmail: Map<string, any>;
     existingByPhone: Map<string, any>;
     rowDetails: {
@@ -154,7 +158,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         | "existing_by_phone"
         | "sheet_duplicate_email"
         | "sheet_duplicate_phone"
-        | "missing_email"
+        | "phone_only"
+        | "name_only"
         | "invalid";
       conflict: boolean;
       existing: {
