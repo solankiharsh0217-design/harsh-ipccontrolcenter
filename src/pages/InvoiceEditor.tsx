@@ -257,15 +257,16 @@ export default function InvoiceEditor() {
         sub={invoice.status === "draft" ? "Draft — not yet issued. No invoice number assigned." : `Status: ${invoice.status}`}
       />
 
-      {!readiness.ok && (
+      {allBlockers.length > 0 && (
         <div className="border border-amber-300 bg-amber-50 rounded-xl p-4 mb-4">
-          <div className="font-medium text-amber-900 text-[13px]">Invoice setup incomplete</div>
+          <div className="font-medium text-amber-900 text-[13px]">Invoice cannot be issued yet</div>
           <ul className="mt-1 text-[12px] text-amber-900 list-disc ml-5">
-            {readiness.missing.map((m) => <li key={m}>{m}</li>)}
+            {allBlockers.map((m) => <li key={m}>{m}</li>)}
           </ul>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => nav("/admin-center/company-settings")}>Open Company Settings</Button>
             <Button size="sm" variant="outline" onClick={() => nav("/admin-center/invoice-settings")}>Open Invoice Settings</Button>
+            {!isLocked && <Button size="sm" variant="outline" onClick={refreshFromCompany}>Refresh from Company Settings</Button>}
             {readiness.canFallbackToNonGst && (
               <Button size="sm" onClick={() => changeType("non_gst")}>Continue as Non-GST Invoice</Button>
             )}
@@ -273,9 +274,9 @@ export default function InvoiceEditor() {
         </div>
       )}
 
-      {readiness.ok && !company?.signature_url && (
+      {canIssue && !company?.signature_url && !settings?.require_authorized_signature && (
         <div className="border border-amber-200 bg-amber-50/60 rounded-xl p-3 mb-4 text-[12.5px] text-amber-900">
-          Authorized signature is not uploaded. Invoice PDF will show a blank signature line.
+          Signature missing. Invoice will show a blank signature line.
           <Button size="sm" variant="outline" className="ml-3 h-7" onClick={() => nav("/admin-center/company-settings")}>Upload signature</Button>
         </div>
       )}
