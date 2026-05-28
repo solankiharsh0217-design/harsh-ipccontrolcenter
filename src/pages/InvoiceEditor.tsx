@@ -23,6 +23,21 @@ import type {
 
 const db = supabase as any;
 
+function hydrateDraftSellerSnapshot(inv: Invoice, company: CompanySettings | null): Invoice {
+  if (inv.status !== "draft" || !company) return inv;
+  const snap = (inv.seller_snapshot_json || {}) as Partial<CompanySettings>;
+  return {
+    ...inv,
+    seller_snapshot_json: {
+      ...company,
+      ...snap,
+      logo_url: snap.logo_url || company.logo_url || null,
+      signature_url: snap.signature_url || company.signature_url || null,
+      stamp_url: snap.stamp_url || company.stamp_url || null,
+    },
+  };
+}
+
 export default function InvoiceEditor() {
   const { id } = useParams();
   const [params] = useSearchParams();
@@ -46,7 +61,7 @@ export default function InvoiceEditor() {
       if (id) {
         const inv = await loadInvoice(id);
         if (inv) {
-          setInvoice(inv);
+          setInvoice(hydrateDraftSellerSnapshot(inv, c));
           if (inv.paid_pipeline_lead_id) {
             const { data: p } = await db.from("paid_pipeline_leads").select("*").eq("id", inv.paid_pipeline_lead_id).maybeSingle();
             if (p) setPaidLead(p);
@@ -74,8 +89,8 @@ export default function InvoiceEditor() {
   }, [id]);
 
   const readiness = useMemo(
-    () => settings ? checkReadiness(company, settings, invoice?.invoice_type || "gst") : { ok: true, missing: [], canFallbackToNonGst: false },
-    [company, settings, invoice?.invoice_type]
+    () => settings ? checkReadiness(company, settings, invoice?.invoice_type || "gst", invoice?.seller_snapshot_json) : { ok: true, missing: [], canFallbackToNonGst: false },
+    [company, settings, invoice?.invoice_type, invoice?.seller_snapshot_json]
   );
 
   // Comprehensive issue-time blockers (invoice-level, beyond company readiness)
@@ -92,7 +107,7 @@ export default function InvoiceEditor() {
       const missing = items.some((li) => !li.hsn_sac || !String(li.hsn_sac).trim());
       if (missing) list.push("HSN/SAC is required on every line item");
     }
-    if (settings?.require_authorized_signature && !company?.signature_url && !invoice.seller_snapshot_json?.signature_url) {
+    if (settings?.require_authorized_signature && !company?.signature_url?.trim() && !invoice.seller_snapshot_json?.signature_url?.trim()) {
       list.push("Authorized signature is required (upload in Company Settings)");
     }
     return list;
@@ -106,8 +121,8 @@ export default function InvoiceEditor() {
     const c = await loadCompanySettings();
     const s = await loadInvoiceSettings();
     setCompany(c); setSettings(s);
-    // Update only draft-visible fields; do not mutate locked snapshots
-    setInvoice((cur) => cur ? { ...cur } : cur);
+    // Update draft seller branding from the latest Company Settings; issued snapshots stay immutable.
+    setInvoice((cur) => cur ? hydrateDraftSellerSnapshot({ ...cur, seller_snapshot_json: c ? { ...(cur.seller_snapshot_json || {}), ...c } : cur.seller_snapshot_json }, c) : cur);
     toast.success("Pulled latest company & invoice settings");
   }
 
