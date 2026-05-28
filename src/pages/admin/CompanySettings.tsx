@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -45,15 +45,21 @@ const FIELD_GROUPS: { title: string; fields: { key: keyof CompanySettings; label
 ];
 
 type AssetKind = "logo_url" | "signature_url" | "stamp_url";
+type AssetPathKind = "logo_path" | "signature_path" | "stamp_path";
 const ASSET_FOLDER: Record<AssetKind, string> = {
   logo_url: "logo",
   signature_url: "signature",
   stamp_url: "stamp",
 };
+const ASSET_PATH_FIELD: Record<AssetKind, AssetPathKind> = {
+  logo_url: "logo_path",
+  signature_url: "signature_path",
+  stamp_url: "stamp_path",
+};
 const ASSET_LABEL: Record<AssetKind, string> = {
-  logo_url: "Logo",
-  signature_url: "Signature",
-  stamp_url: "Stamp",
+  logo_url: "Company Logo",
+  signature_url: "Authorized Signature",
+  stamp_url: "Company Stamp",
 };
 const ALLOWED_MIME = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -67,6 +73,35 @@ function mapUploadError(msg: string): string {
   if (m.includes("payload too large") || m.includes("size") || m.includes("exceed"))
     return "File must be under 5 MB.";
   return msg || "Upload failed";
+}
+
+function sanitizeFileName(name: string) {
+  const ext = (name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+  const base = name
+    .replace(/\.[^.]+$/, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "asset";
+  return `${base}.${ext}`;
+}
+
+function buildAssetPath(workspace: string | null | undefined, folder: string, fileName: string) {
+  const safeWorkspace = (workspace || "default").toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "default";
+  return `${safeWorkspace}/${folder}/${Date.now()}-${sanitizeFileName(fileName)}`;
+}
+
+function maskPath(path?: string | null) {
+  if (!path) return "—";
+  return path.length > 54 ? `${path.slice(0, 28)}…${path.slice(-18)}` : path;
+}
+
+function pathFromPublicUrl(url?: string | null) {
+  if (!url) return null;
+  const marker = "/storage/v1/object/public/invoice-assets/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return decodeURIComponent(url.slice(idx + marker.length).split("?")[0]);
 }
 
 export default function CompanySettingsPage() {
