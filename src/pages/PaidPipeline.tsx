@@ -641,6 +641,8 @@ export default function PaidPipeline() {
                         onUpdateFinance={() => setQuickFinanceId(l.id)}
                         onSetFollowUp={() => setQuickFuId(l.id)}
                         onOpen={() => setOpenId(l.id)}
+                        onCreateInvoice={() => navigate(`/invoices/new?paidLeadId=${l.id}`)}
+                        onViewInvoices={() => navigate(`/paid-pipeline/${l.id}/invoices`)}
                         onArchive={() => setArchiveTarget({ id: l.id, name: l.name })}
                         onRestore={async () => {
                           try {
