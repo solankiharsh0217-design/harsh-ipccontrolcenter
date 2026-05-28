@@ -1412,7 +1412,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               <div><span className="text-muted-foreground">Updated:</span> <b>{result.updated}</b></div>
               <div><span className="text-muted-foreground">Restored from archive:</span> <b className={result.restored > 0 ? "text-emerald-700" : ""}>{result.restored}</b></div>
               <div><span className="text-muted-foreground">Phone-only imported:</span> <b>{result.phoneOnlyImported}</b></div>
-              <div><span className="text-muted-foreground">Skipped duplicates:</span> <b className="text-amber-700">{result.skippedDuplicates}</b></div>
+              <div><span className="text-muted-foreground">Existing CRM matches skipped:</span> <b className="text-amber-700">{result.skippedDuplicates}</b></div>
               <div><span className="text-muted-foreground">Failed:</span> <b className={result.failed ? "text-red-700" : ""}>{result.failed}</b></div>
             </div>
 
