@@ -64,6 +64,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Company Settings",
+      desc: "Set legal name, GSTIN, address, bank details, branding (logo/signature/stamp) and email sender used on invoices.",
+      cta: "Open Company Settings",
+      to: "/admin-center/company-settings",
+      show: isAdmin,
+    },
+    {
       title: "Media Buyer Dashboard Preview",
       desc: "View each media buyer's work dashboard, pending calls, active ad clients, and overdue tasks.",
       cta: "Open Media Buyer Desk",
