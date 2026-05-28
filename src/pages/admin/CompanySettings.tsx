@@ -59,13 +59,36 @@ export default function CompanySettingsPage() {
   const set = (k: keyof CompanySettings, v: any) => setS((p) => ({ ...p, [k]: v }));
 
   async function uploadAsset(kind: "logo_url" | "signature_url" | "stamp_url", file: File) {
-    const ext = file.name.split(".").pop() || "png";
+    const ext = (file.name.split(".").pop() || "png").toLowerCase();
     const path = `${kind}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("invoice-assets").upload(path, file, { upsert: true });
     if (error) { toast.error("Upload failed: " + error.message); return; }
     const { data } = supabase.storage.from("invoice-assets").getPublicUrl(path);
-    set(kind, data.publicUrl);
-    toast.success("Uploaded");
+    const url = data.publicUrl;
+    set(kind, url);
+    // Persist immediately so the URL isn't lost if the user forgets to click Save
+    if (user) {
+      try {
+        const saved = await saveCompanySettings({ ...s, [kind]: url }, user.id);
+        if (saved) setS(saved);
+        toast.success("Uploaded & saved");
+      } catch (e: any) {
+        toast.error("Uploaded but save failed: " + (e?.message || ""));
+      }
+    } else {
+      toast.success("Uploaded");
+    }
+  }
+
+  async function removeAsset(kind: "logo_url" | "signature_url" | "stamp_url") {
+    set(kind, null);
+    if (user) {
+      try {
+        const saved = await saveCompanySettings({ ...s, [kind]: null }, user.id);
+        if (saved) setS(saved);
+        toast.success("Removed");
+      } catch (e: any) { toast.error(e?.message || "Remove failed"); }
+    }
   }
 
   async function save() {
