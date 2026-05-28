@@ -1347,9 +1347,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               </p>
             </div>
 
-                {duplicatePolicy === "new_only" && "Only brand-new emails will be inserted. Duplicates reported as skipped."}
-              </p>
-            </div>
+
 
             <div>
               <label className="form-label">Assignment (applies to all imported leads)</label>
