@@ -54,16 +54,34 @@ function stripLineItems(inv: Invoice): Omit<Invoice, "line_items"> {
   return rest;
 }
 
+// Fields that must never be set from client on UPDATE (managed by DB / immutable post-issue)
+const IMMUTABLE_ON_UPDATE = [
+  "id", "created_at", "updated_at", "created_by",
+  "invoice_number", "issued_at",
+  "seller_snapshot_json", "buyer_snapshot_json", "tax_snapshot_json",
+  "cancelled_at", "cancelled_by", "cancel_reason",
+];
+
 export async function saveDraft(inv: Invoice, userId: string): Promise<Invoice> {
-  const body = { ...stripLineItems(inv), status: "draft" as const, created_by: userId };
+  const base: any = stripLineItems(inv);
   let saved: any;
   if (inv.id) {
-    const { data, error } = await db.from("invoices").update(body).eq("id", inv.id).select().maybeSingle();
+    const updateBody: any = { ...base };
+    for (const k of IMMUTABLE_ON_UPDATE) delete updateBody[k];
+    updateBody.status = "draft";
+    const { data, error } = await db.from("invoices").update(updateBody).eq("id", inv.id).select().maybeSingle();
     if (error) throw error;
     saved = data;
     await db.from("invoice_line_items").delete().eq("invoice_id", inv.id);
   } else {
-    const { data, error } = await db.from("invoices").insert(body).select().maybeSingle();
+    const insertBody: any = { ...base, status: "draft", created_by: userId };
+    delete insertBody.id;
+    delete insertBody.created_at;
+    delete insertBody.updated_at;
+    // Drafts must not have an invoice_number — only assigned on issue.
+    delete insertBody.invoice_number;
+    delete insertBody.issued_at;
+    const { data, error } = await db.from("invoices").insert(insertBody).select().maybeSingle();
     if (error) throw error;
     saved = data;
     await logEvent(saved.id, "invoice_draft_created", { mode: inv.invoice_mode }, userId);
@@ -104,6 +122,9 @@ export async function issueInvoice(inv: Invoice, opts: { company: CompanySetting
     seller_gstin: opts.company?.gstin || null,
     seller_state: opts.company?.state || null,
     seller_state_code: opts.company?.state_code || null,
+    line_tax_rates: (inv.line_items || []).map((li) => ({
+      item_name: li.item_name, hsn_sac: li.hsn_sac || null, tax_rate: li.tax_rate,
+    })),
   };
 
   const { error: updErr } = await db.from("invoices").update({

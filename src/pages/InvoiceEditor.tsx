@@ -160,7 +160,12 @@ export default function InvoiceEditor() {
   const issueClick = async () => {
     if (!invoice || !user?.id || !settings) return;
     if (!readiness.ok) { toast.error("Invoice setup incomplete"); return; }
-    if (!isAdmin) { toast.error("Only admin can issue invoices"); return; }
+    // Per-line HSN/SAC check for GST invoices when required by settings
+    if (invoice.invoice_type === "gst" && settings.hsn_sac_required) {
+      const missing = (invoice.line_items || []).some((li) => !li.hsn_sac || !String(li.hsn_sac).trim());
+      if (missing) { toast.error("HSN/SAC is required on every line item"); return; }
+    }
+    if (!(invoice.line_items || []).length) { toast.error("Add at least one line item"); return; }
     if (!confirm("Issue this invoice? Invoice number will be assigned and cannot be changed.")) return;
     setBusy(true);
     try {
@@ -177,8 +182,9 @@ export default function InvoiceEditor() {
     if (!invoice) return;
     await openInvoicePdf(invoice, company);
     if (invoice.id) {
+      // last_generated_at update may be blocked by RLS for non-admins on issued invoices; ignore that.
       await db.from("invoices").update({ last_generated_at: new Date().toISOString() }).eq("id", invoice.id);
-      await logEvent(invoice.id, "invoice_pdf_generated", { action: "preview" }, user?.id);
+      try { await logEvent(invoice.id, "invoice_pdf_generated", { action: "preview" }, user?.id); } catch { /* ignore */ }
     }
   };
   const downloadPdf = async () => {
@@ -186,7 +192,7 @@ export default function InvoiceEditor() {
     await downloadInvoicePdf(invoice, company);
     if (invoice.id) {
       await db.from("invoices").update({ last_generated_at: new Date().toISOString() }).eq("id", invoice.id);
-      await logEvent(invoice.id, "invoice_pdf_generated", { action: "download" }, user?.id);
+      try { await logEvent(invoice.id, "invoice_pdf_generated", { action: "download" }, user?.id); } catch { /* ignore */ }
     }
   };
 
@@ -351,7 +357,7 @@ export default function InvoiceEditor() {
         <Button variant="outline" onClick={previewPdf}>Preview PDF</Button>
         <Button variant="outline" onClick={downloadPdf}>Download PDF</Button>
         {!isLocked && (
-          <Button onClick={issueClick} disabled={busy || !readiness.ok || !isAdmin}>
+          <Button onClick={issueClick} disabled={busy || !readiness.ok}>
             Issue Invoice
           </Button>
         )}
