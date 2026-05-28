@@ -131,13 +131,43 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflight, setPreflight] = useState<{
     total: number;
-    newCount: number;
-    dupCount: number;
-    archivedDupCount: number;
+    rowsWithEmail: number;
     missingEmail: number;
+    sheetDuplicateEmails: number;
+    sheetDuplicatePhones: number;
+    existingByEmailCount: number;
+    existingByPhoneCount: number;
+    matchConflictCount: number;
+    archivedMatchCount: number;
+    newCount: number;
     invalid: number;
     existingByEmail: Map<string, any>;
+    existingByPhone: Map<string, any>;
+    rowDetails: {
+      rowNum: number;
+      name: string;
+      email: string;
+      phone: string;
+      status:
+        | "new"
+        | "existing_by_email"
+        | "existing_by_phone"
+        | "sheet_duplicate_email"
+        | "sheet_duplicate_phone"
+        | "missing_email"
+        | "invalid";
+      conflict: boolean;
+      existing: {
+        full_name: string | null;
+        pipeline_name: string | null;
+        stage_name: string | null;
+        batch_name: string | null;
+        archived: boolean;
+      } | null;
+    }[];
   } | null>(null);
+  const [showPreflightRows, setShowPreflightRows] = useState(false);
+
 
   useEffect(() => {
     supabase.from("webinars").select("id, name").order("name").then(({ data }) => setWebinars((data || []) as any));
