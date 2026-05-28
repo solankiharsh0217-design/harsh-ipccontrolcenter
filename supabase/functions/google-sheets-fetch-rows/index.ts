@@ -22,8 +22,8 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
-    const { data: claims, error: claimErr } = await supabase.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (claimErr || !claims?.claims) {
+    const { data: userData, error: claimErr } = await supabase.auth.getUser();
+    if (claimErr || !userData?.user?.id) {
       return new Response(JSON.stringify({ error: "Unauthorized", code: "UNAUTHORIZED" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
