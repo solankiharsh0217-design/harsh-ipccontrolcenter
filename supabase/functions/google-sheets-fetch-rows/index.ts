@@ -65,12 +65,12 @@ Deno.serve(async (req) => {
     const values: string[][] = json.values || [];
     if (values.length === 0) {
       return new Response(JSON.stringify({ error: "This tab has no rows to import.", code: "TAB_HAS_NO_ROWS" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const rawHeaders = (values[0] || []).map((x) => String(x ?? "").trim());
     if (rawHeaders.every((h) => !h)) {
       return new Response(JSON.stringify({ error: "Header row is missing in the first row of this tab.", code: "HEADER_ROW_MISSING" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     // De-duplicate empty/duplicate headers
     const headers: string[] = [];
