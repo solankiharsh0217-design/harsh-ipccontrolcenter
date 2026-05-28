@@ -44,11 +44,39 @@ const FIELD_GROUPS: { title: string; fields: { key: keyof CompanySettings; label
   ]},
 ];
 
+type AssetKind = "logo_url" | "signature_url" | "stamp_url";
+const ASSET_FOLDER: Record<AssetKind, string> = {
+  logo_url: "logo",
+  signature_url: "signature",
+  stamp_url: "stamp",
+};
+const ASSET_LABEL: Record<AssetKind, string> = {
+  logo_url: "Logo",
+  signature_url: "Signature",
+  stamp_url: "Stamp",
+};
+const ALLOWED_MIME = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+const MAX_BYTES = 5 * 1024 * 1024;
+
+function mapUploadError(msg: string): string {
+  const m = (msg || "").toLowerCase();
+  if (m.includes("row-level security") || m.includes("rls") || m.includes("violates row"))
+    return "Upload blocked by storage policy. Please check invoice-assets bucket RLS.";
+  if (m.includes("mime") || (m.includes("type") && m.includes("not")))
+    return "Only PNG, JPG, JPEG, and WebP files are allowed.";
+  if (m.includes("payload too large") || m.includes("size") || m.includes("exceed"))
+    return "File must be under 5 MB.";
+  return msg || "Upload failed";
+}
+
 export default function CompanySettingsPage() {
   const { user, isAdmin } = useAuth();
   const [s, setS] = useState<Partial<CompanySettings>>({ workspace: "default", country: "India", accent_color: "#111827" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [busyKind, setBusyKind] = useState<AssetKind | null>(null);
+  const [lastUploadError, setLastUploadError] = useState<string | null>(null);
+  const [lastSaveError, setLastSaveError] = useState<string | null>(null);
 
   useEffect(() => { (async () => {
     const data = await loadCompanySettings();
@@ -58,36 +86,66 @@ export default function CompanySettingsPage() {
 
   const set = (k: keyof CompanySettings, v: any) => setS((p) => ({ ...p, [k]: v }));
 
-  async function uploadAsset(kind: "logo_url" | "signature_url" | "stamp_url", file: File) {
-    const ext = (file.name.split(".").pop() || "png").toLowerCase();
-    const path = `${kind}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("invoice-assets").upload(path, file, { upsert: true });
-    if (error) { toast.error("Upload failed: " + error.message); return; }
-    const { data } = supabase.storage.from("invoice-assets").getPublicUrl(path);
-    const url = data.publicUrl;
-    set(kind, url);
-    // Persist immediately so the URL isn't lost if the user forgets to click Save
-    if (user) {
-      try {
-        const saved = await saveCompanySettings({ ...s, [kind]: url }, user.id);
-        if (saved) setS(saved);
-        toast.success("Uploaded & saved");
-      } catch (e: any) {
-        toast.error("Uploaded but save failed: " + (e?.message || ""));
+  async function uploadAsset(kind: AssetKind, file: File) {
+    if (!ALLOWED_MIME.includes(file.type)) {
+      const m = "Only PNG, JPG, JPEG, and WebP files are allowed.";
+      setLastUploadError(m); toast.error(m); return;
+    }
+    if (file.size > MAX_BYTES) {
+      const m = "File must be under 5 MB.";
+      setLastUploadError(m); toast.error(m); return;
+    }
+    setBusyKind(kind);
+    setLastUploadError(null);
+    try {
+      const workspace = s.workspace || "default";
+      const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+      const base = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40) || "file";
+      const path = `${workspace}/${ASSET_FOLDER[kind]}/${Date.now()}-${base}.${ext}`;
+      const { error } = await supabase.storage
+        .from("invoice-assets")
+        .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+      if (error) {
+        const friendly = mapUploadError(error.message);
+        setLastUploadError(friendly);
+        toast.error(friendly);
+        return;
       }
-    } else {
-      toast.success("Uploaded");
+      const { data } = supabase.storage.from("invoice-assets").getPublicUrl(path);
+      const url = data.publicUrl;
+      set(kind, url);
+      if (user) {
+        try {
+          const saved = await saveCompanySettings({ ...s, [kind]: url }, user.id);
+          if (saved) setS(saved);
+          setLastSaveError(null);
+          toast.success(`${ASSET_LABEL[kind]} uploaded successfully`);
+        } catch (e: any) {
+          const m = "File uploaded but settings could not be saved. Please retry Save Company Settings.";
+          setLastSaveError(e?.message || m);
+          toast.error(m);
+        }
+      } else {
+        toast.success("Uploaded");
+      }
+    } finally {
+      setBusyKind(null);
     }
   }
 
-  async function removeAsset(kind: "logo_url" | "signature_url" | "stamp_url") {
+  async function removeAsset(kind: AssetKind) {
+    if (!confirm(`Remove ${ASSET_LABEL[kind].toLowerCase()}?`)) return;
     set(kind, null);
     if (user) {
       try {
         const saved = await saveCompanySettings({ ...s, [kind]: null }, user.id);
         if (saved) setS(saved);
+        setLastSaveError(null);
         toast.success("Removed");
-      } catch (e: any) { toast.error(e?.message || "Remove failed"); }
+      } catch (e: any) {
+        setLastSaveError(e?.message || "Remove failed");
+        toast.error(e?.message || "Remove failed");
+      }
     }
   }
 
@@ -97,8 +155,10 @@ export default function CompanySettingsPage() {
     try {
       const saved = await saveCompanySettings(s, user.id);
       if (saved) setS(saved);
+      setLastSaveError(null);
       toast.success("Company settings saved");
     } catch (e: any) {
+      setLastSaveError(e?.message || "Save failed");
       toast.error(e?.message || "Save failed");
     } finally { setSaving(false); }
   }
@@ -137,22 +197,38 @@ export default function CompanySettingsPage() {
           {(["logo_url", "signature_url", "stamp_url"] as const).map((k) => {
             const label = k === "logo_url" ? "Logo" : k === "signature_url" ? "Authorized Signature" : "Company Stamp";
             const present = !!s[k];
+            const busy = busyKind === k;
             const url = s[k] as string | null | undefined;
             const masked = url ? (url.length > 48 ? url.slice(0, 24) + "…" + url.slice(-16) : url) : "";
+            const status = busy ? "Uploading" : present ? "Uploaded" : "Missing";
+            const statusCls = busy
+              ? "bg-blue-100 text-blue-800"
+              : present
+                ? "bg-green-100 text-green-800"
+                : "bg-amber-100 text-amber-800";
             return (
               <div key={k} className="border border-line rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-xs font-medium">{label}</Label>
-                  <span className={`text-[10.5px] px-1.5 py-0.5 rounded ${present ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
-                    {present ? "Uploaded" : "Missing"}
-                  </span>
+                  <span className={`text-[10.5px] px-1.5 py-0.5 rounded ${statusCls}`}>{status}</span>
                 </div>
                 <div className="h-20 flex items-center justify-center bg-muted/30 rounded mb-2 overflow-hidden">
                   {url ? <img src={url} alt={label} className="max-h-20 max-w-full object-contain" /> : <span className="text-[11px] text-muted-foreground">No file</span>}
                 </div>
                 {present && <div className="text-[10px] text-muted-foreground mb-2 break-all">{masked}</div>}
-                <Input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAsset(k, f); }} className="text-[11px]" />
-                {present && (
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  disabled={busy}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadAsset(k, f);
+                    e.target.value = "";
+                  }}
+                  className="text-[11px]"
+                />
+                <div className="text-[10px] text-muted-foreground mt-1">PNG, JPG or WebP · up to 5 MB</div>
+                {present && !busy && (
                   <Button size="sm" variant="ghost" className="mt-1 h-7 text-[11px] text-red-600 hover:text-red-700" onClick={() => removeAsset(k)}>Remove</Button>
                 )}
               </div>
@@ -160,6 +236,22 @@ export default function CompanySettingsPage() {
           })}
         </div>
       </div>
+
+      <details className="mb-8 bg-white border border-line rounded-xl p-4 text-[11px]">
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Admin debug · Invoice branding</summary>
+        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 font-mono">
+          <div>Bucket</div><div>invoice-assets</div>
+          <div>Workspace</div><div>{s.workspace || "default"}</div>
+          <div>User</div><div className="break-all">{user?.email || "—"}</div>
+          <div>Is admin</div><div>{String(isAdmin)}</div>
+          <div>Can upload</div><div>{String(isAdmin)}</div>
+          <div>logo_url</div><div>{s.logo_url ? "present" : "missing"}</div>
+          <div>signature_url</div><div>{s.signature_url ? "present" : "missing"}</div>
+          <div>stamp_url</div><div>{s.stamp_url ? "present" : "missing"}</div>
+          <div>Last upload error</div><div className="text-red-600 break-all">{lastUploadError || "—"}</div>
+          <div>Last save error</div><div className="text-red-600 break-all">{lastSaveError || "—"}</div>
+        </div>
+      </details>
 
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Company Settings"}</Button>
