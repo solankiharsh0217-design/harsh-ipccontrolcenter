@@ -25,16 +25,29 @@ function formatAmt(amount: number | null | undefined): string {
   return `${n < 0 ? "-" : ""}${formatNumberINR(n)}`;
 }
 
-async function loadImageDataUrl(url: string): Promise<string | null> {
+async function loadImageDataUrl(
+  url: string
+): Promise<{ data: string; format: "PNG" | "JPEG" | "WEBP" } | null> {
   try {
-    const r = await fetch(url);
+    const r = await fetch(url, { mode: "cors" });
     if (!r.ok) return null;
     const blob = await r.blob();
-    return await new Promise<string>((res) => {
+    const mime = (blob.type || "").toLowerCase();
+    const dataUrl = await new Promise<string>((res) => {
       const fr = new FileReader();
       fr.onload = () => res(fr.result as string);
       fr.readAsDataURL(blob);
     });
+    let format: "PNG" | "JPEG" | "WEBP" = "PNG";
+    if (mime.includes("jpeg") || mime.includes("jpg")) format = "JPEG";
+    else if (mime.includes("webp")) format = "WEBP";
+    else if (mime.includes("png")) format = "PNG";
+    else {
+      const lower = url.toLowerCase();
+      if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) format = "JPEG";
+      else if (lower.endsWith(".webp")) format = "WEBP";
+    }
+    return { data: dataUrl, format };
   } catch {
     return null;
   }
@@ -86,10 +99,10 @@ export async function renderInvoicePdf(
   let leftTextX = M;
   let leftTextY = y;
   if (seller.logo_url) {
-    const data = await loadImageDataUrl(seller.logo_url);
-    if (data) {
+    const img = await loadImageDataUrl(seller.logo_url);
+    if (img) {
       try {
-        doc.addImage(data, "PNG", M, y, 48, 48);
+        doc.addImage(img.data, img.format, M, y, 48, 48);
         leftTextX = M + 56;
       } catch {
         /* */
@@ -417,8 +430,8 @@ export async function renderInvoicePdf(
     if (bankLines.length) renderBlock("Bank Details", bankLines.join("\n"));
   }
 
-  // ---------- SIGNATURE ----------
-  const sigBlockH = 70;
+  // ---------- SIGNATURE + STAMP ----------
+  const sigBlockH = 80;
   if (y + sigBlockH > H - 40) {
     doc.addPage();
     y = M;
@@ -426,25 +439,43 @@ export async function renderInvoicePdf(
   const sigY = y + 10;
   const sigRight = W - M;
   const sigBoxW = 160;
+  const sigBoxH = 44;
   const sigBoxX = sigRight - sigBoxW;
 
-  if (seller.signature_url) {
-    const data = await loadImageDataUrl(seller.signature_url);
-    if (data) {
+  // Stamp (optional) — placed to the left of signature
+  if (seller.stamp_url) {
+    const stamp = await loadImageDataUrl(seller.stamp_url);
+    if (stamp) {
       try {
-        doc.addImage(data, "PNG", sigBoxX, sigY, sigBoxW, 36);
+        const stampW = 60;
+        doc.addImage(stamp.data, stamp.format, sigBoxX - stampW - 16, sigY, stampW, 60);
       } catch {
-        /* */
+        /* ignore */
       }
     }
-  } else {
+  }
+
+  let signatureRendered = false;
+  if (seller.signature_url) {
+    const img = await loadImageDataUrl(seller.signature_url);
+    if (img) {
+      try {
+        doc.addImage(img.data, img.format, sigBoxX, sigY, sigBoxW, sigBoxH);
+        signatureRendered = true;
+      } catch {
+        signatureRendered = false;
+      }
+    }
+  }
+  if (!signatureRendered) {
     doc.setDrawColor(180);
-    doc.line(sigBoxX, sigY + 28, sigRight, sigY + 28);
+    doc.line(sigBoxX, sigY + sigBoxH - 4, sigRight, sigY + sigBoxH - 4);
   }
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(60);
-  doc.text("Authorized Signature", sigRight, sigY + 46, { align: "right" });
+  doc.text("Authorized Signature", sigRight, sigY + sigBoxH + 12, { align: "right" });
+  y = sigY + sigBoxH + 20;
 
   // Footer page numbers
   const pageCount = (doc as any).internal.getNumberOfPages();
