@@ -843,6 +843,10 @@ function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen, 
       <Row onClick={onUpdateFinance} dotColor="#1E40AF" tint="#DBEAFE" title="Update Finance" subtitle="Partner, status, disbursal" icon="◈" />
       <Row onClick={onSetFollowUp} dotColor="#92400E" tint="#FEF3C7" title="Set Follow-up" subtitle="Schedule next call / message" icon="⏰" />
       <div className="h-px bg-line my-0.5" />
+      <div className="h-px bg-line my-0.5" />
+      <Row onClick={onCreateInvoice} dotColor="#7C3AED" tint="#EDE9FE" title="Create Invoice" subtitle="Auto-fill from paid lead" icon="🧾" />
+      <Row onClick={onViewInvoices} dotColor="#4338CA" tint="#E0E7FF" title="View Invoices" subtitle="All invoices for this buyer" icon="📑" />
+      <div className="h-px bg-line my-0.5" />
       {!archived ? (
         <Row onClick={onArchive} dotColor="#92400E" tint="#FEF3C7" title="Archive Buyer" subtitle="Hide from active table — payments preserved" icon="📦" />
       ) : (
