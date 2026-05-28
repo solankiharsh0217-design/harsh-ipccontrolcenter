@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { logActivity } from "@/lib/auditLog";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { recomputePaidLead, DEFAULT_PAYMENT_MODES, DEFAULT_PAYMENT_CATEGORIES } from "@/lib/paidPipeline";
-import { createTag, assignTag, listAllTags, type Tag } from "@/lib/leadTags";
+import { createTag, assignTag } from "@/lib/leadTags";
 import type { Pipeline, Stage, LeadGrade } from "@/lib/crmTypes";
 
 interface Props {
