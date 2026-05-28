@@ -9,23 +9,28 @@ export interface ReadinessCheck {
 export function checkReadiness(
   company: CompanySettings | null,
   settings: InvoiceSettings | null,
-  invoiceType: InvoiceType
+  invoiceType: InvoiceType,
+  sellerSnapshot?: Partial<CompanySettings> | null
 ): ReadinessCheck {
   const missing: string[] = [];
-  if (!company?.legal_name) missing.push("Legal company name");
-  if (!company?.address) missing.push("Company address");
-  if (!company?.email) missing.push("Company email");
-  if (!company?.bank_account_number || !company?.bank_ifsc) missing.push("Bank account details");
+  const seller = { ...(company || {}), ...(sellerSnapshot || {}) } as Partial<CompanySettings>;
+  const has = (v: unknown) => typeof v === "string" ? v.trim().length > 0 : v != null;
+  const signatureUrl = has(sellerSnapshot?.signature_url) ? sellerSnapshot?.signature_url : company?.signature_url;
+
+  if (!has(seller.legal_name)) missing.push("Legal company name");
+  if (!has(seller.address)) missing.push("Company address");
+  if (!has(seller.email)) missing.push("Company email");
+  if (!has(seller.bank_account_number) || !has(seller.bank_ifsc)) missing.push("Bank account details");
   if (!settings?.invoice_prefix) missing.push("Invoice prefix");
-  if (settings?.require_authorized_signature && !company?.signature_url) missing.push("Authorized signature (upload in Company Settings)");
+  if (settings?.require_authorized_signature && !has(signatureUrl)) missing.push("Authorized signature (upload in Company Settings)");
 
   if (invoiceType === "gst") {
-    if (!company?.gstin) missing.push("GSTIN");
-    if (!company?.state) missing.push("Seller state");
-    if (!company?.state_code) missing.push("Seller state code");
+    if (!has(seller.gstin)) missing.push("GSTIN");
+    if (!has(seller.state)) missing.push("Seller state");
+    if (!has(seller.state_code)) missing.push("Seller state code");
     if (settings?.hsn_sac_required && !settings?.default_hsn_sac) missing.push("HSN/SAC");
     if (!(Number(settings?.default_gst_rate) > 0)) missing.push("GST rate");
-    if (!company?.state && !settings?.default_place_of_supply) missing.push("Place of supply");
+    if (!has(seller.state) && !settings?.default_place_of_supply) missing.push("Place of supply");
   }
   return {
     ok: missing.length === 0,
