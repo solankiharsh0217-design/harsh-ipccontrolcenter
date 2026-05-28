@@ -795,14 +795,101 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
         {step === 1 && (
           <div className="p-6 space-y-4">
-            <label className="block">
-              <div className="border-2 border-dashed border-line rounded-lg p-8 text-center cursor-pointer hover:border-black transition-colors">
-                <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                <div className="font-sans text-sm">{fileName || "Click to upload CSV"}</div>
-                <div className="text-[11px] text-muted-foreground mt-1">Headers in first row · UTF-8 CSV</div>
-                <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            {/* Source picker */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setSourceType("csv")}
+                className={`text-left rounded-lg border p-3 transition-colors ${sourceType === "csv" ? "border-black bg-off" : "border-line hover:border-black/40"}`}
+              >
+                <div className="flex items-center gap-2 font-sans text-sm font-medium"><Upload className="w-4 h-4" /> Upload CSV</div>
+                <div className="text-[11px] text-muted-foreground mt-1">Paste/upload a UTF-8 CSV file with headers.</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSourceType("google_sheet")}
+                className={`text-left rounded-lg border p-3 transition-colors ${sourceType === "google_sheet" ? "border-black bg-off" : "border-line hover:border-black/40"}`}
+              >
+                <div className="flex items-center gap-2 font-sans text-sm font-medium"><FileSpreadsheet className="w-4 h-4" /> Import from Google Sheet</div>
+                <div className="text-[11px] text-muted-foreground mt-1">Paste a Google Sheet link, pick a tab, and import.</div>
+              </button>
+            </div>
+
+            {sourceType === "csv" && (
+              <label className="block">
+                <div className="border-2 border-dashed border-line rounded-lg p-8 text-center cursor-pointer hover:border-black transition-colors">
+                  <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                  <div className="font-sans text-sm">{fileName || "Click to upload CSV"}</div>
+                  <div className="text-[11px] text-muted-foreground mt-1">Headers in first row · UTF-8 CSV</div>
+                  <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                </div>
+              </label>
+            )}
+
+            {sourceType === "google_sheet" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="form-label flex items-center gap-1"><Link2 className="w-3.5 h-3.5" /> Google Sheet link</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="ipc-input flex-1"
+                      placeholder="https://docs.google.com/spreadsheets/d/…"
+                      value={gsUrl}
+                      onChange={(e) => setGsUrl(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleFetchGsTabs}
+                      disabled={gsLoadingTabs || !gsUrl.trim()}
+                      className="ipc-btn ipc-btn-black disabled:opacity-50"
+                    >
+                      {gsLoadingTabs ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} Fetch Tabs
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Sheet must be shared as "Anyone with the link can view" or accessible to the connected Google account.
+                  </p>
+                </div>
+
+                {gsError && (
+                  <div className="flex items-start gap-2 p-3 rounded-md border border-rose-200 bg-rose-50 text-xs text-rose-700">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> <div>{gsError}</div>
+                  </div>
+                )}
+
+                {gsTabs.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-3">
+                      <span>Sheet: <b className="text-foreground">{gsSpreadsheetTitle || "—"}</b></span>
+                      <span>ID: <code>{gsSpreadsheetId.slice(0, 6)}…{gsSpreadsheetId.slice(-4)}</code></span>
+                      {gsFetchedAt && <span>Fetched: {gsFetchedAt}</span>}
+                    </div>
+                    <div>
+                      <label className="form-label">Select tab</label>
+                      <select
+                        className="ipc-input"
+                        value={gsSelectedTab}
+                        onChange={(e) => handleSelectGsTab(e.target.value)}
+                        disabled={gsLoadingRows}
+                      >
+                        <option value="">— choose a tab —</option>
+                        {gsTabs.map((t) => (
+                          <option key={t.sheetId} value={t.tabName}>
+                            {t.tabName} · {t.validRowsCount} rows · {t.detectedHeaders.length} cols
+                          </option>
+                        ))}
+                      </select>
+                      {gsLoadingRows && (
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-2">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Fetching rows…
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            </label>
+            )}
 
             {headers.length > 0 && (
               <>
@@ -833,6 +920,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             </div>
           </div>
         )}
+
 
         {step === 2 && (
           <div className="p-6 space-y-4">
