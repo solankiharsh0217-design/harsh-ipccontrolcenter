@@ -78,9 +78,9 @@ export async function renderInvoicePdf(
   y = M;
 
   // ---------- HEADER (two columns, fixed widths) ----------
-  const leftColW = contentW * 0.6;
-  const rightColX = M + leftColW + 12;
-  const rightColW = contentW - leftColW - 12;
+  const leftColW = contentW * 0.55;
+  const rightColX = M + leftColW + 16;
+  const rightColW = contentW - leftColW - 16;
 
   // Logo
   let leftTextX = M;
