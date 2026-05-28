@@ -3,7 +3,7 @@ import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { X, Plus, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
+import { X, Plus, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, Link2, Loader2 } from "lucide-react";
 import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type LeadGrade } from "@/lib/crmTypes";
 import { logActivity } from "@/lib/auditLog";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
@@ -65,11 +65,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const { profile } = useAuth();
   const [step, setStep] = useState(1);
 
-  // Step 1
+  // Step 1 — source
+  type SourceType = "csv" | "google_sheet";
+  const [sourceType, setSourceType] = useState<SourceType>("csv");
   const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [mapping, setMapping] = useState<Record<FieldKey, string>>({ full_name: "", email: "", phone: "", country: "" });
+
+  // Google Sheet sub-state
+  const [gsUrl, setGsUrl] = useState("");
+  const [gsLoadingTabs, setGsLoadingTabs] = useState(false);
+  const [gsLoadingRows, setGsLoadingRows] = useState(false);
+  const [gsError, setGsError] = useState<string | null>(null);
+  const [gsSpreadsheetId, setGsSpreadsheetId] = useState<string>("");
+  const [gsSpreadsheetTitle, setGsSpreadsheetTitle] = useState<string>("");
+  const [gsTabs, setGsTabs] = useState<{ sheetId: string; tabName: string; validRowsCount: number; detectedHeaders: string[] }[]>([]);
+  const [gsSelectedTab, setGsSelectedTab] = useState<string>("");
+  const [gsFetchedAt, setGsFetchedAt] = useState<string>("");
 
   // Step 2
   const [segmentName, setSegmentName] = useState("");
@@ -129,6 +142,66 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     setRows(data);
     setMapping(autoMap(hdrs));
   };
+
+  // ── Google Sheets: extract spreadsheet ID ──────────────────────────────
+  const extractSpreadsheetId = (url: string): string | null => {
+    if (!url) return null;
+    const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return m ? m[1] : null;
+  };
+
+  const handleFetchGsTabs = async () => {
+    setGsError(null);
+    const sid = extractSpreadsheetId(gsUrl.trim());
+    if (!sid) { setGsError("Please paste a valid Google Sheet URL."); return; }
+    setGsLoadingTabs(true);
+    setGsTabs([]); setGsSelectedTab(""); setHeaders([]); setRows([]); setFileName("");
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-roas-master-sheet-tabs", {
+        body: { masterSheetUrl: gsUrl.trim() },
+      });
+      if (error) throw new Error(error.message || "Failed to fetch sheet tabs");
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const tabs = ((data as any)?.tabs || []) as any[];
+      if (tabs.length === 0) { setGsError("No tabs were found in this spreadsheet."); return; }
+      setGsSpreadsheetId((data as any)?.spreadsheetId || sid);
+      setGsSpreadsheetTitle((data as any)?.spreadsheetTitle || "");
+      setGsTabs(tabs.map((t) => ({
+        sheetId: t.sheetId, tabName: t.tabName,
+        validRowsCount: Number(t.validRowsCount || 0),
+        detectedHeaders: Array.isArray(t.detectedHeaders) ? t.detectedHeaders : [],
+      })));
+      setGsFetchedAt(new Date().toLocaleString());
+    } catch (e: any) {
+      setGsError(e?.message || "Failed to fetch tabs");
+    } finally { setGsLoadingTabs(false); }
+  };
+
+  const handleSelectGsTab = async (tabName: string) => {
+    setGsSelectedTab(tabName);
+    setGsError(null);
+    if (!tabName || !gsSpreadsheetId) return;
+    setGsLoadingRows(true);
+    setHeaders([]); setRows([]);
+    try {
+      const { data, error } = await supabase.functions.invoke("google-sheets-fetch-rows", {
+        body: { spreadsheetId: gsSpreadsheetId, tabName },
+      });
+      if (error) throw new Error(error.message || "Failed to fetch rows");
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const hdrs = ((data as any)?.headers || []) as string[];
+      const rws = ((data as any)?.rows || []) as Row[];
+      if (rws.length === 0) { setGsError("This tab has no rows to import."); return; }
+      setHeaders(hdrs);
+      setRows(rws);
+      setMapping(autoMap(hdrs));
+      setFileName(`${gsSpreadsheetTitle || "Google Sheet"} · ${tabName}`);
+    } catch (e: any) {
+      setGsError(e?.message || "Failed to fetch sheet rows");
+    } finally { setGsLoadingRows(false); }
+  };
+
+
 
   const saveWebinarToDb = async () => {
     const n = webinarName.trim();
@@ -642,6 +715,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         entity_label: segmentName,
         metadata: {
           batch_name: segmentName,
+          source_type: sourceType,
+          source_file_name: sourceType === "csv" ? fileName : null,
+          source_spreadsheet_id: sourceType === "google_sheet" ? gsSpreadsheetId : null,
+          source_spreadsheet_title: sourceType === "google_sheet" ? gsSpreadsheetTitle : null,
+          source_sheet_tab: sourceType === "google_sheet" ? gsSelectedTab : null,
           pipeline_id: pipelineId,
           pipeline_name: pipelineName,
           pipeline_type: pipelineType,
@@ -722,14 +800,101 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
         {step === 1 && (
           <div className="p-6 space-y-4">
-            <label className="block">
-              <div className="border-2 border-dashed border-line rounded-lg p-8 text-center cursor-pointer hover:border-black transition-colors">
-                <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                <div className="font-sans text-sm">{fileName || "Click to upload CSV"}</div>
-                <div className="text-[11px] text-muted-foreground mt-1">Headers in first row · UTF-8 CSV</div>
-                <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            {/* Source picker */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setSourceType("csv")}
+                className={`text-left rounded-lg border p-3 transition-colors ${sourceType === "csv" ? "border-black bg-off" : "border-line hover:border-black/40"}`}
+              >
+                <div className="flex items-center gap-2 font-sans text-sm font-medium"><Upload className="w-4 h-4" /> Upload CSV</div>
+                <div className="text-[11px] text-muted-foreground mt-1">Paste/upload a UTF-8 CSV file with headers.</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSourceType("google_sheet")}
+                className={`text-left rounded-lg border p-3 transition-colors ${sourceType === "google_sheet" ? "border-black bg-off" : "border-line hover:border-black/40"}`}
+              >
+                <div className="flex items-center gap-2 font-sans text-sm font-medium"><FileSpreadsheet className="w-4 h-4" /> Import from Google Sheet</div>
+                <div className="text-[11px] text-muted-foreground mt-1">Paste a Google Sheet link, pick a tab, and import.</div>
+              </button>
+            </div>
+
+            {sourceType === "csv" && (
+              <label className="block">
+                <div className="border-2 border-dashed border-line rounded-lg p-8 text-center cursor-pointer hover:border-black transition-colors">
+                  <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                  <div className="font-sans text-sm">{fileName || "Click to upload CSV"}</div>
+                  <div className="text-[11px] text-muted-foreground mt-1">Headers in first row · UTF-8 CSV</div>
+                  <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                </div>
+              </label>
+            )}
+
+            {sourceType === "google_sheet" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="form-label flex items-center gap-1"><Link2 className="w-3.5 h-3.5" /> Google Sheet link</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="ipc-input flex-1"
+                      placeholder="https://docs.google.com/spreadsheets/d/…"
+                      value={gsUrl}
+                      onChange={(e) => setGsUrl(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleFetchGsTabs}
+                      disabled={gsLoadingTabs || !gsUrl.trim()}
+                      className="ipc-btn ipc-btn-black disabled:opacity-50"
+                    >
+                      {gsLoadingTabs ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} Fetch Tabs
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Sheet must be shared as "Anyone with the link can view" or accessible to the connected Google account.
+                  </p>
+                </div>
+
+                {gsError && (
+                  <div className="flex items-start gap-2 p-3 rounded-md border border-rose-200 bg-rose-50 text-xs text-rose-700">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> <div>{gsError}</div>
+                  </div>
+                )}
+
+                {gsTabs.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-3">
+                      <span>Sheet: <b className="text-foreground">{gsSpreadsheetTitle || "—"}</b></span>
+                      <span>ID: <code>{gsSpreadsheetId.slice(0, 6)}…{gsSpreadsheetId.slice(-4)}</code></span>
+                      {gsFetchedAt && <span>Fetched: {gsFetchedAt}</span>}
+                    </div>
+                    <div>
+                      <label className="form-label">Select tab</label>
+                      <select
+                        className="ipc-input"
+                        value={gsSelectedTab}
+                        onChange={(e) => handleSelectGsTab(e.target.value)}
+                        disabled={gsLoadingRows}
+                      >
+                        <option value="">— choose a tab —</option>
+                        {gsTabs.map((t) => (
+                          <option key={t.sheetId} value={t.tabName}>
+                            {t.tabName} · {t.validRowsCount} rows · {t.detectedHeaders.length} cols
+                          </option>
+                        ))}
+                      </select>
+                      {gsLoadingRows && (
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-2">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Fetching rows…
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            </label>
+            )}
 
             {headers.length > 0 && (
               <>
@@ -760,6 +925,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             </div>
           </div>
         )}
+
 
         {step === 2 && (
           <div className="p-6 space-y-4">
