@@ -4,18 +4,25 @@ import type { CompanySettings, Invoice } from "./types";
 import { amountToWordsINR } from "./amountInWords";
 
 // ---------- Currency ----------
-export function formatINR(amount: number | null | undefined): string {
-  const n = Number(amount) || 0;
-  const neg = n < 0;
-  const abs = Math.abs(n);
-  const fixed = abs.toFixed(2);
+function formatNumberINR(n: number): string {
+  const fixed = Math.abs(n).toFixed(2);
   const [intPart, decPart] = fixed.split(".");
-  // Indian grouping: last 3 digits, then groups of 2
-  let lastThree = intPart.slice(-3);
+  const lastThree = intPart.slice(-3);
   const otherNumbers = intPart.slice(0, -3);
   const formattedInt =
     (otherNumbers ? otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," : "") + lastThree;
-  return `${neg ? "(-) " : ""}Rs. ${formattedInt}.${decPart}`;
+  return `${formattedInt}.${decPart}`;
+}
+
+export function formatINR(amount: number | null | undefined): string {
+  const n = Number(amount) || 0;
+  return `${n < 0 ? "(-) " : ""}Rs. ${formatNumberINR(n)}`;
+}
+
+// Compact form for table cells (no currency prefix; saves column width)
+function formatAmt(amount: number | null | undefined): string {
+  const n = Number(amount) || 0;
+  return `${n < 0 ? "-" : ""}${formatNumberINR(n)}`;
 }
 
 async function loadImageDataUrl(url: string): Promise<string | null> {
@@ -71,9 +78,9 @@ export async function renderInvoicePdf(
   y = M;
 
   // ---------- HEADER (two columns, fixed widths) ----------
-  const leftColW = contentW * 0.6;
-  const rightColX = M + leftColW + 12;
-  const rightColW = contentW - leftColW - 12;
+  const leftColW = contentW * 0.55;
+  const rightColX = M + leftColW + 16;
+  const rightColW = contentW - leftColW - 16;
 
   // Logo
   let leftTextX = M;
@@ -222,7 +229,7 @@ export async function renderInvoicePdf(
 
   if (hasCgstSgst) {
     head = ["#", "Item & Description", "HSN/SAC", "Qty", "Rate", "CGST", "SGST", "Amount"];
-    const widths = [0.05, 0.27, 0.1, 0.07, 0.12, 0.12, 0.12, 0.15];
+    const widths = [0.04, 0.32, 0.09, 0.06, 0.11, 0.115, 0.115, 0.14];
     widths.forEach((w, i) => {
       colStyles[i] = {
         cellWidth: contentW * w,
@@ -236,15 +243,15 @@ export async function renderInvoicePdf(
         desc,
         li.hsn_sac || "",
         String(li.quantity),
-        formatINR(li.rate),
-        `${formatINR(li.cgst_amount)}\n${li.tax_rate / 2}%`,
-        `${formatINR(li.sgst_amount)}\n${li.tax_rate / 2}%`,
-        formatINR(li.amount),
+        formatAmt(li.rate),
+        `${formatAmt(li.cgst_amount)}\n(${li.tax_rate / 2}%)`,
+        `${formatAmt(li.sgst_amount)}\n(${li.tax_rate / 2}%)`,
+        formatAmt(li.amount),
       ];
     });
   } else if (hasIgst) {
     head = ["#", "Item & Description", "HSN/SAC", "Qty", "Rate", "IGST", "Amount"];
-    const widths = [0.05, 0.3, 0.11, 0.08, 0.14, 0.16, 0.16];
+    const widths = [0.04, 0.36, 0.1, 0.07, 0.13, 0.15, 0.15];
     widths.forEach((w, i) => {
       colStyles[i] = {
         cellWidth: contentW * w,
@@ -258,14 +265,14 @@ export async function renderInvoicePdf(
         desc,
         li.hsn_sac || "",
         String(li.quantity),
-        formatINR(li.rate),
-        `${formatINR(li.igst_amount)}\n${li.tax_rate}%`,
-        formatINR(li.amount),
+        formatAmt(li.rate),
+        `${formatAmt(li.igst_amount)}\n(${li.tax_rate}%)`,
+        formatAmt(li.amount),
       ];
     });
   } else {
     head = ["#", "Item & Description", "HSN/SAC", "Qty", "Rate", "Amount"];
-    const widths = [0.06, 0.44, 0.12, 0.08, 0.15, 0.15];
+    const widths = [0.05, 0.47, 0.12, 0.08, 0.14, 0.14];
     widths.forEach((w, i) => {
       colStyles[i] = {
         cellWidth: contentW * w,
@@ -279,8 +286,8 @@ export async function renderInvoicePdf(
         desc,
         li.hsn_sac || "",
         String(li.quantity),
-        formatINR(li.rate),
-        formatINR(li.amount),
+        formatAmt(li.rate),
+        formatAmt(li.amount),
       ];
     });
   }
@@ -296,9 +303,15 @@ export async function renderInvoicePdf(
       fontSize: 8.5,
       fontStyle: "bold",
       halign: "left",
-      cellPadding: 6,
+      cellPadding: { top: 6, right: 4, bottom: 6, left: 4 },
     },
-    bodyStyles: { fontSize: 8.5, cellPadding: 6, textColor: 30, valign: "top" },
+    bodyStyles: {
+      fontSize: 8.5,
+      cellPadding: { top: 5, right: 4, bottom: 5, left: 4 },
+      textColor: 30,
+      valign: "top",
+      overflow: "linebreak",
+    },
     columnStyles: colStyles,
     margin: { left: M, right: M },
     tableWidth: contentW,
@@ -410,7 +423,7 @@ export async function renderInvoicePdf(
     doc.addPage();
     y = M;
   }
-  const sigY = Math.max(y + 10, H - sigBlockH - 30);
+  const sigY = y + 10;
   const sigRight = W - M;
   const sigBoxW = 160;
   const sigBoxX = sigRight - sigBoxW;
