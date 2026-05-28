@@ -352,8 +352,8 @@ Deno.serve(async (req) => {
       if (!authHeader?.startsWith('Bearer ')) return publicError('UNAUTHORIZED', 'Missing Authorization', 401);
       const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
       const userClient = createClient(SUPABASE_URL, ANON, { global: { headers: { Authorization: authHeader } } });
-      const { data: claims } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
-      const uid = claims?.claims?.sub as string | undefined;
+      const { data: userData } = await userClient.auth.getUser();
+      const uid = userData?.user?.id;
       if (!uid) return publicError('UNAUTHORIZED', 'Invalid session', 401);
       const { data: isAdmin } = await admin.rpc('has_role', { _user_id: uid, _role: 'admin' });
       if (!isAdmin) return publicError('FORBIDDEN', 'Admin only', 403);
