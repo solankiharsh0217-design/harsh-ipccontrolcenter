@@ -1,67 +1,91 @@
-# Phase 1.1 — Code of Conduct Stage-Trigger Automation
+# Phase 1.3 — Lead-Linked Smart Invoice System
 
-Much of the foundation already exists: the `code_of_conduct_rules` table, the Admin "Trigger Rules" UI (`CodeOfConductRulesTab`), the runtime evaluator `evaluateStageTrigger()`, and one wiring point in the CRM Lead Drawer. This plan finishes the remaining gaps so the feature ships end-to-end without disturbing the working signed-PDF flow.
+Per your "Build in Two Steps" guidance, I'll ship **Phase 1.3A** in this loop and stop there. Phase 1.3B (email, full history page, item catalog, void workflow) will follow in a separate request.
 
-## Scope (only)
-- Wire the existing evaluator into every stage-change path (CRM kanban DnD, CRM bulk move, Paid Pipeline drawer CRM-stage change, Paid Pipeline pipeline-stage change).
-- Show CoC status in the CRM Lead Drawer + small chips on CRM kanban cards.
-- Sync signed status across CRM + Paid Pipeline + apply tag + optional stage move + notifications when a lead signs.
-- Persist "suggestion ignored" state per (lead, rule).
-- Admin Requests filters: status, trigger type, rule, pipeline, stage.
-- Audit events for every runtime action.
+## Phase 1.3A Scope (this build)
 
-## Out of scope
-Payments, follow-ups, imports, Operations rewards, LMS automation, signed-PDF generation logic, Team Directory, hard wipe.
+1. **Company Settings** — Admin Center page; identity, branding (logo/signature/stamp upload), bank details, email sender
+2. **Invoice Settings** — Admin Center page; numbering, tax defaults, default notes/terms/email copy
+3. **Invoice Readiness Check** — surfaced in invoice editor before issue
+4. **Paid Pipeline entry points** — row action "Create Invoice" + drawer Invoice card with Create/Download/History
+5. **Invoice Editor** — auto-fills from Company Settings + paid lead + CRM lead; GST/non-GST toggle; 4 invoice modes (Full Deal / Token / Balance / Custom); item table; tax summary; notes/terms
+6. **Snapshots** — seller/buyer/tax snapshots stored on issue; old invoices regenerate identically
+7. **On-demand PDF** — clean A4 layout, brand logo, GST breakup if GST invoice, signature/stamp, bank block; NOT persisted
+8. **Numbering safety** — Postgres RPC with row lock; number assigned only on issue
+9. **Basic invoice list** inside Paid Pipeline drawer (full Revenue Center → Invoices page is 1.3B)
+10. **Audit events** — settings updates, draft created, issued, pdf generated
+11. **RLS** — admin all; sales sees invoices for their assigned paid lead
 
-## What's already done (reused as-is)
-- `code_of_conduct_rules` table + `CodeOfConductRulesTab` admin UI (Part 1 ✓)
-- `evaluateStageTrigger` / `findMatchingRule` / `logManualSendEvent` (Part 2 ✓)
-- LeadDrawer (CRM) calls evaluator on dropdown stage change ✓
-- `CodeOfConductPanel` on Paid Pipeline drawer ✓
-- Signed PDF generation, evidence appendix, email links ✓
+## Out of scope (Phase 1.3B)
+Send Email, full Invoices history page with filters, item catalog UI, duplicate/void/cancel workflow, finance role split.
 
-## Implementation
+## Untouched (per your instruction)
+CoC signing/PDF, CoC rules, payment calculations, Sheets/CSV import, follow-ups, Team, Operations CRM, hard wipe, AI Insights.
 
-### 1. New DB pieces (one migration)
-- `code_of_conduct_suggestion_ignores` (request_id nullable, crm_lead_id nullable, paid_pipeline_lead_id nullable, rule_id, stage_id, ignored_by, ignored_at) — admin/active-user insert; admin select.
-- Add columns on `leads` and `paid_pipeline_leads`: `coc_status text`, `coc_request_id uuid`, `coc_signed_at timestamptz` (denormalised cache for fast chip rendering; updated by triggers/edge function).
-- Trigger on `code_of_conduct_requests` AFTER UPDATE to mirror status → both leads tables, apply configured tag, optional stage move, fire notifications.
+## Technical design
 
-### 2. Runtime evaluator integration
-- `src/pages/Crm.tsx` line ~398: after kanban drop stage update → call `evaluateStageTrigger({source:"crm"...})` and toast.
-- `src/pages/Crm.tsx` line ~928: bulk stage update → loop minimal evaluator (skip if same stage) with throttle, surface summary toast.
-- `src/pages/PaidPipeline.tsx` line ~1061 (CRM stage change from paid drawer) → evaluator with `source:"paid_pipeline"`.
-- `src/pages/PaidPipeline.tsx` pipeline_stage change (line ~1038) → already linked through CRM stage; no extra trigger needed.
+### Tables (migration)
+- `company_settings` — singleton row keyed by `workspace = 'default'`; identity, branding URLs, bank, sender. Admin write; authenticated read (needed for invoice editor).
+- `invoice_settings` — singleton; numbering, tax defaults, text/email defaults. Admin write; authenticated read.
+- `invoices` — full snapshot columns (seller_snapshot_json, buyer_snapshot_json, tax_snapshot_json) + totals + `status` (draft/issued/sent/paid/cancelled/void) + `invoice_type` + `invoice_mode` + `paid_pipeline_lead_id`/`crm_lead_id`.
+- `invoice_line_items` — child of invoices.
+- `invoice_events` — audit per invoice.
+- `invoice_items` — catalog (kept simple in 1.3A; UI in 1.3B).
 
-### 3. CRM Lead Drawer — CoC card
-New component `src/components/crm/CodeOfConductCard.tsx`:
-- Loads matched rule + latest request for the lead.
-- Renders one of 8 states (Not Required / Required / Suggested / Sent / Viewed / Signed / Expired / Failed) with the buttons specified.
-- Reuses `send-code-of-conduct-email` + `code-of-conduct-public` edge functions; reuses `ensureSignedPdf` pattern.
-- "Ignore" inserts into `code_of_conduct_suggestion_ignores`; Suggested banner suppressed until rule/stage changes.
-- Mounted in `LeadDrawer.tsx` between activity and follow-ups.
+### Numbering RPC
+`assign_next_invoice_number()` SECURITY DEFINER, uses `SELECT ... FOR UPDATE` on `invoice_settings`, increments `next_invoice_number`, returns formatted `{prefix}{padded_number}` (with optional FY). Drafts call nothing; only `issue_invoice` calls this RPC inside the same transaction that writes status=issued.
 
-### 4. CRM Kanban chips
-- Read `coc_status` denorm column on lead cards in `Crm.tsx`; render a small pill (`CoC Signed` green, `CoC Sent`/`Viewed` blue, `Required`/`Expired` amber/red, `Failed` red) only when the value is set.
+### RLS
 
-### 5. Paid Pipeline drawer improvements
-- `CodeOfConductPanel.tsx`: display matched rule name + trigger reason + suggested/auto-sent badge using `code_of_conduct_events`. Show "Code of Conduct Signed — ready for Diamond access review" banner when signed.
+```text
+company_settings / invoice_settings:
+  SELECT to authenticated
+  INSERT/UPDATE only if has_role(auth.uid(),'admin')
 
-### 6. After-signing automation
-Implemented in the DB trigger described above (runs with definer rights so it can touch leads/notifications/tags safely). Events written: `code_of_conduct_signed_status_synced`, `code_of_conduct_signed_tag_applied`, `code_of_conduct_signed_stage_updated`, `code_of_conduct_signed_notification_sent`.
+invoices:
+  SELECT: admin OR creator OR assigned_sales_executive of paid_pipeline_lead_id
+  INSERT: authenticated (must set created_by = auth.uid())
+  UPDATE: admin OR creator (only while status='draft')
 
-### 7. Admin Requests filters
-- `CodeOfConductAdmin.tsx` Requests tab: add filter chips/selects for status, trigger source (manual/auto/suggested), rule, pipeline, stage. All client-side filtering over the already-loaded list to avoid query rewrites.
+invoice_line_items / invoice_events: follow parent invoice access via EXISTS check
+```
 
-### 8. Audit events
-All evaluator branches and trigger actions write to `code_of_conduct_events`; `logManualSendEvent` is already wired for manual sends.
+### Storage
+New public bucket `invoice-assets` for logo / signature / stamp uploads.
 
-## Files touched
-- New: `supabase/migrations/<ts>_coc_stage_triggers.sql`, `src/components/crm/CodeOfConductCard.tsx`
-- Edited: `src/pages/Crm.tsx`, `src/pages/PaidPipeline.tsx`, `src/components/LeadDrawer.tsx`, `src/components/paid-pipeline/CodeOfConductPanel.tsx`, `src/pages/CodeOfConductAdmin.tsx`
+### PDF generation
+Client-side using `jspdf` + `jspdf-autotable` (already-friendly with our stack; no server runtime needed, no persistence). Builds A4 layout from invoice snapshot. Triggered by Preview/Download buttons only.
 
-## Risk controls
-- Evaluator already has duplicate-protection (existing active request guard).
-- Bulk move throttles to avoid email storms (sequential, max 25/batch).
-- DB trigger is idempotent (only acts when status transitions to `signed` and not already synced).
-- No changes to signed-PDF generation, RLS on private bucket, or public token logic.
+### Files
+
+```text
+src/lib/invoices/
+  types.ts           # Invoice, LineItem, Snapshots
+  readiness.ts       # checkInvoiceReadiness(companySettings, invoiceSettings, type)
+  draft.ts           # buildDraftFromPaidLead(lead, crmLead, company, settings, mode)
+  totals.ts          # computeTotals(lineItems, taxType, discount, adjustment, paymentMade)
+  amountInWords.ts   # INR number → words
+  pdf.ts             # renderInvoicePdf(invoice) → jsPDF
+  api.ts             # saveDraft / issueInvoice / loadInvoice / listInvoicesForLead
+
+src/pages/admin/CompanySettings.tsx
+src/pages/admin/InvoiceSettings.tsx
+src/pages/InvoiceEditor.tsx        # /invoices/new?paidLeadId=... and /invoices/:id
+
+src/components/paid-pipeline/InvoiceCard.tsx        # in paid lead drawer
+src/components/paid-pipeline/CreateInvoiceMenuItem.tsx  # row action
+
+supabase/migrations/<ts>_invoices.sql
+```
+
+Routes added to `App.tsx`, links added to `AppLayout` (Admin Center) and Paid Pipeline drawer/row.
+
+### Acceptance checks I'll verify before handing back
+- Settings save round-trips for admin only.
+- Readiness check blocks GST invoice when GSTIN missing; allows fallback to Non-GST when enabled.
+- Creating invoice from a paid lead prefills 80%+ of fields.
+- Issuing assigns the next number atomically and snapshots seller/buyer/tax.
+- Re-opening an old invoice and downloading PDF uses snapshot (not live company settings).
+- Build passes.
+
+Proceeding with this on approval.
