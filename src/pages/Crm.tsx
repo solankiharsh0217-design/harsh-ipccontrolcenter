@@ -57,6 +57,7 @@ export default function Crm() {
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState("gray");
   const [importOpen, setImportOpen] = useState(false);
+  const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [addStageOpen, setAddStageOpen] = useState(false);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [editBatch, setEditBatch] = useState<{ origName: string; origDate: string | null; name: string; date: string } | null>(null);
