@@ -122,6 +122,9 @@ export async function issueInvoice(inv: Invoice, opts: { company: CompanySetting
     seller_gstin: opts.company?.gstin || null,
     seller_state: opts.company?.state || null,
     seller_state_code: opts.company?.state_code || null,
+    line_tax_rates: (inv.line_items || []).map((li) => ({
+      item_name: li.item_name, hsn_sac: li.hsn_sac || null, tax_rate: li.tax_rate,
+    })),
   };
 
   const { error: updErr } = await db.from("invoices").update({
