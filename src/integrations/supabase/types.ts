@@ -1161,13 +1161,16 @@ export type Database = {
           gstin: string | null
           id: string
           legal_name: string | null
+          logo_path: string | null
           logo_url: string | null
           pan: string | null
           phone: string | null
           reply_to_email: string | null
           sender_email: string | null
           sender_name: string | null
+          signature_path: string | null
           signature_url: string | null
+          stamp_path: string | null
           stamp_url: string | null
           state: string | null
           state_code: string | null
@@ -1197,13 +1200,16 @@ export type Database = {
           gstin?: string | null
           id?: string
           legal_name?: string | null
+          logo_path?: string | null
           logo_url?: string | null
           pan?: string | null
           phone?: string | null
           reply_to_email?: string | null
           sender_email?: string | null
           sender_name?: string | null
+          signature_path?: string | null
           signature_url?: string | null
+          stamp_path?: string | null
           stamp_url?: string | null
           state?: string | null
           state_code?: string | null
@@ -1233,13 +1239,16 @@ export type Database = {
           gstin?: string | null
           id?: string
           legal_name?: string | null
+          logo_path?: string | null
           logo_url?: string | null
           pan?: string | null
           phone?: string | null
           reply_to_email?: string | null
           sender_email?: string | null
           sender_name?: string | null
+          signature_path?: string | null
           signature_url?: string | null
+          stamp_path?: string | null
           stamp_url?: string | null
           state?: string | null
           state_code?: string | null
