@@ -78,6 +78,39 @@ export default function InvoiceEditor() {
     [company, settings, invoice?.invoice_type]
   );
 
+  // Comprehensive issue-time blockers (invoice-level, beyond company readiness)
+  const blockers = useMemo(() => {
+    const list: string[] = [];
+    if (!invoice) return list;
+    const items = invoice.line_items || [];
+    if (!items.length) list.push("Add at least one line item");
+    else if (items.some((li) => !li.item_name?.trim())) list.push("Every line item needs a name");
+    else if (items.every((li) => (Number(li.amount) || 0) === 0)) list.push("Line item amounts are zero");
+    if (!invoice.member_name?.trim()) list.push("Buyer / member name is missing");
+    if ((Number(invoice.total_amount) || 0) <= 0) list.push("Invoice total must be greater than zero");
+    if (invoice.invoice_type === "gst" && settings?.hsn_sac_required) {
+      const missing = items.some((li) => !li.hsn_sac || !String(li.hsn_sac).trim());
+      if (missing) list.push("HSN/SAC is required on every line item");
+    }
+    if (settings?.require_authorized_signature && !company?.signature_url && !invoice.seller_snapshot_json?.signature_url) {
+      list.push("Authorized signature is required (upload in Company Settings)");
+    }
+    return list;
+  }, [invoice, settings, company]);
+
+  const allBlockers = useMemo(() => [...readiness.missing, ...blockers], [readiness.missing, blockers]);
+  const canIssue = allBlockers.length === 0;
+
+  async function refreshFromCompany() {
+    if (!invoice || invoice.status !== "draft") return;
+    const c = await loadCompanySettings();
+    const s = await loadInvoiceSettings();
+    setCompany(c); setSettings(s);
+    // Update only draft-visible fields; do not mutate locked snapshots
+    setInvoice((cur) => cur ? { ...cur } : cur);
+    toast.success("Pulled latest company & invoice settings");
+  }
+
   const recompute = (inv: Invoice, overrides?: Partial<Invoice>): Invoice => {
     const merged = { ...inv, ...(overrides || {}) };
     const split: TaxSplit = merged.invoice_type === "gst" ? (settings?.default_tax_split || "cgst_sgst") : "none";
