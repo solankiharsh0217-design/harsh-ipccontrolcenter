@@ -143,13 +143,12 @@ export default function CompanySettingsPage() {
     setBusyKind(kind);
     setLastUploadError(null);
     try {
-      const workspace = s.workspace || "default";
-      const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
-      const base = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40) || "file";
-      const path = `${workspace}/${ASSET_FOLDER[kind]}/${Date.now()}-${base}.${ext}`;
+      const path = buildAssetPath(s.workspace, ASSET_FOLDER[kind], file.name);
+      const pathField = ASSET_PATH_FIELD[kind];
+      setLastUploadPath(path);
       const { error } = await supabase.storage
         .from("invoice-assets")
-        .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+        .upload(path, file, { upsert: false, contentType: file.type, cacheControl: "3600" });
       if (error) {
         const friendly = mapUploadError(error.message);
         setLastUploadError(friendly);
@@ -158,12 +157,14 @@ export default function CompanySettingsPage() {
       }
       const { data } = supabase.storage.from("invoice-assets").getPublicUrl(path);
       const url = data.publicUrl;
-      set(kind, url);
+      const nextSettings = { ...s, [kind]: url, [pathField]: path };
+      setS(nextSettings);
       if (user) {
         try {
-          const saved = await saveCompanySettings({ ...s, [kind]: url }, user.id);
+          const saved = await saveCompanySettings(nextSettings, user.id);
           if (saved) setS(saved);
           setLastSaveError(null);
+          await refreshDiagnostics();
           toast.success(`${ASSET_LABEL[kind]} uploaded successfully`);
         } catch (e: any) {
           const m = "File uploaded but settings could not be saved. Please retry Save Company Settings.";
@@ -180,17 +181,48 @@ export default function CompanySettingsPage() {
 
   async function removeAsset(kind: AssetKind) {
     if (!confirm(`Remove ${ASSET_LABEL[kind].toLowerCase()}?`)) return;
-    set(kind, null);
+    const pathField = ASSET_PATH_FIELD[kind];
+    const existingPath = (s as any)[pathField] || pathFromPublicUrl(s[kind] as string | null | undefined);
+    const nextSettings = { ...s, [kind]: null, [pathField]: null };
+    setS(nextSettings);
     if (user) {
       try {
-        const saved = await saveCompanySettings({ ...s, [kind]: null }, user.id);
+        const saved = await saveCompanySettings(nextSettings, user.id);
         if (saved) setS(saved);
+        if (existingPath) await supabase.storage.from("invoice-assets").remove([existingPath]);
         setLastSaveError(null);
+        await refreshDiagnostics();
         toast.success("Removed");
       } catch (e: any) {
         setLastSaveError(e?.message || "Remove failed");
         toast.error(e?.message || "Remove failed");
       }
+    }
+  }
+
+  async function runStorageUploadTest() {
+    if (!user) return;
+    setTestRunning(true);
+    setTestResult(null);
+    setLastUploadError(null);
+    try {
+      const path = `debug/${user.id}-${Date.now()}.txt`;
+      setLastUploadPath(path);
+      const file = new Blob([`invoice-assets upload test ${new Date().toISOString()}`], { type: "text/plain" });
+      const { error } = await supabase.storage.from("invoice-assets").upload(path, file, { contentType: "text/plain", upsert: false });
+      if (error) throw error;
+      const { error: removeError } = await supabase.storage.from("invoice-assets").remove([path]);
+      if (removeError) throw removeError;
+      setTestResult("Upload test passed");
+      toast.success("Storage upload test passed");
+    } catch (e: any) {
+      const m = mapUploadError(e?.message || "Storage upload test failed");
+      setLastUploadError(m);
+      setTestResult(`Upload test failed: ${m}`);
+      toast.error(m);
+    } finally {
+      setTestRunning(false);
+      await refreshDiagnostics();
     }
   }
 
