@@ -120,8 +120,8 @@ export default function CompanySettingsPage() {
   const [diag, setDiag] = useState<any>(null);
 
   async function refreshDiagnostics() {
-    const { data } = await (supabase as any).rpc("get_invoice_assets_storage_diagnostics");
-    if (data) setDiag(data);
+    const { data, error } = await (supabase as any).rpc("get_invoice_assets_storage_diagnostics");
+    if (!error && data) setDiag(data);
   }
 
   useEffect(() => { (async () => {
