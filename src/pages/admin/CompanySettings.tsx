@@ -105,16 +105,26 @@ function pathFromPublicUrl(url?: string | null) {
 }
 
 export default function CompanySettingsPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const [s, setS] = useState<Partial<CompanySettings>>({ workspace: "default", country: "India", accent_color: "#111827" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [busyKind, setBusyKind] = useState<AssetKind | null>(null);
+  const fileInputs = useRef<Record<AssetKind, HTMLInputElement | null>>({ logo_url: null, signature_url: null, stamp_url: null });
   const [lastUploadError, setLastUploadError] = useState<string | null>(null);
   const [lastSaveError, setLastSaveError] = useState<string | null>(null);
+  const [lastUploadPath, setLastUploadPath] = useState<string | null>(null);
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [diag, setDiag] = useState<any>(null);
+
+  async function refreshDiagnostics() {
+    const { data } = await (supabase as any).rpc("get_invoice_assets_storage_diagnostics");
+    if (data) setDiag(data);
+  }
 
   useEffect(() => { (async () => {
-    const data = await loadCompanySettings();
+    const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
     if (data) setS(data);
     setLoading(false);
   })(); }, []);
