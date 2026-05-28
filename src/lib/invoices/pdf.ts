@@ -28,39 +28,67 @@ function formatAmt(amount: number | null | undefined): string {
 async function loadImageDataUrl(
   url: string
 ): Promise<{ data: string; format: "PNG" | "JPEG"; width: number; height: number } | null> {
-  // Use Image + canvas so we get natural dimensions (for aspect ratio) and
-  // normalize WEBP / unknown formats into PNG that jsPDF can render.
+  if (!url?.trim()) return null;
+  const loadDims = (src: string) => new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve({ width: i.naturalWidth || i.width, height: i.naturalHeight || i.height });
+    i.onerror = reject;
+    i.src = src;
+  });
+
+  // Fetch first and convert to a data URL so preview and download use the same
+  // embedded image data instead of depending on external/CORS image loading.
   try {
-    const img: HTMLImageElement = await new Promise((resolve, reject) => {
+    let dataUrl = url;
+    let mime = url.startsWith("data:") ? (url.match(/^data:([^;,]+)/)?.[1] || "") : "";
+    if (!url.startsWith("data:")) {
+      const r = await fetch(url, { mode: "cors", cache: "no-store" });
+      if (!r.ok) throw new Error(`image fetch failed: ${r.status}`);
+      const blob = await r.blob();
+      mime = (blob.type || "").toLowerCase();
+      if (mime.includes("text/html")) throw new Error("expected image, got html");
+      dataUrl = await new Promise<string>((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result as string);
+        fr.onerror = rej;
+        fr.readAsDataURL(blob);
+      });
+    }
+    const dims = await loadDims(dataUrl);
+    if (mime.includes("jpeg") || mime.includes("jpg")) return { data: dataUrl, format: "JPEG", ...dims };
+    if (mime.includes("png")) return { data: dataUrl, format: "PNG", ...dims };
+
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const i = new Image();
-      i.crossOrigin = "anonymous";
       i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error("image load failed"));
-      // Cache-bust signed/public URLs that may have stale CORS headers
-      i.src = url + (url.includes("?") ? "&" : "?") + "v=pdf";
+      i.onerror = reject;
+      i.src = dataUrl;
     });
     const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth || img.width;
-    canvas.height = img.naturalHeight || img.height;
+    canvas.width = dims.width;
+    canvas.height = dims.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    ctx.drawImage(img, 0, 0);
+    ctx.drawImage(image, 0, 0);
     const data = canvas.toDataURL("image/png");
     return { data, format: "PNG", width: canvas.width, height: canvas.height };
   } catch {
-    // Fallback to raw fetch (no aspect ratio info)
+    // Last resort: try CORS-enabled canvas loading from the original URL.
     try {
-      const r = await fetch(url);
-      if (!r.ok) return null;
-      const blob = await r.blob();
-      const mime = (blob.type || "").toLowerCase();
-      const dataUrl = await new Promise<string>((res) => {
-        const fr = new FileReader();
-        fr.onload = () => res(fr.result as string);
-        fr.readAsDataURL(blob);
+      const img: HTMLImageElement = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.crossOrigin = "anonymous";
+        i.onload = () => resolve(i);
+        i.onerror = () => reject(new Error("image load failed"));
+        i.src = url + (url.includes("?") ? "&" : "?") + "v=pdf";
       });
-      const format: "PNG" | "JPEG" = mime.includes("jpeg") || mime.includes("jpg") ? "JPEG" : "PNG";
-      return { data: dataUrl, format, width: 0, height: 0 };
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0);
+      return { data: canvas.toDataURL("image/png"), format: "PNG", width: canvas.width, height: canvas.height };
     } catch { return null; }
   }
 }
@@ -75,7 +103,9 @@ export async function renderInvoicePdf(
   invoice: Invoice,
   fallbackCompany: CompanySettings | null
 ): Promise<jsPDF> {
-  const seller: any = invoice.seller_snapshot_json || fallbackCompany || {};
+  const seller: any = invoice.status === "draft"
+    ? { ...(fallbackCompany || {}), ...(invoice.seller_snapshot_json || {}) }
+    : (invoice.seller_snapshot_json || fallbackCompany || {});
   const buyer: any =
     invoice.buyer_snapshot_json || {
       name: invoice.member_name,
