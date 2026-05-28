@@ -444,25 +444,32 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
         // 5) Build per-row preflight detail
         let missingEmail = 0;
+        let phoneOnlyCount = 0;
+        let nameOnlyCount = 0;
         let invalid = 0;
         let existingByEmailCount = 0;
         let existingByPhoneCount = 0;
         let matchConflictCount = 0;
         let archivedMatchCount = 0;
         let newCount = 0;
+        let willImport = 0;
+        let willSkip = 0;
 
         const rowDetails = parsed.map((p) => {
-          // Invalid: no name and no usable email and no phone
+          const base = { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone };
+          // Invalid: no name AND no usable email AND no phone
           if (!p.name && !p.emailValid && p.phone.length !== 10) {
-            invalid++;
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "invalid" as const, conflict: false, existing: null };
+            invalid++; willSkip++;
+            return { ...base, status: "invalid" as const, conflict: false, existing: null };
           }
           // In-sheet duplicate (email takes precedence)
           if (sheetDupEmailIdx.has(p.idx)) {
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "sheet_duplicate_email" as const, conflict: false, existing: null };
+            willSkip++;
+            return { ...base, status: "sheet_duplicate_email" as const, conflict: false, existing: null };
           }
           if (sheetDupPhoneIdx.has(p.idx) && !p.emailValid) {
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "sheet_duplicate_phone" as const, conflict: false, existing: null };
+            willSkip++;
+            return { ...base, status: "sheet_duplicate_phone" as const, conflict: false, existing: null };
           }
           // Existing match (email → phone)
           const emailMatch = p.emailValid ? existingByEmail.get(p.email) : null;
@@ -472,20 +479,28 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             const conflict = !!(phoneMatch && phoneMatch.id !== emailMatch.id);
             if (conflict) matchConflictCount++;
             if (emailMatch.archived_at) archivedMatchCount++;
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
+            if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") willSkip++; else willImport++;
+            return { ...base, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
           }
           if (phoneMatch) {
             existingByPhoneCount++;
             if (phoneMatch.archived_at) archivedMatchCount++;
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
+            if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") willSkip++; else willImport++;
+            return { ...base, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
           }
-          // Missing email but has phone → phone-only new lead
+          // No email
           if (!p.emailValid) {
             missingEmail++;
-            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "missing_email" as const, conflict: false, existing: null };
+            if (p.phone.length === 10) {
+              phoneOnlyCount++; willImport++;
+              return { ...base, status: "phone_only" as const, conflict: false, existing: null };
+            }
+            // name only (no email, no phone, has name)
+            nameOnlyCount++; willImport++;
+            return { ...base, status: "name_only" as const, conflict: false, existing: null };
           }
-          newCount++;
-          return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "new" as const, conflict: false, existing: null };
+          newCount++; willImport++;
+          return { ...base, status: "new" as const, conflict: false, existing: null };
         });
 
         const rowsWithEmail = parsed.filter((p) => p.emailValid).length;
@@ -495,6 +510,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             total: rows.length,
             rowsWithEmail,
             missingEmail,
+            phoneOnlyCount,
+            nameOnlyCount,
             sheetDuplicateEmails,
             sheetDuplicatePhones,
             existingByEmailCount,
@@ -503,6 +520,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             archivedMatchCount,
             newCount,
             invalid,
+            willImport,
+            willSkip,
             existingByEmail,
             existingByPhone,
             rowDetails,
@@ -513,7 +532,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [step, rows, mapping, pipelines, stages]);
+  }, [step, rows, mapping, pipelines, stages, duplicatePolicy]);
 
 
 
