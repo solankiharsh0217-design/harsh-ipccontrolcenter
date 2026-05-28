@@ -171,6 +171,7 @@ export default function PaidPipeline() {
   }, [leads]);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   useEffect(() => {
     const leadParam = searchParams.get("lead");
     if (leadParam) { setOpenId(leadParam); setView("leads"); }
