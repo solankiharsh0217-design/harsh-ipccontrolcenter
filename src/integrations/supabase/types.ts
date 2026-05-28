@@ -1141,6 +1141,117 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          accent_color: string | null
+          address: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_account_type: string | null
+          bank_branch: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          brand_name: string | null
+          business_type: string | null
+          city: string | null
+          company_id: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          gstin: string | null
+          id: string
+          legal_name: string | null
+          logo_url: string | null
+          pan: string | null
+          phone: string | null
+          reply_to_email: string | null
+          sender_email: string | null
+          sender_name: string | null
+          signature_url: string | null
+          stamp_url: string | null
+          state: string | null
+          state_code: string | null
+          support_email: string | null
+          updated_at: string
+          updated_by: string | null
+          upi_id: string | null
+          website: string | null
+          workspace: string
+        }
+        Insert: {
+          accent_color?: string | null
+          address?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_account_type?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          brand_name?: string | null
+          business_type?: string | null
+          city?: string | null
+          company_id?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          legal_name?: string | null
+          logo_url?: string | null
+          pan?: string | null
+          phone?: string | null
+          reply_to_email?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          signature_url?: string | null
+          stamp_url?: string | null
+          state?: string | null
+          state_code?: string | null
+          support_email?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          upi_id?: string | null
+          website?: string | null
+          workspace?: string
+        }
+        Update: {
+          accent_color?: string | null
+          address?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_account_type?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          brand_name?: string | null
+          business_type?: string | null
+          city?: string | null
+          company_id?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          legal_name?: string | null
+          logo_url?: string | null
+          pan?: string | null
+          phone?: string | null
+          reply_to_email?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          signature_url?: string | null
+          stamp_url?: string | null
+          state?: string | null
+          state_code?: string | null
+          support_email?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          upi_id?: string | null
+          website?: string | null
+          workspace?: string
+        }
+        Relationships: []
+      }
       crm_batch_archives: {
         Row: {
           affected_lead_count: number
@@ -1617,6 +1728,367 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      invoice_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          invoice_id: string
+          metadata_json: Json | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          id?: string
+          invoice_id: string
+          metadata_json?: Json | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          id?: string
+          invoice_id?: string
+          metadata_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_events_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_items: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_gst_rate: number
+          default_rate: number
+          description: string | null
+          hsn_sac: string | null
+          id: string
+          is_active: boolean
+          item_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_gst_rate?: number
+          default_rate?: number
+          description?: string | null
+          hsn_sac?: string | null
+          id?: string
+          is_active?: boolean
+          item_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_gst_rate?: number
+          default_rate?: number
+          description?: string | null
+          hsn_sac?: string | null
+          id?: string
+          is_active?: boolean
+          item_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      invoice_line_items: {
+        Row: {
+          amount: number
+          cgst_amount: number
+          created_at: string
+          description: string | null
+          hsn_sac: string | null
+          id: string
+          igst_amount: number
+          invoice_id: string
+          item_name: string
+          quantity: number
+          rate: number
+          sgst_amount: number
+          sort_order: number
+          tax_rate: number
+        }
+        Insert: {
+          amount?: number
+          cgst_amount?: number
+          created_at?: string
+          description?: string | null
+          hsn_sac?: string | null
+          id?: string
+          igst_amount?: number
+          invoice_id: string
+          item_name: string
+          quantity?: number
+          rate?: number
+          sgst_amount?: number
+          sort_order?: number
+          tax_rate?: number
+        }
+        Update: {
+          amount?: number
+          cgst_amount?: number
+          created_at?: string
+          description?: string | null
+          hsn_sac?: string | null
+          id?: string
+          igst_amount?: number
+          invoice_id?: string
+          item_name?: string
+          quantity?: number
+          rate?: number
+          sgst_amount?: number
+          sort_order?: number
+          tax_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_settings: {
+        Row: {
+          allow_invoice_level_gst_choice: boolean
+          created_at: string
+          default_email_body: string | null
+          default_email_subject: string | null
+          default_gst_rate: number
+          default_hsn_sac: string | null
+          default_invoice_type: string
+          default_notes: string | null
+          default_place_of_supply: string | null
+          default_tax_mode: string
+          default_tax_split: string
+          default_terms: string | null
+          fy_format: string | null
+          gst_enabled_default: boolean
+          hsn_sac_required: boolean
+          id: string
+          invoice_prefix: string
+          last_reset_fy: string | null
+          next_invoice_number: number
+          number_padding: number
+          reset_yearly: boolean
+          updated_at: string
+          updated_by: string | null
+          workspace: string
+        }
+        Insert: {
+          allow_invoice_level_gst_choice?: boolean
+          created_at?: string
+          default_email_body?: string | null
+          default_email_subject?: string | null
+          default_gst_rate?: number
+          default_hsn_sac?: string | null
+          default_invoice_type?: string
+          default_notes?: string | null
+          default_place_of_supply?: string | null
+          default_tax_mode?: string
+          default_tax_split?: string
+          default_terms?: string | null
+          fy_format?: string | null
+          gst_enabled_default?: boolean
+          hsn_sac_required?: boolean
+          id?: string
+          invoice_prefix?: string
+          last_reset_fy?: string | null
+          next_invoice_number?: number
+          number_padding?: number
+          reset_yearly?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          workspace?: string
+        }
+        Update: {
+          allow_invoice_level_gst_choice?: boolean
+          created_at?: string
+          default_email_body?: string | null
+          default_email_subject?: string | null
+          default_gst_rate?: number
+          default_hsn_sac?: string | null
+          default_invoice_type?: string
+          default_notes?: string | null
+          default_place_of_supply?: string | null
+          default_tax_mode?: string
+          default_tax_split?: string
+          default_terms?: string | null
+          fy_format?: string | null
+          gst_enabled_default?: boolean
+          hsn_sac_required?: boolean
+          id?: string
+          invoice_prefix?: string
+          last_reset_fy?: string | null
+          next_invoice_number?: number
+          number_padding?: number
+          reset_yearly?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          workspace?: string
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          adjustment_amount: number
+          amount_in_words: string | null
+          balance_due: number
+          billing_address: string | null
+          buyer_snapshot_json: Json | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cgst_amount: number
+          created_at: string
+          created_by: string | null
+          crm_lead_id: string | null
+          discount_amount: number
+          due_date: string | null
+          id: string
+          igst_amount: number
+          invoice_date: string | null
+          invoice_mode: string
+          invoice_number: string | null
+          invoice_type: string
+          issued_at: string | null
+          last_generated_at: string | null
+          member_email: string | null
+          member_name: string | null
+          member_phone: string | null
+          notes: string | null
+          paid_pipeline_lead_id: string | null
+          payment_made: number
+          place_of_supply: string | null
+          seller_snapshot_json: Json | null
+          sent_at: string | null
+          sent_to: string | null
+          sgst_amount: number
+          status: string
+          subtotal: number
+          tax_snapshot_json: Json | null
+          taxable_amount: number
+          terms: string | null
+          terms_and_conditions: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          adjustment_amount?: number
+          amount_in_words?: string | null
+          balance_due?: number
+          billing_address?: string | null
+          buyer_snapshot_json?: Json | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cgst_amount?: number
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          discount_amount?: number
+          due_date?: string | null
+          id?: string
+          igst_amount?: number
+          invoice_date?: string | null
+          invoice_mode?: string
+          invoice_number?: string | null
+          invoice_type?: string
+          issued_at?: string | null
+          last_generated_at?: string | null
+          member_email?: string | null
+          member_name?: string | null
+          member_phone?: string | null
+          notes?: string | null
+          paid_pipeline_lead_id?: string | null
+          payment_made?: number
+          place_of_supply?: string | null
+          seller_snapshot_json?: Json | null
+          sent_at?: string | null
+          sent_to?: string | null
+          sgst_amount?: number
+          status?: string
+          subtotal?: number
+          tax_snapshot_json?: Json | null
+          taxable_amount?: number
+          terms?: string | null
+          terms_and_conditions?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          adjustment_amount?: number
+          amount_in_words?: string | null
+          balance_due?: number
+          billing_address?: string | null
+          buyer_snapshot_json?: Json | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cgst_amount?: number
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          discount_amount?: number
+          due_date?: string | null
+          id?: string
+          igst_amount?: number
+          invoice_date?: string | null
+          invoice_mode?: string
+          invoice_number?: string | null
+          invoice_type?: string
+          issued_at?: string | null
+          last_generated_at?: string | null
+          member_email?: string | null
+          member_name?: string | null
+          member_phone?: string | null
+          notes?: string | null
+          paid_pipeline_lead_id?: string | null
+          payment_made?: number
+          place_of_supply?: string | null
+          seller_snapshot_json?: Json | null
+          sent_at?: string | null
+          sent_to?: string | null
+          sgst_amount?: number
+          status?: string
+          subtotal?: number
+          tax_snapshot_json?: Json | null
+          taxable_amount?: number
+          terms?: string | null
+          terms_and_conditions?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_paid_pipeline_lead_id_fkey"
+            columns: ["paid_pipeline_lead_id"]
+            isOneToOne: false
+            referencedRelation: "paid_pipeline_leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lead_entries: {
         Row: {
@@ -5782,6 +6254,7 @@ export type Database = {
         Returns: Json
       }
       admin_wipe_demo_lead_data: { Args: { _dry_run?: boolean }; Returns: Json }
+      assign_next_invoice_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
