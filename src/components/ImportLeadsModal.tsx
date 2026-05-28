@@ -143,6 +143,66 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     setMapping(autoMap(hdrs));
   };
 
+  // ── Google Sheets: extract spreadsheet ID ──────────────────────────────
+  const extractSpreadsheetId = (url: string): string | null => {
+    if (!url) return null;
+    const m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return m ? m[1] : null;
+  };
+
+  const handleFetchGsTabs = async () => {
+    setGsError(null);
+    const sid = extractSpreadsheetId(gsUrl.trim());
+    if (!sid) { setGsError("Please paste a valid Google Sheet URL."); return; }
+    setGsLoadingTabs(true);
+    setGsTabs([]); setGsSelectedTab(""); setHeaders([]); setRows([]); setFileName("");
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-roas-master-sheet-tabs", {
+        body: { masterSheetUrl: gsUrl.trim() },
+      });
+      if (error) throw new Error(error.message || "Failed to fetch sheet tabs");
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const tabs = ((data as any)?.tabs || []) as any[];
+      if (tabs.length === 0) { setGsError("No tabs were found in this spreadsheet."); return; }
+      setGsSpreadsheetId((data as any)?.spreadsheetId || sid);
+      setGsSpreadsheetTitle((data as any)?.spreadsheetTitle || "");
+      setGsTabs(tabs.map((t) => ({
+        sheetId: t.sheetId, tabName: t.tabName,
+        validRowsCount: Number(t.validRowsCount || 0),
+        detectedHeaders: Array.isArray(t.detectedHeaders) ? t.detectedHeaders : [],
+      })));
+      setGsFetchedAt(new Date().toLocaleString());
+    } catch (e: any) {
+      setGsError(e?.message || "Failed to fetch tabs");
+    } finally { setGsLoadingTabs(false); }
+  };
+
+  const handleSelectGsTab = async (tabName: string) => {
+    setGsSelectedTab(tabName);
+    setGsError(null);
+    if (!tabName || !gsSpreadsheetId) return;
+    setGsLoadingRows(true);
+    setHeaders([]); setRows([]);
+    try {
+      const { data, error } = await supabase.functions.invoke("google-sheets-fetch-rows", {
+        body: { spreadsheetId: gsSpreadsheetId, tabName },
+      });
+      if (error) throw new Error(error.message || "Failed to fetch rows");
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const hdrs = ((data as any)?.headers || []) as string[];
+      const rws = ((data as any)?.rows || []) as Row[];
+      if (rws.length === 0) { setGsError("This tab has no rows to import."); return; }
+      setHeaders(hdrs);
+      setRows(rws);
+      setMapping(autoMap(hdrs));
+      setFileName(`${gsSpreadsheetTitle || "Google Sheet"} · ${tabName}`);
+    } catch (e: any) {
+      setGsError(e?.message || "Failed to fetch sheet rows");
+    } finally { setGsLoadingRows(false); }
+  };
+
+
+
   const saveWebinarToDb = async () => {
     const n = webinarName.trim();
     if (!n) return;
