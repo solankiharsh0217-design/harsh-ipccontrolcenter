@@ -1223,41 +1223,130 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               </div>
             )}
 
-            <div className="p-4 rounded-lg border border-line space-y-1.5 text-sm">
+            <div className="p-4 rounded-lg border border-line space-y-2 text-sm">
               <div className="uppercase-label mb-1">Pre-flight check</div>
               {preflightLoading || !preflight ? (
-                <div className="text-xs text-muted-foreground">Checking for duplicate emails…</div>
+                <div className="text-xs text-muted-foreground">Analyzing rows…</div>
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     <div><span className="text-muted-foreground">Total rows:</span> <b>{preflight.total}</b></div>
-                    <div><span className="text-muted-foreground">New leads:</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
-                    <div><span className="text-muted-foreground">Duplicate emails:</span> <b className="text-amber-700">{preflight.dupCount}</b></div>
-                    <div><span className="text-muted-foreground">Of which archived:</span> <b className="text-[#92400E]">{preflight.archivedDupCount}</b></div>
+                    <div><span className="text-muted-foreground">Rows with email:</span> <b>{preflight.rowsWithEmail}</b></div>
                     <div><span className="text-muted-foreground">Missing email:</span> <b>{preflight.missingEmail}</b></div>
                     <div><span className="text-muted-foreground">Invalid rows:</span> <b>{preflight.invalid}</b></div>
+                    <div><span className="text-muted-foreground">Duplicate rows inside sheet (email):</span> <b className={preflight.sheetDuplicateEmails ? "text-amber-700" : ""}>{preflight.sheetDuplicateEmails}</b></div>
+                    <div><span className="text-muted-foreground">Duplicate rows inside sheet (phone):</span> <b className={preflight.sheetDuplicatePhones ? "text-amber-700" : ""}>{preflight.sheetDuplicatePhones}</b></div>
+                    <div><span className="text-muted-foreground">Existing CRM matches by email:</span> <b className="text-amber-700">{preflight.existingByEmailCount}</b></div>
+                    <div><span className="text-muted-foreground">Existing CRM matches by phone:</span> <b className="text-amber-700">{preflight.existingByPhoneCount}</b></div>
+                    <div className="col-span-2"><span className="text-muted-foreground">New leads (no match in CRM):</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
                   </div>
-                  {preflight.archivedDupCount > 0 && (
-                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-[#FEF3C7] border border-[#FDE68A] text-[11px] text-[#92400E]">
-                      {preflight.archivedDupCount} duplicate{preflight.archivedDupCount === 1 ? " is" : "s are"} currently archived. Choosing <b>Move</b> or <b>Update</b> will restore them with the new batch info. <b>Skip</b> leaves them archived.
+
+                  {(preflight.existingByEmailCount > 0 || preflight.existingByPhoneCount > 0) && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-slate-50 border border-slate-200 text-[11px] text-slate-700">
+                      These rows are <b>not duplicates inside your sheet</b>. They match leads already present in CRM and will be handled by the duplicate policy below.
                     </div>
+                  )}
+                  {preflight.archivedMatchCount > 0 && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-[#FEF3C7] border border-[#FDE68A] text-[11px] text-[#92400E]">
+                      {preflight.archivedMatchCount} existing match{preflight.archivedMatchCount === 1 ? " is" : "es are"} currently archived. Choosing <b>Move</b> or <b>Update</b> restores them with the new batch info. <b>Skip</b> leaves them archived.
+                    </div>
+                  )}
+                  {preflight.matchConflictCount > 0 && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                      <b>{preflight.matchConflictCount}</b> row{preflight.matchConflictCount === 1 ? "" : "s"} have an email and phone that match <b>different</b> CRM leads — manual review recommended.
+                    </div>
+                  )}
+
+                  {preflight.rowDetails.length > 0 && (
+                    <details className="mt-2 rounded-md border border-line" open={showPreflightRows} onToggle={(e) => setShowPreflightRows((e.target as HTMLDetailsElement).open)}>
+                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium select-none">
+                        Row-by-row breakdown ({preflight.rowDetails.length})
+                      </summary>
+                      <div className="max-h-72 overflow-auto border-t border-line">
+                        <table className="w-full text-[11px]">
+                          <thead className="bg-off sticky top-0">
+                            <tr className="text-left">
+                              <th className="px-2 py-1.5 font-medium">#</th>
+                              <th className="px-2 py-1.5 font-medium">Name</th>
+                              <th className="px-2 py-1.5 font-medium">Email</th>
+                              <th className="px-2 py-1.5 font-medium">Phone</th>
+                              <th className="px-2 py-1.5 font-medium">Status</th>
+                              <th className="px-2 py-1.5 font-medium">Existing lead</th>
+                              <th className="px-2 py-1.5 font-medium">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preflight.rowDetails.map((r) => {
+                              const statusLabel: Record<typeof r.status, { text: string; cls: string }> = {
+                                new: { text: "New lead", cls: "text-emerald-700" },
+                                existing_by_email: { text: "Existing CRM match (email)", cls: "text-amber-700" },
+                                existing_by_phone: { text: "Existing CRM match (phone)", cls: "text-amber-700" },
+                                sheet_duplicate_email: { text: "Duplicate inside sheet (email)", cls: "text-amber-700" },
+                                sheet_duplicate_phone: { text: "Duplicate inside sheet (phone)", cls: "text-amber-700" },
+                                missing_email: { text: "Missing email", cls: "text-muted-foreground" },
+                                invalid: { text: "Invalid row", cls: "text-rose-700" },
+                              };
+                              let action = "";
+                              if (r.status === "new") action = "Create new lead";
+                              else if (r.status === "missing_email") action = r.phone.length === 10 ? "Create phone-only lead" : "Skip (no contact info)";
+                              else if (r.status === "invalid") action = "Skip (invalid)";
+                              else if (r.status === "sheet_duplicate_email" || r.status === "sheet_duplicate_phone") action = "Skip (duplicate inside sheet)";
+                              else if (r.status === "existing_by_email" || r.status === "existing_by_phone") {
+                                if (duplicatePolicy === "move") action = "Move existing → this batch";
+                                else if (duplicatePolicy === "update") action = "Update existing lead";
+                                else if (duplicatePolicy === "skip") action = "Skip (existing match)";
+                                else if (duplicatePolicy === "new_only") action = "Skip (reported as existing)";
+                              }
+                              const ex = r.existing;
+                              return (
+                                <tr key={r.rowNum} className={`border-t border-line ${r.conflict ? "bg-rose-50/40" : ""}`}>
+                                  <td className="px-2 py-1.5 text-muted-foreground">{r.rowNum}</td>
+                                  <td className="px-2 py-1.5">{r.name || "—"}</td>
+                                  <td className="px-2 py-1.5">{r.email || <span className="text-muted-foreground">—</span>}</td>
+                                  <td className="px-2 py-1.5">{r.phone || <span className="text-muted-foreground">—</span>}</td>
+                                  <td className={`px-2 py-1.5 ${statusLabel[r.status].cls}`}>{statusLabel[r.status].text}{r.conflict && <span className="ml-1 text-rose-700">· conflict</span>}</td>
+                                  <td className="px-2 py-1.5">
+                                    {ex ? (
+                                      <div className="leading-tight">
+                                        <div>{ex.full_name || "—"}{ex.archived && <span className="ml-1 text-[10px] text-[#92400E]">(archived)</span>}</div>
+                                        <div className="text-[10px] text-muted-foreground">
+                                          {[ex.pipeline_name, ex.stage_name, ex.batch_name].filter(Boolean).join(" · ") || "—"}
+                                        </div>
+                                      </div>
+                                    ) : "—"}
+                                  </td>
+                                  <td className="px-2 py-1.5">{action}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
                   )}
                 </>
               )}
             </div>
 
             <div>
-              <label className="form-label">If duplicate email is found</label>
+              <label className="form-label">If a row matches an existing CRM lead</label>
               <select className="ipc-input" value={duplicatePolicy} onChange={(e) => setDuplicatePolicy(e.target.value as DuplicatePolicy)}>
                 <option value="move">Move existing lead to selected pipeline (recommended)</option>
                 <option value="update">Update existing lead (batch, grade, product, deal, fill missing fields)</option>
-                <option value="skip">Skip duplicates</option>
-                <option value="new_only">Import new only (report duplicates as skipped)</option>
+                <option value="skip">Skip existing CRM matches</option>
+                <option value="new_only">Import new only (report existing matches as skipped)</option>
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
-                {duplicatePolicy === "move" && `Existing leads will be moved into "${creatingPipeline ? newPipeName : (filteredPipelines.find((p) => p.id === targetPipelineId)?.name || "selected pipeline")}" and attached to this batch.`}
-                {duplicatePolicy === "update" && "Existing leads will be updated with this batch, grade, product and deal value. Name/phone filled only if missing."}
-                {duplicatePolicy === "skip" && "Rows whose email already exists will be skipped — no changes made."}
+                {duplicatePolicy === "move" && `Existing CRM matches will be moved/attached to "${creatingPipeline ? newPipeName : (filteredPipelines.find((p) => p.id === targetPipelineId)?.name || "selected pipeline")}" with this batch. New rows will be created normally.`}
+                {duplicatePolicy === "update" && "Existing CRM matches will be updated with this batch, grade, product and deal value (name/phone filled only if missing). New rows will be created normally."}
+                {duplicatePolicy === "skip" && "Existing CRM matches will be skipped — no changes made. Only brand-new rows will be inserted."}
+                {duplicatePolicy === "new_only" && "Only rows with no email/phone match in CRM will be imported. Existing matches will be reported as skipped."}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Duplicate rows inside the sheet itself are always skipped (first occurrence wins).
+              </p>
+            </div>
+
                 {duplicatePolicy === "new_only" && "Only brand-new emails will be inserted. Duplicates reported as skipped."}
               </p>
             </div>
