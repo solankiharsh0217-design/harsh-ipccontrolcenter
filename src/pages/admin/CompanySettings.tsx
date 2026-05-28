@@ -59,13 +59,36 @@ export default function CompanySettingsPage() {
   const set = (k: keyof CompanySettings, v: any) => setS((p) => ({ ...p, [k]: v }));
 
   async function uploadAsset(kind: "logo_url" | "signature_url" | "stamp_url", file: File) {
-    const ext = file.name.split(".").pop() || "png";
+    const ext = (file.name.split(".").pop() || "png").toLowerCase();
     const path = `${kind}/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("invoice-assets").upload(path, file, { upsert: true });
     if (error) { toast.error("Upload failed: " + error.message); return; }
     const { data } = supabase.storage.from("invoice-assets").getPublicUrl(path);
-    set(kind, data.publicUrl);
-    toast.success("Uploaded");
+    const url = data.publicUrl;
+    set(kind, url);
+    // Persist immediately so the URL isn't lost if the user forgets to click Save
+    if (user) {
+      try {
+        const saved = await saveCompanySettings({ ...s, [kind]: url }, user.id);
+        if (saved) setS(saved);
+        toast.success("Uploaded & saved");
+      } catch (e: any) {
+        toast.error("Uploaded but save failed: " + (e?.message || ""));
+      }
+    } else {
+      toast.success("Uploaded");
+    }
+  }
+
+  async function removeAsset(kind: "logo_url" | "signature_url" | "stamp_url") {
+    set(kind, null);
+    if (user) {
+      try {
+        const saved = await saveCompanySettings({ ...s, [kind]: null }, user.id);
+        if (saved) setS(saved);
+        toast.success("Removed");
+      } catch (e: any) { toast.error(e?.message || "Remove failed"); }
+    }
   }
 
   async function save() {
@@ -104,19 +127,38 @@ export default function CompanySettingsPage() {
         </div>
       ))}
 
-      <SectionLabel>Branding</SectionLabel>
-      <div className="grid grid-cols-2 gap-4 bg-white border border-line rounded-xl p-5 mb-8">
+      <SectionLabel>Invoice Branding</SectionLabel>
+      <div className="bg-white border border-line rounded-xl p-5 mb-8 space-y-5">
         <div>
           <Label className="text-xs">Accent color</Label>
-          <Input type="color" value={s.accent_color || "#111827"} onChange={(e) => set("accent_color", e.target.value)} />
+          <Input type="color" className="w-24 h-9" value={s.accent_color || "#111827"} onChange={(e) => set("accent_color", e.target.value)} />
         </div>
-        {(["logo_url", "signature_url", "stamp_url"] as const).map((k) => (
-          <div key={k}>
-            <Label className="text-xs capitalize">{k.replace("_url", "")}</Label>
-            {s[k] && <img src={s[k] as string} alt={k} className="h-16 mb-2 object-contain" />}
-            <Input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAsset(k, f); }} />
-          </div>
-        ))}
+        <div className="grid grid-cols-3 gap-4">
+          {(["logo_url", "signature_url", "stamp_url"] as const).map((k) => {
+            const label = k === "logo_url" ? "Logo" : k === "signature_url" ? "Authorized Signature" : "Company Stamp";
+            const present = !!s[k];
+            const url = s[k] as string | null | undefined;
+            const masked = url ? (url.length > 48 ? url.slice(0, 24) + "…" + url.slice(-16) : url) : "";
+            return (
+              <div key={k} className="border border-line rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs font-medium">{label}</Label>
+                  <span className={`text-[10.5px] px-1.5 py-0.5 rounded ${present ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
+                    {present ? "Uploaded" : "Missing"}
+                  </span>
+                </div>
+                <div className="h-20 flex items-center justify-center bg-muted/30 rounded mb-2 overflow-hidden">
+                  {url ? <img src={url} alt={label} className="max-h-20 max-w-full object-contain" /> : <span className="text-[11px] text-muted-foreground">No file</span>}
+                </div>
+                {present && <div className="text-[10px] text-muted-foreground mb-2 break-all">{masked}</div>}
+                <Input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAsset(k, f); }} className="text-[11px]" />
+                {present && (
+                  <Button size="sm" variant="ghost" className="mt-1 h-7 text-[11px] text-red-600 hover:text-red-700" onClick={() => removeAsset(k)}>Remove</Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex justify-end">

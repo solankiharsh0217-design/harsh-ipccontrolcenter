@@ -78,6 +78,39 @@ export default function InvoiceEditor() {
     [company, settings, invoice?.invoice_type]
   );
 
+  // Comprehensive issue-time blockers (invoice-level, beyond company readiness)
+  const blockers = useMemo(() => {
+    const list: string[] = [];
+    if (!invoice) return list;
+    const items = invoice.line_items || [];
+    if (!items.length) list.push("Add at least one line item");
+    else if (items.some((li) => !li.item_name?.trim())) list.push("Every line item needs a name");
+    else if (items.every((li) => (Number(li.amount) || 0) === 0)) list.push("Line item amounts are zero");
+    if (!invoice.member_name?.trim()) list.push("Buyer / member name is missing");
+    if ((Number(invoice.total_amount) || 0) <= 0) list.push("Invoice total must be greater than zero");
+    if (invoice.invoice_type === "gst" && settings?.hsn_sac_required) {
+      const missing = items.some((li) => !li.hsn_sac || !String(li.hsn_sac).trim());
+      if (missing) list.push("HSN/SAC is required on every line item");
+    }
+    if (settings?.require_authorized_signature && !company?.signature_url && !invoice.seller_snapshot_json?.signature_url) {
+      list.push("Authorized signature is required (upload in Company Settings)");
+    }
+    return list;
+  }, [invoice, settings, company]);
+
+  const allBlockers = useMemo(() => [...readiness.missing, ...blockers], [readiness.missing, blockers]);
+  const canIssue = allBlockers.length === 0;
+
+  async function refreshFromCompany() {
+    if (!invoice || invoice.status !== "draft") return;
+    const c = await loadCompanySettings();
+    const s = await loadInvoiceSettings();
+    setCompany(c); setSettings(s);
+    // Update only draft-visible fields; do not mutate locked snapshots
+    setInvoice((cur) => cur ? { ...cur } : cur);
+    toast.success("Pulled latest company & invoice settings");
+  }
+
   const recompute = (inv: Invoice, overrides?: Partial<Invoice>): Invoice => {
     const merged = { ...inv, ...(overrides || {}) };
     const split: TaxSplit = merged.invoice_type === "gst" ? (settings?.default_tax_split || "cgst_sgst") : "none";
@@ -159,13 +192,7 @@ export default function InvoiceEditor() {
 
   const issueClick = async () => {
     if (!invoice || !user?.id || !settings) return;
-    if (!readiness.ok) { toast.error("Invoice setup incomplete"); return; }
-    // Per-line HSN/SAC check for GST invoices when required by settings
-    if (invoice.invoice_type === "gst" && settings.hsn_sac_required) {
-      const missing = (invoice.line_items || []).some((li) => !li.hsn_sac || !String(li.hsn_sac).trim());
-      if (missing) { toast.error("HSN/SAC is required on every line item"); return; }
-    }
-    if (!(invoice.line_items || []).length) { toast.error("Add at least one line item"); return; }
+    if (allBlockers.length > 0) { toast.error(allBlockers[0]); return; }
     if (!confirm("Issue this invoice? Invoice number will be assigned and cannot be changed.")) return;
     setBusy(true);
     try {
@@ -224,15 +251,16 @@ export default function InvoiceEditor() {
         sub={invoice.status === "draft" ? "Draft — not yet issued. No invoice number assigned." : `Status: ${invoice.status}`}
       />
 
-      {!readiness.ok && (
+      {allBlockers.length > 0 && (
         <div className="border border-amber-300 bg-amber-50 rounded-xl p-4 mb-4">
-          <div className="font-medium text-amber-900 text-[13px]">Invoice setup incomplete</div>
+          <div className="font-medium text-amber-900 text-[13px]">Invoice cannot be issued yet</div>
           <ul className="mt-1 text-[12px] text-amber-900 list-disc ml-5">
-            {readiness.missing.map((m) => <li key={m}>{m}</li>)}
+            {allBlockers.map((m) => <li key={m}>{m}</li>)}
           </ul>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => nav("/admin-center/company-settings")}>Open Company Settings</Button>
             <Button size="sm" variant="outline" onClick={() => nav("/admin-center/invoice-settings")}>Open Invoice Settings</Button>
+            {!isLocked && <Button size="sm" variant="outline" onClick={refreshFromCompany}>Refresh from Company Settings</Button>}
             {readiness.canFallbackToNonGst && (
               <Button size="sm" onClick={() => changeType("non_gst")}>Continue as Non-GST Invoice</Button>
             )}
@@ -240,9 +268,9 @@ export default function InvoiceEditor() {
         </div>
       )}
 
-      {readiness.ok && !company?.signature_url && (
+      {canIssue && !company?.signature_url && !settings?.require_authorized_signature && (
         <div className="border border-amber-200 bg-amber-50/60 rounded-xl p-3 mb-4 text-[12.5px] text-amber-900">
-          Authorized signature is not uploaded. Invoice PDF will show a blank signature line.
+          Signature missing. Invoice will show a blank signature line.
           <Button size="sm" variant="outline" className="ml-3 h-7" onClick={() => nav("/admin-center/company-settings")}>Upload signature</Button>
         </div>
       )}
@@ -358,20 +386,51 @@ export default function InvoiceEditor() {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-2 mb-6">
-        <Button variant="outline" onClick={() => nav(-1)}>Back</Button>
-        {!isLocked && <Button variant="outline" onClick={saveDraftClick} disabled={busy}>Save Draft</Button>}
-        <Button variant="outline" onClick={previewPdf}>Preview PDF</Button>
-        <Button variant="outline" onClick={downloadPdf}>Download PDF</Button>
-        {!isLocked && (
-          <Button onClick={issueClick} disabled={busy || !readiness.ok}>
-            Issue Invoice
-          </Button>
-        )}
-        {invoice.status === "issued" && isAdmin && (
-          <Button variant="destructive" onClick={cancelInvoice} disabled={busy}>Cancel Invoice</Button>
+      <div className="flex flex-col items-end gap-1 mb-6">
+        <div className="flex justify-end gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => nav(-1)}>Back</Button>
+          {!isLocked && <Button variant="outline" onClick={refreshFromCompany} disabled={busy}>Refresh from Company Settings</Button>}
+          {!isLocked && <Button variant="outline" onClick={saveDraftClick} disabled={busy}>Save Draft</Button>}
+          <Button variant="outline" onClick={previewPdf}>Preview PDF</Button>
+          <Button variant="outline" onClick={downloadPdf}>Download PDF</Button>
+          {!isLocked && (
+            <Button onClick={issueClick} disabled={busy || !canIssue} title={!canIssue ? "Fix the above issue(s) to issue this invoice" : undefined}>
+              Issue Invoice
+            </Button>
+          )}
+          {invoice.status === "issued" && isAdmin && (
+            <Button variant="destructive" onClick={cancelInvoice} disabled={busy}>Cancel Invoice</Button>
+          )}
+        </div>
+        {!isLocked && !canIssue && (
+          <div className="text-[11.5px] text-muted-foreground">Fix the above issue(s) to issue this invoice.</div>
         )}
       </div>
+
+      {/* Admin Debug */}
+      {isAdmin && (
+        <details className="mb-6 border border-line bg-white rounded-xl p-4 text-[12px]">
+          <summary className="cursor-pointer font-medium">Invoice Readiness Debug (admin only)</summary>
+          <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 font-mono">
+            <span>status</span><span>{invoice.status}</span>
+            <span>invoice_type</span><span>{invoice.invoice_type}</span>
+            <span>line_items</span><span>{invoice.line_items?.length || 0}</span>
+            <span>total</span><span>{invoice.total_amount}</span>
+            <span>company loaded</span><span>{company ? "yes" : "no"}</span>
+            <span>company.signature_url</span><span>{company?.signature_url ? "yes" : "no"}</span>
+            <span>snapshot.signature_url</span><span>{invoice.seller_snapshot_json?.signature_url ? "yes" : "no"}</span>
+            <span>require_signature</span><span>{settings?.require_authorized_signature ? "yes" : "no"}</span>
+            <span>readiness blockers</span><span>{readiness.missing.length}</span>
+            <span>invoice blockers</span><span>{blockers.length}</span>
+            <span className="font-bold">canIssue</span><span className="font-bold">{String(canIssue)}</span>
+          </div>
+          {allBlockers.length > 0 && (
+            <ul className="mt-3 list-disc ml-5 text-red-700">
+              {allBlockers.map((b) => <li key={b}>{b}</li>)}
+            </ul>
+          )}
+        </details>
+      )}
 
       {/* Events */}
       {events.length > 0 && (

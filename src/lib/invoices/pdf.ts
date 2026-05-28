@@ -27,29 +27,41 @@ function formatAmt(amount: number | null | undefined): string {
 
 async function loadImageDataUrl(
   url: string
-): Promise<{ data: string; format: "PNG" | "JPEG" | "WEBP" } | null> {
+): Promise<{ data: string; format: "PNG" | "JPEG"; width: number; height: number } | null> {
+  // Use Image + canvas so we get natural dimensions (for aspect ratio) and
+  // normalize WEBP / unknown formats into PNG that jsPDF can render.
   try {
-    const r = await fetch(url, { mode: "cors" });
-    if (!r.ok) return null;
-    const blob = await r.blob();
-    const mime = (blob.type || "").toLowerCase();
-    const dataUrl = await new Promise<string>((res) => {
-      const fr = new FileReader();
-      fr.onload = () => res(fr.result as string);
-      fr.readAsDataURL(blob);
+    const img: HTMLImageElement = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.crossOrigin = "anonymous";
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error("image load failed"));
+      // Cache-bust signed/public URLs that may have stale CORS headers
+      i.src = url + (url.includes("?") ? "&" : "?") + "v=pdf";
     });
-    let format: "PNG" | "JPEG" | "WEBP" = "PNG";
-    if (mime.includes("jpeg") || mime.includes("jpg")) format = "JPEG";
-    else if (mime.includes("webp")) format = "WEBP";
-    else if (mime.includes("png")) format = "PNG";
-    else {
-      const lower = url.toLowerCase();
-      if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) format = "JPEG";
-      else if (lower.endsWith(".webp")) format = "WEBP";
-    }
-    return { data: dataUrl, format };
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    const data = canvas.toDataURL("image/png");
+    return { data, format: "PNG", width: canvas.width, height: canvas.height };
   } catch {
-    return null;
+    // Fallback to raw fetch (no aspect ratio info)
+    try {
+      const r = await fetch(url);
+      if (!r.ok) return null;
+      const blob = await r.blob();
+      const mime = (blob.type || "").toLowerCase();
+      const dataUrl = await new Promise<string>((res) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result as string);
+        fr.readAsDataURL(blob);
+      });
+      const format: "PNG" | "JPEG" = mime.includes("jpeg") || mime.includes("jpg") ? "JPEG" : "PNG";
+      return { data: dataUrl, format, width: 0, height: 0 };
+    } catch { return null; }
   }
 }
 
@@ -438,20 +450,24 @@ export async function renderInvoicePdf(
   }
   const sigY = y + 10;
   const sigRight = W - M;
-  const sigBoxW = 160;
-  const sigBoxH = 44;
-  const sigBoxX = sigRight - sigBoxW;
+  const sigBoxMaxW = 150; // 130-160px range
+  const sigBoxMaxH = 60;
+  const lineY = sigY + sigBoxMaxH; // baseline of underline
 
   // Stamp (optional) — placed to the left of signature
   if (seller.stamp_url) {
     const stamp = await loadImageDataUrl(seller.stamp_url);
     if (stamp) {
       try {
-        const stampW = 60;
-        doc.addImage(stamp.data, stamp.format, sigBoxX - stampW - 16, sigY, stampW, 60);
-      } catch {
-        /* ignore */
-      }
+        const stampMax = 60;
+        let sw = stampMax, sh = stampMax;
+        if (stamp.width && stamp.height) {
+          const ratio = stamp.width / stamp.height;
+          if (ratio >= 1) { sw = stampMax; sh = stampMax / ratio; }
+          else { sh = stampMax; sw = stampMax * ratio; }
+        }
+        doc.addImage(stamp.data, stamp.format, sigRight - sigBoxMaxW - stampMax - 20, sigY + (stampMax - sh) / 2, sw, sh);
+      } catch { /* ignore */ }
     }
   }
 
@@ -460,22 +476,47 @@ export async function renderInvoicePdf(
     const img = await loadImageDataUrl(seller.signature_url);
     if (img) {
       try {
-        doc.addImage(img.data, img.format, sigBoxX, sigY, sigBoxW, sigBoxH);
+        let w = sigBoxMaxW;
+        let h = sigBoxMaxH;
+        if (img.width && img.height) {
+          const ratio = img.width / img.height;
+          // Fit inside sigBoxMaxW x sigBoxMaxH preserving aspect ratio
+          if (sigBoxMaxW / sigBoxMaxH > ratio) {
+            h = sigBoxMaxH;
+            w = h * ratio;
+          } else {
+            w = sigBoxMaxW;
+            h = w / ratio;
+          }
+          // Enforce minimum width of 130 if possible (without exceeding max)
+          if (w < 130 && h * (130 / w) <= sigBoxMaxH) {
+            const scale = 130 / w;
+            w = 130;
+            h = h * scale;
+          }
+        }
+        const drawX = sigRight - w;
+        const drawY = lineY - h - 2;
+        doc.addImage(img.data, img.format, drawX, drawY, w, h);
         signatureRendered = true;
       } catch {
         signatureRendered = false;
+        // eslint-disable-next-line no-console
+        console.warn("invoice_signature_render_failed: addImage threw");
       }
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn("invoice_signature_render_failed: image fetch failed", seller.signature_url);
     }
   }
-  if (!signatureRendered) {
-    doc.setDrawColor(180);
-    doc.line(sigBoxX, sigY + sigBoxH - 4, sigRight, sigY + sigBoxH - 4);
-  }
+  // Always draw the line under signature
+  doc.setDrawColor(180);
+  doc.line(sigRight - sigBoxMaxW, lineY, sigRight, lineY);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(60);
-  doc.text("Authorized Signature", sigRight, sigY + sigBoxH + 12, { align: "right" });
-  y = sigY + sigBoxH + 20;
+  doc.text("Authorized Signature", sigRight, lineY + 12, { align: "right" });
+  y = lineY + 20;
 
   // Footer page numbers
   const pageCount = (doc as any).internal.getNumberOfPages();
