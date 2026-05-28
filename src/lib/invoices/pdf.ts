@@ -423,7 +423,7 @@ export async function renderInvoicePdf(
     doc.addPage();
     y = M;
   }
-  const sigY = Math.max(y + 10, H - sigBlockH - 30);
+  const sigY = y + 10;
   const sigRight = W - M;
   const sigBoxW = 160;
   const sigBoxX = sigRight - sigBoxW;
