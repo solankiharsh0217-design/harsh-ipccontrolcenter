@@ -107,9 +107,6 @@ export default function InvoiceEditor() {
       const missing = items.some((li) => !li.hsn_sac || !String(li.hsn_sac).trim());
       if (missing) list.push("HSN/SAC is required on every line item");
     }
-    if (settings?.require_authorized_signature && !company?.signature_url?.trim() && !invoice.seller_snapshot_json?.signature_url?.trim()) {
-      list.push("Authorized signature is required (upload in Company Settings)");
-    }
     return list;
   }, [invoice, settings, company]);
 
