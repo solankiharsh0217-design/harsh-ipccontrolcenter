@@ -43,6 +43,9 @@ import CodeOfConductAdmin from "./pages/CodeOfConductAdmin";
 import CodeOfConductReceipt from "./pages/CodeOfConductReceipt";
 import CodeOfConductSignedPdf from "./pages/CodeOfConductSignedPdf";
 import CompanySettingsPage from "./pages/admin/CompanySettings";
+import InvoiceSettingsPage from "./pages/admin/InvoiceSettings";
+import InvoiceEditor from "./pages/InvoiceEditor";
+import PaidLeadInvoicesPage from "./pages/PaidLeadInvoices";
 
 import type { ModuleKey } from "@/lib/modules";
 
