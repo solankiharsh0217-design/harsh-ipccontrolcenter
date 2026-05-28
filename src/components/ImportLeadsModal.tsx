@@ -65,11 +65,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const { profile } = useAuth();
   const [step, setStep] = useState(1);
 
-  // Step 1
+  // Step 1 — source
+  type SourceType = "csv" | "google_sheet";
+  const [sourceType, setSourceType] = useState<SourceType>("csv");
   const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [mapping, setMapping] = useState<Record<FieldKey, string>>({ full_name: "", email: "", phone: "", country: "" });
+
+  // Google Sheet sub-state
+  const [gsUrl, setGsUrl] = useState("");
+  const [gsLoadingTabs, setGsLoadingTabs] = useState(false);
+  const [gsLoadingRows, setGsLoadingRows] = useState(false);
+  const [gsError, setGsError] = useState<string | null>(null);
+  const [gsSpreadsheetId, setGsSpreadsheetId] = useState<string>("");
+  const [gsSpreadsheetTitle, setGsSpreadsheetTitle] = useState<string>("");
+  const [gsTabs, setGsTabs] = useState<{ sheetId: string; tabName: string; validRowsCount: number; detectedHeaders: string[] }[]>([]);
+  const [gsSelectedTab, setGsSelectedTab] = useState<string>("");
+  const [gsFetchedAt, setGsFetchedAt] = useState<string>("");
 
   // Step 2
   const [segmentName, setSegmentName] = useState("");
