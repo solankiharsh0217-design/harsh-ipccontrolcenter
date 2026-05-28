@@ -197,22 +197,38 @@ export default function CompanySettingsPage() {
           {(["logo_url", "signature_url", "stamp_url"] as const).map((k) => {
             const label = k === "logo_url" ? "Logo" : k === "signature_url" ? "Authorized Signature" : "Company Stamp";
             const present = !!s[k];
+            const busy = busyKind === k;
             const url = s[k] as string | null | undefined;
             const masked = url ? (url.length > 48 ? url.slice(0, 24) + "…" + url.slice(-16) : url) : "";
+            const status = busy ? "Uploading" : present ? "Uploaded" : "Missing";
+            const statusCls = busy
+              ? "bg-blue-100 text-blue-800"
+              : present
+                ? "bg-green-100 text-green-800"
+                : "bg-amber-100 text-amber-800";
             return (
               <div key={k} className="border border-line rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
                   <Label className="text-xs font-medium">{label}</Label>
-                  <span className={`text-[10.5px] px-1.5 py-0.5 rounded ${present ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}>
-                    {present ? "Uploaded" : "Missing"}
-                  </span>
+                  <span className={`text-[10.5px] px-1.5 py-0.5 rounded ${statusCls}`}>{status}</span>
                 </div>
                 <div className="h-20 flex items-center justify-center bg-muted/30 rounded mb-2 overflow-hidden">
                   {url ? <img src={url} alt={label} className="max-h-20 max-w-full object-contain" /> : <span className="text-[11px] text-muted-foreground">No file</span>}
                 </div>
                 {present && <div className="text-[10px] text-muted-foreground mb-2 break-all">{masked}</div>}
-                <Input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAsset(k, f); }} className="text-[11px]" />
-                {present && (
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  disabled={busy}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadAsset(k, f);
+                    e.target.value = "";
+                  }}
+                  className="text-[11px]"
+                />
+                <div className="text-[10px] text-muted-foreground mt-1">PNG, JPG or WebP · up to 5 MB</div>
+                {present && !busy && (
                   <Button size="sm" variant="ghost" className="mt-1 h-7 text-[11px] text-red-600 hover:text-red-700" onClick={() => removeAsset(k)}>Remove</Button>
                 )}
               </div>
@@ -220,6 +236,22 @@ export default function CompanySettingsPage() {
           })}
         </div>
       </div>
+
+      <details className="mb-8 bg-white border border-line rounded-xl p-4 text-[11px]">
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Admin debug · Invoice branding</summary>
+        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 font-mono">
+          <div>Bucket</div><div>invoice-assets</div>
+          <div>Workspace</div><div>{s.workspace || "default"}</div>
+          <div>User</div><div className="break-all">{user?.email || "—"}</div>
+          <div>Is admin</div><div>{String(isAdmin)}</div>
+          <div>Can upload</div><div>{String(isAdmin)}</div>
+          <div>logo_url</div><div>{s.logo_url ? "present" : "missing"}</div>
+          <div>signature_url</div><div>{s.signature_url ? "present" : "missing"}</div>
+          <div>stamp_url</div><div>{s.stamp_url ? "present" : "missing"}</div>
+          <div>Last upload error</div><div className="text-red-600 break-all">{lastUploadError || "—"}</div>
+          <div>Last save error</div><div className="text-red-600 break-all">{lastSaveError || "—"}</div>
+        </div>
+      </details>
 
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Company Settings"}</Button>
