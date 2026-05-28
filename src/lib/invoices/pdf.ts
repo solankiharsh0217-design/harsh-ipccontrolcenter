@@ -27,29 +27,41 @@ function formatAmt(amount: number | null | undefined): string {
 
 async function loadImageDataUrl(
   url: string
-): Promise<{ data: string; format: "PNG" | "JPEG" | "WEBP" } | null> {
+): Promise<{ data: string; format: "PNG" | "JPEG"; width: number; height: number } | null> {
+  // Use Image + canvas so we get natural dimensions (for aspect ratio) and
+  // normalize WEBP / unknown formats into PNG that jsPDF can render.
   try {
-    const r = await fetch(url, { mode: "cors" });
-    if (!r.ok) return null;
-    const blob = await r.blob();
-    const mime = (blob.type || "").toLowerCase();
-    const dataUrl = await new Promise<string>((res) => {
-      const fr = new FileReader();
-      fr.onload = () => res(fr.result as string);
-      fr.readAsDataURL(blob);
+    const img: HTMLImageElement = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.crossOrigin = "anonymous";
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error("image load failed"));
+      // Cache-bust signed/public URLs that may have stale CORS headers
+      i.src = url + (url.includes("?") ? "&" : "?") + "v=pdf";
     });
-    let format: "PNG" | "JPEG" | "WEBP" = "PNG";
-    if (mime.includes("jpeg") || mime.includes("jpg")) format = "JPEG";
-    else if (mime.includes("webp")) format = "WEBP";
-    else if (mime.includes("png")) format = "PNG";
-    else {
-      const lower = url.toLowerCase();
-      if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) format = "JPEG";
-      else if (lower.endsWith(".webp")) format = "WEBP";
-    }
-    return { data: dataUrl, format };
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    const data = canvas.toDataURL("image/png");
+    return { data, format: "PNG", width: canvas.width, height: canvas.height };
   } catch {
-    return null;
+    // Fallback to raw fetch (no aspect ratio info)
+    try {
+      const r = await fetch(url);
+      if (!r.ok) return null;
+      const blob = await r.blob();
+      const mime = (blob.type || "").toLowerCase();
+      const dataUrl = await new Promise<string>((res) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result as string);
+        fr.readAsDataURL(blob);
+      });
+      const format: "PNG" | "JPEG" = mime.includes("jpeg") || mime.includes("jpg") ? "JPEG" : "PNG";
+      return { data: dataUrl, format, width: 0, height: 0 };
+    } catch { return null; }
   }
 }
 
