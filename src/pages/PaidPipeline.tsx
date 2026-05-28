@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -171,6 +171,7 @@ export default function PaidPipeline() {
   }, [leads]);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   useEffect(() => {
     const leadParam = searchParams.get("lead");
     if (leadParam) { setOpenId(leadParam); setView("leads"); }
@@ -640,6 +641,8 @@ export default function PaidPipeline() {
                         onUpdateFinance={() => setQuickFinanceId(l.id)}
                         onSetFollowUp={() => setQuickFuId(l.id)}
                         onOpen={() => setOpenId(l.id)}
+                        onCreateInvoice={() => navigate(`/invoices/new?paidLeadId=${l.id}`)}
+                        onViewInvoices={() => navigate(`/paid-pipeline/${l.id}/invoices`)}
                         onArchive={() => setArchiveTarget({ id: l.id, name: l.name })}
                         onRestore={async () => {
                           try {
@@ -770,9 +773,10 @@ function FinanceCell({ lead, onClick }: { lead: any; onClick: () => void }) {
   );
 }
 
-function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen, onArchive, onRestore, archived }: {
+function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen, onArchive, onRestore, archived, onCreateInvoice, onViewInvoices }: {
   onAddPayment: () => void; onUpdateFinance: () => void; onSetFollowUp: () => void; onOpen: () => void;
   onArchive: () => void; onRestore: () => void; archived: boolean;
+  onCreateInvoice: () => void; onViewInvoices: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
@@ -841,6 +845,10 @@ function RowActionsMenu({ onAddPayment, onUpdateFinance, onSetFollowUp, onOpen, 
       <Row onClick={onAddPayment} dotColor="#15803D" tint="#DCFCE7" title="Add Payment" subtitle="Record token / balance / EMI" icon="₹" />
       <Row onClick={onUpdateFinance} dotColor="#1E40AF" tint="#DBEAFE" title="Update Finance" subtitle="Partner, status, disbursal" icon="◈" />
       <Row onClick={onSetFollowUp} dotColor="#92400E" tint="#FEF3C7" title="Set Follow-up" subtitle="Schedule next call / message" icon="⏰" />
+      <div className="h-px bg-line my-0.5" />
+      <div className="h-px bg-line my-0.5" />
+      <Row onClick={onCreateInvoice} dotColor="#7C3AED" tint="#EDE9FE" title="Create Invoice" subtitle="Auto-fill from paid lead" icon="🧾" />
+      <Row onClick={onViewInvoices} dotColor="#4338CA" tint="#E0E7FF" title="View Invoices" subtitle="All invoices for this buyer" icon="📑" />
       <div className="h-px bg-line my-0.5" />
       {!archived ? (
         <Row onClick={onArchive} dotColor="#92400E" tint="#FEF3C7" title="Archive Buyer" subtitle="Hide from active table — payments preserved" icon="📦" />

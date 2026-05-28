@@ -43,6 +43,9 @@ import CodeOfConductAdmin from "./pages/CodeOfConductAdmin";
 import CodeOfConductReceipt from "./pages/CodeOfConductReceipt";
 import CodeOfConductSignedPdf from "./pages/CodeOfConductSignedPdf";
 import CompanySettingsPage from "./pages/admin/CompanySettings";
+import InvoiceSettingsPage from "./pages/admin/InvoiceSettings";
+import InvoiceEditor from "./pages/InvoiceEditor";
+import PaidLeadInvoicesPage from "./pages/PaidLeadInvoices";
 
 import type { ModuleKey } from "@/lib/modules";
 
@@ -101,6 +104,10 @@ const App = () => (
             <Route path="/analytics-center" element={<Shell><AnalyticsCenter /></Shell>} />
             <Route path="/admin-center" element={<Shell><AdminCenter /></Shell>} />
             <Route path="/admin-center/company-settings" element={<Shell admin><CompanySettingsPage /></Shell>} />
+            <Route path="/admin-center/invoice-settings" element={<Shell admin><InvoiceSettingsPage /></Shell>} />
+            <Route path="/invoices/new" element={<Shell><InvoiceEditor /></Shell>} />
+            <Route path="/invoices/:id" element={<Shell><InvoiceEditor /></Shell>} />
+            <Route path="/paid-pipeline/:paidLeadId/invoices" element={<Shell moduleKey="paid-pipeline"><PaidLeadInvoicesPage /></Shell>} />
             <Route path="/admin-center/system-refinement" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="/admin-center/eligibility" element={<Shell admin><BulkEligibility /></Shell>} />
             <Route path="/admin-center/clean-slate" element={<Shell admin><CleanSlate /></Shell>} />
