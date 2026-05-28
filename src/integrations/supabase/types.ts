@@ -1884,6 +1884,7 @@ export type Database = {
           last_reset_fy: string | null
           next_invoice_number: number
           number_padding: number
+          require_authorized_signature: boolean
           reset_yearly: boolean
           updated_at: string
           updated_by: string | null
@@ -1910,6 +1911,7 @@ export type Database = {
           last_reset_fy?: string | null
           next_invoice_number?: number
           number_padding?: number
+          require_authorized_signature?: boolean
           reset_yearly?: boolean
           updated_at?: string
           updated_by?: string | null
@@ -1936,6 +1938,7 @@ export type Database = {
           last_reset_fy?: string | null
           next_invoice_number?: number
           number_padding?: number
+          require_authorized_signature?: boolean
           reset_yearly?: boolean
           updated_at?: string
           updated_by?: string | null

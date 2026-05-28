@@ -17,6 +17,7 @@ export function checkReadiness(
   if (!company?.email) missing.push("Company email");
   if (!company?.bank_account_number || !company?.bank_ifsc) missing.push("Bank account details");
   if (!settings?.invoice_prefix) missing.push("Invoice prefix");
+  if (settings?.require_authorized_signature && !company?.signature_url) missing.push("Authorized signature (upload in Company Settings)");
 
   if (invoiceType === "gst") {
     if (!company?.gstin) missing.push("GSTIN");

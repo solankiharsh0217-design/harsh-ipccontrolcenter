@@ -54,6 +54,7 @@ export interface InvoiceSettings {
   default_tax_split: TaxSplit;
   default_place_of_supply?: string | null;
   hsn_sac_required: boolean;
+  require_authorized_signature?: boolean;
   default_hsn_sac?: string | null;
   default_notes?: string | null;
   default_terms?: string | null;
