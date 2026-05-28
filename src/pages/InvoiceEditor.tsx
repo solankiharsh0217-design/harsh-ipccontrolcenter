@@ -392,20 +392,51 @@ export default function InvoiceEditor() {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-2 mb-6">
-        <Button variant="outline" onClick={() => nav(-1)}>Back</Button>
-        {!isLocked && <Button variant="outline" onClick={saveDraftClick} disabled={busy}>Save Draft</Button>}
-        <Button variant="outline" onClick={previewPdf}>Preview PDF</Button>
-        <Button variant="outline" onClick={downloadPdf}>Download PDF</Button>
-        {!isLocked && (
-          <Button onClick={issueClick} disabled={busy || !readiness.ok}>
-            Issue Invoice
-          </Button>
-        )}
-        {invoice.status === "issued" && isAdmin && (
-          <Button variant="destructive" onClick={cancelInvoice} disabled={busy}>Cancel Invoice</Button>
+      <div className="flex flex-col items-end gap-1 mb-6">
+        <div className="flex justify-end gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => nav(-1)}>Back</Button>
+          {!isLocked && <Button variant="outline" onClick={refreshFromCompany} disabled={busy}>Refresh from Company Settings</Button>}
+          {!isLocked && <Button variant="outline" onClick={saveDraftClick} disabled={busy}>Save Draft</Button>}
+          <Button variant="outline" onClick={previewPdf}>Preview PDF</Button>
+          <Button variant="outline" onClick={downloadPdf}>Download PDF</Button>
+          {!isLocked && (
+            <Button onClick={issueClick} disabled={busy || !canIssue} title={!canIssue ? "Fix the above issue(s) to issue this invoice" : undefined}>
+              Issue Invoice
+            </Button>
+          )}
+          {invoice.status === "issued" && isAdmin && (
+            <Button variant="destructive" onClick={cancelInvoice} disabled={busy}>Cancel Invoice</Button>
+          )}
+        </div>
+        {!isLocked && !canIssue && (
+          <div className="text-[11.5px] text-muted-foreground">Fix the above issue(s) to issue this invoice.</div>
         )}
       </div>
+
+      {/* Admin Debug */}
+      {isAdmin && (
+        <details className="mb-6 border border-line bg-white rounded-xl p-4 text-[12px]">
+          <summary className="cursor-pointer font-medium">Invoice Readiness Debug (admin only)</summary>
+          <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 font-mono">
+            <span>status</span><span>{invoice.status}</span>
+            <span>invoice_type</span><span>{invoice.invoice_type}</span>
+            <span>line_items</span><span>{invoice.line_items?.length || 0}</span>
+            <span>total</span><span>{invoice.total_amount}</span>
+            <span>company loaded</span><span>{company ? "yes" : "no"}</span>
+            <span>company.signature_url</span><span>{company?.signature_url ? "yes" : "no"}</span>
+            <span>snapshot.signature_url</span><span>{invoice.seller_snapshot_json?.signature_url ? "yes" : "no"}</span>
+            <span>require_signature</span><span>{settings?.require_authorized_signature ? "yes" : "no"}</span>
+            <span>readiness blockers</span><span>{readiness.missing.length}</span>
+            <span>invoice blockers</span><span>{blockers.length}</span>
+            <span className="font-bold">canIssue</span><span className="font-bold">{String(canIssue)}</span>
+          </div>
+          {allBlockers.length > 0 && (
+            <ul className="mt-3 list-disc ml-5 text-red-700">
+              {allBlockers.map((b) => <li key={b}>{b}</li>)}
+            </ul>
+          )}
+        </details>
+      )}
 
       {/* Events */}
       {events.length > 0 && (
