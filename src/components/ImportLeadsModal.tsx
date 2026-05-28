@@ -364,56 +364,153 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       setPreflightLoading(true);
       try {
         const get = (r: Row, k: FieldKey) => (mapping[k] ? String(r[mapping[k]] || "").trim() : "");
+
+        // 1) Parse + classify rows from the file itself
+        type Parsed = { idx: number; name: string; email: string; phone: string; emailValid: boolean };
+        const parsed: Parsed[] = rows.map((r, i) => {
+          const email = normEmail(get(r, "email"));
+          return {
+            idx: i,
+            name: get(r, "full_name"),
+            email,
+            phone: normPhone(get(r, "phone")),
+            emailValid: !!email && isValidEmail(email),
+          };
+        });
+
+        // 2) Detect duplicates inside the sheet (after normalization)
+        const emailFirstSeen = new Map<string, number>();
+        const phoneFirstSeen = new Map<string, number>();
+        const sheetDupEmailIdx = new Set<number>();
+        const sheetDupPhoneIdx = new Set<number>();
+        for (const p of parsed) {
+          if (p.emailValid) {
+            if (emailFirstSeen.has(p.email)) sheetDupEmailIdx.add(p.idx);
+            else emailFirstSeen.set(p.email, p.idx);
+          }
+          if (p.phone.length === 10) {
+            if (phoneFirstSeen.has(p.phone)) sheetDupPhoneIdx.add(p.idx);
+            else phoneFirstSeen.set(p.phone, p.idx);
+          }
+        }
+        const sheetDuplicateEmails = sheetDupEmailIdx.size;
+        const sheetDuplicatePhones = sheetDupPhoneIdx.size;
+
+        // 3) Lookup existing CRM leads by email AND by phone
+        const uniqueEmails = Array.from(emailFirstSeen.keys());
+        const uniquePhones = Array.from(phoneFirstSeen.keys());
+        const existingByEmail = new Map<string, any>();
+        const existingByPhone = new Map<string, any>();
+
+        const fetchExisting = async (col: "email" | "phone", values: string[], target: Map<string, any>) => {
+          for (let i = 0; i < values.length; i += 300) {
+            const chunk = values.slice(i, i + 300);
+            const { data } = await supabase
+              .from("leads")
+              .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type, archived_at, batch_name")
+              .in(col, chunk);
+            (data || []).forEach((l: any) => {
+              if (col === "email") {
+                const k = normEmail(l.email);
+                if (k && !target.has(k)) target.set(k, l);
+              } else {
+                const k = normPhone(l.phone);
+                if (k.length === 10 && !target.has(k)) target.set(k, l);
+              }
+            });
+          }
+        };
+
+        await Promise.all([
+          uniqueEmails.length ? fetchExisting("email", uniqueEmails, existingByEmail) : Promise.resolve(),
+          uniquePhones.length ? fetchExisting("phone", uniquePhones, existingByPhone) : Promise.resolve(),
+        ]);
+
+        // 4) Helpers to render pipeline/stage names
+        const pipeName = (id: string | null) => pipelines.find((p: any) => p.id === id)?.name || null;
+        const stageName = (id: string | null) => stages.find((s: any) => s.id === id)?.name || null;
+        const formatExisting = (l: any) => l ? ({
+          full_name: l.full_name || null,
+          pipeline_name: pipeName(l.pipeline_id),
+          stage_name: stageName(l.stage_id),
+          batch_name: l.batch_name || null,
+          archived: !!l.archived_at,
+        }) : null;
+
+        // 5) Build per-row preflight detail
         let missingEmail = 0;
         let invalid = 0;
-        const emailSet = new Set<string>();
-        for (const r of rows) {
-          const fn = get(r, "full_name");
-          const em = normEmail(get(r, "email"));
-          const ph = get(r, "phone");
-          if (!fn && !em && !ph) { invalid++; continue; }
-          if (!em) { missingEmail++; continue; }
-          emailSet.add(em);
-        }
-        const emails = Array.from(emailSet);
-        const existingByEmail = new Map<string, any>();
-        for (let i = 0; i < emails.length; i += 300) {
-          const chunk = emails.slice(i, i + 300);
-          const { data } = await supabase
-            .from("leads")
-            .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type, archived_at")
-            .in("email", chunk);
-          (data || []).forEach((l: any) => {
-            const k = normEmail(l.email);
-            if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
-          });
-        }
-        const dupCount = emails.filter((e) => existingByEmail.has(e)).length;
-        const archivedDupCount = emails.filter((e) => {
-          const ex = existingByEmail.get(e);
-          return ex && ex.archived_at;
-        }).length;
-        const newCount = emails.length - dupCount;
+        let existingByEmailCount = 0;
+        let existingByPhoneCount = 0;
+        let matchConflictCount = 0;
+        let archivedMatchCount = 0;
+        let newCount = 0;
+
+        const rowDetails = parsed.map((p) => {
+          // Invalid: no name and no usable email and no phone
+          if (!p.name && !p.emailValid && p.phone.length !== 10) {
+            invalid++;
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "invalid" as const, conflict: false, existing: null };
+          }
+          // In-sheet duplicate (email takes precedence)
+          if (sheetDupEmailIdx.has(p.idx)) {
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "sheet_duplicate_email" as const, conflict: false, existing: null };
+          }
+          if (sheetDupPhoneIdx.has(p.idx) && !p.emailValid) {
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "sheet_duplicate_phone" as const, conflict: false, existing: null };
+          }
+          // Existing match (email → phone)
+          const emailMatch = p.emailValid ? existingByEmail.get(p.email) : null;
+          const phoneMatch = p.phone.length === 10 ? existingByPhone.get(p.phone) : null;
+          if (emailMatch) {
+            existingByEmailCount++;
+            const conflict = !!(phoneMatch && phoneMatch.id !== emailMatch.id);
+            if (conflict) matchConflictCount++;
+            if (emailMatch.archived_at) archivedMatchCount++;
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
+          }
+          if (phoneMatch) {
+            existingByPhoneCount++;
+            if (phoneMatch.archived_at) archivedMatchCount++;
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
+          }
+          // Missing email but has phone → phone-only new lead
+          if (!p.emailValid) {
+            missingEmail++;
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "missing_email" as const, conflict: false, existing: null };
+          }
+          newCount++;
+          return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "new" as const, conflict: false, existing: null };
+        });
+
+        const rowsWithEmail = parsed.filter((p) => p.emailValid).length;
+
         if (!cancelled) {
           setPreflight({
             total: rows.length,
-            newCount,
-            dupCount,
-            archivedDupCount,
+            rowsWithEmail,
             missingEmail,
+            sheetDuplicateEmails,
+            sheetDuplicatePhones,
+            existingByEmailCount,
+            existingByPhoneCount,
+            matchConflictCount,
+            archivedMatchCount,
+            newCount,
             invalid,
             existingByEmail,
+            existingByPhone,
+            rowDetails,
           });
-          // NOTE: We intentionally do NOT auto-switch the duplicate policy here.
-          // Previously this forced "new_only" when all dups were archived, which
-          // silently skipped archived rows the user wanted to restore via "move".
         }
       } finally {
         if (!cancelled) setPreflightLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [step, rows, mapping]);
+  }, [step, rows, mapping, pipelines, stages]);
+
+
 
   const importNow = async () => {
     setImporting(true);
