@@ -357,7 +357,7 @@ export default function InvoiceEditor() {
         <Button variant="outline" onClick={previewPdf}>Preview PDF</Button>
         <Button variant="outline" onClick={downloadPdf}>Download PDF</Button>
         {!isLocked && (
-          <Button onClick={issueClick} disabled={busy || !readiness.ok || !isAdmin}>
+          <Button onClick={issueClick} disabled={busy || !readiness.ok}>
             Issue Invoice
           </Button>
         )}
