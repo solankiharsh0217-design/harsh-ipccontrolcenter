@@ -1256,15 +1256,30 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     <div><span className="text-muted-foreground">Total rows:</span> <b>{preflight.total}</b></div>
                     <div><span className="text-muted-foreground">Rows with email:</span> <b>{preflight.rowsWithEmail}</b></div>
-                    <div><span className="text-muted-foreground">Missing email:</span> <b>{preflight.missingEmail}</b></div>
-                    <div><span className="text-muted-foreground">Invalid rows:</span> <b>{preflight.invalid}</b></div>
+                    <div><span className="text-muted-foreground">Rows missing email:</span> <b>{preflight.missingEmail}</b></div>
+                    <div><span className="text-muted-foreground">Invalid rows (no name/email/phone):</span> <b className={preflight.invalid ? "text-rose-700" : ""}>{preflight.invalid}</b></div>
+                    <div><span className="text-muted-foreground">Phone-only rows:</span> <b className={preflight.phoneOnlyCount ? "text-emerald-700" : ""}>{preflight.phoneOnlyCount}</b></div>
+                    <div><span className="text-muted-foreground">Name-only rows:</span> <b className={preflight.nameOnlyCount ? "text-emerald-700" : ""}>{preflight.nameOnlyCount}</b></div>
                     <div><span className="text-muted-foreground">Duplicate rows inside sheet (email):</span> <b className={preflight.sheetDuplicateEmails ? "text-amber-700" : ""}>{preflight.sheetDuplicateEmails}</b></div>
                     <div><span className="text-muted-foreground">Duplicate rows inside sheet (phone):</span> <b className={preflight.sheetDuplicatePhones ? "text-amber-700" : ""}>{preflight.sheetDuplicatePhones}</b></div>
                     <div><span className="text-muted-foreground">Existing CRM matches by email:</span> <b className="text-amber-700">{preflight.existingByEmailCount}</b></div>
                     <div><span className="text-muted-foreground">Existing CRM matches by phone:</span> <b className="text-amber-700">{preflight.existingByPhoneCount}</b></div>
-                    <div className="col-span-2"><span className="text-muted-foreground">New leads (no match in CRM):</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
+                    <div><span className="text-muted-foreground">New email leads:</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
+                    <div><span className="text-muted-foreground">New phone-only leads:</span> <b className="text-emerald-700">{preflight.phoneOnlyCount}</b></div>
+                    <div className="col-span-2 mt-1 pt-1 border-t border-line flex items-center justify-between">
+                      <span><span className="text-muted-foreground">Will be imported:</span> <b className="text-emerald-700">{preflight.willImport}</b></span>
+                      <span><span className="text-muted-foreground">Will be skipped:</span> <b className={preflight.willSkip ? "text-amber-700" : ""}>{preflight.willSkip}</b></span>
+                    </div>
                   </div>
 
+                  {preflight.missingEmail > 0 && (preflight.phoneOnlyCount + preflight.nameOnlyCount) > 0 && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800">
+                      <b>{preflight.missingEmail}</b> row{preflight.missingEmail === 1 ? "" : "s"} {preflight.missingEmail === 1 ? "is" : "are"} missing email but will still be imported because phone/name is available
+                      {preflight.phoneOnlyCount > 0 && <> · <b>{preflight.phoneOnlyCount}</b> phone-only</>}
+                      {preflight.nameOnlyCount > 0 && <> · <b>{preflight.nameOnlyCount}</b> name-only (manual follow-up needed)</>}
+                      .
+                    </div>
+                  )}
                   {(preflight.existingByEmailCount > 0 || preflight.existingByPhoneCount > 0) && (
                     <div className="mt-2 px-2.5 py-1.5 rounded-md bg-slate-50 border border-slate-200 text-[11px] text-slate-700">
                       These rows are <b>not duplicates inside your sheet</b>. They match leads already present in CRM and will be handled by the duplicate policy below.
@@ -1302,24 +1317,26 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                           <tbody>
                             {preflight.rowDetails.map((r) => {
                               const statusLabel: Record<typeof r.status, { text: string; cls: string }> = {
-                                new: { text: "New lead", cls: "text-emerald-700" },
+                                new: { text: "New email lead", cls: "text-emerald-700" },
                                 existing_by_email: { text: "Existing CRM match (email)", cls: "text-amber-700" },
                                 existing_by_phone: { text: "Existing CRM match (phone)", cls: "text-amber-700" },
                                 sheet_duplicate_email: { text: "Duplicate inside sheet (email)", cls: "text-amber-700" },
                                 sheet_duplicate_phone: { text: "Duplicate inside sheet (phone)", cls: "text-amber-700" },
-                                missing_email: { text: "Missing email", cls: "text-muted-foreground" },
+                                phone_only: { text: "Phone-only lead", cls: "text-emerald-700" },
+                                name_only: { text: "Name-only lead", cls: "text-emerald-700" },
                                 invalid: { text: "Invalid row", cls: "text-rose-700" },
                               };
                               let action = "";
-                              if (r.status === "new") action = "Create new lead";
-                              else if (r.status === "missing_email") action = r.phone.length === 10 ? "Create phone-only lead" : "Skip (no contact info)";
-                              else if (r.status === "invalid") action = "Skip (invalid)";
-                              else if (r.status === "sheet_duplicate_email" || r.status === "sheet_duplicate_phone") action = "Skip (duplicate inside sheet)";
+                              if (r.status === "new") action = "Will create email lead";
+                              else if (r.status === "phone_only") action = "Will create phone-only lead";
+                              else if (r.status === "name_only") action = "Will create name-only lead (manual follow-up)";
+                              else if (r.status === "invalid") action = "Will skip invalid row";
+                              else if (r.status === "sheet_duplicate_email" || r.status === "sheet_duplicate_phone") action = "Will skip (duplicate inside sheet)";
                               else if (r.status === "existing_by_email" || r.status === "existing_by_phone") {
-                                if (duplicatePolicy === "move") action = "Move existing → this batch";
-                                else if (duplicatePolicy === "update") action = "Update existing lead";
-                                else if (duplicatePolicy === "skip") action = "Skip (existing match)";
-                                else if (duplicatePolicy === "new_only") action = "Skip (reported as existing)";
+                                if (duplicatePolicy === "move") action = "Will move existing lead → this batch";
+                                else if (duplicatePolicy === "update") action = "Will update existing lead";
+                                else if (duplicatePolicy === "skip") action = "Will skip (existing match)";
+                                else if (duplicatePolicy === "new_only") action = "Will skip (reported as existing)";
                               }
                               const ex = r.existing;
                               return (
