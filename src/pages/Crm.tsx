@@ -788,7 +788,8 @@ export default function Crm() {
             >
               <Archive className="w-3.5 h-3.5" /> {showArchived ? "Showing archived" : "Show archived"}
             </button>
-            <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
+            <button onClick={() => setAddLeadOpen(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs" title="Add a single lead manually"><Plus className="w-3.5 h-3.5" /> Add Lead</button>
+            <button onClick={() => setImportOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Upload className="w-3.5 h-3.5" /> Import</button>
             <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
             {(() => {
               const pipe = pipelines.find((p) => p.id === activePipeline) as any;
