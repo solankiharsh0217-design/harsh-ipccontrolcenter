@@ -59,7 +59,18 @@ function autoMap(headers: string[]): Record<FieldKey, string> {
   return out;
 }
 
-const normEmail = (v: any) => String(v || "").trim().toLowerCase();
+const normEmail = (v: any) => {
+  const s = String(v ?? "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().toLowerCase();
+  return s;
+};
+const isValidEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+const normPhone = (v: any) => {
+  let s = String(v ?? "").replace(/\D/g, "");
+  if (s.length > 10 && s.startsWith("91")) s = s.slice(s.length - 10);
+  if (s.length > 10) s = s.slice(s.length - 10);
+  return s;
+};
+
 
 export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const { profile } = useAuth();
@@ -120,13 +131,43 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflight, setPreflight] = useState<{
     total: number;
-    newCount: number;
-    dupCount: number;
-    archivedDupCount: number;
+    rowsWithEmail: number;
     missingEmail: number;
+    sheetDuplicateEmails: number;
+    sheetDuplicatePhones: number;
+    existingByEmailCount: number;
+    existingByPhoneCount: number;
+    matchConflictCount: number;
+    archivedMatchCount: number;
+    newCount: number;
     invalid: number;
     existingByEmail: Map<string, any>;
+    existingByPhone: Map<string, any>;
+    rowDetails: {
+      rowNum: number;
+      name: string;
+      email: string;
+      phone: string;
+      status:
+        | "new"
+        | "existing_by_email"
+        | "existing_by_phone"
+        | "sheet_duplicate_email"
+        | "sheet_duplicate_phone"
+        | "missing_email"
+        | "invalid";
+      conflict: boolean;
+      existing: {
+        full_name: string | null;
+        pipeline_name: string | null;
+        stage_name: string | null;
+        batch_name: string | null;
+        archived: boolean;
+      } | null;
+    }[];
   } | null>(null);
+  const [showPreflightRows, setShowPreflightRows] = useState(false);
+
 
   useEffect(() => {
     supabase.from("webinars").select("id, name").order("name").then(({ data }) => setWebinars((data || []) as any));
@@ -323,56 +364,153 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       setPreflightLoading(true);
       try {
         const get = (r: Row, k: FieldKey) => (mapping[k] ? String(r[mapping[k]] || "").trim() : "");
+
+        // 1) Parse + classify rows from the file itself
+        type Parsed = { idx: number; name: string; email: string; phone: string; emailValid: boolean };
+        const parsed: Parsed[] = rows.map((r, i) => {
+          const email = normEmail(get(r, "email"));
+          return {
+            idx: i,
+            name: get(r, "full_name"),
+            email,
+            phone: normPhone(get(r, "phone")),
+            emailValid: !!email && isValidEmail(email),
+          };
+        });
+
+        // 2) Detect duplicates inside the sheet (after normalization)
+        const emailFirstSeen = new Map<string, number>();
+        const phoneFirstSeen = new Map<string, number>();
+        const sheetDupEmailIdx = new Set<number>();
+        const sheetDupPhoneIdx = new Set<number>();
+        for (const p of parsed) {
+          if (p.emailValid) {
+            if (emailFirstSeen.has(p.email)) sheetDupEmailIdx.add(p.idx);
+            else emailFirstSeen.set(p.email, p.idx);
+          }
+          if (p.phone.length === 10) {
+            if (phoneFirstSeen.has(p.phone)) sheetDupPhoneIdx.add(p.idx);
+            else phoneFirstSeen.set(p.phone, p.idx);
+          }
+        }
+        const sheetDuplicateEmails = sheetDupEmailIdx.size;
+        const sheetDuplicatePhones = sheetDupPhoneIdx.size;
+
+        // 3) Lookup existing CRM leads by email AND by phone
+        const uniqueEmails = Array.from(emailFirstSeen.keys());
+        const uniquePhones = Array.from(phoneFirstSeen.keys());
+        const existingByEmail = new Map<string, any>();
+        const existingByPhone = new Map<string, any>();
+
+        const fetchExisting = async (col: "email" | "phone", values: string[], target: Map<string, any>) => {
+          for (let i = 0; i < values.length; i += 300) {
+            const chunk = values.slice(i, i + 300);
+            const { data } = await supabase
+              .from("leads")
+              .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type, archived_at, batch_name")
+              .in(col, chunk);
+            (data || []).forEach((l: any) => {
+              if (col === "email") {
+                const k = normEmail(l.email);
+                if (k && !target.has(k)) target.set(k, l);
+              } else {
+                const k = normPhone(l.phone);
+                if (k.length === 10 && !target.has(k)) target.set(k, l);
+              }
+            });
+          }
+        };
+
+        await Promise.all([
+          uniqueEmails.length ? fetchExisting("email", uniqueEmails, existingByEmail) : Promise.resolve(),
+          uniquePhones.length ? fetchExisting("phone", uniquePhones, existingByPhone) : Promise.resolve(),
+        ]);
+
+        // 4) Helpers to render pipeline/stage names
+        const pipeName = (id: string | null) => pipelines.find((p: any) => p.id === id)?.name || null;
+        const stageName = (id: string | null) => stages.find((s: any) => s.id === id)?.name || null;
+        const formatExisting = (l: any) => l ? ({
+          full_name: l.full_name || null,
+          pipeline_name: pipeName(l.pipeline_id),
+          stage_name: stageName(l.stage_id),
+          batch_name: l.batch_name || null,
+          archived: !!l.archived_at,
+        }) : null;
+
+        // 5) Build per-row preflight detail
         let missingEmail = 0;
         let invalid = 0;
-        const emailSet = new Set<string>();
-        for (const r of rows) {
-          const fn = get(r, "full_name");
-          const em = normEmail(get(r, "email"));
-          const ph = get(r, "phone");
-          if (!fn && !em && !ph) { invalid++; continue; }
-          if (!em) { missingEmail++; continue; }
-          emailSet.add(em);
-        }
-        const emails = Array.from(emailSet);
-        const existingByEmail = new Map<string, any>();
-        for (let i = 0; i < emails.length; i += 300) {
-          const chunk = emails.slice(i, i + 300);
-          const { data } = await supabase
-            .from("leads")
-            .select("id, email, full_name, phone, pipeline_id, stage_id, lead_type, archived_at")
-            .in("email", chunk);
-          (data || []).forEach((l: any) => {
-            const k = normEmail(l.email);
-            if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
-          });
-        }
-        const dupCount = emails.filter((e) => existingByEmail.has(e)).length;
-        const archivedDupCount = emails.filter((e) => {
-          const ex = existingByEmail.get(e);
-          return ex && ex.archived_at;
-        }).length;
-        const newCount = emails.length - dupCount;
+        let existingByEmailCount = 0;
+        let existingByPhoneCount = 0;
+        let matchConflictCount = 0;
+        let archivedMatchCount = 0;
+        let newCount = 0;
+
+        const rowDetails = parsed.map((p) => {
+          // Invalid: no name and no usable email and no phone
+          if (!p.name && !p.emailValid && p.phone.length !== 10) {
+            invalid++;
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "invalid" as const, conflict: false, existing: null };
+          }
+          // In-sheet duplicate (email takes precedence)
+          if (sheetDupEmailIdx.has(p.idx)) {
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "sheet_duplicate_email" as const, conflict: false, existing: null };
+          }
+          if (sheetDupPhoneIdx.has(p.idx) && !p.emailValid) {
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "sheet_duplicate_phone" as const, conflict: false, existing: null };
+          }
+          // Existing match (email → phone)
+          const emailMatch = p.emailValid ? existingByEmail.get(p.email) : null;
+          const phoneMatch = p.phone.length === 10 ? existingByPhone.get(p.phone) : null;
+          if (emailMatch) {
+            existingByEmailCount++;
+            const conflict = !!(phoneMatch && phoneMatch.id !== emailMatch.id);
+            if (conflict) matchConflictCount++;
+            if (emailMatch.archived_at) archivedMatchCount++;
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
+          }
+          if (phoneMatch) {
+            existingByPhoneCount++;
+            if (phoneMatch.archived_at) archivedMatchCount++;
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
+          }
+          // Missing email but has phone → phone-only new lead
+          if (!p.emailValid) {
+            missingEmail++;
+            return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "missing_email" as const, conflict: false, existing: null };
+          }
+          newCount++;
+          return { rowNum: p.idx + 2, name: p.name, email: p.email, phone: p.phone, status: "new" as const, conflict: false, existing: null };
+        });
+
+        const rowsWithEmail = parsed.filter((p) => p.emailValid).length;
+
         if (!cancelled) {
           setPreflight({
             total: rows.length,
-            newCount,
-            dupCount,
-            archivedDupCount,
+            rowsWithEmail,
             missingEmail,
+            sheetDuplicateEmails,
+            sheetDuplicatePhones,
+            existingByEmailCount,
+            existingByPhoneCount,
+            matchConflictCount,
+            archivedMatchCount,
+            newCount,
             invalid,
             existingByEmail,
+            existingByPhone,
+            rowDetails,
           });
-          // NOTE: We intentionally do NOT auto-switch the duplicate policy here.
-          // Previously this forced "new_only" when all dups were archived, which
-          // silently skipped archived rows the user wanted to restore via "move".
         }
       } finally {
         if (!cancelled) setPreflightLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [step, rows, mapping]);
+  }, [step, rows, mapping, pipelines, stages]);
+
+
 
   const importNow = async () => {
     setImporting(true);
@@ -1085,44 +1223,131 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               </div>
             )}
 
-            <div className="p-4 rounded-lg border border-line space-y-1.5 text-sm">
+            <div className="p-4 rounded-lg border border-line space-y-2 text-sm">
               <div className="uppercase-label mb-1">Pre-flight check</div>
               {preflightLoading || !preflight ? (
-                <div className="text-xs text-muted-foreground">Checking for duplicate emails…</div>
+                <div className="text-xs text-muted-foreground">Analyzing rows…</div>
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                     <div><span className="text-muted-foreground">Total rows:</span> <b>{preflight.total}</b></div>
-                    <div><span className="text-muted-foreground">New leads:</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
-                    <div><span className="text-muted-foreground">Duplicate emails:</span> <b className="text-amber-700">{preflight.dupCount}</b></div>
-                    <div><span className="text-muted-foreground">Of which archived:</span> <b className="text-[#92400E]">{preflight.archivedDupCount}</b></div>
+                    <div><span className="text-muted-foreground">Rows with email:</span> <b>{preflight.rowsWithEmail}</b></div>
                     <div><span className="text-muted-foreground">Missing email:</span> <b>{preflight.missingEmail}</b></div>
                     <div><span className="text-muted-foreground">Invalid rows:</span> <b>{preflight.invalid}</b></div>
+                    <div><span className="text-muted-foreground">Duplicate rows inside sheet (email):</span> <b className={preflight.sheetDuplicateEmails ? "text-amber-700" : ""}>{preflight.sheetDuplicateEmails}</b></div>
+                    <div><span className="text-muted-foreground">Duplicate rows inside sheet (phone):</span> <b className={preflight.sheetDuplicatePhones ? "text-amber-700" : ""}>{preflight.sheetDuplicatePhones}</b></div>
+                    <div><span className="text-muted-foreground">Existing CRM matches by email:</span> <b className="text-amber-700">{preflight.existingByEmailCount}</b></div>
+                    <div><span className="text-muted-foreground">Existing CRM matches by phone:</span> <b className="text-amber-700">{preflight.existingByPhoneCount}</b></div>
+                    <div className="col-span-2"><span className="text-muted-foreground">New leads (no match in CRM):</span> <b className="text-emerald-700">{preflight.newCount}</b></div>
                   </div>
-                  {preflight.archivedDupCount > 0 && (
-                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-[#FEF3C7] border border-[#FDE68A] text-[11px] text-[#92400E]">
-                      {preflight.archivedDupCount} duplicate{preflight.archivedDupCount === 1 ? " is" : "s are"} currently archived. Choosing <b>Move</b> or <b>Update</b> will restore them with the new batch info. <b>Skip</b> leaves them archived.
+
+                  {(preflight.existingByEmailCount > 0 || preflight.existingByPhoneCount > 0) && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-slate-50 border border-slate-200 text-[11px] text-slate-700">
+                      These rows are <b>not duplicates inside your sheet</b>. They match leads already present in CRM and will be handled by the duplicate policy below.
                     </div>
+                  )}
+                  {preflight.archivedMatchCount > 0 && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-[#FEF3C7] border border-[#FDE68A] text-[11px] text-[#92400E]">
+                      {preflight.archivedMatchCount} existing match{preflight.archivedMatchCount === 1 ? " is" : "es are"} currently archived. Choosing <b>Move</b> or <b>Update</b> restores them with the new batch info. <b>Skip</b> leaves them archived.
+                    </div>
+                  )}
+                  {preflight.matchConflictCount > 0 && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                      <b>{preflight.matchConflictCount}</b> row{preflight.matchConflictCount === 1 ? "" : "s"} have an email and phone that match <b>different</b> CRM leads — manual review recommended.
+                    </div>
+                  )}
+
+                  {preflight.rowDetails.length > 0 && (
+                    <details className="mt-2 rounded-md border border-line" open={showPreflightRows} onToggle={(e) => setShowPreflightRows((e.target as HTMLDetailsElement).open)}>
+                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium select-none">
+                        Row-by-row breakdown ({preflight.rowDetails.length})
+                      </summary>
+                      <div className="max-h-72 overflow-auto border-t border-line">
+                        <table className="w-full text-[11px]">
+                          <thead className="bg-off sticky top-0">
+                            <tr className="text-left">
+                              <th className="px-2 py-1.5 font-medium">#</th>
+                              <th className="px-2 py-1.5 font-medium">Name</th>
+                              <th className="px-2 py-1.5 font-medium">Email</th>
+                              <th className="px-2 py-1.5 font-medium">Phone</th>
+                              <th className="px-2 py-1.5 font-medium">Status</th>
+                              <th className="px-2 py-1.5 font-medium">Existing lead</th>
+                              <th className="px-2 py-1.5 font-medium">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preflight.rowDetails.map((r) => {
+                              const statusLabel: Record<typeof r.status, { text: string; cls: string }> = {
+                                new: { text: "New lead", cls: "text-emerald-700" },
+                                existing_by_email: { text: "Existing CRM match (email)", cls: "text-amber-700" },
+                                existing_by_phone: { text: "Existing CRM match (phone)", cls: "text-amber-700" },
+                                sheet_duplicate_email: { text: "Duplicate inside sheet (email)", cls: "text-amber-700" },
+                                sheet_duplicate_phone: { text: "Duplicate inside sheet (phone)", cls: "text-amber-700" },
+                                missing_email: { text: "Missing email", cls: "text-muted-foreground" },
+                                invalid: { text: "Invalid row", cls: "text-rose-700" },
+                              };
+                              let action = "";
+                              if (r.status === "new") action = "Create new lead";
+                              else if (r.status === "missing_email") action = r.phone.length === 10 ? "Create phone-only lead" : "Skip (no contact info)";
+                              else if (r.status === "invalid") action = "Skip (invalid)";
+                              else if (r.status === "sheet_duplicate_email" || r.status === "sheet_duplicate_phone") action = "Skip (duplicate inside sheet)";
+                              else if (r.status === "existing_by_email" || r.status === "existing_by_phone") {
+                                if (duplicatePolicy === "move") action = "Move existing → this batch";
+                                else if (duplicatePolicy === "update") action = "Update existing lead";
+                                else if (duplicatePolicy === "skip") action = "Skip (existing match)";
+                                else if (duplicatePolicy === "new_only") action = "Skip (reported as existing)";
+                              }
+                              const ex = r.existing;
+                              return (
+                                <tr key={r.rowNum} className={`border-t border-line ${r.conflict ? "bg-rose-50/40" : ""}`}>
+                                  <td className="px-2 py-1.5 text-muted-foreground">{r.rowNum}</td>
+                                  <td className="px-2 py-1.5">{r.name || "—"}</td>
+                                  <td className="px-2 py-1.5">{r.email || <span className="text-muted-foreground">—</span>}</td>
+                                  <td className="px-2 py-1.5">{r.phone || <span className="text-muted-foreground">—</span>}</td>
+                                  <td className={`px-2 py-1.5 ${statusLabel[r.status].cls}`}>{statusLabel[r.status].text}{r.conflict && <span className="ml-1 text-rose-700">· conflict</span>}</td>
+                                  <td className="px-2 py-1.5">
+                                    {ex ? (
+                                      <div className="leading-tight">
+                                        <div>{ex.full_name || "—"}{ex.archived && <span className="ml-1 text-[10px] text-[#92400E]">(archived)</span>}</div>
+                                        <div className="text-[10px] text-muted-foreground">
+                                          {[ex.pipeline_name, ex.stage_name, ex.batch_name].filter(Boolean).join(" · ") || "—"}
+                                        </div>
+                                      </div>
+                                    ) : "—"}
+                                  </td>
+                                  <td className="px-2 py-1.5">{action}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
                   )}
                 </>
               )}
             </div>
 
             <div>
-              <label className="form-label">If duplicate email is found</label>
+              <label className="form-label">If a row matches an existing CRM lead</label>
               <select className="ipc-input" value={duplicatePolicy} onChange={(e) => setDuplicatePolicy(e.target.value as DuplicatePolicy)}>
                 <option value="move">Move existing lead to selected pipeline (recommended)</option>
                 <option value="update">Update existing lead (batch, grade, product, deal, fill missing fields)</option>
-                <option value="skip">Skip duplicates</option>
-                <option value="new_only">Import new only (report duplicates as skipped)</option>
+                <option value="skip">Skip existing CRM matches</option>
+                <option value="new_only">Import new only (report existing matches as skipped)</option>
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
-                {duplicatePolicy === "move" && `Existing leads will be moved into "${creatingPipeline ? newPipeName : (filteredPipelines.find((p) => p.id === targetPipelineId)?.name || "selected pipeline")}" and attached to this batch.`}
-                {duplicatePolicy === "update" && "Existing leads will be updated with this batch, grade, product and deal value. Name/phone filled only if missing."}
-                {duplicatePolicy === "skip" && "Rows whose email already exists will be skipped — no changes made."}
-                {duplicatePolicy === "new_only" && "Only brand-new emails will be inserted. Duplicates reported as skipped."}
+                {duplicatePolicy === "move" && `Existing CRM matches will be moved/attached to "${creatingPipeline ? newPipeName : (filteredPipelines.find((p) => p.id === targetPipelineId)?.name || "selected pipeline")}" with this batch. New rows will be created normally.`}
+                {duplicatePolicy === "update" && "Existing CRM matches will be updated with this batch, grade, product and deal value (name/phone filled only if missing). New rows will be created normally."}
+                {duplicatePolicy === "skip" && "Existing CRM matches will be skipped — no changes made. Only brand-new rows will be inserted."}
+                {duplicatePolicy === "new_only" && "Only rows with no email/phone match in CRM will be imported. Existing matches will be reported as skipped."}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Duplicate rows inside the sheet itself are always skipped (first occurrence wins).
               </p>
             </div>
+
+
 
             <div>
               <label className="form-label">Assignment (applies to all imported leads)</label>
@@ -1187,7 +1412,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               <div><span className="text-muted-foreground">Updated:</span> <b>{result.updated}</b></div>
               <div><span className="text-muted-foreground">Restored from archive:</span> <b className={result.restored > 0 ? "text-emerald-700" : ""}>{result.restored}</b></div>
               <div><span className="text-muted-foreground">Phone-only imported:</span> <b>{result.phoneOnlyImported}</b></div>
-              <div><span className="text-muted-foreground">Skipped duplicates:</span> <b className="text-amber-700">{result.skippedDuplicates}</b></div>
+              <div><span className="text-muted-foreground">Existing CRM matches skipped:</span> <b className="text-amber-700">{result.skippedDuplicates}</b></div>
               <div><span className="text-muted-foreground">Failed:</span> <b className={result.failed ? "text-red-700" : ""}>{result.failed}</b></div>
             </div>
 
