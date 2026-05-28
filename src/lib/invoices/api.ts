@@ -113,8 +113,11 @@ export async function issueInvoice(inv: Invoice, opts: { company: CompanySetting
     ...(opts.company || {}),
     ...draftSeller,
     logo_url: draftSeller.logo_url || opts.company?.logo_url || null,
+    logo_path: draftSeller.logo_path || opts.company?.logo_path || null,
     signature_url: draftSeller.signature_url || opts.company?.signature_url || null,
+    signature_path: draftSeller.signature_path || opts.company?.signature_path || null,
     stamp_url: draftSeller.stamp_url || opts.company?.stamp_url || null,
+    stamp_path: draftSeller.stamp_path || opts.company?.stamp_path || null,
   };
   const buyerSnap = {
     name: inv.member_name, email: inv.member_email, phone: inv.member_phone,

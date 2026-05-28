@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -45,15 +45,21 @@ const FIELD_GROUPS: { title: string; fields: { key: keyof CompanySettings; label
 ];
 
 type AssetKind = "logo_url" | "signature_url" | "stamp_url";
+type AssetPathKind = "logo_path" | "signature_path" | "stamp_path";
 const ASSET_FOLDER: Record<AssetKind, string> = {
   logo_url: "logo",
   signature_url: "signature",
   stamp_url: "stamp",
 };
+const ASSET_PATH_FIELD: Record<AssetKind, AssetPathKind> = {
+  logo_url: "logo_path",
+  signature_url: "signature_path",
+  stamp_url: "stamp_path",
+};
 const ASSET_LABEL: Record<AssetKind, string> = {
-  logo_url: "Logo",
-  signature_url: "Signature",
-  stamp_url: "Stamp",
+  logo_url: "Company Logo",
+  signature_url: "Authorized Signature",
+  stamp_url: "Company Stamp",
 };
 const ALLOWED_MIME = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -69,17 +75,57 @@ function mapUploadError(msg: string): string {
   return msg || "Upload failed";
 }
 
+function sanitizeFileName(name: string) {
+  const ext = (name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+  const base = name
+    .replace(/\.[^.]+$/, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "asset";
+  return `${base}.${ext}`;
+}
+
+function buildAssetPath(workspace: string | null | undefined, folder: string, fileName: string) {
+  const safeWorkspace = (workspace || "default").toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "default";
+  return `${safeWorkspace}/${folder}/${Date.now()}-${sanitizeFileName(fileName)}`;
+}
+
+function maskPath(path?: string | null) {
+  if (!path) return "—";
+  return path.length > 54 ? `${path.slice(0, 28)}…${path.slice(-18)}` : path;
+}
+
+function pathFromPublicUrl(url?: string | null) {
+  if (!url) return null;
+  const marker = "/storage/v1/object/public/invoice-assets/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return decodeURIComponent(url.slice(idx + marker.length).split("?")[0]);
+}
+
 export default function CompanySettingsPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const [s, setS] = useState<Partial<CompanySettings>>({ workspace: "default", country: "India", accent_color: "#111827" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [busyKind, setBusyKind] = useState<AssetKind | null>(null);
+  const [failedKind, setFailedKind] = useState<AssetKind | null>(null);
+  const fileInputs = useRef<Record<AssetKind, HTMLInputElement | null>>({ logo_url: null, signature_url: null, stamp_url: null });
   const [lastUploadError, setLastUploadError] = useState<string | null>(null);
   const [lastSaveError, setLastSaveError] = useState<string | null>(null);
+  const [lastUploadPath, setLastUploadPath] = useState<string | null>(null);
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [diag, setDiag] = useState<any>(null);
+
+  async function refreshDiagnostics() {
+    const { data, error } = await (supabase as any).rpc("get_invoice_assets_storage_diagnostics");
+    if (!error && data) setDiag(data);
+  }
 
   useEffect(() => { (async () => {
-    const data = await loadCompanySettings();
+    const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
     if (data) setS(data);
     setLoading(false);
   })(); }, []);
@@ -96,32 +142,36 @@ export default function CompanySettingsPage() {
       setLastUploadError(m); toast.error(m); return;
     }
     setBusyKind(kind);
+    setFailedKind(null);
     setLastUploadError(null);
     try {
-      const workspace = s.workspace || "default";
-      const ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
-      const base = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40) || "file";
-      const path = `${workspace}/${ASSET_FOLDER[kind]}/${Date.now()}-${base}.${ext}`;
+      const path = buildAssetPath(s.workspace, ASSET_FOLDER[kind], file.name);
+      const pathField = ASSET_PATH_FIELD[kind];
+      setLastUploadPath(path);
       const { error } = await supabase.storage
         .from("invoice-assets")
-        .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+        .upload(path, file, { upsert: false, contentType: file.type, cacheControl: "3600" });
       if (error) {
         const friendly = mapUploadError(error.message);
+        setFailedKind(kind);
         setLastUploadError(friendly);
         toast.error(friendly);
         return;
       }
       const { data } = supabase.storage.from("invoice-assets").getPublicUrl(path);
       const url = data.publicUrl;
-      set(kind, url);
+      const nextSettings = { ...s, [kind]: url, [pathField]: path };
+      setS(nextSettings);
       if (user) {
         try {
-          const saved = await saveCompanySettings({ ...s, [kind]: url }, user.id);
+          const saved = await saveCompanySettings(nextSettings, user.id);
           if (saved) setS(saved);
           setLastSaveError(null);
+          await refreshDiagnostics();
           toast.success(`${ASSET_LABEL[kind]} uploaded successfully`);
         } catch (e: any) {
           const m = "File uploaded but settings could not be saved. Please retry Save Company Settings.";
+          setFailedKind(kind);
           setLastSaveError(e?.message || m);
           toast.error(m);
         }
@@ -135,17 +185,49 @@ export default function CompanySettingsPage() {
 
   async function removeAsset(kind: AssetKind) {
     if (!confirm(`Remove ${ASSET_LABEL[kind].toLowerCase()}?`)) return;
-    set(kind, null);
+    const pathField = ASSET_PATH_FIELD[kind];
+    const existingPath = (s as any)[pathField] || pathFromPublicUrl(s[kind] as string | null | undefined);
+    const nextSettings = { ...s, [kind]: null, [pathField]: null };
+    setS(nextSettings);
     if (user) {
       try {
-        const saved = await saveCompanySettings({ ...s, [kind]: null }, user.id);
+        const saved = await saveCompanySettings(nextSettings, user.id);
         if (saved) setS(saved);
+        if (existingPath) await supabase.storage.from("invoice-assets").remove([existingPath]);
         setLastSaveError(null);
+        await refreshDiagnostics();
         toast.success("Removed");
       } catch (e: any) {
         setLastSaveError(e?.message || "Remove failed");
         toast.error(e?.message || "Remove failed");
       }
+    }
+  }
+
+  async function runStorageUploadTest() {
+    if (!user) return;
+    setTestRunning(true);
+    setTestResult(null);
+    setLastUploadError(null);
+    try {
+      const path = `debug/${user.id}-${Date.now()}.txt`;
+      setLastUploadPath(path);
+      const bytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="), (c) => c.charCodeAt(0));
+      const file = new Blob([bytes], { type: "image/png" });
+      const { error } = await supabase.storage.from("invoice-assets").upload(path, file, { contentType: "image/png", upsert: false });
+      if (error) throw error;
+      const { error: removeError } = await supabase.storage.from("invoice-assets").remove([path]);
+      if (removeError) throw removeError;
+      setTestResult("Upload test passed");
+      toast.success("Storage upload test passed");
+    } catch (e: any) {
+      const m = mapUploadError(e?.message || "Storage upload test failed");
+      setLastUploadError(m);
+      setTestResult(`Upload test failed: ${m}`);
+      toast.error(m);
+    } finally {
+      setTestRunning(false);
+      await refreshDiagnostics();
     }
   }
 
@@ -195,17 +277,20 @@ export default function CompanySettingsPage() {
         </div>
         <div className="grid grid-cols-3 gap-4">
           {(["logo_url", "signature_url", "stamp_url"] as const).map((k) => {
-            const label = k === "logo_url" ? "Logo" : k === "signature_url" ? "Authorized Signature" : "Company Stamp";
+            const label = ASSET_LABEL[k];
+            const pathField = ASSET_PATH_FIELD[k];
             const present = !!s[k];
             const busy = busyKind === k;
             const url = s[k] as string | null | undefined;
-            const masked = url ? (url.length > 48 ? url.slice(0, 24) + "…" + url.slice(-16) : url) : "";
-            const status = busy ? "Uploading" : present ? "Uploaded" : "Missing";
+            const storedPath = ((s as any)[pathField] as string | null | undefined) || pathFromPublicUrl(url);
+            const status = busy ? "Uploading" : failedKind === k ? "Failed" : present ? "Uploaded" : "Missing";
             const statusCls = busy
-              ? "bg-blue-100 text-blue-800"
-              : present
-                ? "bg-green-100 text-green-800"
-                : "bg-amber-100 text-amber-800";
+              ? "bg-primary/10 text-primary"
+              : failedKind === k
+                ? "bg-destructive/10 text-destructive"
+                : present
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-muted text-muted-foreground";
             return (
               <div key={k} className="border border-line rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
@@ -215,8 +300,9 @@ export default function CompanySettingsPage() {
                 <div className="h-20 flex items-center justify-center bg-muted/30 rounded mb-2 overflow-hidden">
                   {url ? <img src={url} alt={label} className="max-h-20 max-w-full object-contain" /> : <span className="text-[11px] text-muted-foreground">No file</span>}
                 </div>
-                {present && <div className="text-[10px] text-muted-foreground mb-2 break-all">{masked}</div>}
+                {present && <div className="text-[10px] text-muted-foreground mb-2 break-all">Path: {maskPath(storedPath)}</div>}
                 <Input
+                  ref={(el) => { fileInputs.current[k] = el; }}
                   type="file"
                   accept="image/png,image/jpeg,image/jpg,image/webp"
                   disabled={busy}
@@ -225,12 +311,17 @@ export default function CompanySettingsPage() {
                     if (f) uploadAsset(k, f);
                     e.target.value = "";
                   }}
-                  className="text-[11px]"
+                  className="hidden"
                 />
+                <div className="flex gap-2">
+                  <Button size="sm" variant={present ? "outline" : "default"} className="h-7 text-[11px]" disabled={busy} onClick={() => fileInputs.current[k]?.click()}>
+                    {present ? "Replace" : "Upload"}
+                  </Button>
+                  {present && !busy && (
+                    <Button size="sm" variant="ghost" className="h-7 text-[11px] text-destructive hover:text-destructive" onClick={() => removeAsset(k)}>Remove</Button>
+                  )}
+                </div>
                 <div className="text-[10px] text-muted-foreground mt-1">PNG, JPG or WebP · up to 5 MB</div>
-                {present && !busy && (
-                  <Button size="sm" variant="ghost" className="mt-1 h-7 text-[11px] text-red-600 hover:text-red-700" onClick={() => removeAsset(k)}>Remove</Button>
-                )}
               </div>
             );
           })}
@@ -240,17 +331,30 @@ export default function CompanySettingsPage() {
       <details className="mb-8 bg-white border border-line rounded-xl p-4 text-[11px]">
         <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Admin debug · Invoice branding</summary>
         <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 font-mono">
-          <div>Bucket</div><div>invoice-assets</div>
+          <div>Bucket exists</div><div>{diag ? String(!!diag.bucket_exists) : "checking"}</div>
+          <div>Bucket public</div><div>{diag ? String(!!diag.bucket_public) : "checking"}</div>
           <div>Workspace</div><div>{s.workspace || "default"}</div>
-          <div>User</div><div className="break-all">{user?.email || "—"}</div>
+          <div>Current user id</div><div className="break-all">{user?.id || "—"}</div>
+          <div>Current role</div><div>{isAdmin ? "admin" : profile?.role || "—"}</div>
           <div>Is admin</div><div>{String(isAdmin)}</div>
-          <div>Can upload</div><div>{String(isAdmin)}</div>
+          <div>Can manage invoice settings</div><div>{diag ? String(!!diag.can_manage_invoice_settings) : String(isAdmin)}</div>
+          <div>Can upload logo</div><div>{diag ? String(!!diag.can_manage_invoice_settings) : String(isAdmin)}</div>
+          <div>Can upload signature</div><div>{diag ? String(!!diag.can_manage_invoice_settings) : String(isAdmin)}</div>
+          <div>Can upload stamp</div><div>{diag ? String(!!diag.can_manage_invoice_settings) : String(isAdmin)}</div>
           <div>logo_url</div><div>{s.logo_url ? "present" : "missing"}</div>
+          <div>logo_path</div><div className="break-all">{maskPath(s.logo_path)}</div>
           <div>signature_url</div><div>{s.signature_url ? "present" : "missing"}</div>
+          <div>signature_path</div><div className="break-all">{maskPath(s.signature_path)}</div>
           <div>stamp_url</div><div>{s.stamp_url ? "present" : "missing"}</div>
-          <div>Last upload error</div><div className="text-red-600 break-all">{lastUploadError || "—"}</div>
-          <div>Last save error</div><div className="text-red-600 break-all">{lastSaveError || "—"}</div>
+          <div>stamp_path</div><div className="break-all">{maskPath(s.stamp_path)}</div>
+          <div>Last upload path</div><div className="break-all">{lastUploadPath || "—"}</div>
+          <div>Last upload error</div><div className="text-destructive break-all">{lastUploadError || "—"}</div>
+          <div>Last settings save error</div><div className="text-destructive break-all">{lastSaveError || "—"}</div>
+          <div>Storage upload test</div><div>{testResult || "Not run"}</div>
         </div>
+        <Button size="sm" variant="outline" className="mt-3 h-8 text-xs" disabled={testRunning} onClick={runStorageUploadTest}>
+          {testRunning ? "Testing…" : "Run Storage Upload Test"}
+        </Button>
       </details>
 
       <div className="flex justify-end">

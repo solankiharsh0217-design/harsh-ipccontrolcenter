@@ -21,9 +21,12 @@ export interface CompanySettings {
   email?: string | null;
   website?: string | null;
   logo_url?: string | null;
+  logo_path?: string | null;
   accent_color?: string | null;
   signature_url?: string | null;
+  signature_path?: string | null;
   stamp_url?: string | null;
+  stamp_path?: string | null;
   bank_account_name?: string | null;
   bank_account_number?: string | null;
   bank_ifsc?: string | null;
