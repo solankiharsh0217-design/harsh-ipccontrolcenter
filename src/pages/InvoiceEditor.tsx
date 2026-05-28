@@ -113,7 +113,7 @@ export default function InvoiceEditor() {
     return list;
   }, [invoice, settings, company]);
 
-  const allBlockers = useMemo(() => [...readiness.missing, ...blockers], [readiness.missing, blockers]);
+  const allBlockers = useMemo(() => Array.from(new Set([...readiness.missing, ...blockers])), [readiness.missing, blockers]);
   const canIssue = allBlockers.length === 0;
 
   async function refreshFromCompany() {
@@ -438,6 +438,9 @@ export default function InvoiceEditor() {
             <span>readiness blockers</span><span>{readiness.missing.length}</span>
             <span>invoice blockers</span><span>{blockers.length}</span>
             <span className="font-bold">canIssue</span><span className="font-bold">{String(canIssue)}</span>
+            <span>readiness.missing</span><span className="whitespace-pre-wrap">{JSON.stringify(readiness.missing)}</span>
+            <span>invoice.blockers</span><span className="whitespace-pre-wrap">{JSON.stringify(blockers)}</span>
+            <span>allBlockers</span><span className="whitespace-pre-wrap">{JSON.stringify(allBlockers)}</span>
           </div>
           {allBlockers.length > 0 && (
             <ul className="mt-3 list-disc ml-5 text-red-700">
