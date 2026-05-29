@@ -5,6 +5,7 @@ import { toast as sonnerToast } from "sonner";
 import EditMemberEmailModal from "./EditMemberEmailModal";
 import { useAuth } from "@/context/AuthContext";
 import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRuleDetailed, normalizeCoCName, type CodeOfConductRule, type CoCRuleSource, type RuleMatchDiagnostics } from "@/lib/codeOfConductRules";
+import { evaluatePostSendAutomation, getLastAutomationEvent, describeSkipReason, type PostSendAutomationResult } from "@/lib/codeOfConductAutomation";
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
   if (variant === "destructive") sonnerToast.error(title, { description });
