@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { X as XIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X as XIcon, Search, Plus, Trash2, Check, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/auditLog";
@@ -30,7 +30,7 @@ const norm = (s: string | null | undefined) => (s || "").trim().toLowerCase();
 const last10 = (s: string | null | undefined) => (s || "").replace(/\D+/g, "").slice(-10);
 
 export default function MoveBatchModal({
-  batch, leads, pipelines, stages, isAdmin, onClose, onDone,
+  batch, leads, pipelines, stages, isAdmin, onClose, onDone, onPipelinesChanged,
 }: {
   batch: BatchInfo;
   leads: Lead[];
@@ -39,6 +39,7 @@ export default function MoveBatchModal({
   isAdmin: boolean;
   onClose: () => void;
   onDone: () => void;
+  onPipelinesChanged?: () => Promise<void> | void;
 }) {
   const sourcePipeline = pipelines.find(p => p.id === batch.pipelineId) || null;
   const batchLeads = useMemo(() => leads.filter(l => batch.leadIds.includes(l.id)), [leads, batch.leadIds]);
@@ -321,12 +322,15 @@ export default function MoveBatchModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="uppercase-label !text-[10px]">Destination pipeline</label>
-              <select className="ipc-input !h-10 w-full mt-1" value={destPipelineId} onChange={e => setDestPipelineId(e.target.value)}>
-                <option value="">Select pipeline…</option>
-                {pipelines.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.type})</option>
-                ))}
-              </select>
+              <PipelinePicker
+                pipelines={pipelines}
+                leads={leads}
+                value={destPipelineId}
+                onChange={setDestPipelineId}
+                excludeId={batch.pipelineId || undefined}
+                isAdmin={isAdmin}
+                onMutated={async () => { if (onPipelinesChanged) await onPipelinesChanged(); }}
+              />
             </div>
             <div>
               <label className="uppercase-label !text-[10px]">Destination stage</label>
@@ -467,6 +471,232 @@ function Info({ label, value }: { label: string; value: string }) {
     <div className="rounded-md border border-line px-2.5 py-1.5 bg-off">
       <div className="text-[9.5px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="font-medium text-[12.5px] truncate">{value}</div>
+    </div>
+  );
+}
+
+const TYPE_LABEL: Record<string, string> = { paid: "Paid", unpaid: "Unpaid", custom: "Custom" };
+const TYPE_DOT: Record<string, string> = { paid: "#16A34A", unpaid: "#2563EB", custom: "#C8A84B" };
+
+function PipelinePicker({
+  pipelines, leads, value, onChange, excludeId, isAdmin, onMutated,
+}: {
+  pipelines: Pipeline[];
+  leads: Lead[];
+  value: string;
+  onChange: (id: string) => void;
+  excludeId?: string;
+  isAdmin: boolean;
+  onMutated: () => Promise<void> | void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState<"unpaid" | "paid" | "custom">("custom");
+  const [newSeed, setNewSeed] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = pipelines.find(p => p.id === value) || null;
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const l of leads) map[l.pipeline_id || ""] = (map[l.pipeline_id || ""] || 0) + 1;
+    return map;
+  }, [leads]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return pipelines
+      .filter(p => p.id !== excludeId)
+      .filter(p => !needle || p.name.toLowerCase().includes(needle) || (TYPE_LABEL[p.type] || "").toLowerCase().includes(needle));
+  }, [pipelines, q, excludeId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as any)) { setOpen(false); setShowCreate(false); } };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const handleCreate = async () => {
+    const name = newName.trim();
+    if (!name) { toast.error("Name required"); return; }
+    const dup = pipelines.find(p => p.name.trim().toLowerCase() === name.toLowerCase() && p.type === newType);
+    if (dup) { toast.error(`A ${TYPE_LABEL[newType]} pipeline named "${name}" already exists`); return; }
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.from("pipelines").insert({ name, type: newType, position: pipelines.length } as any).select().maybeSingle();
+      if (error) throw error;
+      if (data && newSeed) {
+        const seedStages = newType === "paid"
+          ? [{ name: "New", color: "blue" }, { name: "Onboarding", color: "amber" }, { name: "Active", color: "green" }, { name: "Completed", color: "gray", is_won: true }]
+          : newType === "unpaid"
+            ? [{ name: "New", color: "blue" }, { name: "Contacted", color: "amber" }, { name: "Interested", color: "green" }, { name: "Won", color: "green", is_won: true }, { name: "Lost", color: "red", is_lost: true }]
+            : [{ name: "New", color: "blue" }, { name: "In Progress", color: "amber" }, { name: "Done", color: "green", is_won: true }];
+        await supabase.from("stages").insert(seedStages.map((s: any, i) => ({
+          pipeline_id: (data as any).id, name: s.name, color: s.color, position: i,
+          is_won: !!s.is_won, is_lost: !!s.is_lost,
+        })) as any);
+      }
+      await logActivity({
+        module_key: "calling_crm", module_label: "Calling CRM",
+        action_type: "crm_pipeline_created", action_label: "Pipeline created",
+        entity_type: "crm_pipeline", entity_label: name,
+        metadata: { name, type: newType, source: "move_batch_modal" },
+      });
+      toast.success(`Created "${name}"`);
+      setShowCreate(false); setNewName(""); setNewType("custom"); setNewSeed(true);
+      await onMutated();
+      if (data?.id) onChange(data.id as string);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not create pipeline");
+    } finally { setBusy(false); }
+  };
+
+  const handleDelete = async (p: Pipeline) => {
+    const c = counts[p.id] || 0;
+    if (c > 0) { toast.error(`${c} leads attached — move them first`); return; }
+    if (!confirm(`Delete pipeline "${p.name}" and its stages? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      await supabase.from("stages").delete().eq("pipeline_id", p.id);
+      const { error } = await supabase.from("pipelines").delete().eq("id", p.id);
+      if (error) throw error;
+      await logActivity({
+        module_key: "calling_crm", module_label: "Calling CRM",
+        action_type: "crm_pipeline_deleted", action_label: "Pipeline deleted",
+        entity_type: "crm_pipeline", entity_label: p.name,
+        severity: "warning",
+        metadata: { id: p.id, name: p.name, type: p.type, source: "move_batch_modal" },
+      });
+      toast.success(`Deleted "${p.name}"`);
+      if (value === p.id) onChange("");
+      await onMutated();
+    } catch (e: any) {
+      toast.error(e?.message || "Could not delete");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="relative mt-1" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="ipc-input !h-10 w-full flex items-center justify-between text-left"
+      >
+        {selected ? (
+          <span className="flex items-center gap-2 truncate">
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: TYPE_DOT[selected.type] || "#999" }} />
+            <span className="truncate">{selected.name}</span>
+            <span className="text-[10px] text-muted-foreground">· {TYPE_LABEL[selected.type] || selected.type}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-[12.5px]">Select pipeline…</span>
+        )}
+        <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 left-0 right-0 bg-white border border-line rounded-md shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-line">
+            <div className="flex items-center gap-1.5 px-2 h-8 rounded-md border border-line bg-off">
+              <Search className="w-3.5 h-3.5 text-muted-foreground" />
+              <input
+                autoFocus
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="Search pipelines…"
+                className="bg-transparent outline-none text-[12.5px] flex-1"
+              />
+            </div>
+          </div>
+
+          <div className="max-h-64 overflow-auto py-1">
+            {filtered.length === 0 && (
+              <div className="px-3 py-3 text-[12px] text-muted-foreground">No matches.</div>
+            )}
+            {filtered.map(p => {
+              const c = counts[p.id] || 0;
+              const isSel = p.id === value;
+              return (
+                <div key={p.id} className={`flex items-center gap-1 px-2 py-1 hover:bg-off ${isSel ? "bg-off" : ""}`}>
+                  <button
+                    type="button"
+                    onClick={() => { onChange(p.id); setOpen(false); setShowCreate(false); }}
+                    className="flex-1 flex items-center gap-2 text-left text-[12.5px] py-1"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: TYPE_DOT[p.type] || "#999" }} />
+                    <span className="truncate">{p.name}</span>
+                    <span className="text-[10px] text-muted-foreground">· {TYPE_LABEL[p.type] || p.type}</span>
+                    <span className="ml-auto text-[10px] text-muted-foreground">{c} leads</span>
+                    {isSel && <Check className="w-3.5 h-3.5 text-[#16A34A]" />}
+                  </button>
+                  {isAdmin && c === 0 && (
+                    <button
+                      type="button"
+                      title="Delete empty pipeline"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(p); }}
+                      className="p-1 rounded hover:bg-[#FEF2F2] text-[#DC2626]"
+                      disabled={busy}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {isAdmin && (
+            <div className="border-t border-line p-2">
+              {!showCreate ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(true)}
+                  className="w-full flex items-center gap-1.5 text-[12.5px] px-2 py-1.5 rounded hover:bg-off text-left"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Create new pipeline
+                </button>
+              ) : (
+                <div className="space-y-2 p-1">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">New pipeline</div>
+                  <input
+                    autoFocus
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    placeholder="Pipeline name (e.g. Q3 Webinar Funnel)"
+                    className="ipc-input !h-9 w-full"
+                  />
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(["custom", "unpaid", "paid"] as const).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setNewType(t)}
+                        className={`text-[11.5px] py-1.5 rounded border ${newType === t ? "bg-black text-white border-black" : "border-line hover:bg-off"}`}
+                      >
+                        {TYPE_LABEL[t]}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="flex items-center gap-1.5 text-[11.5px]">
+                    <input type="checkbox" checked={newSeed} onChange={e => setNewSeed(e.target.checked)} />
+                    Seed default stages
+                  </label>
+                  <div className="flex justify-end gap-1.5">
+                    <button type="button" className="ipc-btn ipc-btn-ghost !h-8" onClick={() => { setShowCreate(false); setNewName(""); }}>Cancel</button>
+                    <button type="button" className="ipc-btn ipc-btn-black !h-8" onClick={handleCreate} disabled={busy}>
+                      {busy ? "Creating…" : "Create"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

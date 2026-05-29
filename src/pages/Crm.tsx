@@ -453,8 +453,11 @@ export default function Crm() {
   };
 
   const createPipeline = async () => {
-    if (!newPipelineName.trim()) return;
-    const { data, error } = await supabase.from("pipelines").insert({ name: newPipelineName.trim(), type: newPipelineType, position: pipelines.length }).select().maybeSingle();
+    const name = newPipelineName.trim();
+    if (!name) return;
+    const dup = pipelines.find(p => p.name.trim().toLowerCase() === name.toLowerCase() && p.type === newPipelineType);
+    if (dup) { toast.error(`A ${newPipelineType} pipeline named "${name}" already exists`); return; }
+    const { data, error } = await supabase.from("pipelines").insert({ name, type: newPipelineType, position: pipelines.length }).select().maybeSingle();
     if (error) { toast.error(error.message); return; }
     if (data) {
       if (newPipelineSeed) {
@@ -1561,6 +1564,7 @@ export default function Crm() {
           isAdmin={isAdmin}
           onClose={() => setMoveBatchTarget(null)}
           onDone={async () => { await load(); }}
+          onPipelinesChanged={async () => { await load(); }}
         />
       )}
       {repairPickerOpen && (
@@ -1732,6 +1736,7 @@ export default function Crm() {
           const isActive = p.id === activePipeline;
           const dot = p.type === "paid" ? "#16A34A" : p.type === "unpaid" ? "#2563EB" : "#C8A84B";
           const isHover = isAdmin && pipeHoverId === p.id && pipeDragId && pipeDragId !== p.id;
+          const leadCount = leads.filter((l) => l.pipeline_id === p.id).length;
           return (
             <div
               key={p.id}
@@ -1742,16 +1747,25 @@ export default function Crm() {
               onDrop={isAdmin ? (e) => { e.preventDefault(); reorderPipelineDrop(p); } : undefined}
               onDragEnd={isAdmin ? () => { setPipeDragId(null); setPipeHoverId(null); } : undefined}
               title={isAdmin ? "Drag to reorder. First tab becomes the default pipeline for everyone." : undefined}
-              className={`flex items-center rounded-lg border ${isActive ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"} ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isHover ? "ring-2 ring-blue-400" : ""} ${pipeDragId === p.id ? "opacity-60" : ""}`}
+              className={`group flex items-center rounded-lg border ${isActive ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"} ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isHover ? "ring-2 ring-blue-400" : ""} ${pipeDragId === p.id ? "opacity-60" : ""}`}
             >
               <button onClick={() => setActivePipeline(p.id)} className="px-3 py-1.5 text-xs flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
                 {p.name}
-                <span className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leads.filter((l) => l.pipeline_id === p.id).length}</span>
+                <span className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leadCount}</span>
               </button>
               {isActive && (
-                <button onClick={() => setView("stages")} title="Design pipeline" className="px-2 py-1.5 border-l border-white/20 hover:bg-white/10">
+                <button onClick={() => setView("stages")} title="Design pipeline" className={`px-2 py-1.5 border-l ${isActive ? "border-white/20 hover:bg-white/10" : "border-line hover:bg-off"}`}>
                   <Settings2 className="w-3 h-3" />
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); deletePipeline(p.id); }}
+                  title={leadCount > 0 ? `${leadCount} leads attached — move them first` : "Delete pipeline"}
+                  className={`px-1.5 py-1.5 border-l ${isActive ? "border-white/20 hover:bg-white/10 text-white/80" : "border-line text-[#DC2626] opacity-0 group-hover:opacity-100 hover:bg-[#FEF2F2]"}`}
+                >
+                  <XIcon className="w-3 h-3" />
                 </button>
               )}
             </div>
