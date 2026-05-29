@@ -1,71 +1,83 @@
-# P0 — Code of Conduct Post-Send Automation
+# Lead Qualifier Dedup + Batch Cleanup — Implementation Plan
 
-Build a configurable rule engine so that when a Code of Conduct email is successfully sent, the linked CRM lead is automatically moved to an admin-selected pipeline/stage.
+This is a large, cross-cutting change. I'll deliver it in 4 phased PRs so we can verify each phase before moving on, rather than a single massive change that risks breaking the CRM, Paid Pipeline, CoC, invoices, or follow-ups (all explicitly off-limits).
 
-## 1. Database (single migration)
+I want your sign-off on this plan and the phasing before I start writing code.
 
-**New table `code_of_conduct_automation_rules`**
-- `id`, `name`, `event_type` (default `'email_sent'`)
-- `template_id` (nullable → any template)
-- `source_type` (`crm` | `paid_pipeline` | `both`)
-- `current_pipeline_id` / `current_stage_id` (nullable → any)
-- `destination_pipeline_id`, `destination_stage_id` (required)
-- `also_update_paid_pipeline_stage` (bool), `destination_paid_pipeline_stage` (text, nullable)
-- `allow_repeat` (bool), `is_active` (bool)
-- `created_by`, `updated_by`, timestamps
-- GRANTs + RLS: read by authenticated, write admin-only
+## Out of scope (will not touch)
+Invoices, Code of Conduct, payments, follow-ups (preserved only), Team Directory schema, Operations CRM, existing CRM stage rules, Paid Pipeline finance.
 
-**New table `code_of_conduct_automation_events`**
-- `id`, `request_id`, `rule_id`, `event_type`
-- `crm_lead_id`, `paid_pipeline_lead_id`
-- `old_pipeline_id`, `old_stage_id`, `new_pipeline_id`, `new_stage_id`
-- `status` (`applied` | `skipped` | `failed`), `skip_reason`, `error_message`
-- `created_by`, `created_at`
-- GRANTs + RLS: insert authenticated, read admin
+---
 
-## 2. Evaluator (`src/lib/codeOfConductAutomation.ts`)
+## Phase 1 — Identity normalization + Lead Qualifier dedup (Parts 1–8, 20, 21)
 
-`evaluatePostSendAutomation({ requestId, ruleEvent: 'email_sent', dryRun? })`:
-1. Load request → get `template_id`, `crm_lead_id`, `paid_pipeline_lead_id`, status.
-2. Load active rules for `event_type='email_sent'` matching template + source.
-3. Resolve linked CRM lead (direct → paid_pipeline_leads.crm_lead_id → email/phone fallback only if missing).
-4. Apply safety checks (archived, deleted/inactive destination stage/pipeline, request cancelled, already in destination, allow_repeat=false + already applied).
-5. Update `leads.pipeline_id` / `stage_id`; optionally `paid_pipeline_leads.pipeline_stage`.
-6. Write `code_of_conduct_automation_events` row + `code_of_conduct_events` audit (`coc_post_send_stage_move_rule_matched`, `_moved`, `_skipped`, `_failed`).
-7. Return `{ status, ruleName, oldStage, newStage, skipReason?, error? }` for toast + debug.
+**Goal:** Stop raw attendee rows from becoming leads. Show a preflight with real counts before Send to CRM.
 
-## 3. Wire into send flow
+1. New shared module `src/lib/identity.ts`
+   - `normalizeEmail`, `normalizePhone` (last 10 digits), `normalizeName`, `identityKey`, `isWeakIdentity`, `flagSuspiciousEmailDomain` (warn-only).
+2. Refactor `src/lib/qualifier.ts` to use these helpers everywhere.
+3. New `src/lib/qualifier/aggregate.ts`
+   - Aggregates attendee rows by `identityKey`: `total_join_rows`, `session_count`, `first_join`, `last_leave`, `total_raw_minutes`, `capped_minutes` (per-day cap = configured session duration), `attended_days`, multi-day support.
+   - Registration dedup using "best row" rule (email+phone > email > phone > most complete > latest).
+   - True absentees = registered − attended identities. Unmatched attendees listed separately, default ignored.
+4. New `src/components/qualifier/PreflightDialog.tsx`
+   - Shown before "Send to CRM" in `LeadQualifier.tsx`.
+   - Sections: Registration (raw/unique/dups), Attendance (raw/unique/merged + top duplicates), Qualification (hot/warm/cold/absent/unmatched/final), CRM matches (by email/phone), Conflicts.
+   - Collapsible "Duplicate Breakdown" table.
+5. `Send to CRM` only sends unique qualified identities; uses existing duplicate policy (`skip` default, never `move`).
+6. Performance: aggregation runs in a Web Worker (`src/workers/qualifierDedup.worker.ts`) with progress events for 400–1,200 row sheets.
 
-- `src/lib/codeOfConductRules.ts` — after successful `send-code-of-conduct-email` invoke (auto-send path), call evaluator.
-- `src/components/paid-pipeline/CodeOfConductPanel.tsx` — after manual send / resend success, call evaluator and show toast variants:
-  - sent + moved → "…Lead moved to {stage}."
-  - sent + no rule → "…No stage automation rule matched."
-  - sent + failed → "…stage automation failed. Check debug."
-  - failed → "…Stage was not changed."
+**QA targets from your message:** 402 registration rows clean; 1,249 attendee rows → ~419 unique; final CRM count = deduped count.
 
-## 4. Admin UI
+---
 
-**`src/components/admin/CodeOfConductRulesTab.tsx`** — add new section "After Code of Conduct Email Sent" with:
-- List of post-send rules with summary line "When CoC email is sent, move lead to {Pipeline → Stage}".
-- `+ Add Post-Send Rule` button → modal `PostSendRuleModal.tsx`:
-  - Name, Source (crm/paid/both), Template (any/specific), Current stage condition (any/specific multi), Destination pipeline → stage, Allow repeat, Also move paid pipeline stage, Active.
-- Edit / delete / toggle active.
+## Phase 2 — Database protection + audit logging (Parts 9, 18)
 
-## 5. Drawer debug panel
+Single migration:
+- `webinar_imports` (id, webinar_id, source_type, raw/unique/duplicate/final counts, created_by, metadata).
+- `webinar_import_people` (import_id, identity_key, normalized_email/phone, name, raw_row_count, total_raw_minutes, capped_minutes, grade, metadata) with `UNIQUE (import_id, identity_key)`.
+- Reuse existing `activity_logs` table for new event types listed in Part 18 (no schema change there).
+- GRANTs + RLS: admin full, authenticated read-own-import.
 
-Inside `CodeOfConductPanel.tsx` (admin only):
-- Collapsible "Post-Send Automation Debug" section showing matched rule, current vs destination stage, last automation event for this request, last skip reason / error.
-- "Run Automation Check" button → calls evaluator with `dryRun: true`, renders result.
+---
 
-## 6. Out of scope (untouched)
+## Phase 3 — Existing batch repair + safe delete/archive (Parts 10–12, 16, 19)
 
-Signed PDF generation, signing page, email template content, invoice/payment/follow-up/import/team systems, edge function `send-code-of-conduct-email` internals (we only consume its `ok` response).
+1. New `src/lib/crmBatchRepair.ts`
+   - `dryRunRepair(batchId)` → groups by normalized email/phone, picks "best record" (paid link > invoice/CoC/follow-up > assigned owner > latest activity > most complete), returns plan.
+   - `applyRepair(batchId, plan)` → merges safe data, archives losers (hard-delete only if zero linked history: no paid pipeline, payment, invoice, CoC, follow-up, activity log).
+2. `BatchRepairModal.tsx` — three-dot menu entry "Deduplicate / Repair Batch" on Calling CRM batches. Shows dry-run table, requires confirmation, shows result report + CSV download.
+3. Batch archive/delete/restore actions:
+   - Archive Batch: sets flag, hides from sales-exec views (RLS already respects `assigned_agent_id`; we add `archived_at` filter to batch queries).
+   - Delete Batch: typed `DELETE BATCH` confirmation, blocked if protected links exist → prompts archive.
+4. Recompute batch counts after every cleanup op.
 
-## Technical notes
+---
 
-- All stage moves go through the existing `leads` table; no new triggers.
-- Idempotency: query `code_of_conduct_automation_events` for `(request_id, rule_id, status='applied')` before moving when `allow_repeat=false`.
-- Type updates pulled in via auto-generated `src/integrations/supabase/types.ts` after migration; use `(supabase as any)` casts in new lib code until regen.
-- Toast variants centralized in a helper to keep manual + auto send paths consistent.
+## Phase 4 — De-assign controls + team-member cleanup (Parts 13–15, 17)
 
-Proceed?
+1. Bulk "De-assign" in Calling CRM selection bar (sets `assigned_agent_id = null`, syncs paid pipeline owner via existing trigger `sync_crm_owner_to_paid_pipeline`).
+2. Batch action: "De-assign entire batch" / "De-assign all from member in batch".
+3. Team Directory member drawer: new "Assigned CRM Leads" section with pipeline/batch/stage/grade/source filters and de-assign / reassign-all actions.
+4. "Remove from assigned user" single-lead action (de-assigns, preserves CRM data).
+
+---
+
+## Technical details
+
+- **Files created:** `src/lib/identity.ts`, `src/lib/qualifier/aggregate.ts`, `src/lib/crmBatchRepair.ts`, `src/components/qualifier/PreflightDialog.tsx`, `src/components/qualifier/DuplicateBreakdownTable.tsx`, `src/components/crm/BatchRepairModal.tsx`, `src/components/crm/BatchArchiveModal.tsx`, `src/components/team/AssignedLeadsManager.tsx`, `src/workers/qualifierDedup.worker.ts`.
+- **Files edited:** `src/pages/LeadQualifier.tsx`, `src/lib/qualifier.ts`, `src/pages/Crm.tsx`, `src/components/AssignModal.tsx`, `src/components/crm/MoveBatchModal.tsx`, `src/pages/Team.tsx`.
+- **Migrations:** one for `webinar_imports` / `webinar_import_people` + GRANTs + RLS + audit event-type whitelist update; one for `paid_pipeline_batches.archived_at` if missing (check first).
+- **No edits to:** `src/integrations/supabase/*`, invoice/CoC/payment modules, Operations CRM, finance triggers.
+
+## Risks
+- Web Worker bundling with Vite — will verify with a smoke test.
+- "Best record" merge logic is the most error-prone step; Phase 3 ships with a mandatory dry-run + CSV diff, no auto-apply.
+- Hard delete is gated; default everywhere is archive.
+
+---
+
+## Two questions before I start
+
+1. **Phasing OK?** Can I ship Phase 1 (the actual root cause — dedup before CRM) first today, then 2/3/4 in follow-ups? Or do you want everything in one shot?
+2. **For the existing 681-lead batch:** want me to run the dry-run repair as part of Phase 3 and share the report before applying, or auto-apply with archive (no hard delete) since it's clearly a duplicate-heavy import?
