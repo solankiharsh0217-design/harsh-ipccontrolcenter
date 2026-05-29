@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import PaidClientSelector from "@/components/invoices/PaidClientSelector";
 import { listAllInvoices } from "@/lib/invoices/api";
 import { useAuth } from "@/context/AuthContext";
 import type { Invoice } from "@/lib/invoices/types";
