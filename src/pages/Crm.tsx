@@ -24,6 +24,7 @@ import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
 import ManagedStageFilter from "@/components/crm/ManagedStageFilter";
 import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/ArchiveConfirmModal";
 import { BatchDeleteChoicesModal } from "@/components/crm/BatchDeleteChoicesModal";
+import MoveBatchModal from "@/components/crm/MoveBatchModal";
 import { archiveBatch, restoreBatch, permanentlyDeleteBatch, bulkArchiveLeads, getLeadLinks, resetBatchForReimport, safePermanentDeleteBatch } from "@/lib/crmArchive";
 import { useAuth } from "@/context/AuthContext";
 import { Archive, RotateCcw } from "lucide-react";
@@ -92,6 +93,15 @@ export default function Crm() {
   const [deleteBatchBlocked, setDeleteBatchBlocked] = useState<string | null>(null);
   const [batchChoicesTarget, setBatchChoicesTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[]; linkedPaid: number; linkedOps: number } | null>(null);
   const [batchChoicesBusy, setBatchChoicesBusy] = useState(false);
+  const [moveBatchTarget, setMoveBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[] } | null>(null);
+  const [repairPickerOpen, setRepairPickerOpen] = useState(false);
+  const openMoveBatch = (b: { name: string; date: string | null; pipelineId: string | null }) => {
+    const leadIds = leads
+      .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date)
+      .map((l) => l.id);
+    if (leadIds.length === 0) { toast.info("No leads in this batch"); return; }
+    setMoveBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds });
+  };
   const toggleSelect = (id: string) => setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelectedIds(new Set());
 
@@ -1390,6 +1400,13 @@ export default function Crm() {
                 {t.label}
               </button>
             ))}
+            {isAdmin && (
+              <button
+                onClick={() => setRepairPickerOpen(true)}
+                className="ml-2 px-3 py-1.5 rounded-md text-xs border border-[#1D4ED8] text-[#1D4ED8] hover:bg-[#EFF6FF]"
+                title="Move a wrongly uploaded batch into the correct pipeline"
+              >Repair Wrong Batch</button>
+            )}
           </div>
           {visibleBatches.length === 0 && (
             <div className="text-sm text-muted-foreground">
@@ -1421,6 +1438,7 @@ export default function Crm() {
                       setView("kanban");
                     }}
                     onRename={() => setEditBatch({ origName: b.name, origDate: b.date, name: b.name, date: b.date || "" })}
+                    onMove={() => openMoveBatch({ name: b.name, date: b.date, pipelineId: b.pipelineId })}
                     onArchive={async () => {
                       const leadIds = leads
                         .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date && !l.archived_at)
@@ -1530,6 +1548,47 @@ export default function Crm() {
                   await load();
                 }}
               >Save changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {moveBatchTarget && (
+        <MoveBatchModal
+          batch={moveBatchTarget}
+          leads={leads}
+          pipelines={pipelines}
+          stages={stages}
+          isAdmin={isAdmin}
+          onClose={() => setMoveBatchTarget(null)}
+          onDone={async () => { await load(); }}
+        />
+      )}
+      {repairPickerOpen && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/40" onClick={() => setRepairPickerOpen(false)}>
+          <div className="bg-white rounded-xl border border-line w-full max-w-md p-6 max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-serif text-lg">Repair Wrong Batch</div>
+              <button onClick={() => setRepairPickerOpen(false)} className="p-1 rounded hover:bg-off"><XIcon className="w-4 h-4" /></button>
+            </div>
+            <div className="text-[12px] text-muted-foreground mb-3">Pick the batch you want to move into the correct pipeline.</div>
+            <div className="space-y-1.5">
+              {batchesWithType.length === 0 && <div className="text-sm text-muted-foreground">No batches available.</div>}
+              {batchesWithType.map(b => {
+                const pipe = pipelines.find(p => p.id === b.pipelineId);
+                return (
+                  <button
+                    key={b.key}
+                    className="w-full text-left px-3 py-2 rounded-md border border-line hover:border-gold hover:bg-off"
+                    onClick={() => {
+                      setRepairPickerOpen(false);
+                      openMoveBatch({ name: b.name, date: b.date, pipelineId: b.pipelineId });
+                    }}
+                  >
+                    <div className="font-medium text-[13px]">{b.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{pipe?.name || "—"} · {b.total} leads · {b.date || "no date"}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1865,9 +1924,9 @@ function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight,
   );
 }
 
-function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRestore, onReset, onDelete }: {
+function BatchActionsMenu({ isAdmin, archived, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete }: {
   isAdmin: boolean; archived: boolean;
-  onView: () => void; onRename: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
+  onView: () => void; onRename: () => void; onMove: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -1888,9 +1947,10 @@ function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRe
         title="Batch actions" aria-label="Batch actions"
       >⋯</button>
       {open && (
-        <div className="absolute right-0 mt-1 w-56 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
+        <div className="absolute right-0 mt-1 w-60 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
           {item(<><ExternalLink className="w-3 h-3" /> View leads</>, onView)}
           {!archived && item(<><Pencil className="w-3 h-3" /> Rename batch</>, onRename)}
+          {isAdmin && !archived && item(<><ArrowUp className="w-3 h-3 rotate-45" /> Move / Correct Batch</>, onMove, "text-[#1D4ED8]")}
           <div className="h-px bg-line my-1" />
           {!archived
             ? <>
@@ -1910,5 +1970,6 @@ function BatchActionsMenu({ isAdmin, archived, onView, onRename, onArchive, onRe
     </div>
   );
 }
+
 
 
