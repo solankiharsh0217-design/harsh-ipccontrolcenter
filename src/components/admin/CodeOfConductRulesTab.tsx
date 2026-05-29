@@ -390,6 +390,8 @@ export default function CodeOfConductRulesTab() {
           </table>
         )}
       </div>
+
+      <PostSendAutomationRulesSection pipelines={pipelines} stages={stages} templates={templates} />
     </div>
   );
 }
