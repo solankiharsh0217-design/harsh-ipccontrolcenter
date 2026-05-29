@@ -122,6 +122,29 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
   const [dupAction, setDupAction] = useState<"update" | "move" | "create" | null>(null);
 
   const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validateForm(): { ok: true } | { ok: false; errors: Record<string, string> } {
+    const schema = leadType === "paid" ? paidLeadSchema : baseLeadSchema;
+    const result = schema.safeParse({
+      fullName,
+      email,
+      phone,
+      country,
+      notes,
+      programName,
+      dealValue: dealValue === "" ? undefined : Number(dealValue),
+      tokenCollected: tokenCollected === "" ? undefined : Number(tokenCollected),
+      totalCollected: totalCollected === "" ? undefined : Number(totalCollected),
+    });
+    if (result.success) return { ok: true };
+    const errs: Record<string, string> = {};
+    for (const issue of result.error.issues) {
+      const key = issue.path[0] as string;
+      if (key && !errs[key]) errs[key] = issue.message;
+    }
+    return { ok: false, errors: errs };
+  }
 
   useEffect(() => {
     getEligibleAssignees("calling_crm").then((list) => setAgents(list as any)).catch(() => {});
