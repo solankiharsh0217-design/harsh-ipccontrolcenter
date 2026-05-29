@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreVertical, Settings, UserMinus, ShieldOff, RotateCcw, Trash2 } from "lucide-react";
+import { MoreVertical, Settings, UserMinus, ShieldOff, RotateCcw, Trash2, Users } from "lucide-react";
 
 interface Props {
   isAdmin: boolean;
@@ -10,9 +10,10 @@ interface Props {
   onRemoveAccess: () => void;
   onRestore: () => void;
   onDelete: () => void;
+  onAssignedLeads?: () => void;
 }
 
-export default function MemberActionMenu({ isAdmin, isDeactivated, onManage, onDeactivate, onRemoveAccess, onRestore, onDelete }: Props) {
+export default function MemberActionMenu({ isAdmin, isDeactivated, onManage, onDeactivate, onRemoveAccess, onRestore, onDelete, onAssignedLeads }: Props) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -67,6 +68,7 @@ export default function MemberActionMenu({ isAdmin, isDeactivated, onManage, onD
           style={{ top: pos.top, left: pos.left }}
         >
           {item(<Settings className="w-3.5 h-3.5" />, "Manage Member", onManage)}
+          {isAdmin && onAssignedLeads && item(<Users className="w-3.5 h-3.5" />, "Assigned CRM Leads", onAssignedLeads)}
           {isAdmin && !isDeactivated && item(<UserMinus className="w-3.5 h-3.5" />, "Deactivate Member", onDeactivate)}
           {isAdmin && !isDeactivated && item(<ShieldOff className="w-3.5 h-3.5" />, "Remove Access", onRemoveAccess)}
           {isAdmin && isDeactivated && item(<RotateCcw className="w-3.5 h-3.5" />, "Restore Member", onRestore)}

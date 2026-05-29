@@ -12,6 +12,7 @@ import { X } from "lucide-react";
 import { logActivity } from "@/lib/auditLog";
 import MemberActionMenu from "@/components/team/MemberActionMenu";
 import MemberActionModal from "@/components/team/MemberActionModal";
+import MemberAssignedLeadsModal from "@/components/team/MemberAssignedLeadsModal";
 
 interface Member {
   id: string;
@@ -62,6 +63,7 @@ export default function Team() {
 
   const [filter, setFilter] = useState<"active" | "deactivated" | "all">("active");
   const [actionModal, setActionModal] = useState<{ action: "deactivate" | "remove_access" | "restore" | "delete"; member: Member } | null>(null);
+  const [assignedLeadsMember, setAssignedLeadsMember] = useState<Member | null>(null);
 
   const load = async () => {
     const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department, email, deactivated_at, deactivation_reason").neq("status","pending").order("full_name");
@@ -317,6 +319,7 @@ export default function Team() {
                   isAdmin={isAdmin}
                   isDeactivated={isDeact}
                   onManage={() => openEdit(m)}
+                  onAssignedLeads={() => setAssignedLeadsMember(m)}
                   onDeactivate={() => setActionModal({ action: "deactivate", member: m })}
                   onRemoveAccess={() => setActionModal({ action: "remove_access", member: m })}
                   onRestore={() => setActionModal({ action: "restore", member: m })}
@@ -335,6 +338,13 @@ export default function Team() {
           actorId={user.id}
           onClose={() => setActionModal(null)}
           onDone={load}
+        />
+      )}
+      {assignedLeadsMember && (
+        <MemberAssignedLeadsModal
+          memberId={assignedLeadsMember.id}
+          memberName={assignedLeadsMember.full_name || "Member"}
+          onClose={() => setAssignedLeadsMember(null)}
         />
       )}
 
