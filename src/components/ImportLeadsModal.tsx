@@ -947,8 +947,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
   const policyLabel: Record<DuplicatePolicy, string> = {
     skip: "Skip duplicates",
-    update: "Update existing lead",
-    move: `Move existing lead to ${leadType === "paid" ? "Paid — Onboarding" : "selected pipeline"}`,
+    update: "Fill missing contact info only",
+    move: "Skip existing matches",
     new_only: "Import new only",
   };
 
