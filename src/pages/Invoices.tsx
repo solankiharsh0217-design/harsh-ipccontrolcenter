@@ -72,7 +72,7 @@ export default function InvoicesPage() {
       <PageHead title="Invoices" sub={`${rows.length} invoices · Total ₹${totals.total.toFixed(0)} · Balance ₹${totals.bal.toFixed(0)}`} />
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <Button onClick={() => nav("/invoices/new")}>+ Create Invoice</Button>
+        <Button onClick={() => setEntryOpen(true)}>+ Create Invoice</Button>
         <Button variant="outline" onClick={exportCsv}>Export CSV</Button>
         {isAdmin && (
           <>
