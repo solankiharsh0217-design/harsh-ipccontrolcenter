@@ -167,10 +167,14 @@ export default function AssignModal(props: Props) {
           buckets.get(u)!.push(t.id);
         });
       }
+      const CHUNK = 200;
       for (const [uid, ids] of buckets) {
         const patch: any = { [ownerColumn]: uid };
-        const { error } = await (supabase as any).from(tableName).update(patch).in("id", ids);
-        if (error) throw error;
+        for (let i = 0; i < ids.length; i += CHUNK) {
+          const slice = ids.slice(i, i + CHUNK);
+          const { error } = await (supabase as any).from(tableName).update(patch).in("id", slice);
+          if (error) throw error;
+        }
       }
       // audit log
       logActivity({
