@@ -776,7 +776,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let paidUnlinked = 0;
       if (pipelineType === "paid") {
         try {
-          // Pull the freshly imported/updated CRM leads for this batch
+          // Pull only freshly created CRM leads for this import. Existing matched leads are intentionally skipped
+          // so their paid-pipeline status/stage/source tracking cannot be rewritten by an import.
+          const importedLeadIds = new Set<string>();
+          const collectIds = (items: any[] | null | undefined) => (items || []).forEach((x: any) => { if (x?.id) importedLeadIds.add(x.id); });
+          collectIds([]);
           const { data: crmRows } = await supabase
             .from("leads")
             .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id")
@@ -784,6 +788,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             .eq("webinar_source", segmentName);
 
           for (const lead of (crmRows || []) as any[]) {
+            if (lead.paid_pipeline_lead_id) { paidLinked++; continue; }
             // Match priority: existing link → email → phone (covers backfill of older rows)
             let existing: any = null;
             if (lead.paid_pipeline_lead_id) {
