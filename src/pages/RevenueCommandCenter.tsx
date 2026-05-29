@@ -16,6 +16,13 @@ export default function RevenueCommandCenter() {
 
   const cards: HubCard[] = [
     {
+      title: "Invoices",
+      desc: "Create, issue, and manage all invoices — standalone or linked to paid clients. Search, filter, and export.",
+      cta: "Open Invoices",
+      to: "/invoices",
+      show: true,
+    },
+    {
       title: "Paid Pipeline",
       desc: "Track token buyers, final sales, finance status, and payment progress.",
       cta: "Open Paid Pipeline",
