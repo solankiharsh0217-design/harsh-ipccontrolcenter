@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { evaluateStageTrigger } from "@/lib/codeOfConductRules";
+import PostSendAutomationRulesSection from "./PostSendAutomationRulesSection";
 
 interface Pipeline { id: string; name: string; type: string }
 interface Stage { id: string; name: string; pipeline_id: string; is_active?: boolean; position: number }
@@ -389,6 +390,8 @@ export default function CodeOfConductRulesTab() {
           </table>
         )}
       </div>
+
+      <PostSendAutomationRulesSection pipelines={pipelines} stages={stages} templates={templates} />
     </div>
   );
 }

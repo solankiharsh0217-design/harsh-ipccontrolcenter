@@ -5,6 +5,7 @@ import { toast as sonnerToast } from "sonner";
 import EditMemberEmailModal from "./EditMemberEmailModal";
 import { useAuth } from "@/context/AuthContext";
 import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRuleDetailed, normalizeCoCName, type CodeOfConductRule, type CoCRuleSource, type RuleMatchDiagnostics } from "@/lib/codeOfConductRules";
+import { evaluatePostSendAutomation, getLastAutomationEvent, describeSkipReason, type PostSendAutomationResult } from "@/lib/codeOfConductAutomation";
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
   if (variant === "destructive") sonnerToast.error(title, { description });
@@ -66,6 +67,9 @@ export default function CodeOfConductPanel(props: Props) {
   const [resolvedSourceLabel, setResolvedSourceLabel] = useState<string>(crmLeadId ? "CRM" : paidLeadId ? "Paid Pipeline fallback" : "No link");
   const [matchDiag, setMatchDiag] = useState<RuleMatchDiagnostics | null>(null);
   const [autoSendAttemptedKeys, setAutoSendAttemptedKeys] = useState<string[]>([]);
+  const [postSend, setPostSend] = useState<PostSendAutomationResult | null>(null);
+  const [postSendLast, setPostSendLast] = useState<any>(null);
+  const [postSendBusy, setPostSendBusy] = useState(false);
 
   const adminReceiptUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/receipt/${req.id}` : null);
   const adminSignedPdfUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/signed-pdf/${req.id}` : null);
@@ -341,6 +345,34 @@ export default function CodeOfConductPanel(props: Props) {
     // eslint-disable-next-line
   }, [loading, req?.id, paidLeadId, crmLeadId, evalPipelineId, evalStageId, evalSource]);
 
+  // Refresh last post-send automation event whenever the active request changes
+  useEffect(() => {
+    if (req?.id) refreshLastAutomation(req.id);
+    else setPostSendLast(null);
+    // eslint-disable-next-line
+  }, [req?.id]);
+
+  const runPostSendDryRun = async () => {
+    if (!req?.id) { toast({ title: "No active CoC request to evaluate" }); return; }
+    setPostSendBusy(true);
+    try {
+      const r = await evaluatePostSendAutomation({ requestId: req.id, dryRun: true });
+      setPostSend(r);
+      if (r.status === "applied") {
+        toast({ title: `Would move to ${r.newStageName || "destination stage"} (rule: ${r.ruleName})` });
+      } else if (r.status === "no_match") {
+        toast({ title: "No post-send automation rule would match" });
+      } else if (r.status === "skipped") {
+        toast({ title: `Would skip: ${describeSkipReason(r.skipReason)}` });
+      } else {
+        toast({ title: "Dry-run failed", description: r.errorMessage, variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Dry-run failed", description: e?.message, variant: "destructive" });
+    } finally { setPostSendBusy(false); }
+  };
+
+
 
   const tpl = diag?.template;
   const setupMissing: string[] = [];
@@ -362,9 +394,17 @@ export default function CodeOfConductPanel(props: Props) {
     setConfirmOpen(true);
   };
 
+  const refreshLastAutomation = async (requestId?: string | null) => {
+    const id = requestId || req?.id;
+    if (!id) return;
+    try { setPostSendLast(await getLastAutomationEvent(id)); } catch { /* ignore */ }
+  };
+
   const sendEmail = async () => {
     setConfirmOpen(false);
     setBusy(true);
+    let sentOk = false;
+    let resultRequestId: string | null = req?.id || null;
     try {
       const { data, error } = await supabase.functions.invoke("send-code-of-conduct-email", {
         body: {
@@ -380,12 +420,39 @@ export default function CodeOfConductPanel(props: Props) {
       const res = data as any;
       if (res?.ok === false) throw new Error(`[${res.error_code}] ${res.message}`);
       if (res?.signing_url) setSigningUrl(res.signing_url);
-      toast({ title: `Code of Conduct email sent to ${emailOverride}` });
-      await load();
+      sentOk = true;
+      resultRequestId = res?.request_id || resultRequestId;
     } catch (e: any) {
-      toast({ title: "Code of Conduct email failed", description: e?.message || "Unknown error", variant: "destructive" });
+      toast({ title: "Code of Conduct email failed. Stage was not changed.", description: e?.message || "Unknown error", variant: "destructive" });
       await load();
-    } finally { setBusy(false); }
+      setBusy(false);
+      return;
+    }
+
+    await load();
+
+    // Run post-send automation only after a confirmed successful send
+    if (sentOk && resultRequestId) {
+      try {
+        const automation = await evaluatePostSendAutomation({ requestId: resultRequestId });
+        setPostSend(automation);
+        await refreshLastAutomation(resultRequestId);
+        if (automation.status === "applied") {
+          toast({ title: `Code of Conduct email sent. Lead moved to ${automation.newStageName || "destination stage"}.` });
+        } else if (automation.status === "no_match") {
+          toast({ title: "Code of Conduct email sent. No stage automation rule matched." });
+        } else if (automation.status === "skipped") {
+          toast({ title: `Code of Conduct email sent. Stage not changed (${describeSkipReason(automation.skipReason)}).` });
+        } else if (automation.status === "failed") {
+          toast({ title: "Code of Conduct email sent, but stage automation failed. Check debug.", description: automation.errorMessage, variant: "destructive" });
+        }
+      } catch (e: any) {
+        toast({ title: "Code of Conduct email sent, but stage automation failed. Check debug.", description: e?.message, variant: "destructive" });
+      }
+    } else {
+      toast({ title: `Code of Conduct email sent to ${emailOverride}` });
+    }
+    setBusy(false);
   };
 
   const cancel = async () => {
@@ -612,6 +679,39 @@ export default function CodeOfConductPanel(props: Props) {
               <div>Last evaluator: {evalResult ? `${evalResult.action}${evalResult.message ? ` — ${evalResult.message}` : ""} @ ${new Date(evalResult.at).toLocaleTimeString()}` : "—"}</div>
             </div>
           )}
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="mt-3 border-t border-slate-200 pt-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[10.5px] uppercase tracking-wider text-slate-500">Post-Send Automation Debug</div>
+            <button onClick={runPostSendDryRun} disabled={postSendBusy || !req?.id}
+              className="text-[10.5px] px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50">
+              {postSendBusy ? "Checking…" : "Run Automation Check"}
+            </button>
+          </div>
+          <div className="mt-1.5 rounded-md border border-slate-200 bg-white p-2 text-[10.5px] text-slate-600 space-y-1 font-mono overflow-x-auto">
+            <div>Last dry-run / send result: {postSend
+              ? `${postSend.status}${postSend.ruleName ? ` · rule: ${postSend.ruleName}` : ""}${postSend.skipReason ? ` · skip: ${describeSkipReason(postSend.skipReason)}` : ""}${postSend.errorMessage ? ` · error: ${postSend.errorMessage}` : ""}`
+              : "—"}</div>
+            {postSend && (postSend.oldStageName || postSend.newStageName) && (
+              <div>Movement: {postSend.oldStageName || postSend.oldStageId || "—"} → {postSend.newStageName || postSend.newStageId || "—"}</div>
+            )}
+            <div className="font-sans font-semibold text-slate-800 pt-1">Last persisted automation event</div>
+            {postSendLast ? (
+              <>
+                <div>Status: {postSendLast.status}{postSendLast.skip_reason ? ` (${describeSkipReason(postSendLast.skip_reason)})` : ""}</div>
+                <div>Old stage: {postSendLast.old_stage_id || "—"}</div>
+                <div>New stage: {postSendLast.new_stage_id || "—"}</div>
+                <div>Rule id: {postSendLast.rule_id || "—"}</div>
+                {postSendLast.error_message && <div className="text-rose-600">Error: {postSendLast.error_message}</div>}
+                <div>At: {postSendLast.created_at ? new Date(postSendLast.created_at).toLocaleString() : "—"}</div>
+              </>
+            ) : (
+              <div>No prior automation events recorded for this request.</div>
+            )}
+          </div>
         </div>
       )}
 
