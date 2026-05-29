@@ -113,21 +113,7 @@ export default function InvoiceEditor() {
   );
 
   // Comprehensive issue-time blockers (invoice-level, beyond company readiness)
-  const blockers = useMemo(() => {
-    const list: string[] = [];
-    if (!invoice) return list;
-    const items = invoice.line_items || [];
-    if (!items.length) list.push("Add at least one line item");
-    else if (items.some((li) => !li.item_name?.trim())) list.push("Every line item needs a name");
-    else if (items.every((li) => (Number(li.amount) || 0) === 0)) list.push("Line item amounts are zero");
-    if (!invoice.member_name?.trim()) list.push("Buyer / member name is missing");
-    if ((Number(invoice.total_amount) || 0) <= 0) list.push("Invoice total must be greater than zero");
-    if (invoice.invoice_type === "gst" && settings?.hsn_sac_required) {
-      const missing = items.some((li) => !li.hsn_sac || !String(li.hsn_sac).trim());
-      if (missing) list.push("HSN/SAC is required on every line item");
-    }
-    return list;
-  }, [invoice, settings, company]);
+  const blockers = useMemo(() => checkInvoiceBlockers(invoice, settings), [invoice, settings]);
 
   const allBlockers = useMemo(() => Array.from(new Set([...readiness.missing, ...blockers])), [readiness.missing, blockers]);
   const canIssue = allBlockers.length === 0;
