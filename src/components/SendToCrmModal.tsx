@@ -95,7 +95,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const counts = useMemo(() => {
     const c = { total: result.leads.length, hot: 0, warm: 0, cold: 0, na: 0, ta: 0, superHot: 0 };
     for (const l of result.leads) {
-      if (superHotEmails.has(l.email)) c.superHot++;
+      if (superHotEmails.has(normalizeEmail(l.email))) c.superHot++;
       if (l.grade === "hot") c.hot++;
       else if (l.grade === "warm") c.warm++;
       else if (l.grade === "cold") c.cold++;
@@ -145,25 +145,46 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
         true_absentee_count: counts.ta,
       });
 
-      // 1) Find all existing emails in one query (for super-hot detection / dedupe)
-      const allEmails = result.leads.map((l) => l.email).filter(Boolean);
-      const existingMap = new Map<string, { id: string; webinar_count: number }>();
-      if (allEmails.length) {
-        const chunkSize = 500;
-        for (let i = 0; i < allEmails.length; i += chunkSize) {
-          const chunk = allEmails.slice(i, i + chunkSize);
-          const { data: ex } = await supabase.from("leads").select("id, email, webinar_count").in("email", chunk);
-          (ex || []).forEach((r: any) => existingMap.set((r.email || "").toLowerCase(), { id: r.id, webinar_count: r.webinar_count || 1 }));
-        }
+      // 1) Find all existing leads in one query by normalized email AND normalized phone
+      const normEmails = Array.from(new Set(result.leads.map((l) => normalizeEmail(l.email)).filter(Boolean))) as string[];
+      const normPhones = Array.from(new Set(result.leads.map((l) => normalizePhone(l.phone)).filter(Boolean))) as string[];
+      const existingByEmail = new Map<string, { id: string; webinar_count: number }>();
+      const existingByPhone = new Map<string, { id: string; webinar_count: number }>();
+      const chunkSize = 500;
+      for (let i = 0; i < normEmails.length; i += chunkSize) {
+        const chunk = normEmails.slice(i, i + chunkSize);
+        const { data: ex } = await supabase.from("leads").select("id, email, webinar_count").in("email", chunk);
+        (ex || []).forEach((r: any) => existingByEmail.set(normalizeEmail(r.email), { id: r.id, webinar_count: r.webinar_count || 1 }));
+      }
+      for (let i = 0; i < normPhones.length; i += chunkSize) {
+        const chunk = normPhones.slice(i, i + chunkSize);
+        const { data: ex } = await supabase.from("leads").select("id, phone, webinar_count").in("phone", chunk);
+        (ex || []).forEach((r: any) => {
+          const p = normalizePhone(r.phone);
+          if (p) existingByPhone.set(p, { id: r.id, webinar_count: r.webinar_count || 1 });
+        });
       }
 
       const toInsert: any[] = [];
       const toUpdate: { id: string; patch: any; activity: any }[] = [];
+      const seenIdentityInBatch = new Set<string>();
       let skipped = 0;
 
       for (const l of result.leads) {
-        if (!l.email) { skipped++; continue; }
-        const existing = existingMap.get(l.email.toLowerCase());
+        const normEmail = normalizeEmail(l.email);
+        const normPhone = normalizePhone(l.phone);
+        // Require either a valid email OR a 10-digit phone — never silently drop phone-only leads.
+        if (!normEmail && !normPhone) { skipped++; continue; }
+
+        // Per-batch dedup safety net (should already be deduped by qualifier, but defensive)
+        const identityKey = normEmail ? `e:${normEmail}` : `p:${normPhone}`;
+        if (seenIdentityInBatch.has(identityKey)) { skipped++; continue; }
+        seenIdentityInBatch.add(identityKey);
+
+        const existing =
+          (normEmail && existingByEmail.get(normEmail)) ||
+          (normPhone && existingByPhone.get(normPhone)) ||
+          null;
         const isSH = !!existing;
         let agentId: string | null = null;
         if (assignment === "round_robin" && activeAgents.length) {
@@ -178,7 +199,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
                           : l.grade === "warm" ? "attendee_warm"
                           : "attendee_cold";
         const payload: any = {
-          full_name: l.name, email: l.email, phone: l.phone || null, country: l.country || null,
+          full_name: l.name, email: normEmail || null, phone: normPhone || null, country: l.country || null,
           score: l.score, grade,
           webinar_source: batchLabel, webinar_date: date, webinar_name: batchLabel,
           pipeline_id: pipeline.id, stage_id: firstStage?.id ?? null,
