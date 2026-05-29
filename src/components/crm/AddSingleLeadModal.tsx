@@ -501,31 +501,70 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
           {dupCheckBusy && (
             <div className="text-[11px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Checking for duplicates…</div>
           )}
-          {duplicate && (
-            <div className="rounded-md border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2 text-xs">
-              <div className="flex items-center gap-1 font-medium text-[#92400E]">
-                <AlertTriangle className="w-3.5 h-3.5" /> Possible existing lead found (matched by {duplicateMatch})
-              </div>
-              <div className="mt-1 text-[#92400E]">
-                <div><b>{duplicate.full_name || "—"}</b> · {duplicate.email || "—"} · {duplicate.phone || "—"}</div>
-                <div className="text-[10px] opacity-80">
-                  Pipeline: {pipelines.find((p) => p.id === duplicate.pipeline_id)?.name || "—"} ·
-                  Stage: {stages.find((s) => s.id === duplicate.stage_id)?.name || "—"} ·
-                  {duplicate.archived_at ? " archived" : " active"}
+          {duplicate && (() => {
+            const targetPipelineName = pipelines.find((p) => p.id === pipelineId)?.name || "selected pipeline";
+            const targetStageName = pipelineStages.find((s) => s.id === stageId)?.name || "selected stage";
+            const samePlace = duplicate.pipeline_id === pipelineId && duplicate.stage_id === stageId;
+            return (
+              <div className="rounded-md border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2 text-xs">
+                <div className="flex items-center gap-1 font-medium text-[#92400E]">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Possible existing lead found (matched by {duplicateMatch})
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                <button className={`px-2 py-1 rounded-md text-[11px] border ${dupAction === "update" ? "bg-black text-white border-black" : "border-line"}`} onClick={() => setDupAction("update")}>Update existing</button>
-                <button className={`px-2 py-1 rounded-md text-[11px] border ${dupAction === "move" ? "bg-black text-white border-black" : "border-line"}`} onClick={() => setDupAction("move")}>Move to selected stage</button>
-                {isAdmin && (
-                  <button className={`px-2 py-1 rounded-md text-[11px] border ${dupAction === "create" ? "bg-[#DC2626] text-white border-[#DC2626]" : "border-line"}`} onClick={() => setDupAction("create")}>Create anyway (admin)</button>
+                <div className="mt-1 text-[#92400E]">
+                  <div><b>{duplicate.full_name || "—"}</b> · {duplicate.email || "—"} · {duplicate.phone || "—"}</div>
+                  <div className="text-[10px] opacity-80">
+                    Currently in: {pipelines.find((p) => p.id === duplicate.pipeline_id)?.name || "—"} ·
+                    {" "}{stages.find((s) => s.id === duplicate.stage_id)?.name || "—"} ·
+                    {duplicate.archived_at ? " archived" : " active"}
+                    {duplicate.paid_pipeline_lead_id ? " · linked to Paid Pipeline" : ""}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  <button
+                    type="button"
+                    className="px-2 py-1 rounded-md text-[11px] border border-line inline-flex items-center gap-1 bg-white hover:bg-off"
+                    onClick={() => { onCreated(duplicate.id, true); onClose(); }}
+                  >
+                    <ExternalLink className="w-3 h-3" /> Open existing
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-2 py-1 rounded-md text-[11px] border ${dupAction === "update" ? "bg-black text-white border-black" : "border-line"}`}
+                    onClick={() => setDupAction("update")}
+                  >
+                    Update existing
+                  </button>
+                  <button
+                    type="button"
+                    disabled={samePlace}
+                    title={samePlace ? "Already in selected pipeline/stage" : undefined}
+                    className={`px-2 py-1 rounded-md text-[11px] border disabled:opacity-50 ${dupAction === "move" ? "bg-black text-white border-black" : "border-line"}`}
+                    onClick={() => setDupAction("move")}
+                  >
+                    Move to {targetPipelineName} · {targetStageName}
+                  </button>
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      className={`px-2 py-1 rounded-md text-[11px] border ${dupAction === "create" ? "bg-[#DC2626] text-white border-[#DC2626]" : "border-line text-[#DC2626]"}`}
+                      onClick={() => setDupAction("create")}
+                    >
+                      Create anyway (admin)
+                    </button>
+                  ) : (
+                    <span className="px-2 py-1 rounded-md text-[11px] border border-dashed border-line text-muted-foreground">
+                      Create anyway — admin only
+                    </span>
+                  )}
+                </div>
+                {dupAction === "create" && isAdmin && (
+                  <div className="mt-2 text-[10px] text-[#DC2626]">
+                    A duplicate CRM lead will be created. This action is logged in the audit trail.
+                  </div>
                 )}
-                <a href={`/crm?lead=${duplicate.id}`} target="_blank" rel="noreferrer" className="px-2 py-1 rounded-md text-[11px] border border-line inline-flex items-center gap-1">
-                  <ExternalLink className="w-3 h-3" /> Open existing
-                </a>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Program */}
           <div>
