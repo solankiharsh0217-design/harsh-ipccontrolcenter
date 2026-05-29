@@ -283,6 +283,11 @@ export async function evaluateStageTrigger(input: EvaluateInput): Promise<Evalua
           metadata: { rule_id: rule.id, rule_name: rule.name },
         });
       } catch { /* ignore */ }
+      // Run post-send stage automation (non-fatal)
+      try {
+        const { evaluatePostSendAutomation } = await import("./codeOfConductAutomation");
+        await evaluatePostSendAutomation({ requestId: data.request_id });
+      } catch { /* ignore */ }
     }
     return { matched: true, rule, action: "auto_sent", request: data, diagnostics };
   } catch (e: any) {
