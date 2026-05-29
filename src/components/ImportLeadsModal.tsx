@@ -60,7 +60,7 @@ function autoMap(headers: string[]): Record<FieldKey, string> {
 }
 
 const normEmail = (v: any) => {
-  const s = String(v ?? "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().toLowerCase();
+  const s = String(v ?? "").replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\s+/g, "").trim().toLowerCase();
   return s;
 };
 const isValidEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -590,7 +590,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       const records: N[] = rows.map((r) => ({
         full_name: get(r, "full_name") || null,
         email: normEmail(get(r, "email")) || null,
-        phone: get(r, "phone") || null,
+        phone: normPhone(get(r, "phone")) || null,
         country: get(r, "country") || null,
       })).filter((r) => r.full_name || r.email || r.phone);
 
@@ -607,14 +607,16 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         (data || []).forEach((l: any) => {
           const k = normEmail(l.email);
           if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
-          if (l.phone && !existingByPhone.has(l.phone)) existingByPhone.set(l.phone, l);
+          const phoneKey = normPhone(l.phone);
+          if (phoneKey.length === 10 && !existingByPhone.has(phoneKey)) existingByPhone.set(phoneKey, l);
         });
       }
       for (let i = 0; i < phones.length; i += 300) {
         const chunk = phones.slice(i, i + 300);
         const { data } = await supabase.from("leads").select(leadCols).in("phone", chunk);
         (data || []).forEach((l: any) => {
-          if (l.phone && !existingByPhone.has(l.phone)) existingByPhone.set(l.phone, l);
+          const phoneKey = normPhone(l.phone);
+          if (phoneKey.length === 10 && !existingByPhone.has(phoneKey)) existingByPhone.set(phoneKey, l);
           const k = normEmail(l.email);
           if (k && !existingByEmail.has(k)) existingByEmail.set(k, l);
         });
