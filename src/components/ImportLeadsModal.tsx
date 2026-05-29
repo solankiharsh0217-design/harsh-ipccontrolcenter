@@ -677,37 +677,23 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
       // --- Handle duplicates per policy ---
       const addReason = (msg: string) => reasonCounts.set(msg, (reasonCounts.get(msg) || 0) + 1);
-      if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") {
+      if (duplicatePolicy !== "update") {
         skippedDuplicates += dupRows.length;
       } else {
-        // update / move
+        // Safe update: never moves an existing lead or overwrites status/stage/pipeline tracking.
         for (const { row, existing, matchedBy } of dupRows) {
-          const isSH = true; // existing match → super-hot per original logic
-          const grade = (isSH ? "super-hot" : defaultGrade) as LeadGrade;
           const wasArchived = !!existing.archived_at;
           const wasSoftDeleted = !!(existing as any).deleted_at;
-          const agentId = assign(grade, isSH);
           const base: any = {
-            pipeline_id: pipelineId,
-            stage_id: firstStageId,
-            lead_type: leadType,
-            webinar_source: segmentName,
-            webinar_date: webinarDate,
-            webinar_name: webinarName || segmentName,
-            grade,
-            is_super_hot: true,
-            program_name: productName,
-            deal_value: dealValue,
             lead_source_type: "direct_import",
             ...(wasArchived ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
             ...(wasSoftDeleted ? { deleted_at: null, deleted_by: null, delete_reason: null } : {}),
-            ...(agentId ? { assigned_agent_id: agentId } : {}),
           };
-          // Always fill missing fields; for "update" also overwrite country.
+          // Fill missing contact fields only. Existing pipeline/stage/status/owner/deal fields are preserved.
           if (!existing.full_name && row.full_name) base.full_name = row.full_name;
           if (!existing.phone && row.phone) base.phone = row.phone;
           if (!existing.email && row.email) base.email = row.email;
-          if (duplicatePolicy === "update" && row.country) base.country = row.country;
+          if (row.country && !(existing as any).country) base.country = row.country;
 
           const { error } = await supabase.from("leads").update(base).eq("id", existing.id);
           if (error) {
