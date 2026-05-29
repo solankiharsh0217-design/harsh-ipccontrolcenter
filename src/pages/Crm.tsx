@@ -453,8 +453,11 @@ export default function Crm() {
   };
 
   const createPipeline = async () => {
-    if (!newPipelineName.trim()) return;
-    const { data, error } = await supabase.from("pipelines").insert({ name: newPipelineName.trim(), type: newPipelineType, position: pipelines.length }).select().maybeSingle();
+    const name = newPipelineName.trim();
+    if (!name) return;
+    const dup = pipelines.find(p => p.name.trim().toLowerCase() === name.toLowerCase() && p.type === newPipelineType);
+    if (dup) { toast.error(`A ${newPipelineType} pipeline named "${name}" already exists`); return; }
+    const { data, error } = await supabase.from("pipelines").insert({ name, type: newPipelineType, position: pipelines.length }).select().maybeSingle();
     if (error) { toast.error(error.message); return; }
     if (data) {
       if (newPipelineSeed) {
