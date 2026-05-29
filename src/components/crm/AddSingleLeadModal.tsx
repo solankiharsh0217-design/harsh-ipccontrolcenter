@@ -343,17 +343,17 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
         let existing: any = null;
         if (usedExisting && duplicate?.paid_pipeline_lead_id) {
           const { data } = await supabase.from("paid_pipeline_leads")
-            .select("id").eq("id", duplicate.paid_pipeline_lead_id).maybeSingle();
+            .select("id, name, email, phone").eq("id", duplicate.paid_pipeline_lead_id).maybeSingle();
           existing = data;
         }
         if (!existing && e) {
           const { data } = await supabase.from("paid_pipeline_leads")
-            .select("id").eq("email", e).eq("is_deleted", false).maybeSingle();
+            .select("id, name, email, phone").eq("email", e).eq("is_deleted", false).maybeSingle();
           existing = data;
         }
         if (!existing && p) {
           const { data } = await supabase.from("paid_pipeline_leads")
-            .select("id").eq("phone", p).eq("is_deleted", false).maybeSingle();
+            .select("id, name, email, phone").eq("phone", p).eq("is_deleted", false).maybeSingle();
           existing = data;
         }
 
