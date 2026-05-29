@@ -171,14 +171,15 @@ export default function CompanySettingsPage() {
         toast.error(friendly);
         return;
       }
-      const { data } = supabase.storage.from("invoice-assets").getPublicUrl(path);
-      const url = data.publicUrl;
-      const nextSettings = { ...s, [kind]: url, [pathField]: path };
+      const { data } = await supabase.storage.from("invoice-assets").createSignedUrl(path, 3600);
+      const previewUrl = data?.signedUrl || null;
+      const nextSettings = { ...s, [kind]: null, [pathField]: path };
       setS(nextSettings);
+      setSignedUrls((prev) => ({ ...prev, [kind]: previewUrl }));
       if (user) {
         try {
           const saved = await saveCompanySettings(nextSettings, user.id);
-          if (saved) setS(saved);
+          if (saved) { setS(saved); await refreshSignedUrls(saved); }
           setLastSaveError(null);
           await refreshDiagnostics();
           toast.success(`${ASSET_LABEL[kind]} uploaded successfully`);
@@ -202,6 +203,7 @@ export default function CompanySettingsPage() {
     const existingPath = (s as any)[pathField] || pathFromPublicUrl(s[kind] as string | null | undefined);
     const nextSettings = { ...s, [kind]: null, [pathField]: null };
     setS(nextSettings);
+    setSignedUrls((prev) => ({ ...prev, [kind]: null }));
     if (user) {
       try {
         const saved = await saveCompanySettings(nextSettings, user.id);
