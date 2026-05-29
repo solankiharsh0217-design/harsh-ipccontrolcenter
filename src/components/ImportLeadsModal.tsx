@@ -1320,10 +1320,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                               else if (r.status === "invalid") action = "Will skip invalid row";
                               else if (r.status === "sheet_duplicate_email" || r.status === "sheet_duplicate_phone") action = "Will skip (duplicate inside sheet)";
                               else if (r.status === "existing_by_email" || r.status === "existing_by_phone") {
-                                if (duplicatePolicy === "move") action = "Will move existing lead → this batch";
-                                else if (duplicatePolicy === "update") action = "Will update existing lead";
+                                if (duplicatePolicy === "update") action = "Will fill blank contact fields only";
                                 else if (duplicatePolicy === "skip") action = "Will skip (existing match)";
                                 else if (duplicatePolicy === "new_only") action = "Will skip (reported as existing)";
+                                else action = "Will skip (existing match)";
                               }
                               const ex = r.existing;
                               return (
