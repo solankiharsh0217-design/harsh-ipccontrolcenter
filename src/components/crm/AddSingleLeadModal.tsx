@@ -446,24 +446,40 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
       // 5) Tags
       await applyTags(crmLeadId, paidLeadId);
 
-      // 6) Audit log for CRM
+      // 6) Audit log for CRM (includes duplicate match metadata and paid linkage)
       logActivity({
         module_key: "calling_crm",
         action_type: auditAction,
         entity_type: "crm_lead",
         entity_id: crmLeadId,
         entity_label: fullName || e || p,
+        severity: dupAction === "create" ? "warn" : "info",
         metadata: {
           pipeline_id: pipelineId,
+          pipeline_name: sel?.name ?? null,
+          pipeline_type: pipelineType ?? null,
           stage_id: stageId,
+          stage_name: pipelineStages.find((s) => s.id === stageId)?.name ?? null,
           assigned_agent_id: agentId,
+          assign_mode: assignMode,
           lead_type: leadType,
+          grade,
+          batch_name: batchName || null,
+          webinar_name: webinarName || null,
+          webinar_date: webinarDate || null,
+          duplicate_detected: !!duplicate,
           duplicate_match_type: duplicateMatch,
+          duplicate_lead_id: duplicate?.id ?? null,
+          duplicate_action: duplicate ? dupAction : null,
+          duplicate_was_archived: duplicate?.archived_at ? true : false,
           paid_pipeline_lead_id: paidLeadId,
+          paid_buyer_created: !!(leadType === "paid" && createPaidBuyer && paidLeadId && !duplicate?.paid_pipeline_lead_id),
           source: "manual_single_add",
         },
         summary: usedExisting
-          ? `Manual single-add ${dupAction === "move" ? "moved" : "updated"} existing CRM lead.`
+          ? `Manual single-add ${dupAction === "move" ? "moved" : "updated"} existing CRM lead${duplicateMatch ? ` (matched by ${duplicateMatch})` : ""}.`
+          : duplicate && dupAction === "create"
+          ? `Admin override: created duplicate CRM lead in ${sel?.name ?? ""} despite ${duplicateMatch}-match on lead ${duplicate.id}.`
           : `Manual single-add created new CRM lead in ${sel?.name ?? ""}.`,
       });
 
