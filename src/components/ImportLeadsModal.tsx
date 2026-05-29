@@ -1359,14 +1359,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             <div>
               <label className="form-label">If a row matches an existing CRM lead</label>
               <select className="ipc-input" value={duplicatePolicy} onChange={(e) => setDuplicatePolicy(e.target.value as DuplicatePolicy)}>
-                <option value="move">Move existing lead to selected pipeline (recommended)</option>
-                <option value="update">Update existing lead (batch, grade, product, deal, fill missing fields)</option>
-                <option value="skip">Skip existing CRM matches</option>
+                <option value="skip">Skip existing CRM matches — safest</option>
+                <option value="update">Only fill missing name/email/phone</option>
                 <option value="new_only">Import new only (report existing matches as skipped)</option>
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
-                {duplicatePolicy === "move" && `Existing CRM matches will be moved/attached to "${creatingPipeline ? newPipeName : (filteredPipelines.find((p) => p.id === targetPipelineId)?.name || "selected pipeline")}" with this batch. New rows will be created normally.`}
-                {duplicatePolicy === "update" && "Existing CRM matches will be updated with this batch, grade, product and deal value (name/phone filled only if missing). New rows will be created normally."}
+                {duplicatePolicy === "update" && "Existing CRM matches will keep their current pipeline, stage, status, owner, product, deal value and batch. Only blank contact fields are filled."}
                 {duplicatePolicy === "skip" && "Existing CRM matches will be skipped — no changes made. Only brand-new rows will be inserted."}
                 {duplicatePolicy === "new_only" && "Only rows with no email/phone match in CRM will be imported. Existing matches will be reported as skipped."}
               </p>
