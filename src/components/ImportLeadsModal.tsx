@@ -120,7 +120,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
   const [assignment, setAssignment] = useState<AssignmentMode>("unassigned");
   const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>("");
-  const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>("move");
+  const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>("skip");
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -479,13 +479,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             const conflict = !!(phoneMatch && phoneMatch.id !== emailMatch.id);
             if (conflict) matchConflictCount++;
             if (emailMatch.archived_at) archivedMatchCount++;
-            if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") willSkip++; else willImport++;
+            if (duplicatePolicy === "update") willImport++; else willSkip++;
             return { ...base, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
           }
           if (phoneMatch) {
             existingByPhoneCount++;
             if (phoneMatch.archived_at) archivedMatchCount++;
-            if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") willSkip++; else willImport++;
+            if (duplicatePolicy === "update") willImport++; else willSkip++;
             return { ...base, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
           }
           // No email
