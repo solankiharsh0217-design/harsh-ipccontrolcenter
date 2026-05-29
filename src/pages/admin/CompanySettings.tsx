@@ -294,10 +294,11 @@ export default function CompanySettingsPage() {
           {(["logo_url", "signature_url", "stamp_url"] as const).map((k) => {
             const label = ASSET_LABEL[k];
             const pathField = ASSET_PATH_FIELD[k];
-            const present = !!s[k];
+            const pathField = ASSET_PATH_FIELD[k];
+            const storedPath = ((s as any)[pathField] as string | null | undefined) || pathFromPublicUrl(s[k] as string | null | undefined);
+            const present = !!storedPath || !!s[k];
             const busy = busyKind === k;
-            const url = s[k] as string | null | undefined;
-            const storedPath = ((s as any)[pathField] as string | null | undefined) || pathFromPublicUrl(url);
+            const previewUrl = signedUrls[k] || (s[k] as string | null | undefined) || null;
             const status = busy ? "Uploading" : failedKind === k ? "Failed" : present ? "Uploaded" : "Missing";
             const statusCls = busy
               ? "bg-primary/10 text-primary"
@@ -313,7 +314,7 @@ export default function CompanySettingsPage() {
                   <span className={`text-[10.5px] px-1.5 py-0.5 rounded ${statusCls}`}>{status}</span>
                 </div>
                 <div className="h-20 flex items-center justify-center bg-muted/30 rounded mb-2 overflow-hidden">
-                  {url ? <img src={url} alt={label} className="max-h-20 max-w-full object-contain" /> : <span className="text-[11px] text-muted-foreground">No file</span>}
+                  {previewUrl ? <img src={previewUrl} alt={label} className="max-h-20 max-w-full object-contain" /> : <span className="text-[11px] text-muted-foreground">No file</span>}
                 </div>
                 {present && <div className="text-[10px] text-muted-foreground mb-2 break-all">Path: {maskPath(storedPath)}</div>}
                 <Input
