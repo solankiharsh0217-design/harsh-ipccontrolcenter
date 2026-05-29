@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { logActivity } from "@/lib/auditLog";
@@ -8,6 +9,42 @@ import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { recomputePaidLead, DEFAULT_PAYMENT_MODES, DEFAULT_PAYMENT_CATEGORIES } from "@/lib/paidPipeline";
 import { createTag, assignTag } from "@/lib/leadTags";
 import type { Pipeline, Stage, LeadGrade } from "@/lib/crmTypes";
+
+// Validation schema — name-only is allowed (warned in UI), but any provided email/phone must be valid.
+const phoneRegex = /^[0-9+\-\s()]{7,20}$/;
+const baseLeadSchema = z.object({
+  fullName: z.string().trim().max(120, "Name too long (max 120)").optional().or(z.literal("")),
+  email: z
+    .string()
+    .trim()
+    .max(255, "Email too long")
+    .email("Invalid email address")
+    .optional()
+    .or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .max(20, "Phone too long")
+    .regex(phoneRegex, "Invalid phone number")
+    .optional()
+    .or(z.literal("")),
+  country: z.string().trim().max(120, "Too long").optional().or(z.literal("")),
+  notes: z.string().trim().max(2000, "Notes too long (max 2000)").optional().or(z.literal("")),
+  programName: z.string().trim().max(200, "Program name too long").optional().or(z.literal("")),
+  dealValue: z.number().nonnegative("Deal value must be ≥ 0").max(100_000_000, "Deal value too large").optional(),
+}).refine(
+  (v) => !!(v.fullName?.trim() || v.email?.trim() || v.phone?.trim()),
+  { path: ["fullName"], message: "Provide at least a name, email, or phone" },
+);
+
+const paidLeadSchema = baseLeadSchema.and(
+  z.object({
+    programName: z.string().trim().min(1, "Program is required for paid leads").max(200),
+    dealValue: z.number().positive("Paid leads require a deal value > 0"),
+    tokenCollected: z.number().nonnegative().optional(),
+    totalCollected: z.number().nonnegative().optional(),
+  }),
+);
 
 interface Props {
   pipelines: Pipeline[];
@@ -85,6 +122,29 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
   const [dupAction, setDupAction] = useState<"update" | "move" | "create" | null>(null);
 
   const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validateForm() {
+    const schema = leadType === "paid" ? paidLeadSchema : baseLeadSchema;
+    const result = schema.safeParse({
+      fullName,
+      email,
+      phone,
+      country,
+      notes,
+      programName,
+      dealValue: dealValue === "" ? undefined : Number(dealValue),
+      tokenCollected: tokenCollected === "" ? undefined : Number(tokenCollected),
+      totalCollected: totalCollected === "" ? undefined : Number(totalCollected),
+    });
+    if (result.success) return { ok: true as const };
+    const errs: Record<string, string> = {};
+    for (const issue of result.error.issues) {
+      const key = issue.path[0] as string;
+      if (key && !errs[key]) errs[key] = issue.message;
+    }
+    return { ok: false as const, errors: errs };
+  }
 
   useEffect(() => {
     getEligibleAssignees("calling_crm").then((list) => setAgents(list as any)).catch(() => {});
@@ -183,6 +243,14 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
 
   async function handleSave(openDrawerAfter: boolean) {
     if (!canSave) return;
+    const v = validateForm();
+    if (!v.ok) {
+      setErrors(v.errors);
+      const first = Object.values(v.errors)[0];
+      toast.error(typeof first === "string" ? first : "Please fix the highlighted fields");
+      return;
+    }
+    setErrors({});
     setBusy(true);
     try {
       const e = normEmail(email);
@@ -481,11 +549,23 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
           <div>
             <div className="text-xs font-semibold mb-2">Basic Details</div>
             <div className="grid grid-cols-2 gap-3">
-              <input className="ipc-input !h-9 !text-xs" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" />
-              <input className="ipc-input !h-9 !text-xs" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
-              <input className="ipc-input !h-9 !text-xs" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-              <input className="ipc-input !h-9 !text-xs" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="City / State / Country" />
-              <textarea className="ipc-input !text-xs col-span-2" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (logged as the first activity)" />
+              <div>
+                <input maxLength={120} className="ipc-input !h-9 !text-xs w-full" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" />
+                {errors.fullName && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.fullName}</div>}
+              </div>
+              <div>
+                <input maxLength={20} className="ipc-input !h-9 !text-xs w-full" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
+                {errors.phone && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.phone}</div>}
+              </div>
+              <div>
+                <input maxLength={255} className="ipc-input !h-9 !text-xs w-full" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+                {errors.email && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.email}</div>}
+              </div>
+              <input maxLength={120} className="ipc-input !h-9 !text-xs" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="City / State / Country" />
+              <div className="col-span-2">
+                <textarea maxLength={2000} className="ipc-input !text-xs w-full" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (logged as the first activity)" />
+                {errors.notes && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.notes}</div>}
+              </div>
             </div>
             {!minKeyOk && (
               <div className="text-[11px] text-[#DC2626] mt-1">Add at least a name, phone, or email.</div>
@@ -570,10 +650,16 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
           <div>
             <div className="text-xs font-semibold mb-2">Program Details</div>
             <div className="grid grid-cols-2 gap-3">
-              <input className="ipc-input !h-9 !text-xs" value={programName} onChange={(e) => setProgramName(e.target.value)} placeholder={`Program / product${leadType === "paid" ? " *" : ""}`} />
-              <input className="ipc-input !h-9 !text-xs" inputMode="decimal" value={dealValue} onChange={(e) => setDealValue(e.target.value)} placeholder={`Deal value (₹)${leadType === "paid" ? " *" : ""}`} />
-              <input className="ipc-input !h-9 !text-xs" value={sourceTxt} onChange={(e) => setSourceTxt(e.target.value)} placeholder="Source (optional)" />
-              <input className="ipc-input !h-9 !text-xs" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="Tags (comma separated)" />
+              <div>
+                <input maxLength={200} className="ipc-input !h-9 !text-xs w-full" value={programName} onChange={(e) => setProgramName(e.target.value)} placeholder={`Program / product${leadType === "paid" ? " *" : ""}`} />
+                {errors.programName && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.programName}</div>}
+              </div>
+              <div>
+                <input className="ipc-input !h-9 !text-xs w-full" inputMode="decimal" value={dealValue} onChange={(e) => setDealValue(e.target.value)} placeholder={`Deal value (₹)${leadType === "paid" ? " *" : ""}`} />
+                {errors.dealValue && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.dealValue}</div>}
+              </div>
+              <input maxLength={120} className="ipc-input !h-9 !text-xs" value={sourceTxt} onChange={(e) => setSourceTxt(e.target.value)} placeholder="Source (optional)" />
+              <input maxLength={250} className="ipc-input !h-9 !text-xs" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="Tags (comma separated)" />
             </div>
             {leadType === "paid" && !paidOk && (
               <div className="text-[11px] text-[#DC2626] mt-1">Paid leads require program/product and a deal value &gt; 0.</div>
