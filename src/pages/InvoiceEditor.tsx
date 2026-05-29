@@ -56,11 +56,18 @@ export default function InvoiceEditor() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
+  const [catalog, setCatalog] = useState<InvoiceCatalogItem[]>([]);
+  const [categories, setCategories] = useState<InvoiceItemCategory[]>([]);
+  const [sacFinderForRow, setSacFinderForRow] = useState<number | null>(null);
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [c, s] = await Promise.all([loadCompanySettings(), loadInvoiceSettings()]);
-      setCompany(c); setSettings(s);
+      const [c, s, cat, cats] = await Promise.all([
+        loadCompanySettings(), loadInvoiceSettings(),
+        listCatalogItems().catch(() => []), listItemCategories().catch(() => []),
+      ]);
+      setCompany(c); setSettings(s); setCatalog(cat); setCategories(cats);
 
       if (id) {
         const inv = await loadInvoice(id);
@@ -75,6 +82,7 @@ export default function InvoiceEditor() {
         }
       } else {
         const paidLeadId = params.get("paidLeadId");
+        const mode = params.get("mode");
         if (paidLeadId && s) {
           const { data: p } = await db.from("paid_pipeline_leads").select("*").eq("id", paidLeadId).maybeSingle();
           setPaidLead(p);
@@ -85,6 +93,13 @@ export default function InvoiceEditor() {
           }
           const draft = buildDraftFromPaidLead({ paidLead: p, crmLead: cl, company: c, settings: s, mode: "full_deal" });
           setInvoice(draft);
+        } else if (s) {
+          // Manual / standalone blank draft (also fallback when no params provided)
+          const draft = buildBlankManualDraft({ company: c, settings: s });
+          setInvoice(draft);
+          if (mode !== "manual") {
+            // No mode and no paidLeadId — still start a manual draft so the editor isn't blank.
+          }
         }
       }
       setLoading(false);
