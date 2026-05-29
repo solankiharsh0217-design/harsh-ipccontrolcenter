@@ -379,7 +379,12 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
         };
 
         if (existing) {
-          await supabase.from("paid_pipeline_leads").update(buyerPayload).eq("id", existing.id);
+          await supabase.from("paid_pipeline_leads").update({
+            crm_lead_id: crmLeadId,
+            ...(!existing.name && buyerPayload.name ? { name: buyerPayload.name } : {}),
+            ...(!existing.email && buyerPayload.email ? { email: buyerPayload.email } : {}),
+            ...(!existing.phone && buyerPayload.phone ? { phone: buyerPayload.phone } : {}),
+          } as any).eq("id", existing.id);
           paidLeadId = existing.id;
           logActivity({
             module_key: "paid_pipeline",
