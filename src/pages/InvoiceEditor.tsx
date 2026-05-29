@@ -195,6 +195,82 @@ export default function InvoiceEditor() {
     update({ line_items: (invoice.line_items || []).filter((_, i) => i !== idx) });
   };
 
+  const applyCatalogItem = (idx: number, itemId: string) => {
+    const it = catalog.find((c) => c.id === itemId);
+    if (!it || !invoice) return;
+    updateLine(idx, {
+      item_name: it.item_name,
+      description: it.description || "",
+      hsn_sac: it.hsn_sac || "",
+      rate: Number(it.default_price ?? it.default_rate ?? 0),
+      tax_rate: invoice.invoice_type === "gst" ? Number(it.default_gst_rate ?? settings?.default_gst_rate ?? 0) : 0,
+    });
+    if (invoice.id) { try { logEvent(invoice.id, "invoice_item_selected_from_catalog", { item_id: itemId }, user?.id); } catch { /* ignore */ } }
+  };
+
+  const applySacCode = (idx: number, code: TaxCode) => {
+    if (!invoice) return;
+    updateLine(idx, {
+      hsn_sac: code.code,
+      tax_rate: invoice.invoice_type === "gst" && code.gst_rate_default != null ? Number(code.gst_rate_default) : (invoice.line_items?.[idx]?.tax_rate || 0),
+    });
+    if (invoice.id) { try { logEvent(invoice.id, "invoice_sac_hsn_selected", { code: code.code }, user?.id); } catch { /* ignore */ } }
+  };
+
+  const useLeadDetails = !!(invoice && (invoice.linked_client_name || invoice.linked_client_email || invoice.linked_client_phone) &&
+    (invoice.billing_name || "") === (invoice.linked_client_name || "") &&
+    (invoice.billing_email || "") === (invoice.linked_client_email || "") &&
+    (invoice.billing_phone || "") === (invoice.linked_client_phone || ""));
+
+  const toggleUseLeadDetails = (on: boolean) => {
+    if (!invoice) return;
+    if (on) {
+      update({
+        billing_name: invoice.linked_client_name || invoice.billing_name,
+        billing_email: invoice.linked_client_email || invoice.billing_email,
+        billing_phone: invoice.linked_client_phone || invoice.billing_phone,
+      });
+    } else {
+      if (invoice.id) { try { logEvent(invoice.id, "invoice_billing_details_overridden", {}, user?.id); } catch { /* ignore */ } }
+    }
+  };
+
+  const linkToPaidClient = async (paidLeadId: string) => {
+    if (!invoice || !settings) return;
+    const { data: p } = await db.from("paid_pipeline_leads").select("*").eq("id", paidLeadId).maybeSingle();
+    if (!p) { toast.error("Paid lead not found"); return; }
+    let cl: any = null;
+    if (p.crm_lead_id) {
+      const { data: l } = await db.from("leads").select("*").eq("id", p.crm_lead_id).maybeSingle();
+      cl = l; setCrmLead(l);
+    }
+    setPaidLead(p);
+    update({
+      paid_pipeline_lead_id: p.id,
+      crm_lead_id: p.crm_lead_id || cl?.id || null,
+      linked_client_name: p.name || cl?.full_name || "",
+      linked_client_email: p.email || cl?.email || "",
+      linked_client_phone: p.phone || cl?.phone || "",
+      invoice_context_type: "later_linked",
+    });
+    if (invoice.id) { try { logEvent(invoice.id, "invoice_linked_to_paid_lead", { paid_lead_id: paidLeadId }, user?.id); } catch { /* ignore */ } }
+    toast.success("Linked to paid client");
+  };
+
+  const unlinkPaidClient = () => {
+    if (!invoice || !isAdmin) return;
+    if (!confirm("Unlink this invoice from the paid client?")) return;
+    setPaidLead(null);
+    update({
+      paid_pipeline_lead_id: null,
+      crm_lead_id: null,
+      linked_client_name: null,
+      linked_client_email: null,
+      linked_client_phone: null,
+      invoice_context_type: "manual",
+    });
+  };
+
   const saveDraftClick = async () => {
     if (!invoice || !user?.id) return;
     setBusy(true);
