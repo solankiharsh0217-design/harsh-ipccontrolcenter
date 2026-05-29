@@ -530,7 +530,7 @@ export async function renderInvoicePdf(
   const lineY = sigY + sigBoxMaxH; // baseline of underline
 
   // Stamp (optional) — placed to the left of signature
-  const stampUrl = await assetUrl(seller.stamp_url, seller.stamp_path);
+  const stampUrl = showStamp ? await assetUrl(seller.stamp_url, seller.stamp_path) : null;
   if (stampUrl) {
     const stamp = await loadImageDataUrl(stampUrl);
     if (stamp) {
