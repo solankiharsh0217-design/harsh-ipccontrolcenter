@@ -1431,6 +1431,7 @@ export default function Crm() {
                       setView("kanban");
                     }}
                     onRename={() => setEditBatch({ origName: b.name, origDate: b.date, name: b.name, date: b.date || "" })}
+                    onMove={() => openMoveBatch({ name: b.name, date: b.date, pipelineId: b.pipelineId })}
                     onArchive={async () => {
                       const leadIds = leads
                         .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date && !l.archived_at)
