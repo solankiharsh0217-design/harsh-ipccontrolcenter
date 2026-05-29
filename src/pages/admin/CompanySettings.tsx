@@ -294,7 +294,6 @@ export default function CompanySettingsPage() {
           {(["logo_url", "signature_url", "stamp_url"] as const).map((k) => {
             const label = ASSET_LABEL[k];
             const pathField = ASSET_PATH_FIELD[k];
-            const pathField = ASSET_PATH_FIELD[k];
             const storedPath = ((s as any)[pathField] as string | null | undefined) || pathFromPublicUrl(s[k] as string | null | undefined);
             const present = !!storedPath || !!s[k];
             const busy = busyKind === k;
