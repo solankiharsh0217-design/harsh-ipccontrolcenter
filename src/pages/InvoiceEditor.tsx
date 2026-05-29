@@ -12,13 +12,17 @@ import {
   loadCompanySettings, loadInvoiceSettings, loadInvoice, saveDraft, issueInvoice,
   listInvoiceEvents, logEvent,
 } from "@/lib/invoices/api";
-import { buildDraftFromPaidLead } from "@/lib/invoices/draft";
+import { buildDraftFromPaidLead, buildBlankManualDraft } from "@/lib/invoices/draft";
 import { computeTotals } from "@/lib/invoices/totals";
-import { checkReadiness } from "@/lib/invoices/readiness";
+import { checkReadiness, checkInvoiceBlockers } from "@/lib/invoices/readiness";
 import { downloadInvoicePdf, openInvoicePdf } from "@/lib/invoices/pdf";
 import { amountToWordsINR } from "@/lib/invoices/amountInWords";
+import { listCatalogItems, listItemCategories } from "@/lib/invoices/catalog";
+import TaxCodeFinder from "@/components/invoices/TaxCodeFinder";
+import PaidClientSelector from "@/components/invoices/PaidClientSelector";
 import type {
   CompanySettings, Invoice, InvoiceMode, InvoiceSettings, InvoiceType, LineItem, TaxSplit,
+  InvoiceCatalogItem, InvoiceItemCategory, TaxCode,
 } from "@/lib/invoices/types";
 
 const db = supabase as any;
