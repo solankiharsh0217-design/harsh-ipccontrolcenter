@@ -1561,6 +1561,7 @@ export default function Crm() {
           isAdmin={isAdmin}
           onClose={() => setMoveBatchTarget(null)}
           onDone={async () => { await load(); }}
+          onPipelinesChanged={async () => { await load(); }}
         />
       )}
       {repairPickerOpen && (
