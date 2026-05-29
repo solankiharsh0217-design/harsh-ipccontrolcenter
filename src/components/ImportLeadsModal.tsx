@@ -1274,7 +1274,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   )}
                   {preflight.archivedMatchCount > 0 && (
                     <div className="mt-2 px-2.5 py-1.5 rounded-md bg-[#FEF3C7] border border-[#FDE68A] text-[11px] text-[#92400E]">
-                      {preflight.archivedMatchCount} existing match{preflight.archivedMatchCount === 1 ? " is" : "es are"} currently archived. Choosing <b>Move</b> or <b>Update</b> restores them with the new batch info. <b>Skip</b> leaves them archived.
+                      {preflight.archivedMatchCount} existing match{preflight.archivedMatchCount === 1 ? " is" : "es are"} currently archived. Existing matches are not moved to a new stage or batch during import.
                     </div>
                   )}
                   {preflight.matchConflictCount > 0 && (
