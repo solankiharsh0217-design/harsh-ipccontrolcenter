@@ -36,29 +36,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
   const [superHotEmails, setSuperHotEmails] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [webinars, setWebinars] = useState<{ id: string; name: string }[]>([]);
-  const [addingNew, setAddingNew] = useState(false);
-
-  useEffect(() => {
-    supabase.from("webinars").select("id, name").order("name").then(({ data }) => {
-      setWebinars((data || []) as any);
-      // If qualifier had a name and it isn't in DB yet, mark as add mode
-      if (result.webinarName && !(data || []).some((w: any) => w.name === result.webinarName)) {
-        setAddingNew(true);
-      }
-    });
-  }, []);
-
-  const saveWebinarToDb = async () => {
-    const n = name.trim();
-    if (!n) return;
-    if (webinars.some((w) => w.name.toLowerCase() === n.toLowerCase())) {
-      toast.info("Already in database"); setAddingNew(false); return;
-    }
-    const { data, error } = await supabase.from("webinars").insert({ name: n }).select().maybeSingle();
-    if (error) { toast.error(error.message); return; }
-    if (data) { setWebinars((p) => [...p, data as any].sort((a, b) => a.name.localeCompare(b.name))); setAddingNew(false); toast.success("Webinar saved"); }
-  };
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
 
   // Load metadata when opening step 3
   const goToStep3 = async () => {
