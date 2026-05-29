@@ -549,11 +549,23 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
           <div>
             <div className="text-xs font-semibold mb-2">Basic Details</div>
             <div className="grid grid-cols-2 gap-3">
-              <input className="ipc-input !h-9 !text-xs" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" />
-              <input className="ipc-input !h-9 !text-xs" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
-              <input className="ipc-input !h-9 !text-xs" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-              <input className="ipc-input !h-9 !text-xs" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="City / State / Country" />
-              <textarea className="ipc-input !text-xs col-span-2" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (logged as the first activity)" />
+              <div>
+                <input maxLength={120} className="ipc-input !h-9 !text-xs w-full" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" />
+                {errors.fullName && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.fullName}</div>}
+              </div>
+              <div>
+                <input maxLength={20} className="ipc-input !h-9 !text-xs w-full" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
+                {errors.phone && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.phone}</div>}
+              </div>
+              <div>
+                <input maxLength={255} className="ipc-input !h-9 !text-xs w-full" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+                {errors.email && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.email}</div>}
+              </div>
+              <input maxLength={120} className="ipc-input !h-9 !text-xs" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="City / State / Country" />
+              <div className="col-span-2">
+                <textarea maxLength={2000} className="ipc-input !text-xs w-full" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (logged as the first activity)" />
+                {errors.notes && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.notes}</div>}
+              </div>
             </div>
             {!minKeyOk && (
               <div className="text-[11px] text-[#DC2626] mt-1">Add at least a name, phone, or email.</div>
