@@ -66,8 +66,8 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
       const defaultPipe = (pl || []).find((p: any) => p.type === leadType) || (pl || [])[0];
       setTargetPipelineId(defaultPipe?.id || "");
       if (createdNow) setPipelineNotice(`Created default ${leadType} pipeline.`);
-      // detect super hot by email match — chunk to avoid URL-length limits on large uploads
-      const emails = result.leads.map((l) => l.email).filter(Boolean) as string[];
+      // detect super hot by normalized email match — chunk to avoid URL-length limits on large uploads
+      const emails = Array.from(new Set(result.leads.map((l) => normalizeEmail(l.email)).filter(Boolean))) as string[];
       if (emails.length) {
         const found = new Set<string>();
         const chunkSize = 200;
@@ -79,7 +79,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
             console.warn("super-hot lookup chunk failed", exErr);
             continue;
           }
-          (existing || []).forEach((e: any) => found.add((e.email || "").toLowerCase()));
+          (existing || []).forEach((e: any) => found.add(normalizeEmail(e.email)));
         }
         setSuperHotEmails(found);
       }
