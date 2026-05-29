@@ -650,10 +650,16 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
           <div>
             <div className="text-xs font-semibold mb-2">Program Details</div>
             <div className="grid grid-cols-2 gap-3">
-              <input className="ipc-input !h-9 !text-xs" value={programName} onChange={(e) => setProgramName(e.target.value)} placeholder={`Program / product${leadType === "paid" ? " *" : ""}`} />
-              <input className="ipc-input !h-9 !text-xs" inputMode="decimal" value={dealValue} onChange={(e) => setDealValue(e.target.value)} placeholder={`Deal value (₹)${leadType === "paid" ? " *" : ""}`} />
-              <input className="ipc-input !h-9 !text-xs" value={sourceTxt} onChange={(e) => setSourceTxt(e.target.value)} placeholder="Source (optional)" />
-              <input className="ipc-input !h-9 !text-xs" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="Tags (comma separated)" />
+              <div>
+                <input maxLength={200} className="ipc-input !h-9 !text-xs w-full" value={programName} onChange={(e) => setProgramName(e.target.value)} placeholder={`Program / product${leadType === "paid" ? " *" : ""}`} />
+                {errors.programName && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.programName}</div>}
+              </div>
+              <div>
+                <input className="ipc-input !h-9 !text-xs w-full" inputMode="decimal" value={dealValue} onChange={(e) => setDealValue(e.target.value)} placeholder={`Deal value (₹)${leadType === "paid" ? " *" : ""}`} />
+                {errors.dealValue && <div className="text-[11px] text-[#DC2626] mt-0.5">{errors.dealValue}</div>}
+              </div>
+              <input maxLength={120} className="ipc-input !h-9 !text-xs" value={sourceTxt} onChange={(e) => setSourceTxt(e.target.value)} placeholder="Source (optional)" />
+              <input maxLength={250} className="ipc-input !h-9 !text-xs" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} placeholder="Tags (comma separated)" />
             </div>
             {leadType === "paid" && !paidOk && (
               <div className="text-[11px] text-[#DC2626] mt-1">Paid leads require program/product and a deal value &gt; 0.</div>
