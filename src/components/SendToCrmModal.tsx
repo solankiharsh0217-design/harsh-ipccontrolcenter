@@ -427,6 +427,7 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
                 </div>
               ))}
             </div>
+            <DedupPreflightPanel summary={result.dedupSummary} mode={result.mode} />
             {counts.superHot > 0 && (
               <div className="p-3 rounded-lg" style={{ background: GRADE_STYLES["super-hot"].bg, border: `1px solid ${GRADE_STYLES["super-hot"].border}`, color: GRADE_STYLES["super-hot"].fg }}>
                 <span className="font-medium">★ {counts.superHot} Super Hot leads detected</span> — already attended a previous webinar.
