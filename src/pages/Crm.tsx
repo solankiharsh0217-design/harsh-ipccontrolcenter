@@ -1859,6 +1859,17 @@ export default function Crm() {
         filteredLeads={pipelineLeads.map(l => ({ id: l.id, current_owner_id: (l as any).assigned_agent_id }))}
         onAssigned={load}
       />
+      {repairBatchTarget && (
+        <BatchRepairModal
+          batchName={repairBatchTarget.name}
+          batchDate={repairBatchTarget.date}
+          pipelineId={repairBatchTarget.pipelineId}
+          pipelineName={pipelines.find((p) => p.id === repairBatchTarget.pipelineId)?.name || null}
+          agentNames={new Map(agents.map((a) => [a.id, a.full_name]))}
+          onClose={() => setRepairBatchTarget(null)}
+          onApplied={load}
+        />
+      )}
     </div>
   );
 }
