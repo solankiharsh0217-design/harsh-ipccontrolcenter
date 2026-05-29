@@ -67,6 +67,9 @@ export default function CodeOfConductPanel(props: Props) {
   const [resolvedSourceLabel, setResolvedSourceLabel] = useState<string>(crmLeadId ? "CRM" : paidLeadId ? "Paid Pipeline fallback" : "No link");
   const [matchDiag, setMatchDiag] = useState<RuleMatchDiagnostics | null>(null);
   const [autoSendAttemptedKeys, setAutoSendAttemptedKeys] = useState<string[]>([]);
+  const [postSend, setPostSend] = useState<PostSendAutomationResult | null>(null);
+  const [postSendLast, setPostSendLast] = useState<any>(null);
+  const [postSendBusy, setPostSendBusy] = useState(false);
 
   const adminReceiptUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/receipt/${req.id}` : null);
   const adminSignedPdfUrl = (): string | null => (req ? `${window.location.origin}/code-of-conduct/signed-pdf/${req.id}` : null);
