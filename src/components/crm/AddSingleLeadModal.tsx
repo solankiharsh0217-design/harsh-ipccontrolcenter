@@ -453,7 +453,7 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
         entity_type: "crm_lead",
         entity_id: crmLeadId,
         entity_label: fullName || e || p,
-        severity: dupAction === "create" ? "warn" : "info",
+        severity: dupAction === "create" ? "warning" : "info",
         metadata: {
           pipeline_id: pipelineId,
           pipeline_name: sel?.name ?? null,
