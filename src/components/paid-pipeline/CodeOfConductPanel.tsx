@@ -345,6 +345,34 @@ export default function CodeOfConductPanel(props: Props) {
     // eslint-disable-next-line
   }, [loading, req?.id, paidLeadId, crmLeadId, evalPipelineId, evalStageId, evalSource]);
 
+  // Refresh last post-send automation event whenever the active request changes
+  useEffect(() => {
+    if (req?.id) refreshLastAutomation(req.id);
+    else setPostSendLast(null);
+    // eslint-disable-next-line
+  }, [req?.id]);
+
+  const runPostSendDryRun = async () => {
+    if (!req?.id) { toast({ title: "No active CoC request to evaluate" }); return; }
+    setPostSendBusy(true);
+    try {
+      const r = await evaluatePostSendAutomation({ requestId: req.id, dryRun: true });
+      setPostSend(r);
+      if (r.status === "applied") {
+        toast({ title: `Would move to ${r.newStageName || "destination stage"} (rule: ${r.ruleName})` });
+      } else if (r.status === "no_match") {
+        toast({ title: "No post-send automation rule would match" });
+      } else if (r.status === "skipped") {
+        toast({ title: `Would skip: ${describeSkipReason(r.skipReason)}` });
+      } else {
+        toast({ title: "Dry-run failed", description: r.errorMessage, variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Dry-run failed", description: e?.message, variant: "destructive" });
+    } finally { setPostSendBusy(false); }
+  };
+
+
 
   const tpl = diag?.template;
   const setupMissing: string[] = [];
