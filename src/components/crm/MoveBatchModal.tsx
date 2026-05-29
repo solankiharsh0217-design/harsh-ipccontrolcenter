@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { X as XIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X as XIcon, Search, Plus, Trash2, Check, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/auditLog";
