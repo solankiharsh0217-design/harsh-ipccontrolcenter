@@ -8,6 +8,7 @@ import {
 import { GRADE_STYLES } from "@/lib/crmTypes";
 import { Upload, FileCheck2, Download, Send, BarChart3, Target, Check, AlertTriangle } from "lucide-react";
 import SendToCrmModal from "@/components/SendToCrmModal";
+import DedupPreflightPanel from "@/components/qualifier/DedupPreflightPanel";
 import { toast } from "sonner";
 
 type Mode = 1 | 2;
@@ -315,6 +316,9 @@ export default function LeadQualifier() {
             <button onClick={reset} className="ipc-btn ipc-btn-ghost">Upload another</button>
           </div>
         </div>
+
+        {/* Dedup preflight — proves raw rows are not being treated as leads */}
+        <DedupPreflightPanel summary={result.dedupSummary} mode={result.mode} />
 
         {/* Stats */}
         <div className="grid grid-cols-5 gap-3">
