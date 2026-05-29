@@ -170,7 +170,7 @@ export async function renderInvoicePdf(
   // Logo
   let leftTextX = M;
   let leftTextY = y;
-  const logoUrl = assetUrl(seller.logo_url, seller.logo_path);
+  const logoUrl = await assetUrl(seller.logo_url, seller.logo_path);
   if (logoUrl) {
     const img = await loadImageDataUrl(logoUrl);
     if (img) {
@@ -516,7 +516,7 @@ export async function renderInvoicePdf(
   const lineY = sigY + sigBoxMaxH; // baseline of underline
 
   // Stamp (optional) — placed to the left of signature
-  const stampUrl = assetUrl(seller.stamp_url, seller.stamp_path);
+  const stampUrl = await assetUrl(seller.stamp_url, seller.stamp_path);
   if (stampUrl) {
     const stamp = await loadImageDataUrl(stampUrl);
     if (stamp) {
@@ -534,7 +534,7 @@ export async function renderInvoicePdf(
   }
 
   let signatureRendered = false;
-  const signatureUrl = assetUrl(seller.signature_url, seller.signature_path);
+  const signatureUrl = await assetUrl(seller.signature_url, seller.signature_path);
   if (signatureUrl) {
     const img = await loadImageDataUrl(signatureUrl);
     if (img) {
