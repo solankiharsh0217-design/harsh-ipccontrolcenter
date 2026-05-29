@@ -342,22 +342,30 @@ export default function AssignModal(props: Props) {
         )}
 
         {/* Step 3: Method */}
-        {step === 3 && (
-          <div className="space-y-3">
-            <div>
-              <label className="form-label">Assignment method</label>
-              <select className="ipc-input" value={method} onChange={(e) => setMethod(e.target.value as Method)}>
-                <option value="round_robin">Round-robin equal split across selected users</option>
-                <option value="single">Assign all to one selected user</option>
-                <option value="unassign">Unassign (clear owner)</option>
-              </select>
+        {step === 3 && (() => {
+          const onlyOne = pickedUsers.length === 1;
+          // Auto-correct invalid method based on picked user count
+          if (onlyOne && method === "round_robin") setTimeout(() => setMethod("single"), 0);
+          if (!onlyOne && method === "single") setTimeout(() => setMethod("round_robin"), 0);
+          return (
+            <div className="space-y-3">
+              <div>
+                <label className="form-label">Assignment method</label>
+                {onlyOne ? (
+                  <div className="p-3 rounded-lg border border-line bg-off text-[12.5px]">
+                    All <strong>{targets.length}</strong> lead(s) will be assigned to <strong>{pickedUsers[0]?.full_name}</strong>.
+                  </div>
+                ) : (
+                  <select className="ipc-input" value={method} onChange={(e) => setMethod(e.target.value as Method)}>
+                    <option value="round_robin">Round-robin equal split across selected users</option>
+                    <option value="unassign">Unassign (clear owner)</option>
+                  </select>
+                )}
+              </div>
+              <FooterNav onBack={() => setStep(2)} onCancel={onClose} onNext={() => setStep(4)} />
             </div>
-            {method === "single" && pickedUsers.length !== 1 && (
-              <div className="text-[11px] text-[#B45309]">Tip: go back and select exactly one user for single-assign.</div>
-            )}
-            <FooterNav onBack={() => setStep(2)} onCancel={onClose} onNext={() => setStep(4)} />
-          </div>
-        )}
+          );
+        })()}
 
         {/* Step 4: Scope */}
         {step === 4 && (
