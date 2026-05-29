@@ -162,6 +162,34 @@ export default function InvoicesPage() {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={entryOpen} onOpenChange={setEntryOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Who is this invoice for?</DialogTitle></DialogHeader>
+          <div className="space-y-2 mt-2">
+            <button
+              onClick={() => { setEntryOpen(false); setPickerOpen(true); }}
+              className="w-full text-left border border-line rounded-lg p-4 hover:bg-off"
+            >
+              <div className="font-medium text-[13px]">Select existing paid client / lead</div>
+              <div className="text-[11.5px] text-muted-foreground mt-0.5">Search by name, phone, email, program or batch. Invoice will be linked to the paid pipeline buyer.</div>
+            </button>
+            <button
+              onClick={() => { setEntryOpen(false); nav("/invoices/new?mode=manual"); }}
+              className="w-full text-left border border-line rounded-lg p-4 hover:bg-off"
+            >
+              <div className="font-medium text-[13px]">Create manual invoice (no linked lead)</div>
+              <div className="text-[11.5px] text-muted-foreground mt-0.5">Enter billing details directly. Requires billing name + email or phone.</div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <PaidClientSelector
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={(paidLeadId) => nav(`/invoices/new?paidLeadId=${paidLeadId}`)}
+      />
     </div>
   );
 }
