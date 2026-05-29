@@ -94,10 +94,23 @@ async function loadImageDataUrl(
   }
 }
 
-function assetUrl(url?: string | null, path?: string | null): string | null {
-  if (url?.trim()) return url;
-  if (!path?.trim()) return null;
-  return supabase.storage.from("invoice-assets").getPublicUrl(path).data.publicUrl;
+function pathFromPublicUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const marker = "/storage/v1/object/public/invoice-assets/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return decodeURIComponent(url.slice(idx + marker.length).split("?")[0]);
+}
+
+async function assetUrl(url?: string | null, path?: string | null): Promise<string | null> {
+  const resolvedPath = (path?.trim() ? path : pathFromPublicUrl(url)) || null;
+  if (resolvedPath) {
+    const { data } = await supabase.storage
+      .from("invoice-assets")
+      .createSignedUrl(resolvedPath, 3600);
+    if (data?.signedUrl) return data.signedUrl;
+  }
+  return url?.trim() ? url : null;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
