@@ -6,6 +6,7 @@ import type { MergedLead, QualifierResult } from "@/lib/qualifier";
 import { GRADE_STYLES, ensurePipelineExists } from "@/lib/crmTypes";
 import { X, Plus } from "lucide-react";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
+import WebinarPresetSelector, { bumpWebinarUsage, type WebinarPreset } from "@/components/crm/WebinarPresetSelector";
 
 interface Props {
   result: QualifierResult;
