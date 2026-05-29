@@ -26,6 +26,8 @@ import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/Arch
 import { BatchDeleteChoicesModal } from "@/components/crm/BatchDeleteChoicesModal";
 import MoveBatchModal from "@/components/crm/MoveBatchModal";
 import { archiveBatch, restoreBatch, permanentlyDeleteBatch, bulkArchiveLeads, getLeadLinks, resetBatchForReimport, safePermanentDeleteBatch } from "@/lib/crmArchive";
+import BatchRepairModal from "@/components/crm/BatchRepairModal";
+import { bulkDeassignLeads } from "@/lib/crmRepair";
 import { useAuth } from "@/context/AuthContext";
 import { Archive, RotateCcw } from "lucide-react";
 
@@ -95,6 +97,8 @@ export default function Crm() {
   const [batchChoicesBusy, setBatchChoicesBusy] = useState(false);
   const [moveBatchTarget, setMoveBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[] } | null>(null);
   const [repairPickerOpen, setRepairPickerOpen] = useState(false);
+  const [repairBatchTarget, setRepairBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null } | null>(null);
+  const [bulkDeassignBusy, setBulkDeassignBusy] = useState(false);
   const openMoveBatch = (b: { name: string; date: string | null; pipelineId: string | null }) => {
     const leadIds = leads
       .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date)
