@@ -712,6 +712,123 @@ export type Database = {
         }
         Relationships: []
       }
+      code_of_conduct_automation_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          crm_lead_id: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          new_pipeline_id: string | null
+          new_stage_id: string | null
+          old_pipeline_id: string | null
+          old_stage_id: string | null
+          paid_pipeline_lead_id: string | null
+          request_id: string | null
+          rule_id: string | null
+          skip_reason: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          new_pipeline_id?: string | null
+          new_stage_id?: string | null
+          old_pipeline_id?: string | null
+          old_stage_id?: string | null
+          paid_pipeline_lead_id?: string | null
+          request_id?: string | null
+          rule_id?: string | null
+          skip_reason?: string | null
+          status: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          new_pipeline_id?: string | null
+          new_stage_id?: string | null
+          old_pipeline_id?: string | null
+          old_stage_id?: string | null
+          paid_pipeline_lead_id?: string | null
+          request_id?: string | null
+          rule_id?: string | null
+          skip_reason?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      code_of_conduct_automation_rules: {
+        Row: {
+          allow_repeat: boolean
+          also_update_paid_pipeline_stage: boolean
+          created_at: string
+          created_by: string | null
+          current_pipeline_id: string | null
+          current_stage_id: string | null
+          destination_paid_pipeline_stage: string | null
+          destination_pipeline_id: string
+          destination_stage_id: string
+          event_type: string
+          id: string
+          is_active: boolean
+          name: string
+          source_type: string
+          template_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allow_repeat?: boolean
+          also_update_paid_pipeline_stage?: boolean
+          created_at?: string
+          created_by?: string | null
+          current_pipeline_id?: string | null
+          current_stage_id?: string | null
+          destination_paid_pipeline_stage?: string | null
+          destination_pipeline_id: string
+          destination_stage_id: string
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          source_type?: string
+          template_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allow_repeat?: boolean
+          also_update_paid_pipeline_stage?: boolean
+          created_at?: string
+          created_by?: string | null
+          current_pipeline_id?: string | null
+          current_stage_id?: string | null
+          destination_paid_pipeline_stage?: string | null
+          destination_pipeline_id?: string
+          destination_stage_id?: string
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          source_type?: string
+          template_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       code_of_conduct_events: {
         Row: {
           created_at: string

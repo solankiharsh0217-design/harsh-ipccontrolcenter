@@ -1,105 +1,71 @@
-# Phase 1.3C — Complete Invoice Module
+# P0 — Code of Conduct Post-Send Automation
 
-This is a large build. I'll ship it in one phase but in a clear, ordered way so nothing breaks the existing Paid Pipeline → Create Invoice flow or the PDF renderer / signature pipeline already fixed.
-
-## What I will NOT touch
-Code of Conduct, payment calc, payment records, Sheet/CSV import, follow-ups, Team Directory, Operations CRM, hard wipe, signature/logo storage. Existing PDF renderer is extended (not rewritten) only for billing-vs-linked-client and visibility toggles.
+Build a configurable rule engine so that when a Code of Conduct email is successfully sent, the linked CRM lead is automatically moved to an admin-selected pipeline/stage.
 
 ## 1. Database (single migration)
 
-**Extend `invoices`:**
-- `linked_client_name`, `linked_client_email`, `linked_client_phone` (snapshot of original lead)
-- `billing_name`, `billing_email`, `billing_phone`, `billing_gstin`
-- `invoice_number_mode` (`auto` | `manual`), `manual_invoice_number`
-- `show_bank_details` bool default true, `show_payment_instructions` bool default true, `show_signature` bool default true, `show_stamp` bool default true
-- `subject` text, `salesperson_id` uuid, `invoice_context_type` (`linked_paid_lead` | `manual` | `later_linked`)
-- `billing_city`, `billing_state`, `billing_state_code`, `billing_country`
-- Backfill: copy `member_name/email/phone/billing_address` into billing_* and linked_client_* where null.
+**New table `code_of_conduct_automation_rules`**
+- `id`, `name`, `event_type` (default `'email_sent'`)
+- `template_id` (nullable → any template)
+- `source_type` (`crm` | `paid_pipeline` | `both`)
+- `current_pipeline_id` / `current_stage_id` (nullable → any)
+- `destination_pipeline_id`, `destination_stage_id` (required)
+- `also_update_paid_pipeline_stage` (bool), `destination_paid_pipeline_stage` (text, nullable)
+- `allow_repeat` (bool), `is_active` (bool)
+- `created_by`, `updated_by`, timestamps
+- GRANTs + RLS: read by authenticated, write admin-only
 
-**New tables (with GRANTs + RLS):**
-- `invoice_item_categories` (name, default_hsn_sac, default_gst_rate, default_taxable_status, is_active)
-- `invoice_items` (item_name, category_id, description, hsn_sac, default_gst_rate, default_price, taxable_status, unit, is_active)
-- `tax_code_master` (code, type GST_SAC/HSN, description, category, gst_rate_default, keywords text[], source, is_active) + GIN index on description/keywords + btree on code
-- RLS: SELECT for active users, INSERT/UPDATE/DELETE for admin only (via `has_role`).
+**New table `code_of_conduct_automation_events`**
+- `id`, `request_id`, `rule_id`, `event_type`
+- `crm_lead_id`, `paid_pipeline_lead_id`
+- `old_pipeline_id`, `old_stage_id`, `new_pipeline_id`, `new_stage_id`
+- `status` (`applied` | `skipped` | `failed`), `skip_reason`, `error_message`
+- `created_by`, `created_at`
+- GRANTs + RLS: insert authenticated, read admin
 
-**Numbering RPC:** add `assign_manual_invoice_number(text)` that validates uniqueness, requires admin, returns the number or raises.
+## 2. Evaluator (`src/lib/codeOfConductAutomation.ts`)
 
-**Tighten invoice_line_items + invoice_events SELECT policies** (security scan findings): only invoice creator, assigned sales executive on linked paid lead, or admin can read. Same scoping the `invoices` table already has.
+`evaluatePostSendAutomation({ requestId, ruleEvent: 'email_sent', dryRun? })`:
+1. Load request → get `template_id`, `crm_lead_id`, `paid_pipeline_lead_id`, status.
+2. Load active rules for `event_type='email_sent'` matching template + source.
+3. Resolve linked CRM lead (direct → paid_pipeline_leads.crm_lead_id → email/phone fallback only if missing).
+4. Apply safety checks (archived, deleted/inactive destination stage/pipeline, request cancelled, already in destination, allow_repeat=false + already applied).
+5. Update `leads.pipeline_id` / `stage_id`; optionally `paid_pipeline_leads.pipeline_stage`.
+6. Write `code_of_conduct_automation_events` row + `code_of_conduct_events` audit (`coc_post_send_stage_move_rule_matched`, `_moved`, `_skipped`, `_failed`).
+7. Return `{ status, ruleName, oldStage, newStage, skipReason?, error? }` for toast + debug.
 
-**Seed `tax_code_master`** with ~80 common SAC codes relevant to coaching/training/advertising/events/consulting (999293 commercial training, 998361 advertising services, 999293 coaching, 998596 events, 998311 management consulting, 998314 IT consulting, 998387 photography, 999294 other education, etc.) with keywords arrays for fuzzy matching.
+## 3. Wire into send flow
 
-**Seed `invoice_item_categories`** with the 11 categories listed in Part 8.
+- `src/lib/codeOfConductRules.ts` — after successful `send-code-of-conduct-email` invoke (auto-send path), call evaluator.
+- `src/components/paid-pipeline/CodeOfConductPanel.tsx` — after manual send / resend success, call evaluator and show toast variants:
+  - sent + moved → "…Lead moved to {stage}."
+  - sent + no rule → "…No stage automation rule matched."
+  - sent + failed → "…stage automation failed. Check debug."
+  - failed → "…Stage was not changed."
 
-## 2. Library layer
+## 4. Admin UI
 
-- `src/lib/invoices/types.ts` — extend Invoice + new types (Item, ItemCategory, TaxCode)
-- `src/lib/invoices/api.ts` — extend save/issue to persist new fields; map billing_* into seller/buyer snapshots; respect `invoice_number_mode`
-- `src/lib/invoices/catalog.ts` (new) — list/create/update items & categories
-- `src/lib/invoices/taxCodes.ts` (new) — search tax_code_master with 3+ char debounce
-- `src/lib/invoices/readiness.ts` — extend validation: billing_name required, manual number unique/non-empty, audit blockers
+**`src/components/admin/CodeOfConductRulesTab.tsx`** — add new section "After Code of Conduct Email Sent" with:
+- List of post-send rules with summary line "When CoC email is sent, move lead to {Pipeline → Stage}".
+- `+ Add Post-Send Rule` button → modal `PostSendRuleModal.tsx`:
+  - Name, Source (crm/paid/both), Template (any/specific), Current stage condition (any/specific multi), Destination pipeline → stage, Allow repeat, Also move paid pipeline stage, Active.
+- Edit / delete / toggle active.
 
-## 3. UI
+## 5. Drawer debug panel
 
-**New route `src/pages/Invoices.tsx`** registered in App.tsx + sidebar (under Revenue Center group):
-- Top actions: + Create Invoice, Export CSV, Invoice Settings, Item Catalog, SAC/HSN Master
-- Filterable table with all columns + row actions listed in Part 1
-- Filters: search, date range, status, program, batch, owner, type, linked/unlinked, sent
+Inside `CodeOfConductPanel.tsx` (admin only):
+- Collapsible "Post-Send Automation Debug" section showing matched rule, current vs destination stage, last automation event for this request, last skip reason / error.
+- "Run Automation Check" button → calls evaluator with `dryRun: true`, renders result.
 
-**New pages:**
-- `src/pages/admin/InvoiceItemCatalog.tsx` — CRUD items + categories
-- `src/pages/admin/TaxCodeMaster.tsx` — searchable list, admin CSV import (paste textarea for now)
+## 6. Out of scope (untouched)
 
-**Editor upgrades — `src/pages/InvoiceEditor.tsx`:**
-- "Who is this invoice for?" first-screen when no `paid_pipeline_lead_id` in URL
-- `PaidClientSelector` (new component) — searchable dropdown of paid_pipeline_leads
-- "Billing Details" panel with "Use lead details" toggle + override fields
-- Invoice number mode (auto/manual, admin-gated)
-- Tax setup panel
-- Line items: item dropdown via catalog + "Find SAC/HSN" button → opens `TaxCodeFinder` modal
-- Display Options panel (show bank/signature/stamp/instructions toggles)
-- Readiness blockers panel already exists — extend with new rules
+Signed PDF generation, signing page, email template content, invoice/payment/follow-up/import/team systems, edge function `send-code-of-conduct-email` internals (we only consume its `ok` response).
 
-**New components in `src/components/invoices/`:**
-- `PaidClientSelector.tsx`
-- `BillingDetailsPanel.tsx`
-- `ItemPicker.tsx` (catalog dropdown + free-form)
-- `TaxCodeFinder.tsx` (modal with debounced search, highlights matches)
-- `DisplayOptionsPanel.tsx`
+## Technical notes
 
-## 4. PDF (`src/lib/invoices/pdf.ts`)
-- Render billing_name / billing_email etc. (fallback to member_*)
-- Hide bank block when `show_bank_details=false`
-- Hide signature/stamp/payment instructions when toggled off
-- Keep existing signature_url fallback logic intact
+- All stage moves go through the existing `leads` table; no new triggers.
+- Idempotency: query `code_of_conduct_automation_events` for `(request_id, rule_id, status='applied')` before moving when `allow_repeat=false`.
+- Type updates pulled in via auto-generated `src/integrations/supabase/types.ts` after migration; use `(supabase as any)` casts in new lib code until regen.
+- Toast variants centralized in a helper to keep manual + auto send paths consistent.
 
-## 5. Audit logging
-Use existing `invoice_events` insert with new event types listed in Part 19.
-
-## 6. Permissions
-- Admin gate: item catalog, tax code master, manual number override, hide/show toggles default editable by all but manual number creation admin-only
-- Sales: read-only catalog, can create invoices only for paid leads they own (existing RLS already enforces invoice scoping)
-
-## 7. Security finding fix (bundled)
-Same migration tightens `invoice_line_items_select` and `invoice_events_select` to: creator OR admin OR assigned sales exec on the linked paid lead.
-
-## Order of execution
-1. Migration (schema + RLS tighten + seeds) — single call
-2. Types + api + catalog + taxCodes libs
-3. Editor + new components
-4. New pages + routing + sidebar entry
-5. PDF tweaks
-6. Verify build
-
-```text
-Sidebar
-├── Revenue Center
-│   ├── Invoices            ← NEW main entry
-│   │   ├── List (default)
-│   │   ├── Item Catalog
-│   │   └── SAC/HSN Master
-│   └── …
-└── Admin Center
-    └── Invoice Settings    (existing)
-```
-
-Estimated scope: 1 migration, ~6 new files, ~6 edited files. No changes to Paid Pipeline create-invoice entry points other than passing `invoice_context_type='linked_paid_lead'`.
+Proceed?
