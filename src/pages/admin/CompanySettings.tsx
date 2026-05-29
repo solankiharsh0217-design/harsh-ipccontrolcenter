@@ -118,15 +118,28 @@ export default function CompanySettingsPage() {
   const [testRunning, setTestRunning] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [diag, setDiag] = useState<any>(null);
+  const [signedUrls, setSignedUrls] = useState<Record<AssetKind, string | null>>({ logo_url: null, signature_url: null, stamp_url: null });
 
   async function refreshDiagnostics() {
     const { data, error } = await (supabase as any).rpc("get_invoice_assets_storage_diagnostics");
     if (!error && data) setDiag(data);
   }
 
+  async function refreshSignedUrls(src: Partial<CompanySettings>) {
+    const next: Record<AssetKind, string | null> = { logo_url: null, signature_url: null, stamp_url: null };
+    for (const k of ["logo_url", "signature_url", "stamp_url"] as const) {
+      const path = ((src as any)[ASSET_PATH_FIELD[k]] as string | null | undefined) || pathFromPublicUrl(src[k] as string | null | undefined);
+      if (path) {
+        const { data } = await supabase.storage.from("invoice-assets").createSignedUrl(path, 3600);
+        if (data?.signedUrl) next[k] = data.signedUrl;
+      }
+    }
+    setSignedUrls(next);
+  }
+
   useEffect(() => { (async () => {
     const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
-    if (data) setS(data);
+    if (data) { setS(data); await refreshSignedUrls(data); }
     setLoading(false);
   })(); }, []);
 
