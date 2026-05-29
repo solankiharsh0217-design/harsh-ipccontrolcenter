@@ -95,7 +95,7 @@ export async function dryRunBatchRepair(args: {
   const ids = rows.map((r) => r.id);
   const followCount = new Map<string, number>();
   if (ids.length) {
-    const { data: fr } = await supabase.from("follow_up_reminders").select("crm_lead_id").in("crm_lead_id", ids);
+    const { data: fr } = await (supabase as any).from("follow_up_reminders").select("crm_lead_id").in("crm_lead_id", ids);
     (fr || []).forEach((f: any) => {
       if (f.crm_lead_id) followCount.set(f.crm_lead_id, (followCount.get(f.crm_lead_id) || 0) + 1);
     });
