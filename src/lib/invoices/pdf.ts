@@ -548,7 +548,7 @@ export async function renderInvoicePdf(
   }
 
   let signatureRendered = false;
-  const signatureUrl = await assetUrl(seller.signature_url, seller.signature_path);
+  const signatureUrl = showSig ? await assetUrl(seller.signature_url, seller.signature_path) : null;
   if (signatureUrl) {
     const img = await loadImageDataUrl(signatureUrl);
     if (img) {
@@ -557,7 +557,6 @@ export async function renderInvoicePdf(
         let h = sigBoxMaxH;
         if (img.width && img.height) {
           const ratio = img.width / img.height;
-          // Fit inside sigBoxMaxW x sigBoxMaxH preserving aspect ratio
           if (sigBoxMaxW / sigBoxMaxH > ratio) {
             h = sigBoxMaxH;
             w = h * ratio;
@@ -565,7 +564,6 @@ export async function renderInvoicePdf(
             w = sigBoxMaxW;
             h = w / ratio;
           }
-          // Enforce minimum width of 130 if possible (without exceeding max)
           if (w < 130 && h * (130 / w) <= sigBoxMaxH) {
             const scale = 130 / w;
             w = 130;
@@ -586,14 +584,16 @@ export async function renderInvoicePdf(
       console.warn("invoice_signature_render_failed: image fetch failed", signatureUrl);
     }
   }
-  // Always draw the line under signature
-  doc.setDrawColor(180);
-  doc.line(sigRight - sigBoxMaxW, lineY, sigRight, lineY);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(60);
-  doc.text("Authorized Signature", sigRight, lineY + 12, { align: "right" });
-  y = lineY + 20;
+  if (showSig) {
+    doc.setDrawColor(180);
+    doc.line(sigRight - sigBoxMaxW, lineY, sigRight, lineY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    doc.text("Authorized Signature", sigRight, lineY + 12, { align: "right" });
+    y = lineY + 20;
+  }
+  void signatureRendered;
 
   // Footer page numbers
   const pageCount = (doc as any).internal.getNumberOfPages();
