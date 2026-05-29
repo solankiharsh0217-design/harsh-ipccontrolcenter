@@ -120,7 +120,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
   const [assignment, setAssignment] = useState<AssignmentMode>("unassigned");
   const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>("");
-  const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>("move");
+  const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>("skip");
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -479,13 +479,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             const conflict = !!(phoneMatch && phoneMatch.id !== emailMatch.id);
             if (conflict) matchConflictCount++;
             if (emailMatch.archived_at) archivedMatchCount++;
-            if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") willSkip++; else willImport++;
+            if (duplicatePolicy === "update") willImport++; else willSkip++;
             return { ...base, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
           }
           if (phoneMatch) {
             existingByPhoneCount++;
             if (phoneMatch.archived_at) archivedMatchCount++;
-            if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") willSkip++; else willImport++;
+            if (duplicatePolicy === "update") willImport++; else willSkip++;
             return { ...base, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
           }
           // No email
@@ -671,43 +671,30 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let phoneOnlyImported = 0;
       let skippedDuplicates = 0;
       let failed = failedNoKey;
+      const createdCrmLeadIds = new Set<string>();
       const errors: string[] = [];
       const reasonCounts = new Map<string, number>();
       if (failedNoKey > 0) reasonCounts.set("Row has neither email nor phone", failedNoKey);
 
       // --- Handle duplicates per policy ---
       const addReason = (msg: string) => reasonCounts.set(msg, (reasonCounts.get(msg) || 0) + 1);
-      if (duplicatePolicy === "skip" || duplicatePolicy === "new_only") {
+      if (duplicatePolicy !== "update") {
         skippedDuplicates += dupRows.length;
       } else {
-        // update / move
+        // Safe update: never moves an existing lead or overwrites status/stage/pipeline tracking.
         for (const { row, existing, matchedBy } of dupRows) {
-          const isSH = true; // existing match → super-hot per original logic
-          const grade = (isSH ? "super-hot" : defaultGrade) as LeadGrade;
           const wasArchived = !!existing.archived_at;
           const wasSoftDeleted = !!(existing as any).deleted_at;
-          const agentId = assign(grade, isSH);
           const base: any = {
-            pipeline_id: pipelineId,
-            stage_id: firstStageId,
-            lead_type: leadType,
-            webinar_source: segmentName,
-            webinar_date: webinarDate,
-            webinar_name: webinarName || segmentName,
-            grade,
-            is_super_hot: true,
-            program_name: productName,
-            deal_value: dealValue,
             lead_source_type: "direct_import",
             ...(wasArchived ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
             ...(wasSoftDeleted ? { deleted_at: null, deleted_by: null, delete_reason: null } : {}),
-            ...(agentId ? { assigned_agent_id: agentId } : {}),
           };
-          // Always fill missing fields; for "update" also overwrite country.
+          // Fill missing contact fields only. Existing pipeline/stage/status/owner/deal fields are preserved.
           if (!existing.full_name && row.full_name) base.full_name = row.full_name;
           if (!existing.phone && row.phone) base.phone = row.phone;
           if (!existing.email && row.email) base.email = row.email;
-          if (duplicatePolicy === "update" && row.country) base.country = row.country;
+          if (row.country && !(existing as any).country) base.country = row.country;
 
           const { error } = await supabase.from("leads").update(base).eq("id", existing.id);
           if (error) {
@@ -774,11 +761,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 if (!errors.includes(e2.message)) errors.push(e2.message);
               }
             } else if (d2) {
+              createdCrmLeadIds.add(d2.id);
               newImported++;
               if (src?._phoneOnly) phoneOnlyImported++;
             }
           }
         } else {
+          (data || []).forEach((d: any) => { if (d?.id) createdCrmLeadIds.add(d.id); });
           newImported += data?.length || chunk.length;
           chunkSrc.forEach((s) => { if (s._phoneOnly) phoneOnlyImported++; });
         }
@@ -790,21 +779,19 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let paidUnlinked = 0;
       if (pipelineType === "paid") {
         try {
-          // Pull the freshly imported/updated CRM leads for this batch
-          const { data: crmRows } = await supabase
-            .from("leads")
-            .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id")
-            .eq("pipeline_id", pipelineId)
-            .eq("webinar_source", segmentName);
+          // Sync only CRM leads created in this import. Existing matches are intentionally skipped so
+          // their paid-pipeline status/stage/source tracking cannot be rewritten by an import.
+          const { data: crmRows } = createdCrmLeadIds.size > 0
+            ? await supabase
+              .from("leads")
+              .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id")
+              .in("id", Array.from(createdCrmLeadIds))
+            : { data: [] as any[] };
 
           for (const lead of (crmRows || []) as any[]) {
-            // Match priority: existing link → email → phone (covers backfill of older rows)
+            if (lead.paid_pipeline_lead_id) { paidLinked++; continue; }
+            // Match priority: email → phone. Linking only; never rewrite existing paid status/stage/source.
             let existing: any = null;
-            if (lead.paid_pipeline_lead_id) {
-              const { data } = await supabase.from("paid_pipeline_leads")
-                .select("id, crm_lead_id").eq("id", lead.paid_pipeline_lead_id).maybeSingle();
-              existing = data;
-            }
             if (!existing && lead.email) {
               const { data } = await supabase.from("paid_pipeline_leads")
                 .select("id, crm_lead_id").eq("email", lead.email).eq("is_deleted", false).maybeSingle();
@@ -831,8 +818,6 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             if (existing) {
               await supabase.from("paid_pipeline_leads").update({
                 crm_lead_id: lead.id,
-                source_webinar: segmentName,
-                product_name_snapshot: payload.product_name_snapshot,
               } as any).eq("id", existing.id);
               if (lead.paid_pipeline_lead_id !== existing.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: existing.id } as any).eq("id", lead.id);
@@ -962,8 +947,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
   const policyLabel: Record<DuplicatePolicy, string> = {
     skip: "Skip duplicates",
-    update: "Update existing lead",
-    move: `Move existing lead to ${leadType === "paid" ? "Paid — Onboarding" : "selected pipeline"}`,
+    update: "Fill missing contact info only",
+    move: "Skip existing matches",
     new_only: "Import new only",
   };
 
@@ -1289,7 +1274,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   )}
                   {preflight.archivedMatchCount > 0 && (
                     <div className="mt-2 px-2.5 py-1.5 rounded-md bg-[#FEF3C7] border border-[#FDE68A] text-[11px] text-[#92400E]">
-                      {preflight.archivedMatchCount} existing match{preflight.archivedMatchCount === 1 ? " is" : "es are"} currently archived. Choosing <b>Move</b> or <b>Update</b> restores them with the new batch info. <b>Skip</b> leaves them archived.
+                      {preflight.archivedMatchCount} existing match{preflight.archivedMatchCount === 1 ? " is" : "es are"} currently archived. Existing matches are not moved to a new stage or batch during import.
                     </div>
                   )}
                   {preflight.matchConflictCount > 0 && (
@@ -1335,10 +1320,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                               else if (r.status === "invalid") action = "Will skip invalid row";
                               else if (r.status === "sheet_duplicate_email" || r.status === "sheet_duplicate_phone") action = "Will skip (duplicate inside sheet)";
                               else if (r.status === "existing_by_email" || r.status === "existing_by_phone") {
-                                if (duplicatePolicy === "move") action = "Will move existing lead → this batch";
-                                else if (duplicatePolicy === "update") action = "Will update existing lead";
+                                if (duplicatePolicy === "update") action = "Will fill blank contact fields only";
                                 else if (duplicatePolicy === "skip") action = "Will skip (existing match)";
                                 else if (duplicatePolicy === "new_only") action = "Will skip (reported as existing)";
+                                else action = "Will skip (existing match)";
                               }
                               const ex = r.existing;
                               return (
@@ -1374,14 +1359,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             <div>
               <label className="form-label">If a row matches an existing CRM lead</label>
               <select className="ipc-input" value={duplicatePolicy} onChange={(e) => setDuplicatePolicy(e.target.value as DuplicatePolicy)}>
-                <option value="move">Move existing lead to selected pipeline (recommended)</option>
-                <option value="update">Update existing lead (batch, grade, product, deal, fill missing fields)</option>
-                <option value="skip">Skip existing CRM matches</option>
+                <option value="skip">Skip existing CRM matches — safest</option>
+                <option value="update">Only fill missing name/email/phone</option>
                 <option value="new_only">Import new only (report existing matches as skipped)</option>
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
-                {duplicatePolicy === "move" && `Existing CRM matches will be moved/attached to "${creatingPipeline ? newPipeName : (filteredPipelines.find((p) => p.id === targetPipelineId)?.name || "selected pipeline")}" with this batch. New rows will be created normally.`}
-                {duplicatePolicy === "update" && "Existing CRM matches will be updated with this batch, grade, product and deal value (name/phone filled only if missing). New rows will be created normally."}
+                {duplicatePolicy === "update" && "Existing CRM matches will keep their current pipeline, stage, status, owner, product, deal value and batch. Only blank contact fields are filled."}
                 {duplicatePolicy === "skip" && "Existing CRM matches will be skipped — no changes made. Only brand-new rows will be inserted."}
                 {duplicatePolicy === "new_only" && "Only rows with no email/phone match in CRM will be imported. Existing matches will be reported as skipped."}
               </p>
