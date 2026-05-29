@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import PaidClientSelector from "@/components/invoices/PaidClientSelector";
 import { listAllInvoices } from "@/lib/invoices/api";
 import { useAuth } from "@/context/AuthContext";
 import type { Invoice } from "@/lib/invoices/types";
@@ -18,6 +20,8 @@ export default function InvoicesPage() {
   const [linked, setLinked] = useState<"all" | "linked" | "unlinked">("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -68,7 +72,7 @@ export default function InvoicesPage() {
       <PageHead title="Invoices" sub={`${rows.length} invoices · Total ₹${totals.total.toFixed(0)} · Balance ₹${totals.bal.toFixed(0)}`} />
 
       <div className="flex flex-wrap gap-2 mb-4">
-        <Button onClick={() => nav("/invoices/new")}>+ Create Invoice</Button>
+        <Button onClick={() => setEntryOpen(true)}>+ Create Invoice</Button>
         <Button variant="outline" onClick={exportCsv}>Export CSV</Button>
         {isAdmin && (
           <>
@@ -158,6 +162,34 @@ export default function InvoicesPage() {
           </tbody>
         </table>
       </div>
+
+      <Dialog open={entryOpen} onOpenChange={setEntryOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Who is this invoice for?</DialogTitle></DialogHeader>
+          <div className="space-y-2 mt-2">
+            <button
+              onClick={() => { setEntryOpen(false); setPickerOpen(true); }}
+              className="w-full text-left border border-line rounded-lg p-4 hover:bg-off"
+            >
+              <div className="font-medium text-[13px]">Select existing paid client / lead</div>
+              <div className="text-[11.5px] text-muted-foreground mt-0.5">Search by name, phone, email, program or batch. Invoice will be linked to the paid pipeline buyer.</div>
+            </button>
+            <button
+              onClick={() => { setEntryOpen(false); nav("/invoices/new?mode=manual"); }}
+              className="w-full text-left border border-line rounded-lg p-4 hover:bg-off"
+            >
+              <div className="font-medium text-[13px]">Create manual invoice (no linked lead)</div>
+              <div className="text-[11.5px] text-muted-foreground mt-0.5">Enter billing details directly. Requires billing name + email or phone.</div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <PaidClientSelector
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={(paidLeadId) => nav(`/invoices/new?paidLeadId=${paidLeadId}`)}
+      />
     </div>
   );
 }

@@ -138,12 +138,22 @@ export async function renderInvoicePdf(
     : (invoice.seller_snapshot_json || fallbackCompany || {});
   const buyer: any =
     invoice.buyer_snapshot_json || {
-      name: invoice.member_name,
-      email: invoice.member_email,
-      phone: invoice.member_phone,
+      name: invoice.billing_name || invoice.member_name,
+      email: invoice.billing_email || invoice.member_email,
+      phone: invoice.billing_phone || invoice.member_phone,
       billing_address: invoice.billing_address,
       place_of_supply: invoice.place_of_supply,
+      gstin: invoice.billing_gstin || null,
+      city: invoice.billing_city || null,
+      state: invoice.billing_state || null,
+      state_code: invoice.billing_state_code || null,
+      country: invoice.billing_country || null,
     };
+  const showBank = invoice.show_bank_details !== false;
+  const showSig = invoice.show_signature !== false;
+  const showStamp = invoice.show_stamp !== false;
+  const showNotes = (invoice as any).show_notes !== false;
+  const showTerms = (invoice as any).show_terms !== false;
   const isGst = invoice.invoice_type === "gst";
   const hasCgstSgst = isGst && (invoice.cgst_amount > 0 || invoice.sgst_amount > 0);
   const hasIgst = isGst && invoice.igst_amount > 0;
@@ -277,7 +287,7 @@ export async function renderInvoicePdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(20);
-  doc.text(buyer.name || invoice.member_name || "—", M, y);
+  doc.text(buyer.name || invoice.billing_name || invoice.member_name || "—", M, y);
   y += 12;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -285,8 +295,12 @@ export async function renderInvoicePdf(
   const billLines: string[] = [];
   if (buyer.billing_address || invoice.billing_address)
     billLines.push(String(buyer.billing_address || invoice.billing_address));
-  if (buyer.email || invoice.member_email) billLines.push(String(buyer.email || invoice.member_email));
-  if (buyer.phone || invoice.member_phone) billLines.push(String(buyer.phone || invoice.member_phone));
+  const cityState = [buyer.city, buyer.state, buyer.state_code].filter(Boolean).join(", ");
+  if (cityState) billLines.push(cityState);
+  if (buyer.country) billLines.push(String(buyer.country));
+  if (buyer.email || invoice.billing_email || invoice.member_email) billLines.push(String(buyer.email || invoice.billing_email || invoice.member_email));
+  if (buyer.phone || invoice.billing_phone || invoice.member_phone) billLines.push(String(buyer.phone || invoice.billing_phone || invoice.member_phone));
+  if (buyer.gstin || invoice.billing_gstin) billLines.push("GSTIN: " + (buyer.gstin || invoice.billing_gstin));
   const billWrapped = doc.splitTextToSize(billLines.join("\n"), contentW * 0.6);
   doc.text(billWrapped, M, y);
   y += billWrapped.length * 11 + 8;
@@ -488,10 +502,10 @@ export async function renderInvoicePdf(
     y += wrapped.length * 11 + 8;
   };
 
-  if (invoice.notes) renderBlock("Notes", invoice.notes);
-  if (invoice.terms_and_conditions) renderBlock("Terms & Conditions", invoice.terms_and_conditions);
+  if (showNotes && invoice.notes) renderBlock("Notes", invoice.notes);
+  if (showTerms && invoice.terms_and_conditions) renderBlock("Terms & Conditions", invoice.terms_and_conditions);
 
-  if (seller.bank_account_number || seller.bank_name) {
+  if (showBank && (seller.bank_account_number || seller.bank_name)) {
     const bankLines = [
       seller.bank_account_name && `Account Name: ${seller.bank_account_name}`,
       seller.bank_name && `Bank Name: ${seller.bank_name}${seller.bank_branch ? " (" + seller.bank_branch + ")" : ""}`,
@@ -516,7 +530,7 @@ export async function renderInvoicePdf(
   const lineY = sigY + sigBoxMaxH; // baseline of underline
 
   // Stamp (optional) — placed to the left of signature
-  const stampUrl = await assetUrl(seller.stamp_url, seller.stamp_path);
+  const stampUrl = showStamp ? await assetUrl(seller.stamp_url, seller.stamp_path) : null;
   if (stampUrl) {
     const stamp = await loadImageDataUrl(stampUrl);
     if (stamp) {
@@ -534,7 +548,7 @@ export async function renderInvoicePdf(
   }
 
   let signatureRendered = false;
-  const signatureUrl = await assetUrl(seller.signature_url, seller.signature_path);
+  const signatureUrl = showSig ? await assetUrl(seller.signature_url, seller.signature_path) : null;
   if (signatureUrl) {
     const img = await loadImageDataUrl(signatureUrl);
     if (img) {
@@ -543,7 +557,6 @@ export async function renderInvoicePdf(
         let h = sigBoxMaxH;
         if (img.width && img.height) {
           const ratio = img.width / img.height;
-          // Fit inside sigBoxMaxW x sigBoxMaxH preserving aspect ratio
           if (sigBoxMaxW / sigBoxMaxH > ratio) {
             h = sigBoxMaxH;
             w = h * ratio;
@@ -551,7 +564,6 @@ export async function renderInvoicePdf(
             w = sigBoxMaxW;
             h = w / ratio;
           }
-          // Enforce minimum width of 130 if possible (without exceeding max)
           if (w < 130 && h * (130 / w) <= sigBoxMaxH) {
             const scale = 130 / w;
             w = 130;
@@ -572,14 +584,16 @@ export async function renderInvoicePdf(
       console.warn("invoice_signature_render_failed: image fetch failed", signatureUrl);
     }
   }
-  // Always draw the line under signature
-  doc.setDrawColor(180);
-  doc.line(sigRight - sigBoxMaxW, lineY, sigRight, lineY);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(60);
-  doc.text("Authorized Signature", sigRight, lineY + 12, { align: "right" });
-  y = lineY + 20;
+  if (showSig) {
+    doc.setDrawColor(180);
+    doc.line(sigRight - sigBoxMaxW, lineY, sigRight, lineY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    doc.text("Authorized Signature", sigRight, lineY + 12, { align: "right" });
+    y = lineY + 20;
+  }
+  void signatureRendered;
 
   // Footer page numbers
   const pageCount = (doc as any).internal.getNumberOfPages();

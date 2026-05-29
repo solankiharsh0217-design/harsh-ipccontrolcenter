@@ -12,13 +12,17 @@ import {
   loadCompanySettings, loadInvoiceSettings, loadInvoice, saveDraft, issueInvoice,
   listInvoiceEvents, logEvent,
 } from "@/lib/invoices/api";
-import { buildDraftFromPaidLead } from "@/lib/invoices/draft";
+import { buildDraftFromPaidLead, buildBlankManualDraft } from "@/lib/invoices/draft";
 import { computeTotals } from "@/lib/invoices/totals";
-import { checkReadiness } from "@/lib/invoices/readiness";
+import { checkReadiness, checkInvoiceBlockers } from "@/lib/invoices/readiness";
 import { downloadInvoicePdf, openInvoicePdf } from "@/lib/invoices/pdf";
 import { amountToWordsINR } from "@/lib/invoices/amountInWords";
+import { listCatalogItems, listItemCategories } from "@/lib/invoices/catalog";
+import TaxCodeFinder from "@/components/invoices/TaxCodeFinder";
+import PaidClientSelector from "@/components/invoices/PaidClientSelector";
 import type {
   CompanySettings, Invoice, InvoiceMode, InvoiceSettings, InvoiceType, LineItem, TaxSplit,
+  InvoiceCatalogItem, InvoiceItemCategory, TaxCode,
 } from "@/lib/invoices/types";
 
 const db = supabase as any;
@@ -52,11 +56,18 @@ export default function InvoiceEditor() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
+  const [catalog, setCatalog] = useState<InvoiceCatalogItem[]>([]);
+  const [categories, setCategories] = useState<InvoiceItemCategory[]>([]);
+  const [sacFinderForRow, setSacFinderForRow] = useState<number | null>(null);
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [c, s] = await Promise.all([loadCompanySettings(), loadInvoiceSettings()]);
-      setCompany(c); setSettings(s);
+      const [c, s, cat, cats] = await Promise.all([
+        loadCompanySettings(), loadInvoiceSettings(),
+        listCatalogItems().catch(() => []), listItemCategories().catch(() => []),
+      ]);
+      setCompany(c); setSettings(s); setCatalog(cat); setCategories(cats);
 
       if (id) {
         const inv = await loadInvoice(id);
@@ -71,6 +82,7 @@ export default function InvoiceEditor() {
         }
       } else {
         const paidLeadId = params.get("paidLeadId");
+        const mode = params.get("mode");
         if (paidLeadId && s) {
           const { data: p } = await db.from("paid_pipeline_leads").select("*").eq("id", paidLeadId).maybeSingle();
           setPaidLead(p);
@@ -81,6 +93,13 @@ export default function InvoiceEditor() {
           }
           const draft = buildDraftFromPaidLead({ paidLead: p, crmLead: cl, company: c, settings: s, mode: "full_deal" });
           setInvoice(draft);
+        } else if (s) {
+          // Manual / standalone blank draft (also fallback when no params provided)
+          const draft = buildBlankManualDraft({ company: c, settings: s });
+          setInvoice(draft);
+          if (mode !== "manual") {
+            // No mode and no paidLeadId — still start a manual draft so the editor isn't blank.
+          }
         }
       }
       setLoading(false);
@@ -94,21 +113,7 @@ export default function InvoiceEditor() {
   );
 
   // Comprehensive issue-time blockers (invoice-level, beyond company readiness)
-  const blockers = useMemo(() => {
-    const list: string[] = [];
-    if (!invoice) return list;
-    const items = invoice.line_items || [];
-    if (!items.length) list.push("Add at least one line item");
-    else if (items.some((li) => !li.item_name?.trim())) list.push("Every line item needs a name");
-    else if (items.every((li) => (Number(li.amount) || 0) === 0)) list.push("Line item amounts are zero");
-    if (!invoice.member_name?.trim()) list.push("Buyer / member name is missing");
-    if ((Number(invoice.total_amount) || 0) <= 0) list.push("Invoice total must be greater than zero");
-    if (invoice.invoice_type === "gst" && settings?.hsn_sac_required) {
-      const missing = items.some((li) => !li.hsn_sac || !String(li.hsn_sac).trim());
-      if (missing) list.push("HSN/SAC is required on every line item");
-    }
-    return list;
-  }, [invoice, settings, company]);
+  const blockers = useMemo(() => checkInvoiceBlockers(invoice, settings), [invoice, settings]);
 
   const allBlockers = useMemo(() => Array.from(new Set([...readiness.missing, ...blockers])), [readiness.missing, blockers]);
   const canIssue = allBlockers.length === 0;
@@ -188,6 +193,82 @@ export default function InvoiceEditor() {
   const removeLine = (idx: number) => {
     if (!invoice) return;
     update({ line_items: (invoice.line_items || []).filter((_, i) => i !== idx) });
+  };
+
+  const applyCatalogItem = (idx: number, itemId: string) => {
+    const it = catalog.find((c) => c.id === itemId);
+    if (!it || !invoice) return;
+    updateLine(idx, {
+      item_name: it.item_name,
+      description: it.description || "",
+      hsn_sac: it.hsn_sac || "",
+      rate: Number(it.default_price ?? it.default_rate ?? 0),
+      tax_rate: invoice.invoice_type === "gst" ? Number(it.default_gst_rate ?? settings?.default_gst_rate ?? 0) : 0,
+    });
+    if (invoice.id) { try { logEvent(invoice.id, "invoice_item_selected_from_catalog", { item_id: itemId }, user?.id); } catch { /* ignore */ } }
+  };
+
+  const applySacCode = (idx: number, code: TaxCode) => {
+    if (!invoice) return;
+    updateLine(idx, {
+      hsn_sac: code.code,
+      tax_rate: invoice.invoice_type === "gst" && code.gst_rate_default != null ? Number(code.gst_rate_default) : (invoice.line_items?.[idx]?.tax_rate || 0),
+    });
+    if (invoice.id) { try { logEvent(invoice.id, "invoice_sac_hsn_selected", { code: code.code }, user?.id); } catch { /* ignore */ } }
+  };
+
+  const useLeadDetails = !!(invoice && (invoice.linked_client_name || invoice.linked_client_email || invoice.linked_client_phone) &&
+    (invoice.billing_name || "") === (invoice.linked_client_name || "") &&
+    (invoice.billing_email || "") === (invoice.linked_client_email || "") &&
+    (invoice.billing_phone || "") === (invoice.linked_client_phone || ""));
+
+  const toggleUseLeadDetails = (on: boolean) => {
+    if (!invoice) return;
+    if (on) {
+      update({
+        billing_name: invoice.linked_client_name || invoice.billing_name,
+        billing_email: invoice.linked_client_email || invoice.billing_email,
+        billing_phone: invoice.linked_client_phone || invoice.billing_phone,
+      });
+    } else {
+      if (invoice.id) { try { logEvent(invoice.id, "invoice_billing_details_overridden", {}, user?.id); } catch { /* ignore */ } }
+    }
+  };
+
+  const linkToPaidClient = async (paidLeadId: string) => {
+    if (!invoice || !settings) return;
+    const { data: p } = await db.from("paid_pipeline_leads").select("*").eq("id", paidLeadId).maybeSingle();
+    if (!p) { toast.error("Paid lead not found"); return; }
+    let cl: any = null;
+    if (p.crm_lead_id) {
+      const { data: l } = await db.from("leads").select("*").eq("id", p.crm_lead_id).maybeSingle();
+      cl = l; setCrmLead(l);
+    }
+    setPaidLead(p);
+    update({
+      paid_pipeline_lead_id: p.id,
+      crm_lead_id: p.crm_lead_id || cl?.id || null,
+      linked_client_name: p.name || cl?.full_name || "",
+      linked_client_email: p.email || cl?.email || "",
+      linked_client_phone: p.phone || cl?.phone || "",
+      invoice_context_type: "later_linked",
+    });
+    if (invoice.id) { try { logEvent(invoice.id, "invoice_linked_to_paid_lead", { paid_lead_id: paidLeadId }, user?.id); } catch { /* ignore */ } }
+    toast.success("Linked to paid client");
+  };
+
+  const unlinkPaidClient = () => {
+    if (!invoice || !isAdmin) return;
+    if (!confirm("Unlink this invoice from the paid client?")) return;
+    setPaidLead(null);
+    update({
+      paid_pipeline_lead_id: null,
+      crm_lead_id: null,
+      linked_client_name: null,
+      linked_client_email: null,
+      linked_client_phone: null,
+      invoice_context_type: "manual",
+    });
   };
 
   const saveDraftClick = async () => {
@@ -314,20 +395,119 @@ export default function InvoiceEditor() {
         </div>
       </div>
 
-      {/* Buyer */}
+      {/* Linked Client Context */}
       <div className="border border-line bg-white rounded-xl p-5 mb-4">
-        <SectionLabel>Bill To</SectionLabel>
+        <div className="flex items-center justify-between">
+          <SectionLabel>Invoice Context</SectionLabel>
+          {!isLocked && (
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setLinkPickerOpen(true)}>
+                {invoice.paid_pipeline_lead_id ? "Change linked client" : "Link to paid client"}
+              </Button>
+              {invoice.paid_pipeline_lead_id && isAdmin && (
+                <Button size="sm" variant="ghost" onClick={unlinkPaidClient}>Unlink</Button>
+              )}
+            </div>
+          )}
+        </div>
+        {invoice.paid_pipeline_lead_id ? (
+          <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-[12.5px]">
+            <div><span className="text-muted-foreground">Client: </span><span className="font-medium">{invoice.linked_client_name || paidLead?.name || "—"}</span></div>
+            <div><span className="text-muted-foreground">Email: </span>{invoice.linked_client_email || paidLead?.email || "—"}</div>
+            <div><span className="text-muted-foreground">Phone: </span>{invoice.linked_client_phone || paidLead?.phone || "—"}</div>
+            <div><span className="text-muted-foreground">Program: </span>{paidLead?.product_name_snapshot || "—"}</div>
+            <div><span className="text-muted-foreground">Batch: </span>{paidLead?.paid_batch_name || "—"}</div>
+            <div><span className="text-muted-foreground">Owner: </span>{paidLead?.assigned_sales_executive || "—"}</div>
+          </div>
+        ) : (
+          <div className="mt-2 text-[12.5px] text-muted-foreground italic">
+            This invoice is not linked to a paid lead / client.
+          </div>
+        )}
+      </div>
+
+      {/* Invoice Number + Display Toggles */}
+      <div className="border border-line bg-white rounded-xl p-5 mb-4 grid grid-cols-2 gap-6">
+        <div>
+          <SectionLabel>Invoice Number</SectionLabel>
+          <div className="mt-2 flex gap-2">
+            <Pill active={(invoice.invoice_number_mode || "auto") === "auto"} onClick={() => !isLocked && update({ invoice_number_mode: "auto", manual_invoice_number: null })}>Auto</Pill>
+            {isAdmin && (
+              <Pill active={invoice.invoice_number_mode === "manual"} onClick={() => !isLocked && update({ invoice_number_mode: "manual" })}>Manual (admin)</Pill>
+            )}
+          </div>
+          {invoice.invoice_number_mode === "manual" && (
+            <div className="mt-3">
+              <Field label="Manual invoice number">
+                <Input
+                  disabled={isLocked}
+                  placeholder="e.g. INV-2026-001"
+                  value={invoice.manual_invoice_number || ""}
+                  onChange={(e) => update({ manual_invoice_number: e.target.value })}
+                />
+              </Field>
+              <div className="mt-1 text-[11px] text-amber-700">Manual invoice number should follow your statutory invoice sequence.</div>
+            </div>
+          )}
+        </div>
+        <div>
+          <SectionLabel>Display Options</SectionLabel>
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12.5px]">
+            {([
+              ["show_bank_details", "Show bank details"],
+              ["show_payment_instructions", "Show payment instructions"],
+              ["show_signature", "Show signature"],
+              ["show_stamp", "Show stamp"],
+            ] as const).map(([k, label]) => (
+              <label key={k} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  disabled={isLocked}
+                  checked={invoice[k] !== false}
+                  onChange={(e) => {
+                    update({ [k]: e.target.checked } as any);
+                    if (k === "show_bank_details" && !e.target.checked && invoice.id) {
+                      try { logEvent(invoice.id, "invoice_bank_details_hidden", {}, user?.id); } catch { /* ignore */ }
+                    }
+                  }}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Billing Details */}
+      <div className="border border-line bg-white rounded-xl p-5 mb-4">
+        <div className="flex items-center justify-between">
+          <SectionLabel>Billing Details</SectionLabel>
+          {invoice.paid_pipeline_lead_id && !isLocked && (
+            <label className="flex items-center gap-2 text-[12px] text-muted-foreground cursor-pointer">
+              <input type="checkbox" checked={useLeadDetails} onChange={(e) => toggleUseLeadDetails(e.target.checked)} />
+              Use lead details
+            </label>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-4 mt-3">
-          <Field label="Member name"><Input disabled={isLocked} value={invoice.member_name || ""} onChange={(e) => update({ member_name: e.target.value })} /></Field>
-          <Field label="Email"><Input disabled={isLocked} value={invoice.member_email || ""} onChange={(e) => update({ member_email: e.target.value })} /></Field>
-          <Field label="Phone"><Input disabled={isLocked} value={invoice.member_phone || ""} onChange={(e) => update({ member_phone: e.target.value })} /></Field>
-          <Field label="Place of supply"><Input disabled={isLocked} value={invoice.place_of_supply || ""} onChange={(e) => update({ place_of_supply: e.target.value })} /></Field>
+          <Field label="Billing name *"><Input disabled={isLocked} value={invoice.billing_name || ""} onChange={(e) => update({ billing_name: e.target.value })} /></Field>
+          <Field label="Billing email"><Input disabled={isLocked} value={invoice.billing_email || ""} onChange={(e) => update({ billing_email: e.target.value })} /></Field>
+          <Field label="Billing phone"><Input disabled={isLocked} value={invoice.billing_phone || ""} onChange={(e) => update({ billing_phone: e.target.value })} /></Field>
+          <Field label="Customer GSTIN"><Input disabled={isLocked} value={invoice.billing_gstin || ""} onChange={(e) => update({ billing_gstin: e.target.value })} /></Field>
           <div className="col-span-2">
             <Field label="Billing address"><Textarea disabled={isLocked} rows={2} value={invoice.billing_address || ""} onChange={(e) => update({ billing_address: e.target.value })} /></Field>
           </div>
+          <Field label="City"><Input disabled={isLocked} value={invoice.billing_city || ""} onChange={(e) => update({ billing_city: e.target.value })} /></Field>
+          <Field label="State"><Input disabled={isLocked} value={invoice.billing_state || ""} onChange={(e) => update({ billing_state: e.target.value })} /></Field>
+          <Field label="State code"><Input disabled={isLocked} value={invoice.billing_state_code || ""} onChange={(e) => update({ billing_state_code: e.target.value })} /></Field>
+          <Field label="Country"><Input disabled={isLocked} value={invoice.billing_country || ""} onChange={(e) => update({ billing_country: e.target.value })} /></Field>
+          <Field label="Place of supply"><Input disabled={isLocked} value={invoice.place_of_supply || ""} onChange={(e) => update({ place_of_supply: e.target.value })} /></Field>
           <Field label="Invoice date"><Input type="date" disabled={isLocked} value={invoice.invoice_date || ""} onChange={(e) => update({ invoice_date: e.target.value })} /></Field>
           <Field label="Due date"><Input type="date" disabled={isLocked} value={invoice.due_date || ""} onChange={(e) => update({ due_date: e.target.value })} /></Field>
         </div>
+        {invoice.paid_pipeline_lead_id && invoice.linked_client_name && invoice.billing_name && invoice.linked_client_name !== invoice.billing_name && (
+          <div className="mt-2 text-[11.5px] text-amber-700">Billing name differs from linked client ({invoice.linked_client_name}). Internal record stays linked; PDF will show billing name.</div>
+        )}
       </div>
 
       {/* Line items */}
@@ -340,11 +520,11 @@ export default function InvoiceEditor() {
           <thead className="text-left text-muted-foreground border-b border-line">
             <tr>
               <th className="py-2 pr-2">Item</th>
-              {invoice.invoice_type === "gst" && <th className="py-2 px-2">HSN/SAC</th>}
+              {invoice.invoice_type === "gst" && <th className="py-2 px-2 w-44">HSN/SAC</th>}
               <th className="py-2 px-2 w-16">Qty</th>
-              <th className="py-2 px-2 w-28">Rate</th>
-              {invoice.invoice_type === "gst" && <th className="py-2 px-2 w-20">Tax %</th>}
-              <th className="py-2 pl-2 w-28 text-right">Amount</th>
+              <th className="py-2 px-2 w-24">Rate</th>
+              {invoice.invoice_type === "gst" && <th className="py-2 px-2 w-16">Tax %</th>}
+              <th className="py-2 pl-2 w-24 text-right">Amount</th>
               {!isLocked && <th className="w-8"></th>}
             </tr>
           </thead>
@@ -352,11 +532,30 @@ export default function InvoiceEditor() {
             {(invoice.line_items || []).map((li, i) => (
               <tr key={i} className="border-b border-line/50 align-top">
                 <td className="py-2 pr-2">
+                  {!isLocked && catalog.length > 0 && (
+                    <select
+                      className="w-full mb-1 h-8 text-[11.5px] border border-input rounded px-2 bg-white"
+                      value=""
+                      onChange={(e) => { if (e.target.value) applyCatalogItem(i, e.target.value); }}
+                    >
+                      <option value="">— Pick from catalog —</option>
+                      {catalog.map((c) => (
+                        <option key={c.id} value={c.id}>{c.item_name}</option>
+                      ))}
+                    </select>
+                  )}
                   <Input disabled={isLocked} placeholder="Item name" value={li.item_name} onChange={(e) => updateLine(i, { item_name: e.target.value })} />
                   <Input disabled={isLocked} className="mt-1" placeholder="Description (optional)" value={li.description || ""} onChange={(e) => updateLine(i, { description: e.target.value })} />
                 </td>
                 {invoice.invoice_type === "gst" && (
-                  <td className="py-2 px-2"><Input disabled={isLocked} value={li.hsn_sac || ""} onChange={(e) => updateLine(i, { hsn_sac: e.target.value })} /></td>
+                  <td className="py-2 px-2">
+                    <Input disabled={isLocked} value={li.hsn_sac || ""} onChange={(e) => updateLine(i, { hsn_sac: e.target.value })} />
+                    {!isLocked && (
+                      <button onClick={() => setSacFinderForRow(i)} className="mt-1 text-[10.5px] text-blue-600 hover:underline">
+                        Find SAC/HSN
+                      </button>
+                    )}
+                  </td>
                 )}
                 <td className="py-2 px-2"><Input disabled={isLocked} type="number" value={li.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} /></td>
                 <td className="py-2 px-2"><Input disabled={isLocked} type="number" value={li.rate} onChange={(e) => updateLine(i, { rate: Number(e.target.value) })} /></td>
@@ -465,6 +664,17 @@ export default function InvoiceEditor() {
           </ul>
         </div>
       )}
+
+      <TaxCodeFinder
+        open={sacFinderForRow !== null}
+        onOpenChange={(v) => { if (!v) setSacFinderForRow(null); }}
+        onSelect={(code) => { if (sacFinderForRow !== null) applySacCode(sacFinderForRow, code); setSacFinderForRow(null); }}
+      />
+      <PaidClientSelector
+        open={linkPickerOpen}
+        onOpenChange={setLinkPickerOpen}
+        onSelect={(pid) => linkToPaidClient(pid)}
+      />
     </div>
   );
 }

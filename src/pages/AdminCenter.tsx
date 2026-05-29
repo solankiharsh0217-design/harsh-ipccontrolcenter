@@ -78,6 +78,20 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Invoice Item Catalog",
+      desc: "Manage reusable invoice items, categories, default rates, HSN/SAC, and tax status.",
+      cta: "Open Item Catalog",
+      to: "/admin-center/item-catalog",
+      show: isAdmin,
+    },
+    {
+      title: "SAC / HSN Master",
+      desc: "Curate the SAC/HSN code list used by the invoice editor's tax-code finder.",
+      cta: "Open SAC/HSN Master",
+      to: "/admin-center/tax-codes",
+      show: isAdmin,
+    },
+    {
       title: "Media Buyer Dashboard Preview",
       desc: "View each media buyer's work dashboard, pending calls, active ad clients, and overdue tasks.",
       cta: "Open Media Buyer Desk",

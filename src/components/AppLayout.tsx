@@ -39,6 +39,9 @@ const PAGE_TITLES: Record<string, string> = {
   "/revenue-command-center": "Revenue Command Center",
   "/analytics-center": "Analytics Center",
   "/admin-center": "Admin Center",
+  "/invoices": "Invoices",
+  "/admin-center/item-catalog": "Invoice Item Catalog",
+  "/admin-center/tax-codes": "SAC / HSN Master",
 };
 
 const NavItem = ({ to, children, badge, show = true }: { to: string; children: ReactNode; badge?: boolean; show?: boolean }) => {
@@ -171,6 +174,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <NavItem to="/revenue-command-center">
                 <Icon><><path d="M2 4h12v8H2z"/><path d="M2 7h12M5 10h2"/></></Icon>
                 Revenue Center
+              </NavItem>
+              <NavItem to="/invoices">
+                <Icon><><path d="M3 1h8l2 2v12H3z"/><path d="M5 5h6M5 8h6M5 11h4"/></></Icon>
+                Invoices
               </NavItem>
               <NavItem to="/analytics-center">
                 <Icon d="M2 13l3-4 3 2 5-7" />
