@@ -671,6 +671,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let phoneOnlyImported = 0;
       let skippedDuplicates = 0;
       let failed = failedNoKey;
+      const createdCrmLeadIds = new Set<string>();
       const errors: string[] = [];
       const reasonCounts = new Map<string, number>();
       if (failedNoKey > 0) reasonCounts.set("Row has neither email nor phone", failedNoKey);
@@ -760,11 +761,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 if (!errors.includes(e2.message)) errors.push(e2.message);
               }
             } else if (d2) {
+              createdCrmLeadIds.add(d2.id);
               newImported++;
               if (src?._phoneOnly) phoneOnlyImported++;
             }
           }
         } else {
+          (data || []).forEach((d: any) => { if (d?.id) createdCrmLeadIds.add(d.id); });
           newImported += data?.length || chunk.length;
           chunkSrc.forEach((s) => { if (s._phoneOnly) phoneOnlyImported++; });
         }
@@ -776,16 +779,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let paidUnlinked = 0;
       if (pipelineType === "paid") {
         try {
-          // Pull only freshly created CRM leads for this import. Existing matched leads are intentionally skipped
-          // so their paid-pipeline status/stage/source tracking cannot be rewritten by an import.
-          const importedLeadIds = new Set<string>();
-          const collectIds = (items: any[] | null | undefined) => (items || []).forEach((x: any) => { if (x?.id) importedLeadIds.add(x.id); });
-          collectIds([]);
-          const { data: crmRows } = await supabase
-            .from("leads")
-            .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id")
-            .eq("pipeline_id", pipelineId)
-            .eq("webinar_source", segmentName);
+          // Sync only CRM leads created in this import. Existing matches are intentionally skipped so
+          // their paid-pipeline status/stage/source tracking cannot be rewritten by an import.
+          const { data: crmRows } = createdCrmLeadIds.size > 0
+            ? await supabase
+              .from("leads")
+              .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id")
+              .in("id", Array.from(createdCrmLeadIds))
+            : { data: [] as any[] };
 
           for (const lead of (crmRows || []) as any[]) {
             if (lead.paid_pipeline_lead_id) { paidLinked++; continue; }
