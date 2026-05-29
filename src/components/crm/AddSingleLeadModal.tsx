@@ -124,7 +124,7 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function validateForm(): { ok: true } | { ok: false; errors: Record<string, string> } {
+  function validateForm() {
     const schema = leadType === "paid" ? paidLeadSchema : baseLeadSchema;
     const result = schema.safeParse({
       fullName,
