@@ -30,7 +30,7 @@ const norm = (s: string | null | undefined) => (s || "").trim().toLowerCase();
 const last10 = (s: string | null | undefined) => (s || "").replace(/\D+/g, "").slice(-10);
 
 export default function MoveBatchModal({
-  batch, leads, pipelines, stages, isAdmin, onClose, onDone,
+  batch, leads, pipelines, stages, isAdmin, onClose, onDone, onPipelinesChanged,
 }: {
   batch: BatchInfo;
   leads: Lead[];
@@ -39,6 +39,7 @@ export default function MoveBatchModal({
   isAdmin: boolean;
   onClose: () => void;
   onDone: () => void;
+  onPipelinesChanged?: () => Promise<void> | void;
 }) {
   const sourcePipeline = pipelines.find(p => p.id === batch.pipelineId) || null;
   const batchLeads = useMemo(() => leads.filter(l => batch.leadIds.includes(l.id)), [leads, batch.leadIds]);
