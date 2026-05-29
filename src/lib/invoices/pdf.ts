@@ -138,12 +138,22 @@ export async function renderInvoicePdf(
     : (invoice.seller_snapshot_json || fallbackCompany || {});
   const buyer: any =
     invoice.buyer_snapshot_json || {
-      name: invoice.member_name,
-      email: invoice.member_email,
-      phone: invoice.member_phone,
+      name: invoice.billing_name || invoice.member_name,
+      email: invoice.billing_email || invoice.member_email,
+      phone: invoice.billing_phone || invoice.member_phone,
       billing_address: invoice.billing_address,
       place_of_supply: invoice.place_of_supply,
+      gstin: invoice.billing_gstin || null,
+      city: invoice.billing_city || null,
+      state: invoice.billing_state || null,
+      state_code: invoice.billing_state_code || null,
+      country: invoice.billing_country || null,
     };
+  const showBank = invoice.show_bank_details !== false;
+  const showSig = invoice.show_signature !== false;
+  const showStamp = invoice.show_stamp !== false;
+  const showNotes = (invoice as any).show_notes !== false;
+  const showTerms = (invoice as any).show_terms !== false;
   const isGst = invoice.invoice_type === "gst";
   const hasCgstSgst = isGst && (invoice.cgst_amount > 0 || invoice.sgst_amount > 0);
   const hasIgst = isGst && invoice.igst_amount > 0;
