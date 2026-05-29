@@ -26,6 +26,8 @@ import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/Arch
 import { BatchDeleteChoicesModal } from "@/components/crm/BatchDeleteChoicesModal";
 import MoveBatchModal from "@/components/crm/MoveBatchModal";
 import { archiveBatch, restoreBatch, permanentlyDeleteBatch, bulkArchiveLeads, getLeadLinks, resetBatchForReimport, safePermanentDeleteBatch } from "@/lib/crmArchive";
+import BatchRepairModal from "@/components/crm/BatchRepairModal";
+import { bulkDeassignLeads } from "@/lib/crmRepair";
 import { useAuth } from "@/context/AuthContext";
 import { Archive, RotateCcw } from "lucide-react";
 
@@ -95,6 +97,8 @@ export default function Crm() {
   const [batchChoicesBusy, setBatchChoicesBusy] = useState(false);
   const [moveBatchTarget, setMoveBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[] } | null>(null);
   const [repairPickerOpen, setRepairPickerOpen] = useState(false);
+  const [repairBatchTarget, setRepairBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null } | null>(null);
+  const [bulkDeassignBusy, setBulkDeassignBusy] = useState(false);
   const openMoveBatch = (b: { name: string; date: string | null; pipelineId: string | null }) => {
     const leadIds = leads
       .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date)
@@ -880,6 +884,27 @@ export default function Crm() {
           <button onClick={() => setBulkSendOpsOpen(true)} className="ipc-btn ipc-btn-black !h-8 !text-xs">
             <ExternalLink className="w-3 h-3" /> Send to Operations
           </button>
+          <button
+            onClick={async () => {
+              if (bulkDeassignBusy) return;
+              const ids = Array.from(selectedIds);
+              const assignedIds = pipelineLeads.filter((l) => selectedIds.has(l.id) && (l as any).assigned_agent_id).map((l) => l.id);
+              if (!assignedIds.length) { toast.info("None of the selected leads are currently assigned."); return; }
+              if (!confirm(`De-assign ${assignedIds.length} lead${assignedIds.length === 1 ? "" : "s"} from their owners? Leads remain in CRM but disappear from sales executive workloads.`)) return;
+              setBulkDeassignBusy(true);
+              try {
+                await bulkDeassignLeads(assignedIds, { source: "crm_bulk_bar" });
+                toast.success(`${assignedIds.length} lead${assignedIds.length === 1 ? "" : "s"} de-assigned`);
+                clearSelection();
+                await load();
+              } catch (e: any) { toast.error(e?.message || "De-assign failed"); }
+              finally { setBulkDeassignBusy(false); }
+            }}
+            disabled={bulkDeassignBusy}
+            className="ipc-btn ipc-btn-ghost !h-8 !text-xs !text-[#92400E] hover:!bg-[#FEF3C7] disabled:opacity-50"
+          >
+            De-assign
+          </button>
           <button onClick={() => setBulkArchiveOpen(true)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs !text-[#92400E] hover:!bg-[#FEF3C7]">
             <Archive className="w-3 h-3" /> Archive Selected
           </button>
@@ -1478,6 +1503,7 @@ export default function Crm() {
                       setDeleteBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds });
                       setDeleteBatchBlocked(null);
                     }}
+                    onRepair={() => setRepairBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId })}
                   />
                   <div className="flex items-center gap-2">
                     <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-black text-white text-[11px] font-medium tracking-wide">
@@ -1833,6 +1859,17 @@ export default function Crm() {
         filteredLeads={pipelineLeads.map(l => ({ id: l.id, current_owner_id: (l as any).assigned_agent_id }))}
         onAssigned={load}
       />
+      {repairBatchTarget && (
+        <BatchRepairModal
+          batchName={repairBatchTarget.name}
+          batchDate={repairBatchTarget.date}
+          pipelineId={repairBatchTarget.pipelineId}
+          pipelineName={pipelines.find((p) => p.id === repairBatchTarget.pipelineId)?.name || null}
+          agentNames={new Map(agents.map((a) => [a.id, a.full_name]))}
+          onClose={() => setRepairBatchTarget(null)}
+          onApplied={load}
+        />
+      )}
     </div>
   );
 }
@@ -1938,9 +1975,10 @@ function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight,
   );
 }
 
-function BatchActionsMenu({ isAdmin, archived, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete }: {
+function BatchActionsMenu({ isAdmin, archived, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete, onRepair }: {
   isAdmin: boolean; archived: boolean;
   onView: () => void; onRename: () => void; onMove: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
+  onRepair?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -1965,6 +2003,7 @@ function BatchActionsMenu({ isAdmin, archived, onView, onRename, onMove, onArchi
           {item(<><ExternalLink className="w-3 h-3" /> View leads</>, onView)}
           {!archived && item(<><Pencil className="w-3 h-3" /> Rename batch</>, onRename)}
           {isAdmin && !archived && item(<><ArrowUp className="w-3 h-3 rotate-45" /> Move / Correct Batch</>, onMove, "text-[#1D4ED8]")}
+          {isAdmin && !archived && onRepair && item(<><RotateCcw className="w-3 h-3" /> Deduplicate / Repair Batch</>, onRepair, "text-[#1D4ED8]")}
           <div className="h-px bg-line my-1" />
           {!archived
             ? <>
