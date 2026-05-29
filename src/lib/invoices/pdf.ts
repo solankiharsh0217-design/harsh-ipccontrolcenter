@@ -502,10 +502,10 @@ export async function renderInvoicePdf(
     y += wrapped.length * 11 + 8;
   };
 
-  if (invoice.notes) renderBlock("Notes", invoice.notes);
-  if (invoice.terms_and_conditions) renderBlock("Terms & Conditions", invoice.terms_and_conditions);
+  if (showNotes && invoice.notes) renderBlock("Notes", invoice.notes);
+  if (showTerms && invoice.terms_and_conditions) renderBlock("Terms & Conditions", invoice.terms_and_conditions);
 
-  if (seller.bank_account_number || seller.bank_name) {
+  if (showBank && (seller.bank_account_number || seller.bank_name)) {
     const bankLines = [
       seller.bank_account_name && `Account Name: ${seller.bank_account_name}`,
       seller.bank_name && `Bank Name: ${seller.bank_name}${seller.bank_branch ? " (" + seller.bank_branch + ")" : ""}`,
