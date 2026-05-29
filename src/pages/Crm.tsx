@@ -1552,6 +1552,47 @@ export default function Crm() {
           </div>
         </div>
       )}
+      {moveBatchTarget && (
+        <MoveBatchModal
+          batch={moveBatchTarget}
+          leads={leads}
+          pipelines={pipelines}
+          stages={stages}
+          isAdmin={isAdmin}
+          onClose={() => setMoveBatchTarget(null)}
+          onDone={async () => { await load(); }}
+        />
+      )}
+      {repairPickerOpen && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/40" onClick={() => setRepairPickerOpen(false)}>
+          <div className="bg-white rounded-xl border border-line w-full max-w-md p-6 max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-serif text-lg">Repair Wrong Batch</div>
+              <button onClick={() => setRepairPickerOpen(false)} className="p-1 rounded hover:bg-off"><XIcon className="w-4 h-4" /></button>
+            </div>
+            <div className="text-[12px] text-muted-foreground mb-3">Pick the batch you want to move into the correct pipeline.</div>
+            <div className="space-y-1.5">
+              {batchesWithType.length === 0 && <div className="text-sm text-muted-foreground">No batches available.</div>}
+              {batchesWithType.map(b => {
+                const pipe = pipelines.find(p => p.id === b.pipelineId);
+                return (
+                  <button
+                    key={b.key}
+                    className="w-full text-left px-3 py-2 rounded-md border border-line hover:border-gold hover:bg-off"
+                    onClick={() => {
+                      setRepairPickerOpen(false);
+                      openMoveBatch({ name: b.name, date: b.date, pipelineId: b.pipelineId });
+                    }}
+                  >
+                    <div className="font-medium text-[13px]">{b.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{pipe?.name || "—"} · {b.total} leads · {b.date || "no date"}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       {view === "list" && (
         <div className="rounded-xl border border-line overflow-hidden">
           <table className="w-full font-sans text-sm">
