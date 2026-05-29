@@ -46,6 +46,9 @@ import CompanySettingsPage from "./pages/admin/CompanySettings";
 import InvoiceSettingsPage from "./pages/admin/InvoiceSettings";
 import InvoiceEditor from "./pages/InvoiceEditor";
 import PaidLeadInvoicesPage from "./pages/PaidLeadInvoices";
+import InvoicesPage from "./pages/Invoices";
+import InvoiceItemCatalogPage from "./pages/admin/InvoiceItemCatalog";
+import TaxCodeMasterPage from "./pages/admin/TaxCodeMaster";
 
 import type { ModuleKey } from "@/lib/modules";
 
