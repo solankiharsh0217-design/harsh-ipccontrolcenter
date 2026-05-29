@@ -94,10 +94,23 @@ async function loadImageDataUrl(
   }
 }
 
-function assetUrl(url?: string | null, path?: string | null): string | null {
-  if (url?.trim()) return url;
-  if (!path?.trim()) return null;
-  return supabase.storage.from("invoice-assets").getPublicUrl(path).data.publicUrl;
+function pathFromPublicUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const marker = "/storage/v1/object/public/invoice-assets/";
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return decodeURIComponent(url.slice(idx + marker.length).split("?")[0]);
+}
+
+async function assetUrl(url?: string | null, path?: string | null): Promise<string | null> {
+  const resolvedPath = (path?.trim() ? path : pathFromPublicUrl(url)) || null;
+  if (resolvedPath) {
+    const { data } = await supabase.storage
+      .from("invoice-assets")
+      .createSignedUrl(resolvedPath, 3600);
+    if (data?.signedUrl) return data.signedUrl;
+  }
+  return url?.trim() ? url : null;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -157,7 +170,7 @@ export async function renderInvoicePdf(
   // Logo
   let leftTextX = M;
   let leftTextY = y;
-  const logoUrl = assetUrl(seller.logo_url, seller.logo_path);
+  const logoUrl = await assetUrl(seller.logo_url, seller.logo_path);
   if (logoUrl) {
     const img = await loadImageDataUrl(logoUrl);
     if (img) {
@@ -503,7 +516,7 @@ export async function renderInvoicePdf(
   const lineY = sigY + sigBoxMaxH; // baseline of underline
 
   // Stamp (optional) — placed to the left of signature
-  const stampUrl = assetUrl(seller.stamp_url, seller.stamp_path);
+  const stampUrl = await assetUrl(seller.stamp_url, seller.stamp_path);
   if (stampUrl) {
     const stamp = await loadImageDataUrl(stampUrl);
     if (stamp) {
@@ -521,7 +534,7 @@ export async function renderInvoicePdf(
   }
 
   let signatureRendered = false;
-  const signatureUrl = assetUrl(seller.signature_url, seller.signature_path);
+  const signatureUrl = await assetUrl(seller.signature_url, seller.signature_path);
   if (signatureUrl) {
     const img = await loadImageDataUrl(signatureUrl);
     if (img) {

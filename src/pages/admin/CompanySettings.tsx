@@ -118,15 +118,28 @@ export default function CompanySettingsPage() {
   const [testRunning, setTestRunning] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [diag, setDiag] = useState<any>(null);
+  const [signedUrls, setSignedUrls] = useState<Record<AssetKind, string | null>>({ logo_url: null, signature_url: null, stamp_url: null });
 
   async function refreshDiagnostics() {
     const { data, error } = await (supabase as any).rpc("get_invoice_assets_storage_diagnostics");
     if (!error && data) setDiag(data);
   }
 
+  async function refreshSignedUrls(src: Partial<CompanySettings>) {
+    const next: Record<AssetKind, string | null> = { logo_url: null, signature_url: null, stamp_url: null };
+    for (const k of ["logo_url", "signature_url", "stamp_url"] as const) {
+      const path = ((src as any)[ASSET_PATH_FIELD[k]] as string | null | undefined) || pathFromPublicUrl(src[k] as string | null | undefined);
+      if (path) {
+        const { data } = await supabase.storage.from("invoice-assets").createSignedUrl(path, 3600);
+        if (data?.signedUrl) next[k] = data.signedUrl;
+      }
+    }
+    setSignedUrls(next);
+  }
+
   useEffect(() => { (async () => {
     const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
-    if (data) setS(data);
+    if (data) { setS(data); await refreshSignedUrls(data); }
     setLoading(false);
   })(); }, []);
 
@@ -158,14 +171,15 @@ export default function CompanySettingsPage() {
         toast.error(friendly);
         return;
       }
-      const { data } = supabase.storage.from("invoice-assets").getPublicUrl(path);
-      const url = data.publicUrl;
-      const nextSettings = { ...s, [kind]: url, [pathField]: path };
+      const { data } = await supabase.storage.from("invoice-assets").createSignedUrl(path, 3600);
+      const previewUrl = data?.signedUrl || null;
+      const nextSettings = { ...s, [kind]: null, [pathField]: path };
       setS(nextSettings);
+      setSignedUrls((prev) => ({ ...prev, [kind]: previewUrl }));
       if (user) {
         try {
           const saved = await saveCompanySettings(nextSettings, user.id);
-          if (saved) setS(saved);
+          if (saved) { setS(saved); await refreshSignedUrls(saved); }
           setLastSaveError(null);
           await refreshDiagnostics();
           toast.success(`${ASSET_LABEL[kind]} uploaded successfully`);
@@ -189,6 +203,7 @@ export default function CompanySettingsPage() {
     const existingPath = (s as any)[pathField] || pathFromPublicUrl(s[kind] as string | null | undefined);
     const nextSettings = { ...s, [kind]: null, [pathField]: null };
     setS(nextSettings);
+    setSignedUrls((prev) => ({ ...prev, [kind]: null }));
     if (user) {
       try {
         const saved = await saveCompanySettings(nextSettings, user.id);
@@ -279,10 +294,10 @@ export default function CompanySettingsPage() {
           {(["logo_url", "signature_url", "stamp_url"] as const).map((k) => {
             const label = ASSET_LABEL[k];
             const pathField = ASSET_PATH_FIELD[k];
-            const present = !!s[k];
+            const storedPath = ((s as any)[pathField] as string | null | undefined) || pathFromPublicUrl(s[k] as string | null | undefined);
+            const present = !!storedPath || !!s[k];
             const busy = busyKind === k;
-            const url = s[k] as string | null | undefined;
-            const storedPath = ((s as any)[pathField] as string | null | undefined) || pathFromPublicUrl(url);
+            const previewUrl = signedUrls[k] || (s[k] as string | null | undefined) || null;
             const status = busy ? "Uploading" : failedKind === k ? "Failed" : present ? "Uploaded" : "Missing";
             const statusCls = busy
               ? "bg-primary/10 text-primary"
@@ -298,7 +313,7 @@ export default function CompanySettingsPage() {
                   <span className={`text-[10.5px] px-1.5 py-0.5 rounded ${statusCls}`}>{status}</span>
                 </div>
                 <div className="h-20 flex items-center justify-center bg-muted/30 rounded mb-2 overflow-hidden">
-                  {url ? <img src={url} alt={label} className="max-h-20 max-w-full object-contain" /> : <span className="text-[11px] text-muted-foreground">No file</span>}
+                  {previewUrl ? <img src={previewUrl} alt={label} className="max-h-20 max-w-full object-contain" /> : <span className="text-[11px] text-muted-foreground">No file</span>}
                 </div>
                 {present && <div className="text-[10px] text-muted-foreground mb-2 break-all">Path: {maskPath(storedPath)}</div>}
                 <Input
