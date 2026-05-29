@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { logActivity } from "@/lib/auditLog";
@@ -8,6 +9,42 @@ import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { recomputePaidLead, DEFAULT_PAYMENT_MODES, DEFAULT_PAYMENT_CATEGORIES } from "@/lib/paidPipeline";
 import { createTag, assignTag } from "@/lib/leadTags";
 import type { Pipeline, Stage, LeadGrade } from "@/lib/crmTypes";
+
+// Validation schema — name-only is allowed (warned in UI), but any provided email/phone must be valid.
+const phoneRegex = /^[0-9+\-\s()]{7,20}$/;
+const baseLeadSchema = z.object({
+  fullName: z.string().trim().max(120, "Name too long (max 120)").optional().or(z.literal("")),
+  email: z
+    .string()
+    .trim()
+    .max(255, "Email too long")
+    .email("Invalid email address")
+    .optional()
+    .or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .max(20, "Phone too long")
+    .regex(phoneRegex, "Invalid phone number")
+    .optional()
+    .or(z.literal("")),
+  country: z.string().trim().max(120, "Too long").optional().or(z.literal("")),
+  notes: z.string().trim().max(2000, "Notes too long (max 2000)").optional().or(z.literal("")),
+  programName: z.string().trim().max(200, "Program name too long").optional().or(z.literal("")),
+  dealValue: z.number().nonnegative("Deal value must be ≥ 0").max(100_000_000, "Deal value too large").optional(),
+}).refine(
+  (v) => !!(v.fullName?.trim() || v.email?.trim() || v.phone?.trim()),
+  { path: ["fullName"], message: "Provide at least a name, email, or phone" },
+);
+
+const paidLeadSchema = baseLeadSchema.and(
+  z.object({
+    programName: z.string().trim().min(1, "Program is required for paid leads").max(200),
+    dealValue: z.number().positive("Paid leads require a deal value > 0"),
+    tokenCollected: z.number().nonnegative().optional(),
+    totalCollected: z.number().nonnegative().optional(),
+  }),
+);
 
 interface Props {
   pipelines: Pipeline[];
