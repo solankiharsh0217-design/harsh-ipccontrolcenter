@@ -137,13 +137,13 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
       tokenCollected: tokenCollected === "" ? undefined : Number(tokenCollected),
       totalCollected: totalCollected === "" ? undefined : Number(totalCollected),
     });
-    if (result.success) return { ok: true };
+    if (result.success) return { ok: true as const };
     const errs: Record<string, string> = {};
     for (const issue of result.error.issues) {
       const key = issue.path[0] as string;
       if (key && !errs[key]) errs[key] = issue.message;
     }
-    return { ok: false, errors: errs };
+    return { ok: false as const, errors: errs };
   }
 
   useEffect(() => {
