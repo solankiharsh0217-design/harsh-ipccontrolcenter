@@ -24,6 +24,7 @@ import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
 import ManagedStageFilter from "@/components/crm/ManagedStageFilter";
 import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/ArchiveConfirmModal";
 import { BatchDeleteChoicesModal } from "@/components/crm/BatchDeleteChoicesModal";
+import MoveBatchModal from "@/components/crm/MoveBatchModal";
 import { archiveBatch, restoreBatch, permanentlyDeleteBatch, bulkArchiveLeads, getLeadLinks, resetBatchForReimport, safePermanentDeleteBatch } from "@/lib/crmArchive";
 import { useAuth } from "@/context/AuthContext";
 import { Archive, RotateCcw } from "lucide-react";
