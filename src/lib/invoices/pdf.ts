@@ -287,7 +287,7 @@ export async function renderInvoicePdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(20);
-  doc.text(buyer.name || invoice.member_name || "—", M, y);
+  doc.text(buyer.name || invoice.billing_name || invoice.member_name || "—", M, y);
   y += 12;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -295,8 +295,12 @@ export async function renderInvoicePdf(
   const billLines: string[] = [];
   if (buyer.billing_address || invoice.billing_address)
     billLines.push(String(buyer.billing_address || invoice.billing_address));
-  if (buyer.email || invoice.member_email) billLines.push(String(buyer.email || invoice.member_email));
-  if (buyer.phone || invoice.member_phone) billLines.push(String(buyer.phone || invoice.member_phone));
+  const cityState = [buyer.city, buyer.state, buyer.state_code].filter(Boolean).join(", ");
+  if (cityState) billLines.push(cityState);
+  if (buyer.country) billLines.push(String(buyer.country));
+  if (buyer.email || invoice.billing_email || invoice.member_email) billLines.push(String(buyer.email || invoice.billing_email || invoice.member_email));
+  if (buyer.phone || invoice.billing_phone || invoice.member_phone) billLines.push(String(buyer.phone || invoice.billing_phone || invoice.member_phone));
+  if (buyer.gstin || invoice.billing_gstin) billLines.push("GSTIN: " + (buyer.gstin || invoice.billing_gstin));
   const billWrapped = doc.splitTextToSize(billLines.join("\n"), contentW * 0.6);
   doc.text(billWrapped, M, y);
   y += billWrapped.length * 11 + 8;
