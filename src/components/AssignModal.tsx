@@ -351,9 +351,6 @@ export default function AssignModal(props: Props) {
         {/* Step 3: Method */}
         {step === 3 && (() => {
           const onlyOne = pickedUsers.length === 1;
-          // Auto-correct invalid method based on picked user count
-          if (onlyOne && method === "round_robin") setTimeout(() => setMethod("single"), 0);
-          if (!onlyOne && method === "single") setTimeout(() => setMethod("round_robin"), 0);
           return (
             <div className="space-y-3">
               <div>
