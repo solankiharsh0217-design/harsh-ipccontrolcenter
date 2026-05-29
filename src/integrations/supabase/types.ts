@@ -6392,22 +6392,43 @@ export type Database = {
       }
       webinars: {
         Row: {
+          archived_at: string | null
           created_at: string
           created_by: string | null
           id: string
+          is_active: boolean
+          last_used_at: string | null
           name: string
+          normalized_name: string | null
+          updated_at: string
+          updated_by: string | null
+          usage_count: number
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean
+          last_used_at?: string | null
           name: string
+          normalized_name?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          usage_count?: number
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          is_active?: boolean
+          last_used_at?: string | null
           name?: string
+          normalized_name?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          usage_count?: number
         }
         Relationships: []
       }
