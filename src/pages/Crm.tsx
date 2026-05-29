@@ -93,6 +93,15 @@ export default function Crm() {
   const [deleteBatchBlocked, setDeleteBatchBlocked] = useState<string | null>(null);
   const [batchChoicesTarget, setBatchChoicesTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[]; linkedPaid: number; linkedOps: number } | null>(null);
   const [batchChoicesBusy, setBatchChoicesBusy] = useState(false);
+  const [moveBatchTarget, setMoveBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[] } | null>(null);
+  const [repairPickerOpen, setRepairPickerOpen] = useState(false);
+  const openMoveBatch = (b: { name: string; date: string | null; pipelineId: string | null }) => {
+    const leadIds = leads
+      .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date)
+      .map((l) => l.id);
+    if (leadIds.length === 0) { toast.info("No leads in this batch"); return; }
+    setMoveBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds });
+  };
   const toggleSelect = (id: string) => setSelectedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelectedIds(new Set());
 
