@@ -884,6 +884,27 @@ export default function Crm() {
           <button onClick={() => setBulkSendOpsOpen(true)} className="ipc-btn ipc-btn-black !h-8 !text-xs">
             <ExternalLink className="w-3 h-3" /> Send to Operations
           </button>
+          <button
+            onClick={async () => {
+              if (bulkDeassignBusy) return;
+              const ids = Array.from(selectedIds);
+              const assignedIds = pipelineLeads.filter((l) => selectedIds.has(l.id) && (l as any).assigned_agent_id).map((l) => l.id);
+              if (!assignedIds.length) { toast.info("None of the selected leads are currently assigned."); return; }
+              if (!confirm(`De-assign ${assignedIds.length} lead${assignedIds.length === 1 ? "" : "s"} from their owners? Leads remain in CRM but disappear from sales executive workloads.`)) return;
+              setBulkDeassignBusy(true);
+              try {
+                await bulkDeassignLeads(assignedIds, { source: "crm_bulk_bar" });
+                toast.success(`${assignedIds.length} lead${assignedIds.length === 1 ? "" : "s"} de-assigned`);
+                clearSelection();
+                await load();
+              } catch (e: any) { toast.error(e?.message || "De-assign failed"); }
+              finally { setBulkDeassignBusy(false); }
+            }}
+            disabled={bulkDeassignBusy}
+            className="ipc-btn ipc-btn-ghost !h-8 !text-xs !text-[#92400E] hover:!bg-[#FEF3C7] disabled:opacity-50"
+          >
+            De-assign
+          </button>
           <button onClick={() => setBulkArchiveOpen(true)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs !text-[#92400E] hover:!bg-[#FEF3C7]">
             <Archive className="w-3 h-3" /> Archive Selected
           </button>
