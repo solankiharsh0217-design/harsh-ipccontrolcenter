@@ -228,34 +228,24 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
 
         {step === 1 && (
           <div className="p-6 space-y-4">
-            <div>
-              <label className="form-label">Webinar date</label>
-              <input type="date" className="ipc-input" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-            <div>
-              <label className="form-label">Webinar name / title</label>
-              {!addingNew ? (
-                <div className="flex gap-2">
-                  <select className="ipc-input flex-1" value={name} onChange={(e) => setName(e.target.value)}>
-                    <option value="">Select a webinar…</option>
-                    {webinars.map((w) => <option key={w.id} value={w.name}>{w.name}</option>)}
-                  </select>
-                  <button type="button" onClick={() => { setAddingNew(true); setName(""); }} className="ipc-btn ipc-btn-ghost" title="Add new webinar">
-                    <Plus className="w-3.5 h-3.5" /> New
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input type="text" className="ipc-input flex-1" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Diamond Program Masterclass — Apr 8" autoFocus />
-                  <button type="button" onClick={saveWebinarToDb} disabled={!name.trim()} className="ipc-btn ipc-btn-black disabled:opacity-50" title="Save to database">
-                    <Plus className="w-3.5 h-3.5" /> Save
-                  </button>
-                  {webinars.length > 0 && (
-                    <button type="button" onClick={() => setAddingNew(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
-                  )}
-                </div>
-              )}
-              <p className="text-[11px] text-muted-foreground mt-1.5">Saved webinars appear in the dropdown next time you import — no retyping needed.</p>
+            <div className="grid grid-cols-[1fr_180px] gap-3 items-start">
+              <div>
+                <label className="form-label">Webinar name / title</label>
+                <WebinarPresetSelector
+                  value={name}
+                  onChange={(n, preset?: WebinarPreset) => {
+                    setName(n);
+                    setSelectedPresetId(preset?.id || null);
+                  }}
+                />
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                  Search saved webinars, create new ones, or click Manage to rename/archive.
+                </p>
+              </div>
+              <div>
+                <label className="form-label">Webinar date</label>
+                <input type="date" className="ipc-input" value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
             </div>
             <div className="space-y-3">
               <div>
