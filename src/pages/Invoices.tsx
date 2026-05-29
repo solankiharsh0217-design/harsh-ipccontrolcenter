@@ -19,7 +19,8 @@ export default function InvoicesPage() {
   const [type, setType] = useState("");
   const [linked, setLinked] = useState<"all" | "linked" | "unlinked">("all");
   const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [entryOpen, setEntryOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   async function refresh() {
     setLoading(true);
