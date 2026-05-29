@@ -47,6 +47,9 @@ export function buildDraftFromPaidLead(opts: {
 
   const today = new Date().toISOString().slice(0, 10);
   const buyerName = paidLead?.name || crmLead?.full_name || "";
+  const buyerEmail = paidLead?.email || crmLead?.email || "";
+  const buyerPhone = paidLead?.phone || crmLead?.phone || "";
+  const addr = crmLead?.address || crmLead?.city || "";
 
   return {
     status: "draft",
@@ -54,16 +57,64 @@ export function buildDraftFromPaidLead(opts: {
     invoice_mode: mode,
     paid_pipeline_lead_id: paidLead?.id || null,
     crm_lead_id: paidLead?.crm_lead_id || crmLead?.id || null,
+    linked_client_name: buyerName,
+    linked_client_email: buyerEmail,
+    linked_client_phone: buyerPhone,
     member_name: buyerName,
-    member_email: paidLead?.email || crmLead?.email || "",
-    member_phone: paidLead?.phone || crmLead?.phone || "",
-    billing_address: crmLead?.address || crmLead?.city || "",
+    member_email: buyerEmail,
+    member_phone: buyerPhone,
+    billing_name: buyerName,
+    billing_email: buyerEmail,
+    billing_phone: buyerPhone,
+    billing_address: addr,
     place_of_supply: settings.default_place_of_supply || (company?.state || ""),
     invoice_date: today,
     due_date: today,
     terms: settings.default_terms || "",
     notes: settings.default_notes || "",
     terms_and_conditions: settings.default_terms || "",
+    invoice_number_mode: "auto",
+    invoice_context_type: "linked_paid_lead",
+    show_bank_details: true,
+    show_payment_instructions: true,
+    show_signature: true,
+    show_stamp: true,
+    ...totals,
+    line_items: totals.lineItems,
+    amount_in_words: amountToWordsINR(totals.total_amount),
+  };
+}
+
+export function buildBlankManualDraft(opts: { company: CompanySettings | null; settings: InvoiceSettings }): Invoice {
+  const { company, settings } = opts;
+  const invoiceType = settings.default_invoice_type;
+  const item: LineItem = {
+    item_name: "",
+    description: null,
+    hsn_sac: settings.default_hsn_sac || null,
+    quantity: 1,
+    rate: 0,
+    tax_rate: invoiceType === "gst" ? Number(settings.default_gst_rate) || 0 : 0,
+    cgst_amount: 0, sgst_amount: 0, igst_amount: 0, amount: 0, sort_order: 0,
+  };
+  const totals = computeTotals([item], invoiceType, settings.default_tax_split, settings.default_tax_mode, 0, 0, 0);
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    status: "draft",
+    invoice_type: invoiceType,
+    invoice_mode: "custom",
+    invoice_date: today,
+    due_date: today,
+    place_of_supply: settings.default_place_of_supply || (company?.state || ""),
+    terms: settings.default_terms || "",
+    notes: settings.default_notes || "",
+    terms_and_conditions: settings.default_terms || "",
+    invoice_number_mode: "auto",
+    invoice_context_type: "manual",
+    show_bank_details: true,
+    show_payment_instructions: true,
+    show_signature: true,
+    show_stamp: true,
     ...totals,
     line_items: totals.lineItems,
     amount_in_words: amountToWordsINR(totals.total_amount),
@@ -77,7 +128,7 @@ export function applyTemplateVars(
   const c = ctx.company || ({} as CompanySettings);
   const i = ctx.invoice;
   const vars: Record<string, string> = {
-    member_name: i.member_name || "",
+    member_name: i.billing_name || i.member_name || "",
     invoice_number: i.invoice_number || "",
     invoice_date: i.invoice_date || "",
     program_name: ctx.programName || (i.line_items?.[0]?.item_name ?? ""),

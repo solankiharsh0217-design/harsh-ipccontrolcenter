@@ -2,6 +2,8 @@ export type InvoiceType = "gst" | "non_gst";
 export type InvoiceMode = "full_deal" | "token" | "balance" | "custom";
 export type InvoiceStatus = "draft" | "issued" | "sent" | "paid" | "cancelled" | "void";
 export type TaxSplit = "cgst_sgst" | "igst" | "none";
+export type InvoiceNumberMode = "auto" | "manual";
+export type InvoiceContextType = "linked_paid_lead" | "manual" | "later_linked";
 
 export interface CompanySettings {
   id?: string;
@@ -89,16 +91,49 @@ export interface Invoice {
   status: InvoiceStatus;
   invoice_type: InvoiceType;
   invoice_mode: InvoiceMode;
+
   paid_pipeline_lead_id?: string | null;
   crm_lead_id?: string | null;
+
+  // Original linked client snapshot (do not edit when billing changes)
+  linked_client_name?: string | null;
+  linked_client_email?: string | null;
+  linked_client_phone?: string | null;
+
+  // Legacy fields kept for compatibility
   member_name?: string | null;
   member_email?: string | null;
   member_phone?: string | null;
   billing_address?: string | null;
   place_of_supply?: string | null;
+
+  // Billing recipient (can differ from linked client)
+  billing_name?: string | null;
+  billing_email?: string | null;
+  billing_phone?: string | null;
+  billing_gstin?: string | null;
+  billing_city?: string | null;
+  billing_state?: string | null;
+  billing_state_code?: string | null;
+  billing_country?: string | null;
+
+  // Numbering / context
+  invoice_number_mode?: InvoiceNumberMode;
+  manual_invoice_number?: string | null;
+  invoice_context_type?: InvoiceContextType;
+  subject?: string | null;
+  salesperson_id?: string | null;
+
+  // Display toggles
+  show_bank_details?: boolean;
+  show_payment_instructions?: boolean;
+  show_signature?: boolean;
+  show_stamp?: boolean;
+
   seller_snapshot_json?: any;
   buyer_snapshot_json?: any;
   tax_snapshot_json?: any;
+
   subtotal: number;
   discount_amount: number;
   taxable_amount: number;
@@ -122,4 +157,39 @@ export interface Invoice {
   cancel_reason?: string | null;
   created_at?: string;
   line_items?: LineItem[];
+}
+
+export interface InvoiceItemCategory {
+  id: string;
+  name: string;
+  default_hsn_sac?: string | null;
+  default_gst_rate?: number | null;
+  default_taxable_status?: string | null;
+  is_active: boolean;
+}
+
+export interface InvoiceCatalogItem {
+  id: string;
+  item_name: string;
+  category_id?: string | null;
+  description?: string | null;
+  hsn_sac?: string | null;
+  default_gst_rate?: number | null;
+  default_price?: number | null;
+  default_rate?: number | null; // legacy
+  taxable_status?: string | null;
+  unit?: string | null;
+  is_active: boolean;
+}
+
+export interface TaxCode {
+  id: string;
+  code: string;
+  type: "SAC" | "HSN";
+  description: string;
+  category?: string | null;
+  gst_rate_default?: number | null;
+  keywords?: string[] | null;
+  source?: string | null;
+  is_active: boolean;
 }
