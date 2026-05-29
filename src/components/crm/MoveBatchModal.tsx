@@ -322,12 +322,15 @@ export default function MoveBatchModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="uppercase-label !text-[10px]">Destination pipeline</label>
-              <select className="ipc-input !h-10 w-full mt-1" value={destPipelineId} onChange={e => setDestPipelineId(e.target.value)}>
-                <option value="">Select pipeline…</option>
-                {pipelines.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.type})</option>
-                ))}
-              </select>
+              <PipelinePicker
+                pipelines={pipelines}
+                leads={leads}
+                value={destPipelineId}
+                onChange={setDestPipelineId}
+                excludeId={batch.pipelineId || undefined}
+                isAdmin={isAdmin}
+                onMutated={async () => { if (onPipelinesChanged) await onPipelinesChanged(); }}
+              />
             </div>
             <div>
               <label className="uppercase-label !text-[10px]">Destination stage</label>
