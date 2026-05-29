@@ -682,6 +682,39 @@ export default function CodeOfConductPanel(props: Props) {
         </div>
       )}
 
+      {isAdmin && (
+        <div className="mt-3 border-t border-slate-200 pt-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[10.5px] uppercase tracking-wider text-slate-500">Post-Send Automation Debug</div>
+            <button onClick={runPostSendDryRun} disabled={postSendBusy || !req?.id}
+              className="text-[10.5px] px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50">
+              {postSendBusy ? "Checking…" : "Run Automation Check"}
+            </button>
+          </div>
+          <div className="mt-1.5 rounded-md border border-slate-200 bg-white p-2 text-[10.5px] text-slate-600 space-y-1 font-mono overflow-x-auto">
+            <div>Last dry-run / send result: {postSend
+              ? `${postSend.status}${postSend.ruleName ? ` · rule: ${postSend.ruleName}` : ""}${postSend.skipReason ? ` · skip: ${describeSkipReason(postSend.skipReason)}` : ""}${postSend.errorMessage ? ` · error: ${postSend.errorMessage}` : ""}`
+              : "—"}</div>
+            {postSend && (postSend.oldStageName || postSend.newStageName) && (
+              <div>Movement: {postSend.oldStageName || postSend.oldStageId || "—"} → {postSend.newStageName || postSend.newStageId || "—"}</div>
+            )}
+            <div className="font-sans font-semibold text-slate-800 pt-1">Last persisted automation event</div>
+            {postSendLast ? (
+              <>
+                <div>Status: {postSendLast.status}{postSendLast.skip_reason ? ` (${describeSkipReason(postSendLast.skip_reason)})` : ""}</div>
+                <div>Old stage: {postSendLast.old_stage_id || "—"}</div>
+                <div>New stage: {postSendLast.new_stage_id || "—"}</div>
+                <div>Rule id: {postSendLast.rule_id || "—"}</div>
+                {postSendLast.error_message && <div className="text-rose-600">Error: {postSendLast.error_message}</div>}
+                <div>At: {postSendLast.created_at ? new Date(postSendLast.created_at).toLocaleString() : "—"}</div>
+              </>
+            ) : (
+              <div>No prior automation events recorded for this request.</div>
+            )}
+          </div>
+        </div>
+      )}
+
       {req && (
         <EditMemberEmailModal
           open={editEmailOpen}
