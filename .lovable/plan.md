@@ -1,91 +1,105 @@
-# Phase 1.3 — Lead-Linked Smart Invoice System
+# Phase 1.3C — Complete Invoice Module
 
-Per your "Build in Two Steps" guidance, I'll ship **Phase 1.3A** in this loop and stop there. Phase 1.3B (email, full history page, item catalog, void workflow) will follow in a separate request.
+This is a large build. I'll ship it in one phase but in a clear, ordered way so nothing breaks the existing Paid Pipeline → Create Invoice flow or the PDF renderer / signature pipeline already fixed.
 
-## Phase 1.3A Scope (this build)
+## What I will NOT touch
+Code of Conduct, payment calc, payment records, Sheet/CSV import, follow-ups, Team Directory, Operations CRM, hard wipe, signature/logo storage. Existing PDF renderer is extended (not rewritten) only for billing-vs-linked-client and visibility toggles.
 
-1. **Company Settings** — Admin Center page; identity, branding (logo/signature/stamp upload), bank details, email sender
-2. **Invoice Settings** — Admin Center page; numbering, tax defaults, default notes/terms/email copy
-3. **Invoice Readiness Check** — surfaced in invoice editor before issue
-4. **Paid Pipeline entry points** — row action "Create Invoice" + drawer Invoice card with Create/Download/History
-5. **Invoice Editor** — auto-fills from Company Settings + paid lead + CRM lead; GST/non-GST toggle; 4 invoice modes (Full Deal / Token / Balance / Custom); item table; tax summary; notes/terms
-6. **Snapshots** — seller/buyer/tax snapshots stored on issue; old invoices regenerate identically
-7. **On-demand PDF** — clean A4 layout, brand logo, GST breakup if GST invoice, signature/stamp, bank block; NOT persisted
-8. **Numbering safety** — Postgres RPC with row lock; number assigned only on issue
-9. **Basic invoice list** inside Paid Pipeline drawer (full Revenue Center → Invoices page is 1.3B)
-10. **Audit events** — settings updates, draft created, issued, pdf generated
-11. **RLS** — admin all; sales sees invoices for their assigned paid lead
+## 1. Database (single migration)
 
-## Out of scope (Phase 1.3B)
-Send Email, full Invoices history page with filters, item catalog UI, duplicate/void/cancel workflow, finance role split.
+**Extend `invoices`:**
+- `linked_client_name`, `linked_client_email`, `linked_client_phone` (snapshot of original lead)
+- `billing_name`, `billing_email`, `billing_phone`, `billing_gstin`
+- `invoice_number_mode` (`auto` | `manual`), `manual_invoice_number`
+- `show_bank_details` bool default true, `show_payment_instructions` bool default true, `show_signature` bool default true, `show_stamp` bool default true
+- `subject` text, `salesperson_id` uuid, `invoice_context_type` (`linked_paid_lead` | `manual` | `later_linked`)
+- `billing_city`, `billing_state`, `billing_state_code`, `billing_country`
+- Backfill: copy `member_name/email/phone/billing_address` into billing_* and linked_client_* where null.
 
-## Untouched (per your instruction)
-CoC signing/PDF, CoC rules, payment calculations, Sheets/CSV import, follow-ups, Team, Operations CRM, hard wipe, AI Insights.
+**New tables (with GRANTs + RLS):**
+- `invoice_item_categories` (name, default_hsn_sac, default_gst_rate, default_taxable_status, is_active)
+- `invoice_items` (item_name, category_id, description, hsn_sac, default_gst_rate, default_price, taxable_status, unit, is_active)
+- `tax_code_master` (code, type GST_SAC/HSN, description, category, gst_rate_default, keywords text[], source, is_active) + GIN index on description/keywords + btree on code
+- RLS: SELECT for active users, INSERT/UPDATE/DELETE for admin only (via `has_role`).
 
-## Technical design
+**Numbering RPC:** add `assign_manual_invoice_number(text)` that validates uniqueness, requires admin, returns the number or raises.
 
-### Tables (migration)
-- `company_settings` — singleton row keyed by `workspace = 'default'`; identity, branding URLs, bank, sender. Admin write; authenticated read (needed for invoice editor).
-- `invoice_settings` — singleton; numbering, tax defaults, text/email defaults. Admin write; authenticated read.
-- `invoices` — full snapshot columns (seller_snapshot_json, buyer_snapshot_json, tax_snapshot_json) + totals + `status` (draft/issued/sent/paid/cancelled/void) + `invoice_type` + `invoice_mode` + `paid_pipeline_lead_id`/`crm_lead_id`.
-- `invoice_line_items` — child of invoices.
-- `invoice_events` — audit per invoice.
-- `invoice_items` — catalog (kept simple in 1.3A; UI in 1.3B).
+**Tighten invoice_line_items + invoice_events SELECT policies** (security scan findings): only invoice creator, assigned sales executive on linked paid lead, or admin can read. Same scoping the `invoices` table already has.
 
-### Numbering RPC
-`assign_next_invoice_number()` SECURITY DEFINER, uses `SELECT ... FOR UPDATE` on `invoice_settings`, increments `next_invoice_number`, returns formatted `{prefix}{padded_number}` (with optional FY). Drafts call nothing; only `issue_invoice` calls this RPC inside the same transaction that writes status=issued.
+**Seed `tax_code_master`** with ~80 common SAC codes relevant to coaching/training/advertising/events/consulting (999293 commercial training, 998361 advertising services, 999293 coaching, 998596 events, 998311 management consulting, 998314 IT consulting, 998387 photography, 999294 other education, etc.) with keywords arrays for fuzzy matching.
 
-### RLS
+**Seed `invoice_item_categories`** with the 11 categories listed in Part 8.
+
+## 2. Library layer
+
+- `src/lib/invoices/types.ts` — extend Invoice + new types (Item, ItemCategory, TaxCode)
+- `src/lib/invoices/api.ts` — extend save/issue to persist new fields; map billing_* into seller/buyer snapshots; respect `invoice_number_mode`
+- `src/lib/invoices/catalog.ts` (new) — list/create/update items & categories
+- `src/lib/invoices/taxCodes.ts` (new) — search tax_code_master with 3+ char debounce
+- `src/lib/invoices/readiness.ts` — extend validation: billing_name required, manual number unique/non-empty, audit blockers
+
+## 3. UI
+
+**New route `src/pages/Invoices.tsx`** registered in App.tsx + sidebar (under Revenue Center group):
+- Top actions: + Create Invoice, Export CSV, Invoice Settings, Item Catalog, SAC/HSN Master
+- Filterable table with all columns + row actions listed in Part 1
+- Filters: search, date range, status, program, batch, owner, type, linked/unlinked, sent
+
+**New pages:**
+- `src/pages/admin/InvoiceItemCatalog.tsx` — CRUD items + categories
+- `src/pages/admin/TaxCodeMaster.tsx` — searchable list, admin CSV import (paste textarea for now)
+
+**Editor upgrades — `src/pages/InvoiceEditor.tsx`:**
+- "Who is this invoice for?" first-screen when no `paid_pipeline_lead_id` in URL
+- `PaidClientSelector` (new component) — searchable dropdown of paid_pipeline_leads
+- "Billing Details" panel with "Use lead details" toggle + override fields
+- Invoice number mode (auto/manual, admin-gated)
+- Tax setup panel
+- Line items: item dropdown via catalog + "Find SAC/HSN" button → opens `TaxCodeFinder` modal
+- Display Options panel (show bank/signature/stamp/instructions toggles)
+- Readiness blockers panel already exists — extend with new rules
+
+**New components in `src/components/invoices/`:**
+- `PaidClientSelector.tsx`
+- `BillingDetailsPanel.tsx`
+- `ItemPicker.tsx` (catalog dropdown + free-form)
+- `TaxCodeFinder.tsx` (modal with debounced search, highlights matches)
+- `DisplayOptionsPanel.tsx`
+
+## 4. PDF (`src/lib/invoices/pdf.ts`)
+- Render billing_name / billing_email etc. (fallback to member_*)
+- Hide bank block when `show_bank_details=false`
+- Hide signature/stamp/payment instructions when toggled off
+- Keep existing signature_url fallback logic intact
+
+## 5. Audit logging
+Use existing `invoice_events` insert with new event types listed in Part 19.
+
+## 6. Permissions
+- Admin gate: item catalog, tax code master, manual number override, hide/show toggles default editable by all but manual number creation admin-only
+- Sales: read-only catalog, can create invoices only for paid leads they own (existing RLS already enforces invoice scoping)
+
+## 7. Security finding fix (bundled)
+Same migration tightens `invoice_line_items_select` and `invoice_events_select` to: creator OR admin OR assigned sales exec on the linked paid lead.
+
+## Order of execution
+1. Migration (schema + RLS tighten + seeds) — single call
+2. Types + api + catalog + taxCodes libs
+3. Editor + new components
+4. New pages + routing + sidebar entry
+5. PDF tweaks
+6. Verify build
 
 ```text
-company_settings / invoice_settings:
-  SELECT to authenticated
-  INSERT/UPDATE only if has_role(auth.uid(),'admin')
-
-invoices:
-  SELECT: admin OR creator OR assigned_sales_executive of paid_pipeline_lead_id
-  INSERT: authenticated (must set created_by = auth.uid())
-  UPDATE: admin OR creator (only while status='draft')
-
-invoice_line_items / invoice_events: follow parent invoice access via EXISTS check
+Sidebar
+├── Revenue Center
+│   ├── Invoices            ← NEW main entry
+│   │   ├── List (default)
+│   │   ├── Item Catalog
+│   │   └── SAC/HSN Master
+│   └── …
+└── Admin Center
+    └── Invoice Settings    (existing)
 ```
 
-### Storage
-New public bucket `invoice-assets` for logo / signature / stamp uploads.
-
-### PDF generation
-Client-side using `jspdf` + `jspdf-autotable` (already-friendly with our stack; no server runtime needed, no persistence). Builds A4 layout from invoice snapshot. Triggered by Preview/Download buttons only.
-
-### Files
-
-```text
-src/lib/invoices/
-  types.ts           # Invoice, LineItem, Snapshots
-  readiness.ts       # checkInvoiceReadiness(companySettings, invoiceSettings, type)
-  draft.ts           # buildDraftFromPaidLead(lead, crmLead, company, settings, mode)
-  totals.ts          # computeTotals(lineItems, taxType, discount, adjustment, paymentMade)
-  amountInWords.ts   # INR number → words
-  pdf.ts             # renderInvoicePdf(invoice) → jsPDF
-  api.ts             # saveDraft / issueInvoice / loadInvoice / listInvoicesForLead
-
-src/pages/admin/CompanySettings.tsx
-src/pages/admin/InvoiceSettings.tsx
-src/pages/InvoiceEditor.tsx        # /invoices/new?paidLeadId=... and /invoices/:id
-
-src/components/paid-pipeline/InvoiceCard.tsx        # in paid lead drawer
-src/components/paid-pipeline/CreateInvoiceMenuItem.tsx  # row action
-
-supabase/migrations/<ts>_invoices.sql
-```
-
-Routes added to `App.tsx`, links added to `AppLayout` (Admin Center) and Paid Pipeline drawer/row.
-
-### Acceptance checks I'll verify before handing back
-- Settings save round-trips for admin only.
-- Readiness check blocks GST invoice when GSTIN missing; allows fallback to Non-GST when enabled.
-- Creating invoice from a paid lead prefills 80%+ of fields.
-- Issuing assigns the next number atomically and snapshots seller/buyer/tax.
-- Re-opening an old invoice and downloading PDF uses snapshot (not live company settings).
-- Build passes.
-
-Proceeding with this on approval.
+Estimated scope: 1 migration, ~6 new files, ~6 edited files. No changes to Paid Pipeline create-invoice entry points other than passing `invoice_context_type='linked_paid_lead'`.

@@ -42,6 +42,22 @@ export async function listInvoicesForLead(paidLeadId: string): Promise<Invoice[]
   return (data || []) as Invoice[];
 }
 
+export async function listAllInvoices(opts?: { search?: string; status?: string; type?: string; linked?: "linked" | "unlinked" | "all"; from?: string; to?: string; limit?: number }): Promise<Invoice[]> {
+  let q = db.from("invoices").select("*").order("created_at", { ascending: false }).limit(opts?.limit ?? 500);
+  if (opts?.status) q = q.eq("status", opts.status);
+  if (opts?.type) q = q.eq("invoice_type", opts.type);
+  if (opts?.linked === "linked") q = q.not("paid_pipeline_lead_id", "is", null);
+  if (opts?.linked === "unlinked") q = q.is("paid_pipeline_lead_id", null);
+  if (opts?.from) q = q.gte("invoice_date", opts.from);
+  if (opts?.to) q = q.lte("invoice_date", opts.to);
+  if (opts?.search) {
+    const t = opts.search.trim();
+    q = q.or(`invoice_number.ilike.%${t}%,billing_name.ilike.%${t}%,member_name.ilike.%${t}%,member_email.ilike.%${t}%,member_phone.ilike.%${t}%`);
+  }
+  const { data } = await q;
+  return (data || []) as Invoice[];
+}
+
 export async function loadInvoice(id: string): Promise<Invoice | null> {
   const { data: inv } = await db.from("invoices").select("*").eq("id", id).maybeSingle();
   if (!inv) return null;
@@ -54,7 +70,6 @@ function stripLineItems(inv: Invoice): Omit<Invoice, "line_items"> {
   return rest;
 }
 
-// Fields that must never be set from client on UPDATE (managed by DB / immutable post-issue)
 const IMMUTABLE_ON_UPDATE = [
   "id", "created_at", "updated_at", "created_by",
   "invoice_number", "issued_at",
@@ -64,6 +79,10 @@ const IMMUTABLE_ON_UPDATE = [
 
 export async function saveDraft(inv: Invoice, userId: string): Promise<Invoice> {
   const base: any = stripLineItems(inv);
+  // Mirror billing_* into legacy member_* fields so existing code/PDF still works
+  if (base.billing_name) base.member_name = base.member_name || base.billing_name;
+  if (base.billing_email) base.member_email = base.member_email || base.billing_email;
+  if (base.billing_phone) base.member_phone = base.member_phone || base.billing_phone;
   let saved: any;
   if (inv.id) {
     const updateBody: any = { ...base };
@@ -78,13 +97,20 @@ export async function saveDraft(inv: Invoice, userId: string): Promise<Invoice> 
     delete insertBody.id;
     delete insertBody.created_at;
     delete insertBody.updated_at;
-    // Drafts must not have an invoice_number — only assigned on issue.
     delete insertBody.invoice_number;
     delete insertBody.issued_at;
     const { data, error } = await db.from("invoices").insert(insertBody).select().maybeSingle();
     if (error) throw error;
     saved = data;
-    await logEvent(saved.id, "invoice_draft_created", { mode: inv.invoice_mode }, userId);
+    await logEvent(saved.id, "invoice_draft_created", {
+      mode: inv.invoice_mode,
+      context: inv.invoice_context_type,
+    }, userId);
+    if (!inv.paid_pipeline_lead_id) {
+      await logEvent(saved.id, "standalone_invoice_created", {}, userId);
+    } else {
+      await logEvent(saved.id, "invoice_created_from_paid_lead", { paid_lead_id: inv.paid_pipeline_lead_id }, userId);
+    }
   }
   if (inv.line_items?.length) {
     const items = inv.line_items.map((li, idx) => ({
@@ -101,12 +127,22 @@ export async function saveDraft(inv: Invoice, userId: string): Promise<Invoice> 
 }
 
 export async function issueInvoice(inv: Invoice, opts: { company: CompanySettings | null; settings: InvoiceSettings; userId: string }): Promise<Invoice> {
-  // Save current draft first
   const saved = await saveDraft(inv, opts.userId);
-  // Get next invoice number atomically
-  const { data: numData, error: numErr } = await db.rpc("assign_next_invoice_number");
-  if (numErr) throw numErr;
-  const invoiceNumber = numData as string;
+
+  let invoiceNumber: string;
+  if (inv.invoice_number_mode === "manual") {
+    const num = (inv.manual_invoice_number || "").trim();
+    if (!num) throw new Error("Manual invoice number is required");
+    const { data, error } = await db.rpc("assign_manual_invoice_number", { _invoice_id: saved.id, _number: num });
+    if (error) throw error;
+    invoiceNumber = data as string;
+    await logEvent(saved.id!, "invoice_number_manually_overridden", { invoice_number: invoiceNumber }, opts.userId);
+  } else {
+    const { data: numData, error: numErr } = await db.rpc("assign_next_invoice_number");
+    if (numErr) throw numErr;
+    invoiceNumber = numData as string;
+    await logEvent(saved.id!, "invoice_number_auto_assigned", { invoice_number: invoiceNumber }, opts.userId);
+  }
 
   const draftSeller = (inv.seller_snapshot_json || {}) as Partial<CompanySettings>;
   const sellerSnap = {
@@ -120,8 +156,19 @@ export async function issueInvoice(inv: Invoice, opts: { company: CompanySetting
     stamp_path: draftSeller.stamp_path || opts.company?.stamp_path || null,
   };
   const buyerSnap = {
-    name: inv.member_name, email: inv.member_email, phone: inv.member_phone,
-    billing_address: inv.billing_address, place_of_supply: inv.place_of_supply,
+    name: inv.billing_name || inv.member_name,
+    email: inv.billing_email || inv.member_email,
+    phone: inv.billing_phone || inv.member_phone,
+    billing_address: inv.billing_address,
+    place_of_supply: inv.place_of_supply,
+    gstin: inv.billing_gstin || null,
+    city: inv.billing_city || null,
+    state: inv.billing_state || null,
+    state_code: inv.billing_state_code || null,
+    country: inv.billing_country || null,
+    linked_client_name: inv.linked_client_name || inv.member_name,
+    linked_client_email: inv.linked_client_email || inv.member_email,
+    linked_client_phone: inv.linked_client_phone || inv.member_phone,
   };
   const taxSnap = {
     invoice_type: inv.invoice_type,
@@ -137,14 +184,17 @@ export async function issueInvoice(inv: Invoice, opts: { company: CompanySetting
     })),
   };
 
-  const { error: updErr } = await db.from("invoices").update({
+  const updateBody: any = {
     status: "issued",
-    invoice_number: invoiceNumber,
     issued_at: new Date().toISOString(),
     seller_snapshot_json: sellerSnap,
     buyer_snapshot_json: buyerSnap,
     tax_snapshot_json: taxSnap,
-  }).eq("id", saved.id);
+  };
+  // For auto mode set invoice_number now; for manual mode the RPC already set it
+  if (inv.invoice_number_mode !== "manual") updateBody.invoice_number = invoiceNumber;
+
+  const { error: updErr } = await db.from("invoices").update(updateBody).eq("id", saved.id);
   if (updErr) throw updErr;
 
   await logEvent(saved.id!, "invoice_issued", { invoice_number: invoiceNumber }, opts.userId);
@@ -157,5 +207,19 @@ export async function logEvent(invoiceId: string, type: string, metadata: any, u
 
 export async function listInvoiceEvents(invoiceId: string) {
   const { data } = await db.from("invoice_events").select("*").eq("invoice_id", invoiceId).order("created_at", { ascending: false });
+  return data || [];
+}
+
+export async function searchPaidClients(query: string, limit = 25) {
+  let q = db.from("paid_pipeline_leads")
+    .select("id,name,email,phone,product_name_snapshot,paid_batch_name,crm_lead_id,assigned_sales_executive,deal_value_including_gst,total_collected,balance_pending")
+    .is("archived_at", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  const t = (query || "").trim();
+  if (t.length >= 2) {
+    q = q.or(`name.ilike.%${t}%,email.ilike.%${t}%,phone.ilike.%${t}%,product_name_snapshot.ilike.%${t}%,paid_batch_name.ilike.%${t}%`);
+  }
+  const { data } = await q;
   return data || [];
 }
