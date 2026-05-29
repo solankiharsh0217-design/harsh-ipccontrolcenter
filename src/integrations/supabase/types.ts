@@ -1773,44 +1773,97 @@ export type Database = {
           },
         ]
       }
+      invoice_item_categories: {
+        Row: {
+          created_at: string
+          default_gst_rate: number | null
+          default_hsn_sac: string | null
+          default_taxable_status: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_gst_rate?: number | null
+          default_hsn_sac?: string | null
+          default_taxable_status?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_gst_rate?: number | null
+          default_hsn_sac?: string | null
+          default_taxable_status?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
+          category_id: string | null
           created_at: string
           created_by: string | null
           default_gst_rate: number
+          default_price: number | null
           default_rate: number
           description: string | null
           hsn_sac: string | null
           id: string
           is_active: boolean
           item_name: string
+          taxable_status: string | null
+          unit: string | null
           updated_at: string
         }
         Insert: {
+          category_id?: string | null
           created_at?: string
           created_by?: string | null
           default_gst_rate?: number
+          default_price?: number | null
           default_rate?: number
           description?: string | null
           hsn_sac?: string | null
           id?: string
           is_active?: boolean
           item_name: string
+          taxable_status?: string | null
+          unit?: string | null
           updated_at?: string
         }
         Update: {
+          category_id?: string | null
           created_at?: string
           created_by?: string | null
           default_gst_rate?: number
+          default_price?: number | null
           default_rate?: number
           description?: string | null
           hsn_sac?: string | null
           id?: string
           is_active?: boolean
           item_name?: string
+          taxable_status?: string | null
+          unit?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_item_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_line_items: {
         Row: {
@@ -1961,6 +2014,14 @@ export type Database = {
           amount_in_words: string | null
           balance_due: number
           billing_address: string | null
+          billing_city: string | null
+          billing_country: string | null
+          billing_email: string | null
+          billing_gstin: string | null
+          billing_name: string | null
+          billing_phone: string | null
+          billing_state: string | null
+          billing_state_code: string | null
           buyer_snapshot_json: Json | null
           cancel_reason: string | null
           cancelled_at: string | null
@@ -1973,12 +2034,18 @@ export type Database = {
           due_date: string | null
           id: string
           igst_amount: number
+          invoice_context_type: string
           invoice_date: string | null
           invoice_mode: string
           invoice_number: string | null
+          invoice_number_mode: string
           invoice_type: string
           issued_at: string | null
           last_generated_at: string | null
+          linked_client_email: string | null
+          linked_client_name: string | null
+          linked_client_phone: string | null
+          manual_invoice_number: string | null
           member_email: string | null
           member_name: string | null
           member_phone: string | null
@@ -1986,11 +2053,17 @@ export type Database = {
           paid_pipeline_lead_id: string | null
           payment_made: number
           place_of_supply: string | null
+          salesperson_id: string | null
           seller_snapshot_json: Json | null
           sent_at: string | null
           sent_to: string | null
           sgst_amount: number
+          show_bank_details: boolean
+          show_payment_instructions: boolean
+          show_signature: boolean
+          show_stamp: boolean
           status: string
+          subject: string | null
           subtotal: number
           tax_snapshot_json: Json | null
           taxable_amount: number
@@ -2004,6 +2077,14 @@ export type Database = {
           amount_in_words?: string | null
           balance_due?: number
           billing_address?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_email?: string | null
+          billing_gstin?: string | null
+          billing_name?: string | null
+          billing_phone?: string | null
+          billing_state?: string | null
+          billing_state_code?: string | null
           buyer_snapshot_json?: Json | null
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -2016,12 +2097,18 @@ export type Database = {
           due_date?: string | null
           id?: string
           igst_amount?: number
+          invoice_context_type?: string
           invoice_date?: string | null
           invoice_mode?: string
           invoice_number?: string | null
+          invoice_number_mode?: string
           invoice_type?: string
           issued_at?: string | null
           last_generated_at?: string | null
+          linked_client_email?: string | null
+          linked_client_name?: string | null
+          linked_client_phone?: string | null
+          manual_invoice_number?: string | null
           member_email?: string | null
           member_name?: string | null
           member_phone?: string | null
@@ -2029,11 +2116,17 @@ export type Database = {
           paid_pipeline_lead_id?: string | null
           payment_made?: number
           place_of_supply?: string | null
+          salesperson_id?: string | null
           seller_snapshot_json?: Json | null
           sent_at?: string | null
           sent_to?: string | null
           sgst_amount?: number
+          show_bank_details?: boolean
+          show_payment_instructions?: boolean
+          show_signature?: boolean
+          show_stamp?: boolean
           status?: string
+          subject?: string | null
           subtotal?: number
           tax_snapshot_json?: Json | null
           taxable_amount?: number
@@ -2047,6 +2140,14 @@ export type Database = {
           amount_in_words?: string | null
           balance_due?: number
           billing_address?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_email?: string | null
+          billing_gstin?: string | null
+          billing_name?: string | null
+          billing_phone?: string | null
+          billing_state?: string | null
+          billing_state_code?: string | null
           buyer_snapshot_json?: Json | null
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -2059,12 +2160,18 @@ export type Database = {
           due_date?: string | null
           id?: string
           igst_amount?: number
+          invoice_context_type?: string
           invoice_date?: string | null
           invoice_mode?: string
           invoice_number?: string | null
+          invoice_number_mode?: string
           invoice_type?: string
           issued_at?: string | null
           last_generated_at?: string | null
+          linked_client_email?: string | null
+          linked_client_name?: string | null
+          linked_client_phone?: string | null
+          manual_invoice_number?: string | null
           member_email?: string | null
           member_name?: string | null
           member_phone?: string | null
@@ -2072,11 +2179,17 @@ export type Database = {
           paid_pipeline_lead_id?: string | null
           payment_made?: number
           place_of_supply?: string | null
+          salesperson_id?: string | null
           seller_snapshot_json?: Json | null
           sent_at?: string | null
           sent_to?: string | null
           sgst_amount?: number
+          show_bank_details?: boolean
+          show_payment_instructions?: boolean
+          show_signature?: boolean
+          show_stamp?: boolean
           status?: string
+          subject?: string | null
           subtotal?: number
           tax_snapshot_json?: Json | null
           taxable_amount?: number
@@ -5983,6 +6096,48 @@ export type Database = {
         }
         Relationships: []
       }
+      tax_code_master: {
+        Row: {
+          category: string | null
+          code: string
+          created_at: string
+          description: string
+          gst_rate_default: number | null
+          id: string
+          is_active: boolean
+          keywords: string[] | null
+          source: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          code: string
+          created_at?: string
+          description: string
+          gst_rate_default?: number | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[] | null
+          source?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          code?: string
+          created_at?: string
+          description?: string
+          gst_rate_default?: number | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[] | null
+          source?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       team_payroll_profiles: {
         Row: {
           business_unit: string | null
@@ -6266,6 +6421,10 @@ export type Database = {
         Returns: Json
       }
       admin_wipe_demo_lead_data: { Args: { _dry_run?: boolean }; Returns: Json }
+      assign_manual_invoice_number: {
+        Args: { _invoice_id: string; _number: string }
+        Returns: string
+      }
       assign_next_invoice_number: { Args: never; Returns: string }
       can_manage_invoice_settings: {
         Args: { user_uuid: string }
