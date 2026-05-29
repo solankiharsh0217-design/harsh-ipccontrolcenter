@@ -899,7 +899,26 @@ export default function Crm() {
           onClose={() => setAddLeadOpen(false)}
           onCreated={async (leadId, openDrawer) => {
             setAddLeadOpen(false);
-            await load();
+            // Targeted refetch: insert just the new lead into local state for instant feedback
+            try {
+              const { data: newLead } = await supabase
+                .from("leads")
+                .select("*")
+                .eq("id", leadId)
+                .maybeSingle();
+              if (newLead) {
+                setLeads((prev) => {
+                  if (prev.some((x) => x.id === leadId)) {
+                    return prev.map((x) => (x.id === leadId ? { ...x, ...(newLead as any) } : x));
+                  }
+                  return [newLead as any, ...prev];
+                });
+              } else {
+                await load();
+              }
+            } catch {
+              await load();
+            }
             if (openDrawer) setOpenLead(leadId);
           }}
         />
