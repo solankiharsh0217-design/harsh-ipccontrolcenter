@@ -243,6 +243,14 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
 
   async function handleSave(openDrawerAfter: boolean) {
     if (!canSave) return;
+    const v = validateForm();
+    if (!v.ok) {
+      setErrors(v.errors);
+      const first = Object.values(v.errors)[0];
+      toast.error(first || "Please fix the highlighted fields");
+      return;
+    }
+    setErrors({});
     setBusy(true);
     try {
       const e = normEmail(email);
