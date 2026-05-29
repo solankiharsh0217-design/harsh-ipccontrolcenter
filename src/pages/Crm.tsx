@@ -1963,28 +1963,6 @@ function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight,
   );
 }
 
-function BatchActionsMenu({ isAdmin, archived, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete }: {
-  isAdmin: boolean; archived: boolean;
-  onView: () => void; onRename: () => void; onMove: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-  const item = (label: React.ReactNode, fn: () => void, accent?: string) => (
-    <button onClick={(e) => { e.stopPropagation(); setOpen(false); fn(); }} className={`w-full text-left px-3 py-1.5 text-[11.5px] hover:bg-off flex items-center gap-2 ${accent || ""}`}>{label}</button>
-  );
-  return (
-    <div ref={ref} className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
-      <button
-        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
-        className="p-1.5 rounded-md text-muted-foreground hover:text-black hover:bg-off text-[14px] leading-none"
-        title="Batch actions" aria-label="Batch actions"
-      >⋯</button>
 function BatchActionsMenu({ isAdmin, archived, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete, onRepair }: {
   isAdmin: boolean; archived: boolean;
   onView: () => void; onRename: () => void; onMove: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
