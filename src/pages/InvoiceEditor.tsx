@@ -664,6 +664,17 @@ export default function InvoiceEditor() {
           </ul>
         </div>
       )}
+
+      <TaxCodeFinder
+        open={sacFinderForRow !== null}
+        onOpenChange={(v) => { if (!v) setSacFinderForRow(null); }}
+        onSelect={(code) => { if (sacFinderForRow !== null) applySacCode(sacFinderForRow, code); setSacFinderForRow(null); }}
+      />
+      <PaidClientSelector
+        open={linkPickerOpen}
+        onOpenChange={setLinkPickerOpen}
+        onSelect={(pid) => linkToPaidClient(pid)}
+      />
     </div>
   );
 }
