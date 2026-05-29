@@ -366,9 +366,17 @@ export default function CodeOfConductPanel(props: Props) {
     setConfirmOpen(true);
   };
 
+  const refreshLastAutomation = async (requestId?: string | null) => {
+    const id = requestId || req?.id;
+    if (!id) return;
+    try { setPostSendLast(await getLastAutomationEvent(id)); } catch { /* ignore */ }
+  };
+
   const sendEmail = async () => {
     setConfirmOpen(false);
     setBusy(true);
+    let sentOk = false;
+    let resultRequestId: string | null = req?.id || null;
     try {
       const { data, error } = await supabase.functions.invoke("send-code-of-conduct-email", {
         body: {
@@ -384,12 +392,39 @@ export default function CodeOfConductPanel(props: Props) {
       const res = data as any;
       if (res?.ok === false) throw new Error(`[${res.error_code}] ${res.message}`);
       if (res?.signing_url) setSigningUrl(res.signing_url);
-      toast({ title: `Code of Conduct email sent to ${emailOverride}` });
-      await load();
+      sentOk = true;
+      resultRequestId = res?.request_id || resultRequestId;
     } catch (e: any) {
-      toast({ title: "Code of Conduct email failed", description: e?.message || "Unknown error", variant: "destructive" });
+      toast({ title: "Code of Conduct email failed. Stage was not changed.", description: e?.message || "Unknown error", variant: "destructive" });
       await load();
-    } finally { setBusy(false); }
+      setBusy(false);
+      return;
+    }
+
+    await load();
+
+    // Run post-send automation only after a confirmed successful send
+    if (sentOk && resultRequestId) {
+      try {
+        const automation = await evaluatePostSendAutomation({ requestId: resultRequestId });
+        setPostSend(automation);
+        await refreshLastAutomation(resultRequestId);
+        if (automation.status === "applied") {
+          toast({ title: `Code of Conduct email sent. Lead moved to ${automation.newStageName || "destination stage"}.` });
+        } else if (automation.status === "no_match") {
+          toast({ title: "Code of Conduct email sent. No stage automation rule matched." });
+        } else if (automation.status === "skipped") {
+          toast({ title: `Code of Conduct email sent. Stage not changed (${describeSkipReason(automation.skipReason)}).` });
+        } else if (automation.status === "failed") {
+          toast({ title: "Code of Conduct email sent, but stage automation failed. Check debug.", description: automation.errorMessage, variant: "destructive" });
+        }
+      } catch (e: any) {
+        toast({ title: "Code of Conduct email sent, but stage automation failed. Check debug.", description: e?.message, variant: "destructive" });
+      }
+    } else {
+      toast({ title: `Code of Conduct email sent to ${emailOverride}` });
+    }
+    setBusy(false);
   };
 
   const cancel = async () => {
