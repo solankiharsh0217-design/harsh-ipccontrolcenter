@@ -247,7 +247,7 @@ export default function AddSingleLeadModal({ pipelines, stages, defaultPipelineI
     if (!v.ok) {
       setErrors(v.errors);
       const first = Object.values(v.errors)[0];
-      toast.error(first || "Please fix the highlighted fields");
+      toast.error(typeof first === "string" ? first : "Please fix the highlighted fields");
       return;
     }
     setErrors({});
