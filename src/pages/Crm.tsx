@@ -1503,6 +1503,7 @@ export default function Crm() {
                       setDeleteBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds });
                       setDeleteBatchBlocked(null);
                     }}
+                    onRepair={() => setRepairBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId })}
                   />
                   <div className="flex items-center gap-2">
                     <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-black text-white text-[11px] font-medium tracking-wide">
