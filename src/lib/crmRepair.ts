@@ -80,7 +80,7 @@ export async function dryRunBatchRepair(args: {
   const { batchName, batchDate, pipelineId } = args;
 
   // Load active leads in the batch
-  let q = supabase
+  let q: any = (supabase as any)
     .from("leads")
     .select("id, full_name, email, phone, pipeline_id, stage_id, webinar_source, webinar_date, assigned_agent_id, paid_pipeline_lead_id, code_of_conduct_request_id, archived_at, updated_at, created_at")
     .eq("webinar_source", batchName)
