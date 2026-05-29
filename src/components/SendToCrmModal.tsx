@@ -64,12 +64,24 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
       const defaultPipe = (pl || []).find((p: any) => p.type === leadType) || (pl || [])[0];
       setTargetPipelineId(defaultPipe?.id || "");
       if (createdNow) setPipelineNotice(`Created default ${leadType} pipeline.`);
-      // detect super hot by email match
-      const emails = result.leads.map((l) => l.email).filter(Boolean);
+      // detect super hot by email match — chunk to avoid URL-length limits on large uploads
+      const emails = result.leads.map((l) => l.email).filter(Boolean) as string[];
       if (emails.length) {
-        const { data: existing } = await supabase.from("leads").select("email").in("email", emails);
-        setSuperHotEmails(new Set((existing || []).map((e: any) => (e.email || "").toLowerCase())));
+        const found = new Set<string>();
+        const chunkSize = 200;
+        for (let i = 0; i < emails.length; i += chunkSize) {
+          const chunk = emails.slice(i, i + chunkSize);
+          const { data: existing, error: exErr } = await supabase
+            .from("leads").select("email").in("email", chunk);
+          if (exErr) {
+            console.warn("super-hot lookup chunk failed", exErr);
+            continue;
+          }
+          (existing || []).forEach((e: any) => found.add((e.email || "").toLowerCase()));
+        }
+        setSuperHotEmails(found);
       }
+
       setStep(3);
     } catch (e: any) {
       toast.error(e.message || "Failed to prepare pipeline");
