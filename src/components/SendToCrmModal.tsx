@@ -206,6 +206,9 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
         if (slice.length) await supabase.from("activity_logs").insert(slice.map((u) => u.activity));
       }
 
+      if (selectedPresetId) {
+        await bumpWebinarUsage(selectedPresetId);
+      }
       toast.success(`Imported ${imported} · Updated ${updated} · Skipped ${skipped}`);
       onDone();
     } catch (e: any) {
