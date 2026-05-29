@@ -790,13 +790,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
           for (const lead of (crmRows || []) as any[]) {
             if (lead.paid_pipeline_lead_id) { paidLinked++; continue; }
-            // Match priority: existing link → email → phone (covers backfill of older rows)
+            // Match priority: email → phone. Linking only; never rewrite existing paid status/stage/source.
             let existing: any = null;
-            if (lead.paid_pipeline_lead_id) {
-              const { data } = await supabase.from("paid_pipeline_leads")
-                .select("id, crm_lead_id").eq("id", lead.paid_pipeline_lead_id).maybeSingle();
-              existing = data;
-            }
             if (!existing && lead.email) {
               const { data } = await supabase.from("paid_pipeline_leads")
                 .select("id, crm_lead_id").eq("email", lead.email).eq("is_deleted", false).maybeSingle();
@@ -823,8 +818,6 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             if (existing) {
               await supabase.from("paid_pipeline_leads").update({
                 crm_lead_id: lead.id,
-                source_webinar: segmentName,
-                product_name_snapshot: payload.product_name_snapshot,
               } as any).eq("id", existing.id);
               if (lead.paid_pipeline_lead_id !== existing.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: existing.id } as any).eq("id", lead.id);
