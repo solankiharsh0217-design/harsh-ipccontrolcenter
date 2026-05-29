@@ -7,6 +7,8 @@ import { GRADE_STYLES, ensurePipelineExists } from "@/lib/crmTypes";
 import { X } from "lucide-react";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import WebinarPresetSelector, { bumpWebinarUsage, type WebinarPreset } from "@/components/crm/WebinarPresetSelector";
+import DedupPreflightPanel from "@/components/qualifier/DedupPreflightPanel";
+import { normalizeEmail, normalizePhone } from "@/lib/identity";
 
 interface Props {
   result: QualifierResult;
