@@ -85,9 +85,9 @@ export default function AssignModal(props: Props) {
   // Keep method consistent with picked-user count
   useEffect(() => {
     if (method === "unassign") return;
-    if (pickedUsers.length === 1 && method !== "single") setMethod("single");
-    else if (pickedUsers.length > 1 && method === "single") setMethod("round_robin");
-  }, [pickedUsers.length, method]);
+    if (pickedUserIds.size === 1 && method !== "single") setMethod("single");
+    else if (pickedUserIds.size > 1 && method === "single") setMethod("round_robin");
+  }, [pickedUserIds, method]);
 
   const loadUsers = async () => {
     setLoading(true);
