@@ -77,9 +77,11 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
         await supabase.from("paid_pipeline_leads").update({ name, email, phone } as any).eq("id", paidId);
       }
       await auditLog({
-        action: "lead_details_updated",
+        module_key: "crm",
+        action_type: "lead_details_updated",
         entity_type: "lead", entity_id: lead.id, entity_label: name,
-        metadata: { before, after: { full_name: name, email, phone }, changed_by: profile?.id || null },
+        old_values: before, new_values: { full_name: name, email, phone },
+        metadata: { changed_by: profile?.id || null },
         summary: `Edited lead details for '${name}'.`,
       });
       toast.success("Lead updated");
