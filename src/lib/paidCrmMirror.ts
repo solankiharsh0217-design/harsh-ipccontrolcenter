@@ -141,7 +141,7 @@ export async function ensurePaidPipelineCrmLead(paidPipelineLeadId: string): Pro
       deal_value: Number((paid as any).deal_value_including_gst || 0),
     };
     const { data: created, error: insErr } = await supabase
-      .from("leads").insert(insertRow).select("id").maybeSingle();
+      .from("leads").insert(insertRow as any).select("id").maybeSingle();
     if (insErr || !created) {
       return { ok: false, crmLeadId: null, action: "error", message: insErr?.message || "Failed to create CRM lead" };
     }
