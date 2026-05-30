@@ -1382,15 +1382,19 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
                   {lead.crm_lead_id && (
                     <Link to={`/crm?lead=${lead.crm_lead_id}`} className="text-[11px] text-[#3730A3] hover:underline">Open in CRM ↗</Link>
                   )}
+                  <button onClick={repairCrmLink} disabled={linkingCrm} className="text-[11px] px-2 py-0.5 rounded border border-[#C7D2FE] bg-white text-[#3730A3] hover:bg-[#EEF2FF] disabled:opacity-50" title="Ensure this paid buyer has a linked CRM lead visible in Paid — Onboarding">
+                    {linkingCrm ? "Repairing…" : "Repair CRM Link"}
+                  </button>
                 </div>
 
                 {!lead.crm_lead_id ? (
                   <div className="space-y-2">
-                    <div className="text-[12px] text-[#3730A3]">No linked Calling CRM lead found. Link this buyer so stage changes sync across both pipelines.</div>
+                    <div className="text-[12px] text-[#3730A3]">No linked Calling CRM lead found. Repair CRM Link will search by email/phone and create one in Paid — Onboarding if none exists.</div>
                     <button onClick={linkToCrm} disabled={linkingCrm} className="ipc-btn ipc-btn-black !h-9">
                       {linkingCrm ? "Linking…" : "Link to Calling CRM lead"}
                     </button>
                   </div>
+
                 ) : (
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
