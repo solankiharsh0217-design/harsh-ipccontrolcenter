@@ -50,6 +50,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Lead Conversion Rules",
+      desc: "Configure which CRM stages trigger Send to Paid Onboarding, default destination, owner policy, and follow-up handling.",
+      cta: "Open Conversion Rules",
+      to: "/admin-center/conversion-rules",
+      show: isAdmin,
+    },
+    {
       title: "Assignment Eligibility Setup",
       desc: "Bulk enable or disable lead assignment eligibility for multiple team members at once.",
       cta: "Open Eligibility Setup",
