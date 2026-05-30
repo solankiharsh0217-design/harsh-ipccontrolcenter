@@ -69,6 +69,21 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     if (!name) { toast.error("Name is required"); return; }
     setSavingEdit(true);
     try {
+      // Pre-check duplicate email on another lead — gives a friendlier error than the unique constraint.
+      if (email && email !== lead.email) {
+        const { data: dup } = await supabase
+          .from("leads")
+          .select("id, full_name, batch_id")
+          .eq("email", email)
+          .neq("id", lead.id)
+          .limit(1)
+          .maybeSingle();
+        if (dup) {
+          toast.error(`Email already used by another lead: ${(dup as any).full_name || "(no name)"}. Use a different email or merge the two leads.`);
+          setSavingEdit(false);
+          return;
+        }
+      }
       const before = { full_name: lead.full_name, email: lead.email, phone: lead.phone };
       const { error } = await supabase.from("leads").update({ full_name: name, email, phone }).eq("id", lead.id);
       if (error) throw error;
@@ -89,7 +104,12 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
       setLead({ ...lead, full_name: name, email, phone } as Lead);
       onChanged();
     } catch (e: any) {
-      toast.error(e.message || "Failed to update lead");
+      const msg = String(e?.message || "");
+      if (msg.includes("leads_unique_email") || (e?.code === "23505" && msg.toLowerCase().includes("email"))) {
+        toast.error("That email is already used by another lead. Use a different email or merge the two leads.");
+      } else {
+        toast.error(msg || "Failed to update lead");
+      }
     } finally {
       setSavingEdit(false);
     }
