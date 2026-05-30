@@ -112,14 +112,29 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
       }
 
       const updates: any = {
-        paid_pipeline_lead_id: linkTargetId,
         conversion_status: "linked_to_paid",
         converted_at: new Date().toISOString(),
         converted_by: profile?.id || null,
         hide_from_sales_workload: hideFromSales,
+        paid_pipeline_lead_id: linkTargetId,
       };
       const { error } = await supabase.from("leads").update(updates).eq("id", lead.id);
       if (error) throw error;
+
+      // Ensure the paid buyer has a Paid Onboarding CRM card. If the existing paid
+      // buyer's crm_lead_id was previously set to this (unpaid) source lead, the
+      // helper will detect that and create/find a separate Paid Onboarding lead.
+      await supabase
+        .from("paid_pipeline_leads")
+        .update({ source_unpaid_lead_id: lead.id } as any)
+        .eq("id", linkTargetId);
+      const ensured = await ensurePaidPipelineCrmLead(linkTargetId, { sourceUnpaidLeadId: lead.id });
+      if (ensured.ok && ensured.crmLeadId) {
+        await supabase
+          .from("leads")
+          .update({ converted_to_crm_lead_id: ensured.crmLeadId } as any)
+          .eq("id", lead.id);
+      }
 
       await supabase.from("crm_lead_conversions").insert({
         source_lead_id: lead.id,
@@ -132,7 +147,7 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
         assigned_owner_id: target?.assigned_sales_executive ?? null,
         status: "success",
         created_by: profile?.id || null,
-        metadata_json: { email: lead.email, phone: lead.phone, matched_by: "email_or_phone" },
+        metadata_json: { email: lead.email, phone: lead.phone, matched_by: "email_or_phone", paid_onboarding_crm_lead_id: ensured.crmLeadId },
       });
 
       await logActivity({
