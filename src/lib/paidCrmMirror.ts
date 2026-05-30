@@ -96,7 +96,7 @@ async function createPaidOnboardingLead(
     hide_from_sales_workload: false,
     assigned_agent_id: paid.assigned_sales_executive || null,
     program_name: paid.product_name_snapshot || "",
-    webinar_source: paid.batch_name_snapshot || paid.source_webinar || null,
+    webinar_source: paid.paid_batch_name || paid.source_webinar || null,
     deal_value: Number(paid.deal_value_including_gst || 0),
   };
   const { data, error } = await supabase
@@ -111,7 +111,7 @@ export async function ensurePaidPipelineCrmLead(
   try {
     const { data: paid } = await supabase
       .from("paid_pipeline_leads")
-      .select("id, name, email, phone, crm_lead_id, source_unpaid_lead_id, pipeline_stage, deal_value_including_gst, assigned_sales_executive, product_name_snapshot, batch_name_snapshot, source_webinar, paid_batch_id")
+      .select("id, name, email, phone, crm_lead_id, source_unpaid_lead_id, pipeline_stage, deal_value_including_gst, assigned_sales_executive, product_name_snapshot, paid_batch_name, source_webinar, paid_batch_id")
       .eq("id", paidPipelineLeadId)
       .maybeSingle();
     if (!paid) return { ok: false, crmLeadId: null, sourceUnpaidLeadId: null, action: "error", message: "Paid buyer not found" };
