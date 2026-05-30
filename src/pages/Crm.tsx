@@ -1363,6 +1363,9 @@ export default function Crm() {
                                 <div className="flex items-center justify-between mt-2 gap-2">
                                   <div className="flex items-center gap-1 flex-wrap">
                                     <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
+                                    {((l as any).paid_pipeline_lead_id || (l as any).conversion_status === "converted" || (l as any).conversion_status === "linked_to_paid") && (
+                                      <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-medium border bg-emerald-50 text-emerald-700 border-emerald-200">{(l as any).paid_pipeline_lead_id ? "Paid Linked" : "Converted"}</span>
+                                    )}
                                     {(() => {
                                       const cs = (l as any).code_of_conduct_status as string | null;
                                       if (!cs) return null;
