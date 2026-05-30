@@ -1144,6 +1144,26 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     } finally { setLinkingCrm(false); }
   };
 
+  // Surgical repair: ensure linked CRM lead exists in Paid — Onboarding and is visible.
+  const repairCrmLink = async () => {
+    setLinkingCrm(true);
+    try {
+      const res = await ensurePaidPipelineCrmLead(lead.id);
+      if (!res.ok) { toast.error(res.message); return; }
+      const labels: Record<string, string> = {
+        already_linked: "Already linked correctly",
+        link_repaired: "Linked CRM lead repaired",
+        linked_existing: "Linked existing CRM lead and moved to Paid Onboarding",
+        created: "CRM lead created in Paid — Onboarding",
+      };
+      toast.success(labels[res.action] || "Repaired");
+      onChanged();
+    } catch (e: any) {
+      toast.error(e?.message || "Repair failed");
+    } finally { setLinkingCrm(false); }
+  };
+
+
   // Add a new Calling CRM stage (in the linked pipeline) from inside the Paid Pipeline drawer.
   const addCrmStageInline = async () => {
     const name = newCrmStageName.trim();
