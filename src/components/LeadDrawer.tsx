@@ -20,6 +20,7 @@ import { logActivity as auditLog } from "@/lib/auditLog";
 import { stageChip } from "@/lib/stageColors";
 import CrmStagePicker from "@/components/crm/CrmStagePicker";
 import CodeOfConductCard from "@/components/crm/CodeOfConductCard";
+import ConvertToPaidModal from "@/components/crm/ConvertToPaidModal";
 
 
 interface Props {
