@@ -21,6 +21,8 @@ import { stageChip } from "@/lib/stageColors";
 import CrmStagePicker from "@/components/crm/CrmStagePicker";
 import CodeOfConductCard from "@/components/crm/CodeOfConductCard";
 import ConvertToPaidModal from "@/components/crm/ConvertToPaidModal";
+import ConversionHistoryDrawer from "@/components/crm/ConversionHistoryDrawer";
+import { loadActiveConversionRules, isConvertedStage, DEFAULT_TRIGGER_STAGES, type ConversionRule } from "@/lib/conversionRules";
 
 
 interface Props {
