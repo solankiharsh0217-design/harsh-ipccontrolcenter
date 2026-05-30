@@ -48,6 +48,50 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [newStageName, setNewStageName] = useState("");
   const [addingStage, setAddingStage] = useState(false);
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const startEdit = () => {
+    if (!lead) return;
+    setEditName(lead.full_name || "");
+    setEditEmail(lead.email || "");
+    setEditPhone(lead.phone || "");
+    setEditMode(true);
+  };
+  const saveEdit = async () => {
+    if (!lead) return;
+    const name = editName.trim();
+    const email = editEmail.trim() || null;
+    const phone = editPhone.trim() || null;
+    if (!name) { toast.error("Name is required"); return; }
+    setSavingEdit(true);
+    try {
+      const before = { full_name: lead.full_name, email: lead.email, phone: lead.phone };
+      const { error } = await supabase.from("leads").update({ full_name: name, email, phone }).eq("id", lead.id);
+      if (error) throw error;
+      const paidId = (lead as any).paid_pipeline_lead_id;
+      if (paidId) {
+        await supabase.from("paid_pipeline_leads").update({ name, email, phone } as any).eq("id", paidId);
+      }
+      await auditLog({
+        action: "lead_details_updated",
+        entity_type: "lead", entity_id: lead.id, entity_label: name,
+        metadata: { before, after: { full_name: name, email, phone }, changed_by: profile?.id || null },
+        summary: `Edited lead details for '${name}'.`,
+      });
+      toast.success("Lead updated");
+      setEditMode(false);
+      setLead({ ...lead, full_name: name, email, phone } as Lead);
+      onChanged();
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update lead");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
   const [extraOpen, setExtraOpen] = useState(false);
