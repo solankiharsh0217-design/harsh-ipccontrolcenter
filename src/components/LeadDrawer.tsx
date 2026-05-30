@@ -170,7 +170,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     setOpsLeadId(ops?.id ?? null);
   };
   useEffect(() => { load(); }, [leadId]);
-  useEffect(() => { getActiveHandoffRules().then(setOpsRules).catch(() => setOpsRules([])); }, []);
+  useEffect(() => { getActiveHandoffRules().then(setOpsRules).catch(() => setOpsRules([])); loadActiveConversionRules().then(setConvRules).catch(() => setConvRules([])); }, []);
 
   if (!lead) return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
