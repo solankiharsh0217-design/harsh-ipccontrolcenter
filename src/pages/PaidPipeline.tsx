@@ -30,6 +30,7 @@ import { stageChip } from "@/lib/stageColors";
 import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
 import CrmStagePicker, { type CrmStagePickerStage } from "@/components/crm/CrmStagePicker";
 import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
+import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 
 type Lead = {
   id: string;
@@ -1143,6 +1144,26 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     } finally { setLinkingCrm(false); }
   };
 
+  // Surgical repair: ensure linked CRM lead exists in Paid — Onboarding and is visible.
+  const repairCrmLink = async () => {
+    setLinkingCrm(true);
+    try {
+      const res = await ensurePaidPipelineCrmLead(lead.id);
+      if (!res.ok) { toast.error(res.message); return; }
+      const labels: Record<string, string> = {
+        already_linked: "Already linked correctly",
+        link_repaired: "Linked CRM lead repaired",
+        linked_existing: "Linked existing CRM lead and moved to Paid Onboarding",
+        created: "CRM lead created in Paid — Onboarding",
+      };
+      toast.success(labels[res.action] || "Repaired");
+      onChanged();
+    } catch (e: any) {
+      toast.error(e?.message || "Repair failed");
+    } finally { setLinkingCrm(false); }
+  };
+
+
   // Add a new Calling CRM stage (in the linked pipeline) from inside the Paid Pipeline drawer.
   const addCrmStageInline = async () => {
     const name = newCrmStageName.trim();
@@ -1361,15 +1382,19 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
                   {lead.crm_lead_id && (
                     <Link to={`/crm?lead=${lead.crm_lead_id}`} className="text-[11px] text-[#3730A3] hover:underline">Open in CRM ↗</Link>
                   )}
+                  <button onClick={repairCrmLink} disabled={linkingCrm} className="text-[11px] px-2 py-0.5 rounded border border-[#C7D2FE] bg-white text-[#3730A3] hover:bg-[#EEF2FF] disabled:opacity-50" title="Ensure this paid buyer has a linked CRM lead visible in Paid — Onboarding">
+                    {linkingCrm ? "Repairing…" : "Repair CRM Link"}
+                  </button>
                 </div>
 
                 {!lead.crm_lead_id ? (
                   <div className="space-y-2">
-                    <div className="text-[12px] text-[#3730A3]">No linked Calling CRM lead found. Link this buyer so stage changes sync across both pipelines.</div>
+                    <div className="text-[12px] text-[#3730A3]">No linked Calling CRM lead found. Repair CRM Link will search by email/phone and create one in Paid — Onboarding if none exists.</div>
                     <button onClick={linkToCrm} disabled={linkingCrm} className="ipc-btn ipc-btn-black !h-9">
                       {linkingCrm ? "Linking…" : "Link to Calling CRM lead"}
                     </button>
                   </div>
+
                 ) : (
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
