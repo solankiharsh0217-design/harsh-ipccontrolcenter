@@ -314,9 +314,21 @@ export default function AssignModal(props: Props) {
         )}
 
         {/* Step 2: Users */}
-        {step === 2 && (
+        {step === 2 && (() => {
+          const nameCounts = new Map<string, number>();
+          usersForRole.forEach((u) => {
+            const k = (u.full_name || "").trim().toLowerCase();
+            if (k) nameCounts.set(k, (nameCounts.get(k) || 0) + 1);
+          });
+          const hasDupes = Array.from(nameCounts.values()).some((n) => n > 1);
+          return (
           <div className="space-y-3">
             <div className="text-xs text-muted-foreground">Role: <strong className="text-black">{role}</strong></div>
+            {hasDupes && (
+              <div className="p-2.5 rounded-lg bg-[#FEF2F2] border border-[#FECACA] text-[11px] text-[#991B1B]">
+                ⚠️ Duplicate names detected. Check the email under each name carefully — assigning to the wrong duplicate will hide the leads from the person who actually logs in.
+              </div>
+            )}
             {usersForRole.length === 0 ? (
               <div className="p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs space-y-2">
                 <div className="font-medium text-[12px]">No eligible users found for this role.</div>
@@ -332,21 +344,31 @@ export default function AssignModal(props: Props) {
               </div>
             ) : (
               <div className="border border-line rounded-lg max-h-72 overflow-y-auto divide-y">
-                {usersForRole.map(u => (
-                  <label key={u.id} className="flex items-center gap-3 px-3 py-2 hover:bg-off cursor-pointer">
+                {usersForRole.map(u => {
+                  const isDupe = (nameCounts.get((u.full_name || "").trim().toLowerCase()) || 0) > 1;
+                  return (
+                  <label key={u.id} className={`flex items-center gap-3 px-3 py-2 hover:bg-off cursor-pointer ${isDupe ? "bg-[#FEF2F2]/40" : ""}`}>
                     <input type="checkbox" checked={pickedUserIds.has(u.id)} onChange={() => togglePicked(u.id)} />
                     <div className="flex-1">
-                      <div className="text-[13px] font-medium">{u.full_name} {u.isAdmin && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#EEF2FF] text-[#4338CA] ml-1">admin</span>}</div>
-                      <div className="text-[11px] text-muted-foreground">{u.email} · {u.department || "—"}</div>
+                      <div className="text-[13px] font-medium flex items-center gap-1.5 flex-wrap">
+                        <span>{u.full_name}</span>
+                        {u.isAdmin && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#EEF2FF] text-[#4338CA]">admin</span>}
+                        {isDupe && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#991B1B]">duplicate name</span>}
+                      </div>
+                      <div className={`text-[11px] ${isDupe ? "text-[#991B1B] font-medium" : "text-muted-foreground"}`}>
+                        {u.email || "no email on file"} · {u.department || "—"}
+                      </div>
                     </div>
                     {u.include_in_round_robin && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#15803D]">RR</span>}
                   </label>
-                ))}
+                  );
+                })}
               </div>
             )}
             <FooterNav onBack={() => setStep(1)} onCancel={onClose} onNext={() => setStep(3)} nextDisabled={pickedUserIds.size === 0} />
           </div>
-        )}
+          );
+        })()}
 
         {/* Step 3: Method */}
         {step === 3 && (() => {
