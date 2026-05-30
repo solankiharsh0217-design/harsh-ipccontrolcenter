@@ -15,7 +15,7 @@ interface Props {
   onTest?: (rule: PostSendRule) => void;
 }
 
-export default function PostSendAutomationRulesSection({ pipelines, stages, templates, onTest }: Props) {
+export default function PostSendAutomationRulesSection({ pipelines, stages, templates, lastRunMap, formatLastRun, onTest }: Props) {
   const { isAdmin } = useAuth();
   const [rules, setRules] = useState<PostSendRule[]>([]);
   const [loading, setLoading] = useState(true);
