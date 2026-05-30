@@ -917,6 +917,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           onConverted={() => { load(); onChanged(); }}
         />
       )}
+      {historyOpen && <ConversionHistoryDrawer leadId={lead.id} onClose={() => setHistoryOpen(false)} />}
     </div>
   );
 }
