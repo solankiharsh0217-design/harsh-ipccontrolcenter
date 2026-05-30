@@ -2532,6 +2532,74 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_hotness_scores: {
+        Row: {
+          avg_attendance_percentage: number
+          current_hotness: string
+          highest_attendance_percentage: number
+          id: string
+          last_attended_at: string | null
+          lead_id: string
+          manual_grade: string | null
+          manual_override: boolean
+          overridden_at: string | null
+          overridden_by: string | null
+          override_reason: string | null
+          score_numeric: number
+          score_reason: Json
+          total_attended_minutes: number
+          total_sessions_attended: number
+          total_webinars_attended: number
+          updated_at: string
+        }
+        Insert: {
+          avg_attendance_percentage?: number
+          current_hotness?: string
+          highest_attendance_percentage?: number
+          id?: string
+          last_attended_at?: string | null
+          lead_id: string
+          manual_grade?: string | null
+          manual_override?: boolean
+          overridden_at?: string | null
+          overridden_by?: string | null
+          override_reason?: string | null
+          score_numeric?: number
+          score_reason?: Json
+          total_attended_minutes?: number
+          total_sessions_attended?: number
+          total_webinars_attended?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_attendance_percentage?: number
+          current_hotness?: string
+          highest_attendance_percentage?: number
+          id?: string
+          last_attended_at?: string | null
+          lead_id?: string
+          manual_grade?: string | null
+          manual_override?: boolean
+          overridden_at?: string | null
+          overridden_by?: string | null
+          override_reason?: string | null
+          score_numeric?: number
+          score_reason?: Json
+          total_attended_minutes?: number
+          total_sessions_attended?: number
+          total_webinars_attended?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_hotness_scores_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_qualifier_sessions: {
         Row: {
           created_at: string
@@ -2576,6 +2644,95 @@ export type Database = {
           zoom_file_name?: string | null
         }
         Relationships: []
+      }
+      lead_session_attendance: {
+        Row: {
+          attendance_grade: string
+          attendance_percentage: number
+          attended_minutes_capped: number
+          attended_minutes_raw: number
+          batch_id: string | null
+          created_at: string
+          first_joined_at: string | null
+          id: string
+          join_count: number
+          last_left_at: string | null
+          lead_id: string
+          metadata_json: Json
+          normalized_email: string | null
+          normalized_phone: string | null
+          raw_identity_key: string | null
+          session_date: string | null
+          session_day: number | null
+          session_duration_minutes: number
+          session_key: string
+          session_name: string | null
+          source: string
+          updated_at: string
+          webinar_id: string | null
+          webinar_name: string | null
+        }
+        Insert: {
+          attendance_grade?: string
+          attendance_percentage?: number
+          attended_minutes_capped?: number
+          attended_minutes_raw?: number
+          batch_id?: string | null
+          created_at?: string
+          first_joined_at?: string | null
+          id?: string
+          join_count?: number
+          last_left_at?: string | null
+          lead_id: string
+          metadata_json?: Json
+          normalized_email?: string | null
+          normalized_phone?: string | null
+          raw_identity_key?: string | null
+          session_date?: string | null
+          session_day?: number | null
+          session_duration_minutes?: number
+          session_key?: string
+          session_name?: string | null
+          source?: string
+          updated_at?: string
+          webinar_id?: string | null
+          webinar_name?: string | null
+        }
+        Update: {
+          attendance_grade?: string
+          attendance_percentage?: number
+          attended_minutes_capped?: number
+          attended_minutes_raw?: number
+          batch_id?: string | null
+          created_at?: string
+          first_joined_at?: string | null
+          id?: string
+          join_count?: number
+          last_left_at?: string | null
+          lead_id?: string
+          metadata_json?: Json
+          normalized_email?: string | null
+          normalized_phone?: string | null
+          raw_identity_key?: string | null
+          session_date?: string | null
+          session_day?: number | null
+          session_duration_minutes?: number
+          session_key?: string
+          session_name?: string | null
+          source?: string
+          updated_at?: string
+          webinar_id?: string | null
+          webinar_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_session_attendance_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lead_tag_assignments: {
         Row: {
@@ -6783,6 +6940,34 @@ export type Database = {
       }
       is_active: { Args: { _user_id: string }; Returns: boolean }
       purge_old_deleted_reports: { Args: never; Returns: Json }
+      recalculate_lead_hotness: {
+        Args: { _lead_id: string }
+        Returns: {
+          avg_attendance_percentage: number
+          current_hotness: string
+          highest_attendance_percentage: number
+          id: string
+          last_attended_at: string | null
+          lead_id: string
+          manual_grade: string | null
+          manual_override: boolean
+          overridden_at: string | null
+          overridden_by: string | null
+          override_reason: string | null
+          score_numeric: number
+          score_reason: Json
+          total_attended_minutes: number
+          total_sessions_attended: number
+          total_webinars_attended: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "lead_hotness_scores"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       search_students: {
         Args: { _limit?: number; _q: string }
         Returns: {
@@ -6796,6 +6981,59 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       students_count: { Args: never; Returns: number }
+      upsert_lead_session_attendance: {
+        Args: {
+          _attended_minutes_raw: number
+          _batch_id: string
+          _first_joined_at: string
+          _join_count: number
+          _last_left_at: string
+          _lead_id: string
+          _metadata?: Json
+          _normalized_email: string
+          _normalized_phone: string
+          _raw_identity_key: string
+          _session_date: string
+          _session_day: number
+          _session_duration_minutes: number
+          _session_name: string
+          _source: string
+          _webinar_id: string
+          _webinar_name: string
+        }
+        Returns: {
+          attendance_grade: string
+          attendance_percentage: number
+          attended_minutes_capped: number
+          attended_minutes_raw: number
+          batch_id: string | null
+          created_at: string
+          first_joined_at: string | null
+          id: string
+          join_count: number
+          last_left_at: string | null
+          lead_id: string
+          metadata_json: Json
+          normalized_email: string | null
+          normalized_phone: string | null
+          raw_identity_key: string | null
+          session_date: string | null
+          session_day: number | null
+          session_duration_minutes: number
+          session_key: string
+          session_name: string | null
+          source: string
+          updated_at: string
+          webinar_id: string | null
+          webinar_name: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "lead_session_attendance"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       activity_channel:
