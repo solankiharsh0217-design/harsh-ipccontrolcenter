@@ -10,10 +10,12 @@ interface Props {
   pipelines: Pipeline[];
   stages: Stage[];
   templates: Template[];
+  lastRunMap?: Record<string, { status: string; created_at: string }>;
+  formatLastRun?: (last: { status: string; created_at: string } | undefined) => string | null;
   onTest?: (rule: PostSendRule) => void;
 }
 
-export default function PostSendAutomationRulesSection({ pipelines, stages, templates, onTest }: Props) {
+export default function PostSendAutomationRulesSection({ pipelines, stages, templates, lastRunMap, formatLastRun, onTest }: Props) {
   const { isAdmin } = useAuth();
   const [rules, setRules] = useState<PostSendRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,7 @@ export default function PostSendAutomationRulesSection({ pipelines, stages, temp
                 }
                 active={r.is_active}
                 onToggleActive={() => toggleActive(r)}
+                lastRun={formatLastRun && lastRunMap ? formatLastRun(lastRunMap[r.id!]) : null}
                 actions={[
                   { label: "Edit", onClick: () => setWizard({ open: true, initial: r }) },
                   { label: "Duplicate", onClick: () => duplicate(r) },
