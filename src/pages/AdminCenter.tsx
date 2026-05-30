@@ -57,6 +57,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Lead Rescue Search",
+      desc: "Find any lead — including converted, hidden, archived, or unlinked — across CRM and Paid Pipeline. Restore visibility or repair broken links.",
+      cta: "Open Lead Rescue",
+      to: "/admin-center/lead-rescue",
+      show: isAdmin,
+    },
+    {
       title: "Assignment Eligibility Setup",
       desc: "Bulk enable or disable lead assignment eligibility for multiple team members at once.",
       cta: "Open Eligibility Setup",
