@@ -23,6 +23,7 @@ import CodeOfConductCard from "@/components/crm/CodeOfConductCard";
 import ConvertToPaidModal from "@/components/crm/ConvertToPaidModal";
 import ConversionHistoryDrawer from "@/components/crm/ConversionHistoryDrawer";
 import { loadActiveConversionRules, isConvertedStage, DEFAULT_TRIGGER_STAGES, type ConversionRule } from "@/lib/conversionRules";
+import SessionAttendanceTimeline from "@/components/crm/SessionAttendanceTimeline";
 
 
 interface Props {
@@ -626,6 +627,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           programName={lead.program_name}
           dealValue={lead.deal_value}
         />
+
+        <SessionAttendanceTimeline leadId={lead.id} isAdmin={isAdmin} />
 
 
 
