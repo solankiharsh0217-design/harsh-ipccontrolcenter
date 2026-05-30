@@ -1,83 +1,39 @@
-# Lead Qualifier Dedup + Batch Cleanup — Implementation Plan
+## Unpaid Sales Lead → Paid Onboarding Conversion
 
-This is a large, cross-cutting change. I'll deliver it in 4 phased PRs so we can verify each phase before moving on, rather than a single massive change that risks breaking the CRM, Paid Pipeline, CoC, invoices, or follow-ups (all explicitly off-limits).
+This is a large request (19 parts). To ship safely without breaking existing flows (invoices, CoC, payments, qualifier dedupe, ROAS), I'll deliver it in **3 phases**. Please confirm — or tell me to skip phases.
 
-I want your sign-off on this plan and the phasing before I start writing code.
+### What already exists (no rebuild needed)
+- `leads.paid_pipeline_lead_id` link and "Open in Paid Pipeline" button in the lead drawer.
+- `SendToPaidPipelineDrawer` — but it's wired to the **ROAS attribution session** flow, not to a single CRM lead. We'll build a new, lead-centric conversion modal that reuses the same `paid_pipeline_leads` / `paid_pipeline_batches` tables.
+- `recomputePaidLead()` for totals.
 
-## Out of scope (will not touch)
-Invoices, Code of Conduct, payments, follow-ups (preserved only), Team Directory schema, Operations CRM, existing CRM stage rules, Paid Pipeline finance.
+### Phase 1 — Core conversion (ship first)
+Covers Parts 1, 3, 4, 5, 6, 7, 9, 12 (minimal), 16, 18.
 
----
+1. **DB migration** — new fields on `leads`: `conversion_status` (`not_converted` | `converted` | `linked_to_paid`), `converted_at`, `converted_by`, `converted_to_paid_pipeline_lead_id`, `hide_from_sales_workload bool`. New table `crm_lead_conversions` for audit history.
+2. **Lead drawer banner** — when stage name is in `{Conversion Successful, Payment Confirmed, Closed Won}` and lead is not yet linked to a paid buyer, show banner with **"Convert to Paid Onboarding"** primary CTA. If already linked → banner becomes **"Converted"** + Open Paid buttons.
+3. **`ConvertToPaidModal`** new component:
+   - Identity match query against `paid_pipeline_leads` by normalized email + last-10-digit phone (active + archived).
+   - If match → show match card with "Link Existing" (primary) or "Create New Anyway" (admin only).
+   - If no match → form for batch (pick existing or new), product, deal value, token amount, payment mode/date, owner.
+   - "Convert" action: create or link `paid_pipeline_leads` row, set `leads.paid_pipeline_lead_id` + `conversion_status='converted'`, insert payment row if token entered, call `recomputePaidLead`, write `crm_lead_conversions` audit row, toast success.
+4. **Converted chip** on Kanban card + drawer header.
+5. **Audit logs** via existing `logActivity`.
 
-## Phase 1 — Identity normalization + Lead Qualifier dedup (Parts 1–8, 20, 21)
+### Phase 2 — Admin rules + workload cleanup (Parts 2, 8, 10, 13, 14, 17)
+- Admin Center → CRM Settings → **Conversion Rules** panel (which stages trigger banner; default destination batch/owner; auto-hide from sales workload; default owner policy).
+- Kanban filter: Show / Hide / Only converted.
+- Follow-up handling choice in modal.
+- Permission gates (admin vs sales).
 
-**Goal:** Stop raw attendee rows from becoming leads. Show a preflight with real counts before Send to CRM.
+### Phase 3 — Polish (Parts 11, 15)
+- Standalone "Merge / Link Lead" tool for legacy duplicates already in both pipelines.
+- Verify CoC + Invoice panels light up automatically post-conversion (they already key off `paid_pipeline_lead_id`, so likely no code change — just QA).
 
-1. New shared module `src/lib/identity.ts`
-   - `normalizeEmail`, `normalizePhone` (last 10 digits), `normalizeName`, `identityKey`, `isWeakIdentity`, `flagSuspiciousEmailDomain` (warn-only).
-2. Refactor `src/lib/qualifier.ts` to use these helpers everywhere.
-3. New `src/lib/qualifier/aggregate.ts`
-   - Aggregates attendee rows by `identityKey`: `total_join_rows`, `session_count`, `first_join`, `last_leave`, `total_raw_minutes`, `capped_minutes` (per-day cap = configured session duration), `attended_days`, multi-day support.
-   - Registration dedup using "best row" rule (email+phone > email > phone > most complete > latest).
-   - True absentees = registered − attended identities. Unmatched attendees listed separately, default ignored.
-4. New `src/components/qualifier/PreflightDialog.tsx`
-   - Shown before "Send to CRM" in `LeadQualifier.tsx`.
-   - Sections: Registration (raw/unique/dups), Attendance (raw/unique/merged + top duplicates), Qualification (hot/warm/cold/absent/unmatched/final), CRM matches (by email/phone), Conflicts.
-   - Collapsible "Duplicate Breakdown" table.
-5. `Send to CRM` only sends unique qualified identities; uses existing duplicate policy (`skip` default, never `move`).
-6. Performance: aggregation runs in a Web Worker (`src/workers/qualifierDedup.worker.ts`) with progress events for 400–1,200 row sheets.
+### Technical notes
+- New table `crm_lead_conversions` will have explicit GRANTs (authenticated + service_role) and RLS: insert/select by active users, no anon.
+- New `leads` columns added with safe defaults; existing rows get `conversion_status='not_converted'` (or `linked_to_paid` where `paid_pipeline_lead_id is not null`) via the migration.
+- No changes to `invoices`, `code_of_conduct_*`, `paid_pipeline_payments` finance compute, `lead_qualifier_*`, ROAS, Operations CRM, Team.
 
-**QA targets from your message:** 402 registration rows clean; 1,249 attendee rows → ~419 unique; final CRM count = deduped count.
-
----
-
-## Phase 2 — Database protection + audit logging (Parts 9, 18)
-
-Single migration:
-- `webinar_imports` (id, webinar_id, source_type, raw/unique/duplicate/final counts, created_by, metadata).
-- `webinar_import_people` (import_id, identity_key, normalized_email/phone, name, raw_row_count, total_raw_minutes, capped_minutes, grade, metadata) with `UNIQUE (import_id, identity_key)`.
-- Reuse existing `activity_logs` table for new event types listed in Part 18 (no schema change there).
-- GRANTs + RLS: admin full, authenticated read-own-import.
-
----
-
-## Phase 3 — Existing batch repair + safe delete/archive (Parts 10–12, 16, 19)
-
-1. New `src/lib/crmBatchRepair.ts`
-   - `dryRunRepair(batchId)` → groups by normalized email/phone, picks "best record" (paid link > invoice/CoC/follow-up > assigned owner > latest activity > most complete), returns plan.
-   - `applyRepair(batchId, plan)` → merges safe data, archives losers (hard-delete only if zero linked history: no paid pipeline, payment, invoice, CoC, follow-up, activity log).
-2. `BatchRepairModal.tsx` — three-dot menu entry "Deduplicate / Repair Batch" on Calling CRM batches. Shows dry-run table, requires confirmation, shows result report + CSV download.
-3. Batch archive/delete/restore actions:
-   - Archive Batch: sets flag, hides from sales-exec views (RLS already respects `assigned_agent_id`; we add `archived_at` filter to batch queries).
-   - Delete Batch: typed `DELETE BATCH` confirmation, blocked if protected links exist → prompts archive.
-4. Recompute batch counts after every cleanup op.
-
----
-
-## Phase 4 — De-assign controls + team-member cleanup (Parts 13–15, 17)
-
-1. Bulk "De-assign" in Calling CRM selection bar (sets `assigned_agent_id = null`, syncs paid pipeline owner via existing trigger `sync_crm_owner_to_paid_pipeline`).
-2. Batch action: "De-assign entire batch" / "De-assign all from member in batch".
-3. Team Directory member drawer: new "Assigned CRM Leads" section with pipeline/batch/stage/grade/source filters and de-assign / reassign-all actions.
-4. "Remove from assigned user" single-lead action (de-assigns, preserves CRM data).
-
----
-
-## Technical details
-
-- **Files created:** `src/lib/identity.ts`, `src/lib/qualifier/aggregate.ts`, `src/lib/crmBatchRepair.ts`, `src/components/qualifier/PreflightDialog.tsx`, `src/components/qualifier/DuplicateBreakdownTable.tsx`, `src/components/crm/BatchRepairModal.tsx`, `src/components/crm/BatchArchiveModal.tsx`, `src/components/team/AssignedLeadsManager.tsx`, `src/workers/qualifierDedup.worker.ts`.
-- **Files edited:** `src/pages/LeadQualifier.tsx`, `src/lib/qualifier.ts`, `src/pages/Crm.tsx`, `src/components/AssignModal.tsx`, `src/components/crm/MoveBatchModal.tsx`, `src/pages/Team.tsx`.
-- **Migrations:** one for `webinar_imports` / `webinar_import_people` + GRANTs + RLS + audit event-type whitelist update; one for `paid_pipeline_batches.archived_at` if missing (check first).
-- **No edits to:** `src/integrations/supabase/*`, invoice/CoC/payment modules, Operations CRM, finance triggers.
-
-## Risks
-- Web Worker bundling with Vite — will verify with a smoke test.
-- "Best record" merge logic is the most error-prone step; Phase 3 ships with a mandatory dry-run + CSV diff, no auto-apply.
-- Hard delete is gated; default everywhere is archive.
-
----
-
-## Two questions before I start
-
-1. **Phasing OK?** Can I ship Phase 1 (the actual root cause — dedup before CRM) first today, then 2/3/4 in follow-ups? Or do you want everything in one shot?
-2. **For the existing 681-lead batch:** want me to run the dry-run repair as part of Phase 3 and share the report before applying, or auto-apply with archive (no hard delete) since it's clearly a duplicate-heavy import?
+### Question before I start
+**Should I proceed with Phase 1 only first** (so you can test the core flow on Zuber nadaf), then I do Phase 2 and 3 in follow-up turns? Or do you want all 3 phases in one go?
