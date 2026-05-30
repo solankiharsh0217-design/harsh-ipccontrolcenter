@@ -444,6 +444,11 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button onClick={() => setHistoryOpen(true)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] border border-[#86EFAC] bg-white hover:bg-[#F0FDF4] text-[#14532D]">View Conversion History</button>
+                    {(lead as any).converted_to_crm_lead_id && (
+                      <Link to={`/crm?lead=${(lead as any).converted_to_crm_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-[#86EFAC] bg-white hover:bg-[#F0FDF4] text-[#14532D]">
+                        <ExternalLink className="w-3 h-3" /> Open Paid Onboarding CRM
+                      </Link>
+                    )}
                     {(lead as any).paid_pipeline_lead_id && (
                       <Link to={`/paid-pipeline?lead=${(lead as any).paid_pipeline_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#16A34A] text-white hover:opacity-90">
                         <ExternalLink className="w-3 h-3" /> Open Paid Buyer
