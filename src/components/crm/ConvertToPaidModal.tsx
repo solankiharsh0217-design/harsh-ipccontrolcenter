@@ -181,7 +181,8 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
     }
     setSubmitting(true);
     try {
-      // Create paid buyer
+      // Create paid buyer (do NOT point crm_lead_id at the source unpaid lead;
+      // ensurePaidPipelineCrmLead will create the dedicated Paid Onboarding card).
       const { data: paidRow, error: insErr } = await supabase
         .from("paid_pipeline_leads")
         .insert({
@@ -199,7 +200,7 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
           pipeline_stage: tokenAmount > 0 ? "Token Paid" : "Payment Follow-Up Pending",
           assigned_sales_executive: ownerId || null,
           source_webinar: lead.webinar_source || null,
-          crm_lead_id: lead.id,
+          source_unpaid_lead_id: lead.id,
           created_from_attribution: false,
         } as any)
         .select("id")
@@ -221,7 +222,7 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
         await recomputePaidLead(paidRow.id);
       }
 
-      // Update CRM lead
+      // Mark source unpaid lead as converted with link to paid buyer.
       await supabase
         .from("leads")
         .update({
@@ -232,6 +233,15 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
           hide_from_sales_workload: hideFromSales,
         } as any)
         .eq("id", lead.id);
+
+      // Create / link the Paid Onboarding CRM card.
+      const ensured = await ensurePaidPipelineCrmLead(paidRow.id, { sourceUnpaidLeadId: lead.id });
+      if (ensured.ok && ensured.crmLeadId) {
+        await supabase
+          .from("leads")
+          .update({ converted_to_crm_lead_id: ensured.crmLeadId } as any)
+          .eq("id", lead.id);
+      }
 
       // Audit
       await supabase.from("crm_lead_conversions").insert({
