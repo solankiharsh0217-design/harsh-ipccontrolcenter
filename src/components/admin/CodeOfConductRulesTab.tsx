@@ -4,10 +4,31 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import RuleCard from "./coc/RuleCard";
 import StageTriggerWizard, { type Pipeline, type Stage, type Template, type StageTriggerRule } from "./coc/StageTriggerWizard";
+import AfterSignedWizard from "./coc/AfterSignedWizard";
 import PostSendAutomationRulesSection from "./PostSendAutomationRulesSection";
 import RuleTestModal from "./coc/RuleTestModal";
 
 interface Tag { id: string; name: string; color: string | null }
+
+type LastRunMap = Record<string, { status: string; created_at: string }>;
+
+function relTime(iso: string): string {
+  const t = new Date(iso).getTime();
+  const diff = Date.now() - t;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+function formatLastRun(last: { status: string; created_at: string } | undefined): string | null {
+  if (!last) return null;
+  const label = last.status === "applied" ? "Applied" : last.status === "skipped" ? "Skipped" : last.status === "failed" ? "Failed" : last.status;
+  return `${label} · ${relTime(last.created_at)}`;
+}
 
 export default function CodeOfConductRulesTab() {
   const { isAdmin } = useAuth();
@@ -16,24 +37,33 @@ export default function CodeOfConductRulesTab() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [lastRunMap, setLastRunMap] = useState<LastRunMap>({});
   const [loading, setLoading] = useState(true);
   const [wizard, setWizard] = useState<{ open: boolean; initial: Partial<StageTriggerRule> | null }>({ open: false, initial: null });
+  const [signedWizard, setSignedWizard] = useState<{ open: boolean; initial: Partial<StageTriggerRule> | null }>({ open: false, initial: null });
   const [testing, setTesting] = useState<{ kind: "trigger" | "post_send"; rule: any } | null>(null);
 
   const load = async () => {
     setLoading(true);
-    const [{ data: r }, { data: p }, { data: s }, { data: t }, { data: tg }] = await Promise.all([
+    const [{ data: r }, { data: p }, { data: s }, { data: t }, { data: tg }, { data: ev }] = await Promise.all([
       (supabase as any).from("code_of_conduct_rules").select("*").order("created_at", { ascending: false }),
       supabase.from("pipelines").select("id,name,type").order("position", { ascending: true }),
       supabase.from("stages").select("id,name,pipeline_id,is_active,position").order("position", { ascending: true }),
       (supabase as any).from("code_of_conduct_templates").select("id,name,version").eq("is_active", true).order("created_at", { ascending: false }),
       supabase.from("tags").select("id,name,color").eq("is_deleted", false).eq("is_active", true).order("name"),
+      (supabase as any).from("code_of_conduct_automation_events").select("rule_id,status,created_at").order("created_at", { ascending: false }).limit(500),
     ]);
     setRules((r || []) as StageTriggerRule[]);
     setPipelines((p || []) as Pipeline[]);
     setStages((s || []) as Stage[]);
     setTemplates((t || []) as Template[]);
     setTags((tg || []) as Tag[]);
+    const m: LastRunMap = {};
+    for (const row of (ev || []) as any[]) {
+      if (!row?.rule_id) continue;
+      if (!m[row.rule_id]) m[row.rule_id] = { status: row.status, created_at: row.created_at };
+    }
+    setLastRunMap(m);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -104,8 +134,10 @@ export default function CodeOfConductRulesTab() {
                   }
                   active={r.is_active}
                   onToggleActive={() => toggleActive(r)}
+                  lastRun={formatLastRun(lastRunMap[r.id!])}
                   actions={[
                     { label: "Edit", onClick: () => setWizard({ open: true, initial: r }) },
+                    { label: "Configure after-signed", onClick: () => setSignedWizard({ open: true, initial: r }) },
                     { label: "Duplicate", onClick: () => duplicate(r) },
                     { label: "Test rule", onClick: () => setTesting({ kind: "trigger", rule: r }) },
                     { label: r.is_active ? "Disable" : "Enable", onClick: () => toggleActive(r) },
@@ -118,13 +150,17 @@ export default function CodeOfConductRulesTab() {
         )}
       </Section>
 
-      {/* Section 2: after signed */}
+      {/* Section 2: after signed — dedicated wizard */}
       <Section
         title="What happens after member signs?"
-        description="After-signed actions are configured per trigger rule (apply tag, move stage, send notifications)."
+        description="Configure tag, stage move, and notifications that fire after a member signs the Code of Conduct."
+        actionLabel="+ Configure after-signed"
+        actionDisabled={rules.length === 0}
+        actionHint={rules.length === 0 ? "Create a trigger rule first" : undefined}
+        onAction={() => setSignedWizard({ open: true, initial: null })}
       >
         {sections.afterSigned.length === 0 ? (
-          <Empty message="No after-signed actions configured yet. Edit a trigger rule to add tag/stage actions." />
+          <Empty message="No after-signed actions configured yet." />
         ) : (
           <div className="space-y-3">
             {sections.afterSigned.map((r) => {
@@ -143,8 +179,10 @@ export default function CodeOfConductRulesTab() {
                   }
                   active={r.is_active}
                   onToggleActive={() => toggleActive(r)}
+                  lastRun={formatLastRun(lastRunMap[r.id!])}
                   actions={[
-                    { label: "Edit", onClick: () => setWizard({ open: true, initial: r }) },
+                    { label: "Edit after-signed", onClick: () => setSignedWizard({ open: true, initial: r }) },
+                    { label: "Edit trigger rule", onClick: () => setWizard({ open: true, initial: r }) },
                   ]}
                 />
               );
@@ -154,7 +192,7 @@ export default function CodeOfConductRulesTab() {
       </Section>
 
       {/* Section 3: post-send */}
-      <PostSendAutomationRulesSection pipelines={pipelines} stages={stages} templates={templates} onTest={(rule) => setTesting({ kind: "post_send", rule })} />
+      <PostSendAutomationRulesSection pipelines={pipelines} stages={stages} templates={templates} lastRunMap={lastRunMap} formatLastRun={formatLastRun} onTest={(rule) => setTesting({ kind: "post_send", rule })} />
 
       {wizard.open && (
         <StageTriggerWizard
@@ -165,6 +203,18 @@ export default function CodeOfConductRulesTab() {
           pipelines={pipelines}
           stages={stages}
           templates={templates}
+          tagNameById={tagNameById}
+        />
+      )}
+      {signedWizard.open && (
+        <AfterSignedWizard
+          open={signedWizard.open}
+          onClose={() => setSignedWizard({ open: false, initial: null })}
+          onSaved={load}
+          initial={signedWizard.initial}
+          rules={rules}
+          pipelines={pipelines}
+          stages={stages}
           tagNameById={tagNameById}
         />
       )}
