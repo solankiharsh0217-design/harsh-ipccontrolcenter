@@ -87,6 +87,7 @@ export default function PostSendAutomationRulesSection({ pipelines, stages, temp
                 }
                 active={r.is_active}
                 onToggleActive={() => toggleActive(r)}
+                lastRun={formatLastRun && lastRunMap ? formatLastRun(lastRunMap[r.id!]) : null}
                 actions={[
                   { label: "Edit", onClick: () => setWizard({ open: true, initial: r }) },
                   { label: "Duplicate", onClick: () => duplicate(r) },
