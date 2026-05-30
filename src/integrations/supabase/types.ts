@@ -1417,6 +1417,94 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_lead_conversions: {
+        Row: {
+          assigned_owner_id: string | null
+          balance_pending: number | null
+          conversion_type: string
+          created_at: string
+          created_by: string | null
+          deal_value: number | null
+          destination_crm_lead_id: string | null
+          destination_pipeline_id: string | null
+          destination_stage_id: string | null
+          id: string
+          metadata_json: Json | null
+          paid_pipeline_lead_id: string | null
+          program_name: string | null
+          source_lead_id: string
+          source_pipeline_id: string | null
+          source_stage_id: string | null
+          status: string
+          token_amount: number | null
+          total_collected: number | null
+        }
+        Insert: {
+          assigned_owner_id?: string | null
+          balance_pending?: number | null
+          conversion_type: string
+          created_at?: string
+          created_by?: string | null
+          deal_value?: number | null
+          destination_crm_lead_id?: string | null
+          destination_pipeline_id?: string | null
+          destination_stage_id?: string | null
+          id?: string
+          metadata_json?: Json | null
+          paid_pipeline_lead_id?: string | null
+          program_name?: string | null
+          source_lead_id: string
+          source_pipeline_id?: string | null
+          source_stage_id?: string | null
+          status?: string
+          token_amount?: number | null
+          total_collected?: number | null
+        }
+        Update: {
+          assigned_owner_id?: string | null
+          balance_pending?: number | null
+          conversion_type?: string
+          created_at?: string
+          created_by?: string | null
+          deal_value?: number | null
+          destination_crm_lead_id?: string | null
+          destination_pipeline_id?: string | null
+          destination_stage_id?: string | null
+          id?: string
+          metadata_json?: Json | null
+          paid_pipeline_lead_id?: string | null
+          program_name?: string | null
+          source_lead_id?: string
+          source_pipeline_id?: string | null
+          source_stage_id?: string | null
+          status?: string
+          token_amount?: number | null
+          total_collected?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_lead_conversions_destination_crm_lead_id_fkey"
+            columns: ["destination_crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_conversions_paid_pipeline_lead_id_fkey"
+            columns: ["paid_pipeline_lead_id"]
+            isOneToOne: false
+            referencedRelation: "paid_pipeline_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_lead_conversions_source_lead_id_fkey"
+            columns: ["source_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_custom_metrics: {
         Row: {
           aggregation_method: string
@@ -2450,6 +2538,9 @@ export type Database = {
           code_of_conduct_sent_at: string | null
           code_of_conduct_signed_at: string | null
           code_of_conduct_status: string | null
+          conversion_status: string
+          converted_at: string | null
+          converted_by: string | null
           country: string | null
           created_at: string
           deal_value: number
@@ -2460,6 +2551,7 @@ export type Database = {
           first_join_time: string | null
           full_name: string | null
           grade: Database["public"]["Enums"]["lead_grade"]
+          hide_from_sales_workload: boolean
           id: string
           is_super_hot: boolean
           lead_source_type: string | null
@@ -2489,6 +2581,9 @@ export type Database = {
           code_of_conduct_sent_at?: string | null
           code_of_conduct_signed_at?: string | null
           code_of_conduct_status?: string | null
+          conversion_status?: string
+          converted_at?: string | null
+          converted_by?: string | null
           country?: string | null
           created_at?: string
           deal_value?: number
@@ -2499,6 +2594,7 @@ export type Database = {
           first_join_time?: string | null
           full_name?: string | null
           grade?: Database["public"]["Enums"]["lead_grade"]
+          hide_from_sales_workload?: boolean
           id?: string
           is_super_hot?: boolean
           lead_source_type?: string | null
@@ -2528,6 +2624,9 @@ export type Database = {
           code_of_conduct_sent_at?: string | null
           code_of_conduct_signed_at?: string | null
           code_of_conduct_status?: string | null
+          conversion_status?: string
+          converted_at?: string | null
+          converted_by?: string | null
           country?: string | null
           created_at?: string
           deal_value?: number
@@ -2538,6 +2637,7 @@ export type Database = {
           first_join_time?: string | null
           full_name?: string | null
           grade?: Database["public"]["Enums"]["lead_grade"]
+          hide_from_sales_workload?: boolean
           id?: string
           is_super_hot?: boolean
           lead_source_type?: string | null
