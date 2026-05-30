@@ -628,6 +628,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           dealValue={lead.deal_value}
         />
 
+        <SessionAttendanceTimeline leadId={lead.id} isAdmin={isAdmin} />
+
 
 
         {/* Next Follow-up — high-visibility, daily-use card (moved up) */}
