@@ -23,6 +23,7 @@ import CodeOfConductCard from "@/components/crm/CodeOfConductCard";
 import ConvertToPaidModal from "@/components/crm/ConvertToPaidModal";
 import ConversionHistoryDrawer from "@/components/crm/ConversionHistoryDrawer";
 import { loadActiveConversionRules, isConvertedStage, DEFAULT_TRIGGER_STAGES, type ConversionRule } from "@/lib/conversionRules";
+import SessionAttendanceTimeline from "@/components/crm/SessionAttendanceTimeline";
 
 
 interface Props {
