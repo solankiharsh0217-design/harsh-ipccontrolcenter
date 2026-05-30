@@ -860,6 +860,14 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           onSaved={handlePaymentSaved}
         />
       )}
+      {convertOpen && (
+        <ConvertToPaidModal
+          lead={lead}
+          agents={agents}
+          onClose={() => setConvertOpen(false)}
+          onConverted={() => { load(); onChanged(); }}
+        />
+      )}
     </div>
   );
 }
