@@ -10,6 +10,8 @@ interface Props {
   pipelines: Pipeline[];
   stages: Stage[];
   templates: Template[];
+  lastRunMap?: Record<string, { status: string; created_at: string }>;
+  formatLastRun?: (last: { status: string; created_at: string } | undefined) => string | null;
   onTest?: (rule: PostSendRule) => void;
 }
 
