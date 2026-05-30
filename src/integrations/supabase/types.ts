@@ -1417,6 +1417,91 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_conversion_rules: {
+        Row: {
+          create_paid_buyer: boolean
+          created_at: string
+          created_by: string | null
+          deassign_original: boolean
+          default_owner_id: string | null
+          destination_pipeline_id: string | null
+          destination_stage_id: string | null
+          followup_default: string
+          hide_from_sales_workload: boolean
+          id: string
+          is_active: boolean
+          name: string
+          owner_policy: string
+          source_pipeline_id: string | null
+          tag_after_conversion: string | null
+          trigger_stage_ids: string[]
+          trigger_stage_names: string[]
+          updated_at: string
+        }
+        Insert: {
+          create_paid_buyer?: boolean
+          created_at?: string
+          created_by?: string | null
+          deassign_original?: boolean
+          default_owner_id?: string | null
+          destination_pipeline_id?: string | null
+          destination_stage_id?: string | null
+          followup_default?: string
+          hide_from_sales_workload?: boolean
+          id?: string
+          is_active?: boolean
+          name?: string
+          owner_policy?: string
+          source_pipeline_id?: string | null
+          tag_after_conversion?: string | null
+          trigger_stage_ids?: string[]
+          trigger_stage_names?: string[]
+          updated_at?: string
+        }
+        Update: {
+          create_paid_buyer?: boolean
+          created_at?: string
+          created_by?: string | null
+          deassign_original?: boolean
+          default_owner_id?: string | null
+          destination_pipeline_id?: string | null
+          destination_stage_id?: string | null
+          followup_default?: string
+          hide_from_sales_workload?: boolean
+          id?: string
+          is_active?: boolean
+          name?: string
+          owner_policy?: string
+          source_pipeline_id?: string | null
+          tag_after_conversion?: string | null
+          trigger_stage_ids?: string[]
+          trigger_stage_names?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_conversion_rules_destination_pipeline_id_fkey"
+            columns: ["destination_pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_conversion_rules_destination_stage_id_fkey"
+            columns: ["destination_stage_id"]
+            isOneToOne: false
+            referencedRelation: "stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_conversion_rules_source_pipeline_id_fkey"
+            columns: ["source_pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_lead_conversions: {
         Row: {
           assigned_owner_id: string | null
