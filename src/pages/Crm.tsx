@@ -85,6 +85,7 @@ export default function Crm() {
   const [assignScope, setAssignScope] = useState<"unassigned"|"all">("unassigned");
   const [assignBusy, setAssignBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [convertedFilter, setConvertedFilter] = useState<"hide" | "show" | "only">("hide");
   const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false);
   const [bulkArchiveBusy, setBulkArchiveBusy] = useState(false);
   const [archiveBatchTarget, setArchiveBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[]; activeCount: number } | null>(null);
