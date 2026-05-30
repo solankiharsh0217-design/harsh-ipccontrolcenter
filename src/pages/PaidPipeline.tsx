@@ -30,6 +30,7 @@ import { stageChip } from "@/lib/stageColors";
 import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
 import CrmStagePicker, { type CrmStagePickerStage } from "@/components/crm/CrmStagePicker";
 import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
+import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 
 type Lead = {
   id: string;
