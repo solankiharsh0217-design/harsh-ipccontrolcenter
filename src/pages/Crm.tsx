@@ -85,6 +85,7 @@ export default function Crm() {
   const [assignScope, setAssignScope] = useState<"unassigned"|"all">("unassigned");
   const [assignBusy, setAssignBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [convertedFilter, setConvertedFilter] = useState<"hide" | "show" | "only">("hide");
   const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false);
   const [bulkArchiveBusy, setBulkArchiveBusy] = useState(false);
   const [archiveBatchTarget, setArchiveBatchTarget] = useState<{ name: string; date: string | null; pipelineId: string | null; leadIds: string[]; activeCount: number } | null>(null);
@@ -314,6 +315,12 @@ export default function Crm() {
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at);
+    if (convertedFilter !== "show") {
+      list = list.filter((l: any) => {
+        const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
+        return convertedFilter === "only" ? isConv : !isConv;
+      });
+    }
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
     if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
     if (tagFilter !== "all") list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => t.id === tagFilter));
@@ -326,7 +333,7 @@ export default function Crm() {
       return hay.includes(q);
     });
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived]);
+  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
@@ -772,6 +779,11 @@ export default function Crm() {
                 <option value="hot">Hot</option>
                 <option value="warm">Warm</option>
                 <option value="cold">Cold</option>
+              </select>
+              <select className="ipc-input !h-9 !text-xs" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)} title="Converted leads">
+                <option value="hide">Hide converted</option>
+                <option value="show">Show converted</option>
+                <option value="only">Converted only</option>
               </select>
               <MoreFiltersMenu
                 tagFilter={
@@ -1351,6 +1363,9 @@ export default function Crm() {
                                 <div className="flex items-center justify-between mt-2 gap-2">
                                   <div className="flex items-center gap-1 flex-wrap">
                                     <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
+                                    {((l as any).paid_pipeline_lead_id || (l as any).conversion_status === "converted" || (l as any).conversion_status === "linked_to_paid") && (
+                                      <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-medium border bg-emerald-50 text-emerald-700 border-emerald-200">{(l as any).paid_pipeline_lead_id ? "Paid Linked" : "Converted"}</span>
+                                    )}
                                     {(() => {
                                       const cs = (l as any).code_of_conduct_status as string | null;
                                       if (!cs) return null;
