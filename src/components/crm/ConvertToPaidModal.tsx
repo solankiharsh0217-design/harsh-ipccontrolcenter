@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { X, AlertTriangle, CheckCircle2, Link2, Plus } from "lucide-react";
 import { recomputePaidLead } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
+import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import type { Lead } from "@/lib/crmTypes";
 
 interface Props {
