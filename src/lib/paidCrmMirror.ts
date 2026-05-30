@@ -59,7 +59,7 @@ export async function ensurePaidPipelineCrmLead(paidPipelineLeadId: string): Pro
         if (Object.keys(patch).length === 0) {
           return { ok: true, crmLeadId: (lead as any).id, action: "already_linked", message: "Already linked correctly" };
         }
-        await supabase.from("leads").update(patch).eq("id", (lead as any).id);
+        await supabase.from("leads").update(patch as any).eq("id", (lead as any).id);
         logActivity({
           module_key: "paid_pipeline",
           action_type: "paid_pipeline_crm_visibility_repaired",
@@ -104,7 +104,7 @@ export async function ensurePaidPipelineCrmLead(paidPipelineLeadId: string): Pro
         archived_at: null,
         deleted_at: null,
       };
-      await supabase.from("leads").update(patch).eq("id", match.id);
+      await supabase.from("leads").update(patch as any).eq("id", match.id);
       await supabase.from("paid_pipeline_leads").update({ crm_lead_id: match.id } as any).eq("id", paidPipelineLeadId);
       logActivity({
         module_key: "paid_pipeline",
