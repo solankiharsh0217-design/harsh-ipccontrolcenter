@@ -128,6 +128,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   };
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [convRules, setConvRules] = useState<ConversionRule[]>([]);
   const [opsRules, setOpsRules] = useState<HandoffRule[]>([]);
   const [extraOpen, setExtraOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
