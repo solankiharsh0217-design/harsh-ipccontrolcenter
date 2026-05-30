@@ -69,19 +69,28 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     if (!name) { toast.error("Name is required"); return; }
     setSavingEdit(true);
     try {
-      // Pre-check duplicate email on another lead — gives a friendlier error than the unique constraint.
+      // Pre-check duplicate email on another lead. If the conflict is only with an archived
+      // lead, auto-release the email from the archived row so the active lead can claim it.
       if (email && email !== lead.email) {
-        const { data: dup } = await supabase
+        const { data: dups } = await supabase
           .from("leads")
-          .select("id, full_name, batch_id")
+          .select("id, full_name, archived_at")
           .eq("email", email)
-          .neq("id", lead.id)
-          .limit(1)
-          .maybeSingle();
-        if (dup) {
-          toast.error(`Email already used by another lead: ${(dup as any).full_name || "(no name)"}. Use a different email or merge the two leads.`);
+          .neq("id", lead.id);
+        const conflicts = (dups || []) as any[];
+        const active = conflicts.filter((d) => !d.archived_at);
+        const archived = conflicts.filter((d) => !!d.archived_at);
+        if (active.length > 0) {
+          toast.error(`Email already used by another active lead: ${active[0].full_name || "(no name)"}. Use a different email or merge the two leads.`);
           setSavingEdit(false);
           return;
+        }
+        if (archived.length > 0) {
+          // Null out email on archived duplicates so the active lead can take it.
+          const ids = archived.map((d) => d.id);
+          const { error: rErr } = await supabase.from("leads").update({ email: null }).in("id", ids);
+          if (rErr) throw rErr;
+          toast.message(`Released email from ${archived.length} archived lead${archived.length > 1 ? "s" : ""}.`);
         }
       }
       const before = { full_name: lead.full_name, email: lead.email, phone: lead.phone };
