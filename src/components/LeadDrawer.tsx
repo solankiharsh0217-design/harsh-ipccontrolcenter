@@ -426,6 +426,48 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
               )}
             </div>
           )}
+          {(() => {
+            const stageName = stagesById.get(lead.stage_id || "")?.name || "";
+            const convertedStages = ["Conversion Successful", "Payment Confirmed", "Closed Won"];
+            const isConvertedStage = convertedStages.includes(stageName);
+            const isLinked = !!(lead as any).paid_pipeline_lead_id;
+            const convStatus = (lead as any).conversion_status as string | undefined;
+            if (lead.lead_type !== "unpaid") return null;
+            if (isLinked || convStatus === "converted" || convStatus === "linked_to_paid") {
+              return (
+                <div className="mt-3 rounded-lg border border-[#86EFAC] bg-[#F0FDF4] px-3 py-2.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-[#16A34A] text-white">Converted</span>
+                    <div className="text-[12px] text-[#14532D] truncate">This lead has been converted to Paid Onboarding.</div>
+                  </div>
+                  {(lead as any).paid_pipeline_lead_id && (
+                    <Link to={`/paid-pipeline?lead=${(lead as any).paid_pipeline_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#16A34A] text-white hover:opacity-90 shrink-0">
+                      <ExternalLink className="w-3 h-3" /> Open Paid Buyer
+                    </Link>
+                  )}
+                </div>
+              );
+            }
+            if (isConvertedStage) {
+              return (
+                <div className="mt-3 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Sparkles className="w-4 h-4 text-[#92400E] shrink-0" />
+                    <div className="text-[12px] text-[#92400E] truncate">
+                      This lead is marked as <span className="font-semibold">{stageName}</span>. Convert it to Paid Onboarding.
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setConvertOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11.5px] font-medium bg-black text-white hover:opacity-90 shrink-0"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Send to Paid Onboarding
+                  </button>
+                </div>
+              );
+            }
+            return null;
+          })()}
           {/* Payment / Token Recording */}
           {(paidSnap || Number(lead.deal_value) > 0) && (
             <div className="mt-4 rounded-lg border border-line bg-off/40 px-3 py-2.5">
