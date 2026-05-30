@@ -50,6 +50,7 @@ import InvoicesPage from "./pages/Invoices";
 import InvoiceItemCatalogPage from "./pages/admin/InvoiceItemCatalog";
 import TaxCodeMasterPage from "./pages/admin/TaxCodeMaster";
 import ConversionRulesAdmin from "./pages/admin/ConversionRules";
+import LeadRescueSearch from "./pages/admin/LeadRescueSearch";
 
 import type { ModuleKey } from "@/lib/modules";
 
