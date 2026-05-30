@@ -343,15 +343,32 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
         {/* Header */}
         <div className="px-6 py-5 border-b border-line">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="font-serif text-[22px] leading-tight">{lead.full_name || "Unnamed lead"}</div>
-              <div className="font-sans text-xs text-muted-foreground mt-1">{lead.phone || "—"} · {lead.email || "—"}</div>
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
-                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-off border border-line text-muted-foreground">{lead.program_name}</span>
-                {lead.webinar_source && <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-off border border-line text-muted-foreground">{lead.webinar_source}</span>}
-                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-off border border-line text-muted-foreground">{lead.lead_type}</span>
-              </div>
+            <div className="flex-1 min-w-0">
+              {editMode ? (
+                <div className="space-y-2">
+                  <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Full name" className="ipc-input !h-9 !text-sm w-full" />
+                  <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Phone" className="ipc-input !h-9 !text-xs w-full" />
+                  <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email" className="ipc-input !h-9 !text-xs w-full" />
+                  <div className="flex gap-2">
+                    <button disabled={savingEdit} onClick={saveEdit} className="ipc-btn ipc-btn-black !h-8 !text-xs"><Check className="w-3 h-3" /> {savingEdit ? "Saving…" : "Save"}</button>
+                    <button disabled={savingEdit} onClick={() => setEditMode(false)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="font-serif text-[22px] leading-tight">{lead.full_name || "Unnamed lead"}</div>
+                    <button onClick={startEdit} title="Edit name / phone / email" className="w-6 h-6 rounded hover:bg-off flex items-center justify-center text-muted-foreground hover:text-black"><Pencil className="w-3.5 h-3.5" /></button>
+                  </div>
+                  <div className="font-sans text-xs text-muted-foreground mt-1">{lead.phone || "—"} · {lead.email || <span className="text-[#B91C1C]">no email</span>}</div>
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span>
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-off border border-line text-muted-foreground">{lead.program_name}</span>
+                    {lead.webinar_source && <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-off border border-line text-muted-foreground">{lead.webinar_source}</span>}
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-off border border-line text-muted-foreground">{lead.lead_type}</span>
+                  </div>
+                </>
+              )}
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
           </div>
