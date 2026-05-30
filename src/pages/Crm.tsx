@@ -780,6 +780,11 @@ export default function Crm() {
                 <option value="warm">Warm</option>
                 <option value="cold">Cold</option>
               </select>
+              <select className="ipc-input !h-9 !text-xs" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)} title="Converted leads">
+                <option value="hide">Hide converted</option>
+                <option value="show">Show converted</option>
+                <option value="only">Converted only</option>
+              </select>
               <MoreFiltersMenu
                 tagFilter={
                   <ManagedTagFilter
