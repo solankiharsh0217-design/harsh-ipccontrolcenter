@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { X, AlertTriangle, CheckCircle2, Link2, Plus } from "lucide-react";
 import { recomputePaidLead } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
+import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import type { Lead } from "@/lib/crmTypes";
 
 interface Props {
@@ -111,14 +112,29 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
       }
 
       const updates: any = {
-        paid_pipeline_lead_id: linkTargetId,
         conversion_status: "linked_to_paid",
         converted_at: new Date().toISOString(),
         converted_by: profile?.id || null,
         hide_from_sales_workload: hideFromSales,
+        paid_pipeline_lead_id: linkTargetId,
       };
       const { error } = await supabase.from("leads").update(updates).eq("id", lead.id);
       if (error) throw error;
+
+      // Ensure the paid buyer has a Paid Onboarding CRM card. If the existing paid
+      // buyer's crm_lead_id was previously set to this (unpaid) source lead, the
+      // helper will detect that and create/find a separate Paid Onboarding lead.
+      await supabase
+        .from("paid_pipeline_leads")
+        .update({ source_unpaid_lead_id: lead.id } as any)
+        .eq("id", linkTargetId);
+      const ensured = await ensurePaidPipelineCrmLead(linkTargetId, { sourceUnpaidLeadId: lead.id });
+      if (ensured.ok && ensured.crmLeadId) {
+        await supabase
+          .from("leads")
+          .update({ converted_to_crm_lead_id: ensured.crmLeadId } as any)
+          .eq("id", lead.id);
+      }
 
       await supabase.from("crm_lead_conversions").insert({
         source_lead_id: lead.id,
@@ -131,7 +147,7 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
         assigned_owner_id: target?.assigned_sales_executive ?? null,
         status: "success",
         created_by: profile?.id || null,
-        metadata_json: { email: lead.email, phone: lead.phone, matched_by: "email_or_phone" },
+        metadata_json: { email: lead.email, phone: lead.phone, matched_by: "email_or_phone", paid_onboarding_crm_lead_id: ensured.crmLeadId },
       });
 
       await logActivity({
@@ -165,7 +181,8 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
     }
     setSubmitting(true);
     try {
-      // Create paid buyer
+      // Create paid buyer (do NOT point crm_lead_id at the source unpaid lead;
+      // ensurePaidPipelineCrmLead will create the dedicated Paid Onboarding card).
       const { data: paidRow, error: insErr } = await supabase
         .from("paid_pipeline_leads")
         .insert({
@@ -183,7 +200,7 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
           pipeline_stage: tokenAmount > 0 ? "Token Paid" : "Payment Follow-Up Pending",
           assigned_sales_executive: ownerId || null,
           source_webinar: lead.webinar_source || null,
-          crm_lead_id: lead.id,
+          source_unpaid_lead_id: lead.id,
           created_from_attribution: false,
         } as any)
         .select("id")
@@ -205,7 +222,7 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
         await recomputePaidLead(paidRow.id);
       }
 
-      // Update CRM lead
+      // Mark source unpaid lead as converted with link to paid buyer.
       await supabase
         .from("leads")
         .update({
@@ -216,6 +233,15 @@ export default function ConvertToPaidModal({ lead, agents, onClose, onConverted 
           hide_from_sales_workload: hideFromSales,
         } as any)
         .eq("id", lead.id);
+
+      // Create / link the Paid Onboarding CRM card.
+      const ensured = await ensurePaidPipelineCrmLead(paidRow.id, { sourceUnpaidLeadId: lead.id });
+      if (ensured.ok && ensured.crmLeadId) {
+        await supabase
+          .from("leads")
+          .update({ converted_to_crm_lead_id: ensured.crmLeadId } as any)
+          .eq("id", lead.id);
+      }
 
       // Audit
       await supabase.from("crm_lead_conversions").insert({

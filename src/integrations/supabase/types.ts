@@ -2626,6 +2626,7 @@ export type Database = {
           conversion_status: string
           converted_at: string | null
           converted_by: string | null
+          converted_to_crm_lead_id: string | null
           country: string | null
           created_at: string
           deal_value: number
@@ -2669,6 +2670,7 @@ export type Database = {
           conversion_status?: string
           converted_at?: string | null
           converted_by?: string | null
+          converted_to_crm_lead_id?: string | null
           country?: string | null
           created_at?: string
           deal_value?: number
@@ -2712,6 +2714,7 @@ export type Database = {
           conversion_status?: string
           converted_at?: string | null
           converted_by?: string | null
+          converted_to_crm_lead_id?: string | null
           country?: string | null
           created_at?: string
           deal_value?: number
@@ -2743,6 +2746,13 @@ export type Database = {
           webinar_source?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_converted_to_crm_lead_id_fkey"
+            columns: ["converted_to_crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_pipeline_id_fkey"
             columns: ["pipeline_id"]
@@ -4230,6 +4240,7 @@ export type Database = {
           sent_to_crm: boolean | null
           sent_to_crm_at: string | null
           source_report_date: string | null
+          source_unpaid_lead_id: string | null
           source_webinar: string | null
           source_webinar_batch_id: string | null
           token_amount_collected: number
@@ -4314,6 +4325,7 @@ export type Database = {
           sent_to_crm?: boolean | null
           sent_to_crm_at?: string | null
           source_report_date?: string | null
+          source_unpaid_lead_id?: string | null
           source_webinar?: string | null
           source_webinar_batch_id?: string | null
           token_amount_collected?: number
@@ -4398,6 +4410,7 @@ export type Database = {
           sent_to_crm?: boolean | null
           sent_to_crm_at?: string | null
           source_report_date?: string | null
+          source_unpaid_lead_id?: string | null
           source_webinar?: string | null
           source_webinar_batch_id?: string | null
           token_amount_collected?: number
@@ -4411,6 +4424,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "program_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paid_pipeline_leads_source_unpaid_lead_id_fkey"
+            columns: ["source_unpaid_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
