@@ -373,6 +373,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             template: template || undefined,
             search: search || undefined,
             includeUnallocatedCombined: includeUnallocated,
+            spendBasis,
           })
         : { spend: 0, leads: 0, cpl: null, perDate: [], reportIdsIncluded: [], hadCombinedReports: 0 } as any;
 
