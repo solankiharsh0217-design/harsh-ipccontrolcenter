@@ -176,18 +176,22 @@ export async function runUniversalSearch(input: RunUniversalSearchInput): Promis
   // Pipeline/stage/agent lookups: pull them once (lightweight) if not passed in
   let pipelineLookup = input.pipelineNameLookup;
   let stageLookup = input.stageNameLookup;
-  if (!pipelineLookup || !stageLookup) {
-    try {
-      const [pRes, sRes] = await Promise.all([
-        (supabase as any).from("pipelines").select("id, name"),
-        (supabase as any).from("stages").select("id, name"),
-      ]);
-      pipelineLookup = pipelineLookup || Object.fromEntries((pRes.data || []).map((p: any) => [p.id, p.name]));
-      stageLookup = stageLookup || Object.fromEntries((sRes.data || []).map((s: any) => [s.id, s.name]));
-    } catch {
-      pipelineLookup = pipelineLookup || {};
-      stageLookup = stageLookup || {};
-    }
+  let pipelineTypeById: Record<string, string> = {};
+  let paidOnboardingPipelineId: string | null = null;
+  try {
+    const [pRes, sRes] = await Promise.all([
+      (supabase as any).from("pipelines").select("id, name, type"),
+      pipelineLookup && stageLookup
+        ? Promise.resolve({ data: [] as any[] })
+        : (supabase as any).from("stages").select("id, name"),
+    ]);
+    pipelineLookup = pipelineLookup || Object.fromEntries((pRes.data || []).map((p: any) => [p.id, p.name]));
+    stageLookup = stageLookup || Object.fromEntries((sRes.data || []).map((s: any) => [s.id, s.name]));
+    pipelineTypeById = Object.fromEntries((pRes.data || []).map((p: any) => [p.id, p.type]));
+    paidOnboardingPipelineId = (pRes.data || []).find((p: any) => p.type === "paid")?.id || null;
+  } catch {
+    pipelineLookup = pipelineLookup || {};
+    stageLookup = stageLookup || {};
   }
   const agentLookup = input.agentNameLookup || {};
 
@@ -204,14 +208,14 @@ export async function runUniversalSearch(input: RunUniversalSearchInput): Promis
       extra: (q) => {
         let qq = q;
         if (!includeArchived) qq = qq.is("archived_at", null).is("deleted_at", null);
-        if (!includeHidden) qq = qq.eq("hide_from_sales_workload", false);
+        // Do NOT filter hide_from_sales_workload — Paid Onboarding leads have it true by design.
         return qq;
       },
     }),
     searchTable({
       table: "paid_pipeline_leads",
       selectCols:
-        "id, name, email, phone, pipeline_stage, assigned_sales_executive, attributed_media_buyer, source_webinar, is_deleted, deleted_at, is_enrolled, is_dropped, is_refunded, attribution_session_id, attribution_sale_id",
+        "id, name, email, phone, pipeline_stage, assigned_sales_executive, attributed_media_buyer, source_webinar, is_deleted, deleted_at, is_enrolled, is_dropped, is_refunded, attribution_session_id, attribution_sale_id, crm_lead_id, source_unpaid_lead_id",
       nameCol: "name",
       query, email, phone, name, limit,
       extra: (q) => (includeArchived ? q : q.eq("is_deleted", false)),
@@ -229,11 +233,73 @@ export async function runUniversalSearch(input: RunUniversalSearchInput): Promis
   if (paidRes.error) debug.errors.paid_pipeline_leads = String(paidRes.error.message || paidRes.error);
   if (opsRes.error) debug.errors.operations_leads = String(opsRes.error.message || opsRes.error);
 
-  // Split CRM leads into Sales vs Paid Onboarding
+  // ── LINK-EXPANSION PASS ───────────────────────────────────────────────
+  // For every direct match, follow cross-table IDs and fetch any sibling rows
+  // not already in the result set. This is what makes "find by phone" surface
+  // the Source Unpaid Lead even though only the Paid Pipeline buyer matched.
+  const leadIds = new Set<string>(leadsRes.data.map((r: any) => r.id));
+  const paidIds = new Set<string>(paidRes.data.map((r: any) => r.id));
+  const opsIds = new Set<string>(opsRes.data.map((r: any) => r.id));
+  const initialLeadCount = leadIds.size, initialPaidCount = paidIds.size, initialOpsCount = opsIds.size;
+
+  const collectLinks = () => {
+    for (const r of leadsRes.data) {
+      if (r.paid_pipeline_lead_id) paidIds.add(r.paid_pipeline_lead_id);
+      if (r.converted_to_crm_lead_id) leadIds.add(r.converted_to_crm_lead_id);
+    }
+    for (const r of paidRes.data) {
+      if (r.crm_lead_id) leadIds.add(r.crm_lead_id);
+      if (r.source_unpaid_lead_id) leadIds.add(r.source_unpaid_lead_id);
+    }
+    for (const r of opsRes.data) {
+      if (r.crm_lead_id) leadIds.add(r.crm_lead_id);
+      if (r.paid_pipeline_lead_id) paidIds.add(r.paid_pipeline_lead_id);
+    }
+  };
+  collectLinks();
+
+  const newLeadIds = [...leadIds].filter((id) => !leadsRes.data.find((r: any) => r.id === id));
+  const newPaidIds = [...paidIds].filter((id) => !paidRes.data.find((r: any) => r.id === id));
+  const newOpsIds  = [...opsIds].filter((id) => !opsRes.data.find((r: any) => r.id === id));
+
+  const extraFetches: Promise<any>[] = [];
+  if (newLeadIds.length) extraFetches.push(
+    (supabase as any).from("leads")
+      .select("id, full_name, email, phone, pipeline_id, stage_id, lead_type, assigned_agent_id, webinar_source, archived_at, deleted_at, conversion_status, hide_from_sales_workload, code_of_conduct_status, paid_pipeline_lead_id, converted_to_crm_lead_id")
+      .in("id", newLeadIds)
+  );
+  if (newPaidIds.length) extraFetches.push(
+    (supabase as any).from("paid_pipeline_leads")
+      .select("id, name, email, phone, pipeline_stage, assigned_sales_executive, attributed_media_buyer, source_webinar, is_deleted, deleted_at, is_enrolled, is_dropped, is_refunded, attribution_session_id, attribution_sale_id, crm_lead_id, source_unpaid_lead_id")
+      .in("id", newPaidIds)
+  );
+  if (newOpsIds.length) extraFetches.push(
+    (supabase as any).from("operations_leads")
+      .select("id, name, email, phone, pipeline_id, stage_id, current_stage, assigned_media_buyer_id, assigned_media_buyer_name, batch_name, crm_lead_id, paid_pipeline_lead_id, service_status, onboarding_batch, service_package_name")
+      .in("id", newOpsIds)
+  );
+  if (extraFetches.length) {
+    const settled = await Promise.all(extraFetches);
+    let ix = 0;
+    if (newLeadIds.length) { (settled[ix++].data || []).forEach((r: any) => { if (!leadsRes.data.find((x: any) => x.id === r.id)) leadsRes.data.push(r); }); }
+    if (newPaidIds.length) { (settled[ix++].data || []).forEach((r: any) => { if (!paidRes.data.find((x: any) => x.id === r.id)) paidRes.data.push(r); }); }
+    if (newOpsIds.length)  { (settled[ix++].data || []).forEach((r: any) => { if (!opsRes.data.find((x: any) => x.id === r.id)) opsRes.data.push(r); }); }
+  }
+  (debug as any).linkExpansion = {
+    extraLeads: leadsRes.data.length - initialLeadCount,
+    extraPaid: paidRes.data.length - initialPaidCount,
+    extraOps: opsRes.data.length - initialOpsCount,
+  };
+
+  // Split CRM leads into Sales vs Paid Onboarding using PIPELINE TYPE
+  // (lead_type alone is unreliable; the truth is the pipeline.type column).
   const salesLeads: UniversalSearchResult[] = [];
   const paidOnboardingLeads: UniversalSearchResult[] = [];
   for (const r of leadsRes.data) {
-    const isPaidOnboarding = r.lead_type === "paid";
+    const isPaidOnboarding =
+      (paidOnboardingPipelineId && r.pipeline_id === paidOnboardingPipelineId)
+      || pipelineTypeById[r.pipeline_id] === "paid"
+      || r.lead_type === "paid";
     const out: UniversalSearchResult = {
       id: r.id,
       recordType: isPaidOnboarding ? "crm_lead_paid_onboarding" : "crm_lead_sales",
@@ -260,6 +326,7 @@ export async function runUniversalSearch(input: RunUniversalSearchInput): Promis
     if (isPaidOnboarding) paidOnboardingLeads.push(out); else salesLeads.push(out);
   }
 
+
   const paidPipelineResults: UniversalSearchResult[] = paidRes.data.map((r: any) => ({
     id: r.id,
     recordType: "paid_pipeline_buyer",
@@ -278,11 +345,12 @@ export async function runUniversalSearch(input: RunUniversalSearchInput): Promis
     isHiddenFromSales: false,
     paidLinked: true,
     cocStatus: null,
-    crmLeadId: null,
+    crmLeadId: r.crm_lead_id || null,
     paidPipelineLeadId: r.id,
-    sourceUnpaidLeadId: null,
+    sourceUnpaidLeadId: r.source_unpaid_lead_id || null,
     raw: r,
   }));
+
 
   const operationsResults: UniversalSearchResult[] = opsRes.data.map((r: any) => ({
     id: r.id,

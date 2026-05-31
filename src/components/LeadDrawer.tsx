@@ -24,6 +24,9 @@ import ConvertToPaidModal from "@/components/crm/ConvertToPaidModal";
 import ConversionHistoryDrawer from "@/components/crm/ConversionHistoryDrawer";
 import { loadActiveConversionRules, isConvertedStage, DEFAULT_TRIGGER_STAGES, type ConversionRule } from "@/lib/conversionRules";
 import SessionAttendanceTimeline from "@/components/crm/SessionAttendanceTimeline";
+import LinkedRecordsPanel from "@/components/crm/LinkedRecordsPanel";
+import MoveCopyLinkPipelineModal from "@/components/crm/MoveCopyLinkPipelineModal";
+
 
 
 interface Props {
@@ -52,6 +55,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [newStageName, setNewStageName] = useState("");
   const [addingStage, setAddingStage] = useState(false);
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
+
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -429,8 +434,34 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                   <ExternalLink className="w-3 h-3" /> Send to Operations CRM
                 </button>
               )}
+              <button onClick={() => setMoveModalOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line bg-white hover:bg-off">
+                <ExternalLink className="w-3 h-3" /> Move / Copy to Pipeline
+              </button>
             </div>
           )}
+          <div className="mt-3">
+            <LinkedRecordsPanel
+              crmLeadId={lead.id}
+              paidPipelineLeadId={(lead as any).paid_pipeline_lead_id || null}
+              email={lead.email}
+              phone={lead.phone}
+              onChanged={onChanged}
+            />
+          </div>
+          {moveModalOpen && (
+            <MoveCopyLinkPipelineModal
+              open={moveModalOpen}
+              onClose={() => setMoveModalOpen(false)}
+              leadId={lead.id}
+              leadName={lead.full_name || "Lead"}
+              leadEmail={lead.email}
+              leadPhone={lead.phone}
+              currentPipelineId={lead.pipeline_id}
+              currentStageId={lead.stage_id}
+              onDone={onChanged}
+            />
+          )}
+
           {(() => {
             const stageName = stagesById.get(lead.stage_id || "")?.name || "";
             const isLinked = !!(lead as any).paid_pipeline_lead_id;
