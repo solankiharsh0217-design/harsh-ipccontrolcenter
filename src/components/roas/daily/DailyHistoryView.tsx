@@ -266,8 +266,9 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
       reports,
       buyer: applied.buyerFilter.trim() || null,
       includeUnallocatedCombined: includeUnallocated,
+      spendBasis,
     });
-  }, [filtered, applied.buyerFilter, includeUnallocated]);
+  }, [filtered, applied.buyerFilter, includeUnallocated, spendBasis]);
 
   const summary = useMemo(() => ({
     spend: buyerMetrics.spend,
@@ -281,7 +282,6 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     [buyerMetrics],
   );
 
-  // Per-buyer comparison chart — call helper per buyer for identical math.
   const buyerComparison = useMemo(() => {
     const buyerQ = applied.buyerFilter.trim().toLowerCase();
     const buyers = new Map<string, string>();
@@ -297,10 +297,10 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     }
     const reports = filtered.map(toReportLike);
     return Array.from(buyers.values()).map((name) => {
-      const m = calculateBuyerMetrics({ reports, buyer: name, includeUnallocatedCombined: includeUnallocated });
+      const m = calculateBuyerMetrics({ reports, buyer: name, includeUnallocatedCombined: includeUnallocated, spendBasis });
       return { name, spend: m.spend, leads: m.leads, cpl: m.cpl ?? 0 };
     });
-  }, [filtered, applied.buyerFilter, includeUnallocated]);
+  }, [filtered, applied.buyerFilter, includeUnallocated, spendBasis]);
 
   const apply = () => setApplied(draft);
   const reset = () => { setDraft(EMPTY_FILTERS); setApplied(EMPTY_FILTERS); };
