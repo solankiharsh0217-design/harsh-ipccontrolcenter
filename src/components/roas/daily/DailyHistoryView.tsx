@@ -383,15 +383,14 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <label className="fl-sm">Date Range</label>
             <select
               className="fi-sm"
-              value={datePreset}
+              value={draft.datePreset}
               onChange={(e) => {
                 const v = e.target.value as DatePreset;
-                setDatePreset(v);
-                if (v === "all") { setFrom(""); setTo(""); }
+                if (v === "all") setDraftPart({ datePreset: v, from: "", to: "" });
                 else if (v !== "custom") {
                   const p = computePreset(v);
-                  setFrom(p.from); setTo(p.to);
-                }
+                  setDraftPart({ datePreset: v, from: p.from, to: p.to });
+                } else setDraftPart({ datePreset: v });
               }}
             >
               <option value="all">All Dates</option>
@@ -408,8 +407,8 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <input
               type="date"
               className="fi-sm"
-              value={from}
-              onChange={(e) => { setFrom(e.target.value); setDatePreset("custom"); }}
+              value={draft.from}
+              onChange={(e) => setDraftPart({ from: e.target.value, datePreset: "custom" })}
             />
           </div>
           <div>
@@ -417,27 +416,27 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <input
               type="date"
               className="fi-sm"
-              value={to}
-              onChange={(e) => { setTo(e.target.value); setDatePreset("custom"); }}
+              value={draft.to}
+              onChange={(e) => setDraftPart({ to: e.target.value, datePreset: "custom" })}
             />
           </div>
           <div>
             <label className="fl-sm">Media Buyer</label>
-            <select className="fi-sm" value={buyerFilter} onChange={(e) => setBuyerFilter(e.target.value)}>
+            <select className="fi-sm" value={draft.buyerFilter} onChange={(e) => setDraftPart({ buyerFilter: e.target.value })}>
               <option value="">All</option>
               {allBuyers.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="fl-sm">Ad Account</label>
-            <select className="fi-sm" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
+            <select className="fi-sm" value={draft.accountFilter} onChange={(e) => setDraftPart({ accountFilter: e.target.value })}>
               <option value="">All</option>
               {allAccounts.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="fl-sm">Template</label>
-            <select className="fi-sm" value={templateFilter} onChange={(e) => setTemplateFilter(e.target.value)}>
+            <select className="fi-sm" value={draft.templateFilter} onChange={(e) => setDraftPart({ templateFilter: e.target.value })}>
               <option value="">All</option>
               {allTemplates.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
@@ -446,35 +445,74 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <label className="fl-sm">Search</label>
             <input
               className="fi-sm"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={draft.search}
+              onChange={(e) => setDraftPart({ search: e.target.value })}
+              onKeyDown={(e) => { if (e.key === "Enter") apply(); }}
               placeholder="Report, buyer, account, template, notes…"
             />
           </div>
           <div style={{ display: "flex", alignItems: "end", gap: 6 }}>
+            <button className="btn btn-k btn-sm" onClick={apply} disabled={!dirty}>
+              {dirty ? "Apply Filters" : "Applied"}
+            </button>
             <button className="btn btn-g btn-sm" onClick={reset}>Reset Filters</button>
           </div>
         </div>
 
-        {(from || to || buyerFilter || accountFilter || templateFilter || search) && (
-          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11, color: "#555" }}>
-            <span style={{ color: "#888" }}>Active:</span>
-            {(from || to) && (
-              <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>
-                Date: {from || "…"} → {to || "…"}
-              </span>
+        {(applied.from || applied.to || applied.buyerFilter || applied.accountFilter || applied.templateFilter || applied.search) && (
+          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11, color: "#555", alignItems: "center" }}>
+            <span style={{ color: "#888" }}>Applied:</span>
+            {(applied.from || applied.to) && (
+              <Chip onRemove={() => clearApplied({ from: "", to: "", datePreset: "all" })}>
+                Date: {applied.from || "…"} → {applied.to || "…"}
+              </Chip>
             )}
-            {buyerFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Buyer: {buyerFilter}</span>}
-            {accountFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Account: {accountFilter}</span>}
-            {templateFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Template: {templateFilter}</span>}
-            {search && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Search: "{search}"</span>}
+            {applied.buyerFilter && <Chip onRemove={() => clearApplied({ buyerFilter: "" })}>Buyer: {applied.buyerFilter}</Chip>}
+            {applied.accountFilter && <Chip onRemove={() => clearApplied({ accountFilter: "" })}>Account: {applied.accountFilter}</Chip>}
+            {applied.templateFilter && <Chip onRemove={() => clearApplied({ templateFilter: "" })}>Template: {applied.templateFilter}</Chip>}
+            {applied.search && <Chip onRemove={() => clearApplied({ search: "" })}>Search: "{applied.search}"</Chip>}
           </div>
         )}
 
-        <div style={{ marginTop: 8, fontSize: 11, color: "#888" }}>
-          Showing {filtered.length} of {rows.length} reports
+        {dirty && (
+          <div style={{ marginTop: 8, fontSize: 11, color: "#B45309" }}>
+            You have unapplied filter changes. Click <strong>Apply Filters</strong> to refresh results.
+          </div>
+        )}
+
+        <div style={{ marginTop: 8, fontSize: 11, color: "#888", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span>Showing {filtered.length} of {rows.length} reports</span>
+          <button
+            type="button"
+            onClick={() => setShowDebug((v) => !v)}
+            style={{ background: "transparent", border: "none", color: "#888", cursor: "pointer", fontSize: 11, textDecoration: "underline" }}
+          >
+            {showDebug ? "Hide Filter Debug" : "Filter Debug"}
+          </button>
         </div>
+
+        {showDebug && (
+          <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 260 }}>
+{JSON.stringify({
+  draftFilters: draft,
+  appliedFilters: applied,
+  totalReportsLoaded: rows.length,
+  afterDateFilter: debugStages.afterDate.length,
+  afterBuyerFilter: debugStages.afterBuyer.length,
+  afterAccountFilter: debugStages.afterAcc.length,
+  afterTemplateFilter: debugStages.afterTpl.length,
+  afterSearch: debugStages.afterSearch.length,
+  buyerScope: applied.buyerFilter
+    ? {
+        withBuyerBreakdown: filteredWithBuyerScope.filter((x) => x.hasBreakdown).length,
+        fallbackToReportTotals: filteredWithBuyerScope.filter((x) => !x.hasBreakdown).length,
+      }
+    : "n/a (no buyer filter)",
+}, null, 2)}
+          </pre>
+        )}
       </div>
+
 
       {loading ? (
         <div style={{ color: "#888" }}>Loading…</div>
