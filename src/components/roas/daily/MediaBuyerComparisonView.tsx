@@ -10,6 +10,8 @@ import { logActivity } from "@/lib/auditLog";
 import { getGstAwareAdSpend } from "@/lib/roas/gst";
 import { normalizeMediaBuyerListSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap } from "@/lib/mediaBuyers";
 import { calculateBuyerMetrics, type ReportLike, type SpendBasis } from "@/lib/dailyReports/buyerMetrics";
+import { exportComparisonPdf, exportIndividualBuyerPdfs } from "@/lib/dailyReports/mediaBuyerComparisonPdf";
+import { useAuth } from "@/context/AuthContext";
 
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
