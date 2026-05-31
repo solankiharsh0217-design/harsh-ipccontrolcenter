@@ -94,6 +94,8 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   const [showCharts, setShowCharts] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
   const [includeUnallocated, setIncludeUnallocated] = useState(false);
+  const [spendBasis, setSpendBasis] = useState<SpendBasis>("net");
+  const basisLabel = spendBasis === "gross" ? "GST-Inclusive" : "Net";
 
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(applied), [draft, applied]);
 
