@@ -13,7 +13,8 @@ import {
   Tooltip as RTooltip, ResponsiveContainer,
 } from "recharts";
 import { normalizeMediaBuyerNameSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap, subscribeMediaBuyers } from "@/lib/mediaBuyers";
-import { calculateBuyerMetrics, resolveReportForBuyer, type ReportLike } from "@/lib/dailyReports/buyerMetrics";
+import { calculateBuyerMetrics, resolveReportForBuyer, type ReportLike, type SpendBasis } from "@/lib/dailyReports/buyerMetrics";
+import { getGstAwareAdSpend } from "@/lib/roas/gst";
 
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
@@ -94,6 +95,8 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   const [showCharts, setShowCharts] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
   const [includeUnallocated, setIncludeUnallocated] = useState(false);
+  const [spendBasis, setSpendBasis] = useState<SpendBasis>("net");
+  const basisLabel = spendBasis === "gross" ? "GST-Inclusive" : "Net";
 
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(applied), [draft, applied]);
 
@@ -236,7 +239,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     const buyer = applied.buyerFilter.trim() || null;
     return filtered.map((r) => {
       const rl = toReportLike(r);
-      const res = resolveReportForBuyer(rl, buyer, includeUnallocated);
+      const res = resolveReportForBuyer(rl, buyer, includeUnallocated, spendBasis);
       const mixed = (r._media_buyers || []).length > 1;
       return {
         row: r,
@@ -249,7 +252,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
         reason: res.reason,
       };
     });
-  }, [filtered, applied.buyerFilter, includeUnallocated]);
+  }, [filtered, applied.buyerFilter, includeUnallocated, spendBasis]);
 
   // Rows that contribute to totals (exclude unmatched combined rows by default).
   const scopeRowsForTotals = useMemo(
@@ -264,8 +267,9 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
       reports,
       buyer: applied.buyerFilter.trim() || null,
       includeUnallocatedCombined: includeUnallocated,
+      spendBasis,
     });
-  }, [filtered, applied.buyerFilter, includeUnallocated]);
+  }, [filtered, applied.buyerFilter, includeUnallocated, spendBasis]);
 
   const summary = useMemo(() => ({
     spend: buyerMetrics.spend,
@@ -279,7 +283,6 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     [buyerMetrics],
   );
 
-  // Per-buyer comparison chart — call helper per buyer for identical math.
   const buyerComparison = useMemo(() => {
     const buyerQ = applied.buyerFilter.trim().toLowerCase();
     const buyers = new Map<string, string>();
@@ -295,10 +298,10 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     }
     const reports = filtered.map(toReportLike);
     return Array.from(buyers.values()).map((name) => {
-      const m = calculateBuyerMetrics({ reports, buyer: name, includeUnallocatedCombined: includeUnallocated });
+      const m = calculateBuyerMetrics({ reports, buyer: name, includeUnallocatedCombined: includeUnallocated, spendBasis });
       return { name, spend: m.spend, leads: m.leads, cpl: m.cpl ?? 0 };
     });
-  }, [filtered, applied.buyerFilter, includeUnallocated]);
+  }, [filtered, applied.buyerFilter, includeUnallocated, spendBasis]);
 
   const apply = () => setApplied(draft);
   const reset = () => { setDraft(EMPTY_FILTERS); setApplied(EMPTY_FILTERS); };
@@ -330,18 +333,49 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   };
 
   const exportHistory = (action: string) => {
-    const histRows = scopeRowsForTotals.map(({ row: r, spend, leads }) => ({
-      created_at: r.created_at, report_date: r.report_date, report_name: r.report_name,
-      media_buyer_count: (r._media_buyers || []).length,
-      total_ad_spend: spend,
-      total_leads: leads,
-      overall_cpl: leads ? spend / leads : null,
-      metric_template_name: r._template_name || null,
-    }));
+    const histRows = scopeRowsForTotals.map(({ row: r, leads }) => {
+      // Compute both bases per row from raw entered figure for export clarity.
+      const buyer = applied.buyerFilter.trim() || null;
+      const rl = toReportLike(r);
+      const rawSpend = (() => {
+        if (!buyer) return Number(r.total_ad_spend) || 0;
+        const b = buyer.toLowerCase();
+        const mb = (r._media_buyers || []).find((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === b);
+        if (mb) return Number(mb.spend) || 0;
+        if (includeUnallocated) {
+          const cb = (r._media_buyers || []).find((m) => (m.name || "").toLowerCase().includes(b));
+          if (cb) return Number(cb.spend) || 0;
+        }
+        return 0;
+      })();
+      const gst = getGstAwareAdSpend({ total_ad_spend: rawSpend });
+      const netSpend = gst.netAdSpend;
+      const grossSpend = gst.grossAdSpend;
+      const gstAmount = gst.gstAmount;
+      const displayedSpend = spendBasis === "gross" ? grossSpend : netSpend;
+      const cplNet = leads ? netSpend / leads : null;
+      const cplGross = leads ? grossSpend / leads : null;
+      return {
+        created_at: r.created_at,
+        report_date: r.report_date,
+        report_name: r.report_name,
+        media_buyer_count: (r._media_buyers || []).length,
+        spend_basis: spendBasis,
+        net_spend: Number(netSpend.toFixed(2)),
+        gst_amount: Number(gstAmount.toFixed(2)),
+        gross_spend: Number(grossSpend.toFixed(2)),
+        total_ad_spend: Number(displayedSpend.toFixed(2)),
+        total_leads: leads,
+        cpl_net: cplNet == null ? null : Number(cplNet.toFixed(2)),
+        cpl_gross: cplGross == null ? null : Number(cplGross.toFixed(2)),
+        overall_cpl: leads ? displayedSpend / leads : null,
+        metric_template_name: r._template_name || null,
+      };
+    });
     if (action === "csv" || action === "xlsx" || action === "sheets-download") {
-      downloadFile(buildExportFilename("csv"), buildHistoryCsv(histRows), "text/csv");
+      downloadFile(buildExportFilename("csv"), buildHistoryCsv(histRows as any), "text/csv");
     } else if (action === "sheets-copy") {
-      copyToClipboard(buildHistoryTSV(histRows)).then((ok) => {
+      copyToClipboard(buildHistoryTSV(histRows as any)).then((ok) => {
         if (ok) toast.success("History copied for Google Sheets.");
         else toast.error("Could not copy.");
       });
@@ -351,13 +385,13 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
         const autoTable = (autoTableMod as any).default || (autoTableMod as any);
         const doc = new jsPDF({ unit: "pt", format: "a4" });
         doc.setFontSize(18);
-        doc.text("Daily Reports History", 40, 50);
+        doc.text(`Daily Reports History (${basisLabel} Spend)`, 40, 50);
         doc.setFontSize(10); doc.setTextColor(120);
-        doc.text(`Filtered rows: ${histRows.length} · Generated ${new Date().toISOString()}`, 40, 70);
+        doc.text(`Filtered rows: ${histRows.length} · Spend basis: ${basisLabel} · Generated ${new Date().toISOString()}`, 40, 70);
         doc.setTextColor(0);
         autoTable(doc, {
           startY: 90,
-          head: [["Created", "Report Date", "Name", "Buyers", "Spend", "Leads", "CPL", "Template"]],
+          head: [["Created", "Report Date", "Name", "Buyers", `Spend (${basisLabel})`, "Leads", `CPL (${basisLabel})`, "Template"]],
           body: histRows.map((r) => [
             new Date(r.created_at).toISOString().slice(0, 10),
             r.report_date, r.report_name, r.media_buyer_count,
@@ -412,10 +446,27 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
 
       {/* Summary cards */}
       <div className="sum-row" style={{ marginBottom: 14 }}>
-        <div className="sum-card plain"><div className="sum-lbl">Total Spend</div><div className="sum-val">{inr(summary.spend)}</div></div>
+        <div className="sum-card plain"><div className="sum-lbl">Total Spend ({basisLabel})</div><div className="sum-val">{inr(summary.spend)}</div></div>
         <div className="sum-card plain"><div className="sum-lbl">Total Leads</div><div className="sum-val">{fmtNum(summary.leads)}</div></div>
-        <div className="sum-card gold"><div className="sum-lbl">Overall CPL</div><div className="sum-val">{summary.cpl == null ? "—" : inr(summary.cpl)}</div></div>
+        <div className="sum-card gold"><div className="sum-lbl">Overall CPL ({basisLabel})</div><div className="sum-val">{summary.cpl == null ? "—" : inr(summary.cpl)}</div></div>
         <div className="sum-card plain"><div className="sum-lbl">Reports</div><div className="sum-val">{summary.count}</div></div>
+      </div>
+      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <label className="fl-sm" style={{ margin: 0 }}>Spend Basis</label>
+        <select
+          className="fi-sm"
+          style={{ maxWidth: 260 }}
+          value={spendBasis}
+          onChange={(e) => setSpendBasis(e.target.value as SpendBasis)}
+        >
+          <option value="net">Net / Platform Spend (default)</option>
+          <option value="gross">Gross / GST-Inclusive Spend</option>
+        </select>
+        <span style={{ fontSize: 11, color: "#888" }}>
+          {spendBasis === "net"
+            ? "Showing platform ad spend (excludes GST). Recommended for media buyer CPL."
+            : "Showing GST-inclusive cash outflow. Use for finance/cash reporting."}
+        </span>
       </div>
 
       {/* Filters */}
@@ -558,9 +609,15 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   afterSearch: debugStages.afterSearch.length,
   buyerMetrics: {
     buyer: buyerMetrics.buyer,
-    spend: buyerMetrics.spend,
+    spendBasis: buyerMetrics.spendBasis,
+    displayedSpend: buyerMetrics.spend,
+    netSpend: buyerMetrics.netSpend,
+    gstAmount: buyerMetrics.gstAmount,
+    grossSpend: buyerMetrics.grossSpend,
     leads: buyerMetrics.leads,
     cpl: buyerMetrics.cpl,
+    cplNet: buyerMetrics.cplNet,
+    cplGross: buyerMetrics.cplGross,
     formula: buyerMetrics.formula,
     reportIdsIncluded: buyerMetrics.reportIdsIncluded,
     reportsExcluded: buyerMetrics.reportsExcluded,
@@ -586,7 +643,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
           <thead>
             <tr>
               <th>Created On</th><th>Report Date</th><th>Report Name</th>
-              <th>Media Buyers</th><th>Total Spend</th><th>Total Leads</th><th>Overall CPL</th><th></th>
+              <th>Media Buyers</th><th>Total Spend ({basisLabel})</th><th>Total Leads</th><th>Overall CPL ({basisLabel})</th><th></th>
             </tr>
           </thead>
           <tbody>

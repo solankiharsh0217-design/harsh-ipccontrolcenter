@@ -9,7 +9,7 @@ import { inr, fmtNum, downloadFile, copyToClipboard } from "@/lib/dailyReports/h
 import { logActivity } from "@/lib/auditLog";
 import { getGstAwareAdSpend } from "@/lib/roas/gst";
 import { normalizeMediaBuyerListSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap } from "@/lib/mediaBuyers";
-import { calculateBuyerMetrics, type ReportLike } from "@/lib/dailyReports/buyerMetrics";
+import { calculateBuyerMetrics, type ReportLike, type SpendBasis } from "@/lib/dailyReports/buyerMetrics";
 
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
@@ -82,6 +82,8 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
   const [dailyRows, setDailyRows] = useState<DailyMbRow[]>([]);
   const [dailyReportsLike, setDailyReportsLike] = useState<ReportLike[]>([]);
   const [includeUnallocated, setIncludeUnallocated] = useState(false);
+  const [spendBasis, setSpendBasis] = useState<SpendBasis>("net");
+  const basisLabel = spendBasis === "gross" ? "GST-Inclusive" : "Net";
   const [attrRows, setAttrRows] = useState<AttrMbRow[]>([]);
 
   // Draft filters
@@ -371,6 +373,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             template: template || undefined,
             search: search || undefined,
             includeUnallocatedCombined: includeUnallocated,
+            spendBasis,
           })
         : { spend: 0, leads: 0, cpl: null, perDate: [], reportIdsIncluded: [], hadCombinedReports: 0 } as any;
 
@@ -424,7 +427,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         dataStatus,
       };
     }).filter((a) => a.spend > 0 || a.leads > 0 || a.matchedSales > 0 || a.revenue > 0);
-  }, [targetBuyers, dailyReportsLike, fAttr, useDaily, useAttr, from, to, account, template, search, includeUnallocated]);
+  }, [targetBuyers, dailyReportsLike, fAttr, useDaily, useAttr, from, to, account, template, search, includeUnallocated, spendBasis]);
 
   // Summary
   const summary = useMemo(() => {
@@ -484,12 +487,22 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
 
   // Exports
   const exportComparisonCSV = () => {
-    const headers = ["Media Buyer","Reports","Shared","Spend","Leads","Avg CPL","Best CPL","Worst CPL","Best Date","Worst Date","Attributed Sales","Revenue","Realized ROAS","Quality","Data Status"];
+    const headers = ["Media Buyer","Reports","Shared","Spend Basis","Net Spend","GST Amount","Gross Spend","Displayed Spend","Leads","CPL (Net)","CPL (Gross)","Displayed CPL","Best CPL","Worst CPL","Best Date","Worst Date","Attributed Sales","Revenue","Realized ROAS","Quality","Data Status"];
     const lines = [headers.join(",")];
     for (const a of aggregates) {
+      const m = calculateBuyerMetrics({
+        reports: dailyReportsLike, buyer: a.name,
+        from, to, account: account || undefined, template: template || undefined,
+        search: search || undefined, includeUnallocatedCombined: includeUnallocated,
+        spendBasis,
+      });
       lines.push([
         `"${a.name}"`, a.reportsCount, a.sharedReports,
+        spendBasis,
+        m.netSpend.toFixed(2), m.gstAmount.toFixed(2), m.grossSpend.toFixed(2),
         a.spend.toFixed(2), a.leads,
+        m.cplNet?.toFixed(2) ?? "",
+        m.cplGross?.toFixed(2) ?? "",
         a.avgCpl?.toFixed(2) ?? "",
         a.bestCpl?.toFixed(2) ?? "",
         a.worstCpl?.toFixed(2) ?? "",
@@ -500,8 +513,8 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         `"${a.dataStatus}"`,
       ].join(","));
     }
-    downloadFile(`media-buyer-comparison-${new Date().toISOString().slice(0,10)}.csv`, lines.join("\n"), "text/csv");
-    logActivity({ module_key: "reports_history", action_type: "media_buyer_comparison_exported", summary: "Exported Media Buyer Comparison CSV.", metadata: { from, to, buyers, count: aggregates.length } });
+    downloadFile(`media-buyer-comparison-${spendBasis}-${new Date().toISOString().slice(0,10)}.csv`, lines.join("\n"), "text/csv");
+    logActivity({ module_key: "reports_history", action_type: "media_buyer_comparison_exported", summary: "Exported Media Buyer Comparison CSV.", metadata: { from, to, buyers, count: aggregates.length, spendBasis } });
   };
 
   const exportDailyCSV = () => {
@@ -671,6 +684,18 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             <input type="checkbox" checked={includeUnallocated} onChange={(e) => setIncludeUnallocated(e.target.checked)} />
             Include unallocated combined reports
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#555" }}>
+            <span>Spend Basis:</span>
+            <select
+              className="fi-sm"
+              style={{ height: 28, maxWidth: 220 }}
+              value={spendBasis}
+              onChange={(e) => setSpendBasis(e.target.value as SpendBasis)}
+            >
+              <option value="net">Net / Platform Spend</option>
+              <option value="gross">Gross / GST-Inclusive Spend</option>
+            </select>
+          </label>
         </div>
       </div>
 
@@ -681,18 +706,23 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             🔍 Calculation Debug — included report IDs per buyer
           </summary>
           <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 260 }}>
-{JSON.stringify(aggregates.map((a) => {
+{JSON.stringify({ spendBasis, basisLabel, buyers: aggregates.map((a) => {
   const m = calculateBuyerMetrics({
     reports: dailyReportsLike, buyer: a.name,
     from, to, account: account || undefined, template: template || undefined,
     search: search || undefined, includeUnallocatedCombined: includeUnallocated,
+    spendBasis,
   });
   return {
-    buyer: a.name, spend: a.spend, leads: a.leads, cpl: a.avgCpl,
+    buyer: a.name,
+    spendBasis: m.spendBasis,
+    displayedSpend: a.spend, leads: a.leads, cpl: a.avgCpl,
+    netSpend: m.netSpend, grossSpend: m.grossSpend, gstAmount: m.gstAmount,
+    cplNet: m.cplNet, cplGross: m.cplGross,
     formula: m.formula, reportIdsIncluded: m.reportIdsIncluded,
     reportsExcluded: m.reportsExcluded, includeUnallocatedCombined: includeUnallocated,
   };
-}), null, 2)}
+}) }, null, 2)}
           </pre>
         </details>
       )}
@@ -713,10 +743,10 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
           {/* Summary cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 16 }}>
             <SumCard label="Buyers Compared" value={String(aggregates.length)} />
-            <SumCard label="Total Spend" value={inr(summary.totalSpend)} />
+            <SumCard label={`Total Spend (${basisLabel})`} value={inr(summary.totalSpend)} />
             <SumCard label="Total Leads" value={fmtNum(summary.totalLeads)} />
-            <SumCard label="Overall CPL" value={summary.overallCpl != null ? inr(summary.overallCpl) : "—"} gold />
-            <SumCard label="Best CPL" value={summary.bestCpl ? `${summary.bestCpl.name} · ${inr(summary.bestCpl.avgCpl!)}` : "N/A"} />
+            <SumCard label={`Overall CPL (${basisLabel})`} value={summary.overallCpl != null ? inr(summary.overallCpl) : "—"} gold />
+            <SumCard label={`Best CPL (${basisLabel})`} value={summary.bestCpl ? `${summary.bestCpl.name} · ${inr(summary.bestCpl.avgCpl!)}` : "N/A"} />
             <SumCard label="Highest Leads" value={summary.mostLeads ? `${summary.mostLeads.name} · ${fmtNum(summary.mostLeads.leads)}` : "N/A"} />
             <SumCard label="Best Attributed Sales" value={summary.bestConv ? `${summary.bestConv.name} · ${summary.bestConv.matchedSales}` : "N/A"} />
             <SumCard label="Best Revenue" value={summary.bestRev ? `${summary.bestRev.name} · ${inr(summary.bestRev.revenue)}` : "N/A"} />
@@ -736,7 +766,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
               gap: 12, marginBottom: 18,
             }} className="mbc-split">
               {aggregates.map((a, idx) => (
-                <BuyerCard key={a.name} agg={a} winners={{
+                <BuyerCard key={a.name} agg={a} basisLabel={basisLabel} winners={{
                   bestCpl: summary.bestCpl?.name === a.name,
                   mostLeads: summary.mostLeads?.name === a.name,
                   bestConv: summary.bestConv?.name === a.name,
@@ -931,10 +961,11 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
-function BuyerCard({ agg, winners, color }: {
+function BuyerCard({ agg, winners, color, basisLabel }: {
   agg: any;
   winners: { bestCpl: boolean; mostLeads: boolean; bestConv: boolean; bestRev: boolean };
   color: string;
+  basisLabel: string;
 }) {
   const Stat = ({ l, v }: { l: string; v: string }) => (
     <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px dashed #E8E5DE" }}>
@@ -953,9 +984,9 @@ function BuyerCard({ agg, winners, color }: {
           {winners.bestRev && <Badge>Best Revenue</Badge>}
         </div>
       </div>
-      <Stat l="Spend" v={inr(agg.spend)} />
+      <Stat l={`Spend (${basisLabel})`} v={inr(agg.spend)} />
       <Stat l="Leads" v={fmtNum(agg.leads)} />
-      <Stat l="Avg CPL" v={agg.avgCpl != null ? inr(agg.avgCpl) : "—"} />
+      <Stat l={`Avg CPL (${basisLabel})`} v={agg.avgCpl != null ? inr(agg.avgCpl) : "—"} />
       <Stat l="Reports" v={String(agg.reportsCount)} />
       <Stat l="Best Date" v={agg.bestDate || "—"} />
       <Stat l="Worst Date" v={agg.worstDate || "—"} />
