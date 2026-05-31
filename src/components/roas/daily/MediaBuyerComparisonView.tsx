@@ -82,6 +82,8 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
   const [dailyRows, setDailyRows] = useState<DailyMbRow[]>([]);
   const [dailyReportsLike, setDailyReportsLike] = useState<ReportLike[]>([]);
   const [includeUnallocated, setIncludeUnallocated] = useState(false);
+  const [spendBasis, setSpendBasis] = useState<SpendBasis>("net");
+  const basisLabel = spendBasis === "gross" ? "GST-Inclusive" : "Net";
   const [attrRows, setAttrRows] = useState<AttrMbRow[]>([]);
 
   // Draft filters
