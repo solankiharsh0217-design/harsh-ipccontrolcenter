@@ -30,6 +30,9 @@ import BatchRepairModal from "@/components/crm/BatchRepairModal";
 import { bulkDeassignLeads } from "@/lib/crmRepair";
 import { useAuth } from "@/context/AuthContext";
 import { Archive, RotateCcw } from "lucide-react";
+import UniversalSearchPanel from "@/components/crm/UniversalSearchPanel";
+import { useFocusKanbanCard } from "@/hooks/useFocusKanbanCard";
+import type { UniversalSearchResult } from "@/lib/universalSearch";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
@@ -285,11 +288,68 @@ export default function Crm() {
     }
   };
   useEffect(() => { load(); }, []);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParamsCrm] = useSearchParams();
   useEffect(() => {
     const leadParam = searchParams.get("lead");
     if (leadParam) setOpenLead(leadParam);
   }, [searchParams]);
+
+  // Universal Search ↔ Jump-to-Card support
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+  const [focusLeadId, setFocusLeadId] = useState<string | null>(null);
+  useEffect(() => {
+    const f = searchParams.get("focusLead");
+    if (!f) return;
+    // Wait for leads to load, then switch to the lead's pipeline + kanban
+    const lead = leads.find((l) => l.id === f);
+    if (lead) {
+      if (lead.pipeline_id) setActivePipeline(lead.pipeline_id);
+      setView("kanban");
+      setFocusLeadId(f);
+      // clear param so subsequent navigations don't re-trigger
+      const sp = new URLSearchParams(searchParams);
+      sp.delete("focusLead");
+      setSearchParamsCrm(sp, { replace: true });
+    }
+  }, [searchParams, leads]);
+  useFocusKanbanCard(focusLeadId, [activePipeline, view]);
+
+  const handleJumpToCrmCard = (r: UniversalSearchResult) => {
+    setSearchPanelOpen(false);
+    const lead = leads.find((l) => l.id === r.id);
+    if (!lead) { toast.error("Lead not visible in your current data — try Open Drawer."); return; }
+    if (lead.pipeline_id && lead.pipeline_id !== activePipeline) setActivePipeline(lead.pipeline_id);
+    setView("kanban");
+    // also detect filtered-out
+    const wouldShow =
+      (!batchFilter || batchFilter === "all" || (lead.webinar_source || "—") === batchFilter) &&
+      (stageFilter === "all" || lead.stage_id === stageFilter);
+    if (!wouldShow) {
+      toast.message("Lead is hidden by current filters.", {
+        action: { label: "Clear filters", onClick: () => resetAll() },
+      });
+    }
+    setFocusLeadId(null);
+    // re-arm focus on next tick so re-render picks it up
+    setTimeout(() => setFocusLeadId(r.id), 60);
+  };
+  const handleOpenCrmDrawerFromSearch = (leadId: string) => {
+    setSearchPanelOpen(false);
+    setOpenLead(leadId);
+  };
+
+  const pipelineNameLookup = useMemo(
+    () => Object.fromEntries(pipelines.map((p) => [p.id, p.name])),
+    [pipelines]
+  );
+  const stageNameLookup = useMemo(
+    () => Object.fromEntries(stages.map((s) => [s.id, s.name])),
+    [stages]
+  );
+  const agentNameLookup = useMemo(
+    () => Object.fromEntries(agents.map((a) => [a.id, a.full_name])),
+    [agents]
+  );
 
   // Load all tags + per-lead tag assignments whenever the lead list changes
   useEffect(() => {
@@ -738,19 +798,32 @@ export default function Crm() {
           </div>
 
           {(view === "kanban" || view === "list" || view === "batches") && (
-            <div className="relative flex-1 min-w-[200px] max-w-[320px]">
+            <div className="relative flex-1 min-w-[200px] max-w-[420px]">
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={view === "batches" ? "Search batches or leads…" : "Search name, phone, email…"}
+                onChange={(e) => { setSearchQuery(e.target.value); setSearchPanelOpen(true); }}
+                onFocus={() => { if (searchQuery.trim()) setSearchPanelOpen(true); }}
+                placeholder={view === "batches" ? "Search batches or leads…" : "Search name, phone, email — across all pipelines"}
                 className="ipc-input !h-9 !text-xs !pl-7 w-full"
               />
               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">⌕</span>
               {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black" title="Clear search">
+                <button onClick={() => { setSearchQuery(""); setSearchPanelOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black" title="Clear search">
                   <XIcon className="w-3 h-3" />
                 </button>
+              )}
+              {searchPanelOpen && (
+                <UniversalSearchPanel
+                  query={searchQuery}
+                  currentPipelineId={activePipeline}
+                  pipelineNameLookup={pipelineNameLookup}
+                  stageNameLookup={stageNameLookup}
+                  agentNameLookup={agentNameLookup}
+                  onOpenCrmDrawer={handleOpenCrmDrawerFromSearch}
+                  onJumpToCrmCard={handleJumpToCrmCard}
+                  onClose={() => setSearchPanelOpen(false)}
+                />
               )}
             </div>
           )}
@@ -1305,6 +1378,7 @@ export default function Crm() {
                             <div className="mb-2 rounded-lg border-2 border-dashed border-gold bg-gold-pale/60 h-[88px]" aria-hidden />
                           )}
                           <div
+                            data-lead-card-id={l.id}
                             draggable
                             onDragStart={(e) => { e.dataTransfer.setData("text/plain", l.id); e.dataTransfer.effectAllowed = "move"; setDragId(l.id); }}
                             onDragEnd={() => { setDragId(null); setHoverStage(null); setHoverBefore(null); }}
