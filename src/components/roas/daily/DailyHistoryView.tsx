@@ -216,62 +216,89 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
 
   const filtered = debugStages.afterSearch;
 
-  // When a buyer filter is applied, prefer the report's buyer-level breakdown.
-  // If breakdown is missing for that buyer, fall back to report totals + warning.
+  // Map filtered RowExt -> ReportLike (shared shape used by buyerMetrics helper).
+  const toReportLike = (r: RowExt): ReportLike => ({
+    id: r.id,
+    date: r.report_date || (r.created_at ? r.created_at.slice(0, 10) : ""),
+    name: r.report_name,
+    notes: r.notes || "",
+    template: r._template_name || null,
+    adAccounts: r._ad_accounts || [],
+    totalSpend: Number(r.total_ad_spend) || 0,
+    totalLeads: Number(r.total_leads) || 0,
+    mediaBuyers: (r._media_buyers || []).map((m) => ({ name: m.name, spend: m.spend, leads: m.leads })),
+  });
+
+  // When a buyer filter is applied, resolve each row using the shared helper so
+  // values agree with Media Buyer Comparison. Combined multi-buyer rows without a
+  // per-buyer split are excluded unless "Include unallocated combined reports" is on.
   const filteredWithBuyerScope = useMemo(() => {
-    const buyerQ = applied.buyerFilter.trim().toLowerCase();
+    const buyer = applied.buyerFilter.trim() || null;
     return filtered.map((r) => {
-      if (!buyerQ) {
-        return { row: r, spend: Number(r.total_ad_spend) || 0, leads: Number(r.total_leads) || 0, mixed: (r._media_buyers || []).length > 1, hasBreakdown: true };
-      }
-      const mbs = r._media_buyers || [];
-      const match = mbs.find((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ);
-      const mixed = mbs.length > 1;
-      const hasBreakdown = !!match && (Number(match.spend) > 0 || Number(match.leads) > 0 || mbs.length > 1);
-      if (match && hasBreakdown) {
-        return { row: r, spend: Number(match.spend) || 0, leads: Number(match.leads) || 0, mixed, hasBreakdown: true };
-      }
-      return { row: r, spend: Number(r.total_ad_spend) || 0, leads: Number(r.total_leads) || 0, mixed, hasBreakdown: false };
+      const rl = toReportLike(r);
+      const res = resolveReportForBuyer(rl, buyer, includeUnallocated);
+      const mixed = (r._media_buyers || []).length > 1;
+      return {
+        row: r,
+        spend: res.spend,
+        leads: res.leads,
+        mixed,
+        hasBreakdown: res.matched && !res.isCombined,
+        isCombined: res.isCombined,
+        excluded: !res.matched,
+        reason: res.reason,
+      };
     });
-  }, [filtered, applied.buyerFilter]);
+  }, [filtered, applied.buyerFilter, includeUnallocated]);
 
-  const summary = useMemo(() => {
-    const t = filteredWithBuyerScope.reduce((acc, x) => {
-      acc.spend += x.spend; acc.leads += x.leads; return acc;
-    }, { spend: 0, leads: 0 });
-    return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filteredWithBuyerScope.length };
-  }, [filteredWithBuyerScope]);
+  // Rows that contribute to totals (exclude unmatched combined rows by default).
+  const scopeRowsForTotals = useMemo(
+    () => filteredWithBuyerScope.filter((x) => !x.excluded),
+    [filteredWithBuyerScope],
+  );
 
-  const trendData = useMemo(() => {
-    const map = new Map<string, { date: string; spend: number; leads: number }>();
-    for (const x of filteredWithBuyerScope) {
-      const r = x.row;
-      const date = r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "");
-      if (!date) continue;
-      const cur = map.get(date) || { date, spend: 0, leads: 0 };
-      cur.spend += x.spend; cur.leads += x.leads;
-      map.set(date, cur);
-    }
-    return Array.from(map.values())
-      .map((d) => ({ ...d, cpl: d.leads ? d.spend / d.leads : 0 }))
-      .sort((a, b) => (a.date < b.date ? -1 : 1));
-  }, [filteredWithBuyerScope]);
+  // Shared aggregation — the single source of truth for summary/trend/exports.
+  const buyerMetrics = useMemo(() => {
+    const reports = filtered.map(toReportLike);
+    return calculateBuyerMetrics({
+      reports,
+      buyer: applied.buyerFilter.trim() || null,
+      includeUnallocatedCombined: includeUnallocated,
+    });
+  }, [filtered, applied.buyerFilter, includeUnallocated]);
 
+  const summary = useMemo(() => ({
+    spend: buyerMetrics.spend,
+    leads: buyerMetrics.leads,
+    cpl: buyerMetrics.cpl,
+    count: buyerMetrics.reportIdsIncluded.length,
+  }), [buyerMetrics]);
+
+  const trendData = useMemo(
+    () => buyerMetrics.perDate.map((d) => ({ date: d.date, spend: d.spend, leads: d.leads, cpl: d.cpl ?? 0 })),
+    [buyerMetrics],
+  );
+
+  // Per-buyer comparison chart — call helper per buyer for identical math.
   const buyerComparison = useMemo(() => {
     const buyerQ = applied.buyerFilter.trim().toLowerCase();
-    const acc: Record<string, { name: string; spend: number; leads: number }> = {};
+    const buyers = new Map<string, string>();
     for (const r of filtered) {
       for (const m of r._media_buyers || []) {
-        const canonical = normalizeMediaBuyerNameSync(m.name) || m.name;
-        if (buyerQ && canonical.toLowerCase() !== buyerQ) continue;
-        const key = canonical.toLowerCase();
-        const cur = acc[key] || { name: canonical, spend: 0, leads: 0 };
-        cur.spend += m.spend; cur.leads += m.leads;
-        acc[key] = cur;
+        for (const n of (m.name ? m.name.split(/[,/&]+/) : [])) {
+          const canonical = normalizeMediaBuyerNameSync(n.trim()) || n.trim();
+          if (!canonical) continue;
+          if (buyerQ && canonical.toLowerCase() !== buyerQ) continue;
+          buyers.set(canonical.toLowerCase(), canonical);
+        }
       }
     }
-    return Object.values(acc).map((x) => ({ ...x, cpl: x.leads ? x.spend / x.leads : 0 }));
-  }, [filtered, applied.buyerFilter]);
+    const reports = filtered.map(toReportLike);
+    return Array.from(buyers.values()).map((name) => {
+      const m = calculateBuyerMetrics({ reports, buyer: name, includeUnallocatedCombined: includeUnallocated });
+      return { name, spend: m.spend, leads: m.leads, cpl: m.cpl ?? 0 };
+    });
+  }, [filtered, applied.buyerFilter, includeUnallocated]);
 
   const apply = () => setApplied(draft);
   const reset = () => { setDraft(EMPTY_FILTERS); setApplied(EMPTY_FILTERS); };
