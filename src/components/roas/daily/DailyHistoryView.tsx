@@ -590,11 +590,12 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             </tr>
           </thead>
           <tbody>
-            {filteredWithBuyerScope.map(({ row: r, spend, leads, mixed, hasBreakdown }) => {
+            {filteredWithBuyerScope.map(({ row: r, spend, leads, mixed, hasBreakdown, isCombined, excluded }) => {
               const cpl = leads ? spend / leads : null;
-              const showWarning = !!applied.buyerFilter && mixed && !hasBreakdown;
+              const showCombinedWarn = !!applied.buyerFilter && isCombined;
+              const buyerOnlyBadge = !!applied.buyerFilter && hasBreakdown;
               return (
-                <tr key={r.id} style={r.is_deleted ? { opacity: 0.6 } : undefined}>
+                <tr key={r.id} style={r.is_deleted || excluded ? { opacity: 0.55 } : undefined}>
                   <td style={{ fontSize: 11, color: "#888" }}>{new Date(r.created_at).toLocaleDateString("en-IN")}</td>
                   <td>{fmtDateLong(r.report_date)}</td>
                   <td>
@@ -602,24 +603,33 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
                     {r.report_status === "edited" && !r.is_deleted && (
                       <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#2563EB", textTransform: "uppercase", letterSpacing: ".08em" }}>edited</span>
                     )}
+                    {buyerOnlyBadge && (
+                      <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#ECFDF5", border: "1px solid #A7F3D0", color: "#047857", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                        buyer-level
+                      </span>
+                    )}
+                    {showCombinedWarn && (
+                      <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FDE68A", color: "#92400E", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                        combined / split unavailable
+                      </span>
+                    )}
                     {r.is_deleted && (
                       <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }}>
                         deleted · {daysRemaining(r.deleted_at)}d left
                       </span>
                     )}
-                    {showWarning && (
+                    {showCombinedWarn && excluded && (
                       <div style={{ marginTop: 4, fontSize: 10, color: "#B45309" }}>
-                        ⚠ Includes multiple media buyers. Buyer-level split unavailable, totals shown at report level.
+                        ⚠ Excluded from buyer totals (toggle "Include unallocated combined reports" to count).
                       </div>
                     )}
                   </td>
                   <td style={{ fontSize: 11, color: "#888" }}>
-                    {(r._media_buyers || []).slice(0, 2).map((m) => m.name).join(", ")}
-                    {(r._media_buyers || []).length > 2 && ` +${(r._media_buyers || []).length - 2}`}
+                    {mixed ? (r._media_buyers || []).map((m) => m.name).join(", ") : (r._media_buyers || []).map((m) => m.name).join(", ")}
                   </td>
-                  <td>{inr(spend)}</td>
-                  <td>{fmtNum(leads)}</td>
-                  <td>{cpl == null ? "—" : inr(cpl)}</td>
+                  <td>{excluded ? "—" : inr(spend)}</td>
+                  <td>{excluded ? "—" : fmtNum(leads)}</td>
+                  <td>{excluded || cpl == null ? "—" : inr(cpl)}</td>
                   <td>
                     {r.is_deleted ? (
                       <div style={{ display: "flex", gap: 4 }}>
