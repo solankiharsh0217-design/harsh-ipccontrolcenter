@@ -57,6 +57,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [addingStage, setAddingStage] = useState(false);
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
+  const [sendOnboardingOpen, setSendOnboardingOpen] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState("");
