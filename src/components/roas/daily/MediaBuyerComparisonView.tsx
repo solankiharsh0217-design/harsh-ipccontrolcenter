@@ -951,10 +951,11 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
-function BuyerCard({ agg, winners, color }: {
+function BuyerCard({ agg, winners, color, basisLabel }: {
   agg: any;
   winners: { bestCpl: boolean; mostLeads: boolean; bestConv: boolean; bestRev: boolean };
   color: string;
+  basisLabel: string;
 }) {
   const Stat = ({ l, v }: { l: string; v: string }) => (
     <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px dashed #E8E5DE" }}>
