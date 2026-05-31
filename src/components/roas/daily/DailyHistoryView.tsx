@@ -61,24 +61,39 @@ interface Props {
   onCompareMediaBuyers?: (ctx: { from: string; to: string; preset: DatePreset }) => void;
 }
 
+type FilterState = {
+  search: string;
+  datePreset: DatePreset;
+  from: string;
+  to: string;
+  buyerFilter: string;
+  accountFilter: string;
+  templateFilter: string;
+};
+
+const EMPTY_FILTERS: FilterState = {
+  search: "", datePreset: "all", from: "", to: "",
+  buyerFilter: "", accountFilter: "", templateFilter: "",
+};
+
 export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics, onCompareMediaBuyers }: Props) {
   const [rows, setRows] = useState<RowExt[]>([]);
   const [loading, setLoading] = useState(true);
-  // Live filter state (changes apply immediately)
-  const [search, setSearch] = useState("");
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [buyerFilter, setBuyerFilter] = useState("");
-  const [accountFilter, setAccountFilter] = useState("");
-  const [templateFilter, setTemplateFilter] = useState("");
-  const appliedPreset = datePreset;
+
+  // Draft = what user is editing. Applied = what drives table/cards/charts/export.
+  const [draft, setDraft] = useState<FilterState>(EMPTY_FILTERS);
+  const [applied, setApplied] = useState<FilterState>(EMPTY_FILTERS);
+  const setDraftPart = (p: Partial<FilterState>) => setDraft((d) => ({ ...d, ...p }));
+  const appliedPreset = applied.datePreset;
 
   const [viewing, setViewing] = useState<DailyReport | null>(null);
   const [viewingStatus, setViewingStatus] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
   const [showCharts, setShowCharts] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
+
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(applied), [draft, applied]);
 
   const reload = async () => {
     setLoading(true);
@@ -110,7 +125,6 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
           (aaByMb[a.report_media_buyer_id] ||= []).push(a.ad_account_name);
         }
       }
-      // attach
       for (const r of reports || []) {
         const mbs = mbsByReport[r.id] || [];
         (r as any)._media_buyers = mbs.map((m) => ({
@@ -119,7 +133,6 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
         (r as any)._ad_accounts = mbs.flatMap((m) => aaByMb[m.id] || []);
       }
     }
-    // template names
     const tplIds = Array.from(new Set((reports || []).map((r: any) => r.metric_template_id).filter(Boolean)));
     if (tplIds.length) {
       const { data: tpls } = await (supabase as any)
@@ -140,14 +153,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleted]);
 
-  // Re-render when alias cache updates
   const [, setMbTick] = useState(0);
   useEffect(() => {
     const off = subscribeMediaBuyers(() => setMbTick((t) => t + 1));
     return () => { off; };
   }, []);
-
-
 
   const allBuyers = useMemo(() => {
     const s = new Map<string, string>();
@@ -157,7 +167,6 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     }));
     return Array.from(s.values()).sort();
   }, [rows]);
-
 
   const allAccounts = useMemo(() => {
     const s = new Set<string>();
@@ -171,67 +180,88 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     return Array.from(s).sort();
   }, [rows]);
 
-  const filtered = useMemo(() => rows.filter((r) => {
-    const dateKey = (r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "")) as string;
-    if (from && dateKey < from) return false;
-    if (to && dateKey > to) return false;
+  // Staged filter passes (table + debug panel).
+  const debugStages = useMemo(() => {
+    const { from, to, buyerFilter, accountFilter, templateFilter, search } = applied;
+    const afterDate = rows.filter((r) => {
+      const dateKey = (r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "")) as string;
+      if (from && dateKey < from) return false;
+      if (to && dateKey > to) return false;
+      return true;
+    });
     const buyerQ = buyerFilter.trim().toLowerCase();
-    if (buyerQ && !(r._media_buyers || []).some((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ)) return false;
+    const afterBuyer = afterDate.filter((r) =>
+      !buyerQ || (r._media_buyers || []).some((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ),
+    );
     const accQ = accountFilter.trim().toLowerCase();
-    if (accQ && !(r._ad_accounts || []).some((a) => (a || "").trim().toLowerCase() === accQ)) return false;
-    if (templateFilter && r._template_name !== templateFilter) return false;
-
-    if (search) {
-      const q = search.toLowerCase();
+    const afterAcc = afterBuyer.filter((r) =>
+      !accQ || (r._ad_accounts || []).some((a) => (a || "").trim().toLowerCase() === accQ),
+    );
+    const afterTpl = afterAcc.filter((r) => !templateFilter || r._template_name === templateFilter);
+    const q = search.trim().toLowerCase();
+    const afterSearch = afterTpl.filter((r) => {
+      if (!q) return true;
       const inName = (r.report_name || "").toLowerCase().includes(q);
       const inNotes = (r.notes || "").toLowerCase().includes(q);
       const inBuyer = (r._media_buyers || []).some((m) => m.name.toLowerCase().includes(q));
       const inAcc = (r._ad_accounts || []).some((a) => (a || "").toLowerCase().includes(q));
       const inTpl = (r._template_name || "").toLowerCase().includes(q);
       const inDate = (r.report_date || "").toLowerCase().includes(q);
-      if (!inName && !inNotes && !inBuyer && !inAcc && !inTpl && !inDate) return false;
-    }
-    return true;
-  }), [rows, from, to, buyerFilter, accountFilter, templateFilter, search]);
+      return inName || inNotes || inBuyer || inAcc || inTpl || inDate;
+    });
+    return { afterDate, afterBuyer, afterAcc, afterTpl, afterSearch };
+  }, [rows, applied]);
+
+  const filtered = debugStages.afterSearch;
+
+  // When a buyer filter is applied, prefer the report's buyer-level breakdown.
+  // If breakdown is missing for that buyer, fall back to report totals + warning.
+  const filteredWithBuyerScope = useMemo(() => {
+    const buyerQ = applied.buyerFilter.trim().toLowerCase();
+    return filtered.map((r) => {
+      if (!buyerQ) {
+        return { row: r, spend: Number(r.total_ad_spend) || 0, leads: Number(r.total_leads) || 0, mixed: (r._media_buyers || []).length > 1, hasBreakdown: true };
+      }
+      const mbs = r._media_buyers || [];
+      const match = mbs.find((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ);
+      const mixed = mbs.length > 1;
+      const hasBreakdown = !!match && (Number(match.spend) > 0 || Number(match.leads) > 0 || mbs.length > 1);
+      if (match && hasBreakdown) {
+        return { row: r, spend: Number(match.spend) || 0, leads: Number(match.leads) || 0, mixed, hasBreakdown: true };
+      }
+      return { row: r, spend: Number(r.total_ad_spend) || 0, leads: Number(r.total_leads) || 0, mixed, hasBreakdown: false };
+    });
+  }, [filtered, applied.buyerFilter]);
 
   const summary = useMemo(() => {
-    const t = filtered.reduce((acc, r) => {
-      acc.spend += Number(r.total_ad_spend) || 0;
-      acc.leads += Number(r.total_leads) || 0;
-      return acc;
+    const t = filteredWithBuyerScope.reduce((acc, x) => {
+      acc.spend += x.spend; acc.leads += x.leads; return acc;
     }, { spend: 0, leads: 0 });
-    return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filtered.length };
-  }, [filtered]);
+    return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filteredWithBuyerScope.length };
+  }, [filteredWithBuyerScope]);
 
-  // Chart data — based on filtered rows
   const trendData = useMemo(() => {
     const map = new Map<string, { date: string; spend: number; leads: number }>();
-    for (const r of filtered) {
+    for (const x of filteredWithBuyerScope) {
+      const r = x.row;
       const date = r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "");
       if (!date) continue;
-      let spend = Number(r.total_ad_spend) || 0;
-      let leads = Number(r.total_leads) || 0;
-      if (buyerFilter) {
-        const m = (r._media_buyers || []).find((x) => (normalizeMediaBuyerNameSync(x.name) || x.name).toLowerCase() === buyerFilter.trim().toLowerCase());
-        spend = m ? m.spend : 0;
-        leads = m ? m.leads : 0;
-      }
-
       const cur = map.get(date) || { date, spend: 0, leads: 0 };
-      cur.spend += spend; cur.leads += leads;
+      cur.spend += x.spend; cur.leads += x.leads;
       map.set(date, cur);
     }
     return Array.from(map.values())
       .map((d) => ({ ...d, cpl: d.leads ? d.spend / d.leads : 0 }))
       .sort((a, b) => (a.date < b.date ? -1 : 1));
-  }, [filtered, buyerFilter]);
+  }, [filteredWithBuyerScope]);
 
   const buyerComparison = useMemo(() => {
+    const buyerQ = applied.buyerFilter.trim().toLowerCase();
     const acc: Record<string, { name: string; spend: number; leads: number }> = {};
     for (const r of filtered) {
       for (const m of r._media_buyers || []) {
         const canonical = normalizeMediaBuyerNameSync(m.name) || m.name;
-        if (buyerFilter && canonical.toLowerCase() !== buyerFilter.trim().toLowerCase()) continue;
+        if (buyerQ && canonical.toLowerCase() !== buyerQ) continue;
         const key = canonical.toLowerCase();
         const cur = acc[key] || { name: canonical, spend: 0, leads: 0 };
         cur.spend += m.spend; cur.leads += m.leads;
@@ -239,13 +269,14 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
       }
     }
     return Object.values(acc).map((x) => ({ ...x, cpl: x.leads ? x.spend / x.leads : 0 }));
-  }, [filtered, buyerFilter]);
+  }, [filtered, applied.buyerFilter]);
 
-
-  const reset = () => {
-    setSearch(""); setFrom(""); setTo("");
-    setBuyerFilter(""); setAccountFilter(""); setTemplateFilter("");
-    setDatePreset("all");
+  const apply = () => setApplied(draft);
+  const reset = () => { setDraft(EMPTY_FILTERS); setApplied(EMPTY_FILTERS); };
+  // Chip "x" removes one applied filter immediately and syncs back into draft.
+  const clearApplied = (p: Partial<FilterState>) => {
+    const next = { ...applied, ...p };
+    setApplied(next); setDraft(next);
   };
 
   const onRowExport = async (id: string, action: any) => {
