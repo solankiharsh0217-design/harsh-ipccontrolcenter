@@ -762,3 +762,17 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
     </div>
   );
 }
+
+function Chip({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 4px 2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>
+      <span>{children}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove filter"
+        style={{ width: 16, height: 16, borderRadius: 999, border: "none", background: "#F1EFEA", color: "#555", fontSize: 11, lineHeight: "16px", cursor: "pointer", padding: 0 }}
+      >×</button>
+    </span>
+  );
+}
