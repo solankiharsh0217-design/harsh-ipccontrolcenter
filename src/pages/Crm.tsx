@@ -396,10 +396,28 @@ export default function Crm() {
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     const q = searchQuery.trim().toLowerCase();
-    if (q) list = list.filter((l: any) => {
-      const hay = [l.full_name, l.phone, l.email, l.program_name, l.webinar_source].filter(Boolean).join(" ").toLowerCase();
-      return hay.includes(q);
-    });
+    if (q) {
+      // Build extra tokens for fuzzy email matching so a typo like
+      // "vu3ge@gmail.com" still surfaces "vu3geq@gmail.com" (same logic as Universal Search).
+      const tokens: string[] = [q];
+      if (q.includes("@")) {
+        const local = q.split("@")[0];
+        if (local && local.length >= 3) tokens.push(local);
+      }
+      const digitsOnly = q.replace(/\D/g, "");
+      if (digitsOnly.length >= 5) tokens.push(digitsOnly);
+      list = list.filter((l: any) => {
+        const hay = [l.full_name, l.phone, l.email, l.program_name, l.webinar_source].filter(Boolean).join(" ").toLowerCase();
+        if (tokens.some((t) => hay.includes(t))) return true;
+        // Local-part prefix: actual email begins with the searched local part
+        if (q.includes("@") && l.email) {
+          const localQ = q.split("@")[0];
+          const localL = String(l.email).toLowerCase().split("@")[0];
+          if (localQ && localL && (localL.startsWith(localQ) || localQ.startsWith(localL))) return true;
+        }
+        return false;
+      });
+    }
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   }, [leads, activePipeline, activePipelineType, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter]);
 
