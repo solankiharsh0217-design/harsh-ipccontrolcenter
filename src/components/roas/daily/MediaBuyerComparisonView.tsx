@@ -721,10 +721,10 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
           {/* Summary cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 16 }}>
             <SumCard label="Buyers Compared" value={String(aggregates.length)} />
-            <SumCard label="Total Spend" value={inr(summary.totalSpend)} />
+            <SumCard label={`Total Spend (${basisLabel})`} value={inr(summary.totalSpend)} />
             <SumCard label="Total Leads" value={fmtNum(summary.totalLeads)} />
-            <SumCard label="Overall CPL" value={summary.overallCpl != null ? inr(summary.overallCpl) : "—"} gold />
-            <SumCard label="Best CPL" value={summary.bestCpl ? `${summary.bestCpl.name} · ${inr(summary.bestCpl.avgCpl!)}` : "N/A"} />
+            <SumCard label={`Overall CPL (${basisLabel})`} value={summary.overallCpl != null ? inr(summary.overallCpl) : "—"} gold />
+            <SumCard label={`Best CPL (${basisLabel})`} value={summary.bestCpl ? `${summary.bestCpl.name} · ${inr(summary.bestCpl.avgCpl!)}` : "N/A"} />
             <SumCard label="Highest Leads" value={summary.mostLeads ? `${summary.mostLeads.name} · ${fmtNum(summary.mostLeads.leads)}` : "N/A"} />
             <SumCard label="Best Attributed Sales" value={summary.bestConv ? `${summary.bestConv.name} · ${summary.bestConv.matchedSales}` : "N/A"} />
             <SumCard label="Best Revenue" value={summary.bestRev ? `${summary.bestRev.name} · ${inr(summary.bestRev.revenue)}` : "N/A"} />
