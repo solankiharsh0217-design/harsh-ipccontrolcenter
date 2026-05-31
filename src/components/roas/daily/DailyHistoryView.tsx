@@ -533,8 +533,20 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
           </button>
         </div>
 
+        {applied.buyerFilter && (
+          <div style={{ marginTop: 8, fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <input type="checkbox" checked={includeUnallocated} onChange={(e) => setIncludeUnallocated(e.target.checked)} />
+              Include unallocated combined reports
+            </label>
+            <span style={{ color: "#888" }}>
+              ({filteredWithBuyerScope.filter((x) => x.isCombined && x.excluded).length} excluded by default)
+            </span>
+          </div>
+        )}
+
         {showDebug && (
-          <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 260 }}>
+          <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 320 }}>
 {JSON.stringify({
   draftFilters: draft,
   appliedFilters: applied,
@@ -544,12 +556,17 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   afterAccountFilter: debugStages.afterAcc.length,
   afterTemplateFilter: debugStages.afterTpl.length,
   afterSearch: debugStages.afterSearch.length,
-  buyerScope: applied.buyerFilter
-    ? {
-        withBuyerBreakdown: filteredWithBuyerScope.filter((x) => x.hasBreakdown).length,
-        fallbackToReportTotals: filteredWithBuyerScope.filter((x) => !x.hasBreakdown).length,
-      }
-    : "n/a (no buyer filter)",
+  buyerMetrics: {
+    buyer: buyerMetrics.buyer,
+    spend: buyerMetrics.spend,
+    leads: buyerMetrics.leads,
+    cpl: buyerMetrics.cpl,
+    formula: buyerMetrics.formula,
+    reportIdsIncluded: buyerMetrics.reportIdsIncluded,
+    reportsExcluded: buyerMetrics.reportsExcluded,
+    hadCombinedReports: buyerMetrics.hadCombinedReports,
+    includeUnallocatedCombined: includeUnallocated,
+  },
 }, null, 2)}
           </pre>
         )}
