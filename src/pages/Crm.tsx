@@ -798,19 +798,32 @@ export default function Crm() {
           </div>
 
           {(view === "kanban" || view === "list" || view === "batches") && (
-            <div className="relative flex-1 min-w-[200px] max-w-[320px]">
+            <div className="relative flex-1 min-w-[200px] max-w-[420px]">
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={view === "batches" ? "Search batches or leads…" : "Search name, phone, email…"}
+                onChange={(e) => { setSearchQuery(e.target.value); setSearchPanelOpen(true); }}
+                onFocus={() => { if (searchQuery.trim()) setSearchPanelOpen(true); }}
+                placeholder={view === "batches" ? "Search batches or leads…" : "Search name, phone, email — across all pipelines"}
                 className="ipc-input !h-9 !text-xs !pl-7 w-full"
               />
               <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">⌕</span>
               {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black" title="Clear search">
+                <button onClick={() => { setSearchQuery(""); setSearchPanelOpen(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black" title="Clear search">
                   <XIcon className="w-3 h-3" />
                 </button>
+              )}
+              {searchPanelOpen && (
+                <UniversalSearchPanel
+                  query={searchQuery}
+                  currentPipelineId={activePipeline}
+                  pipelineNameLookup={pipelineNameLookup}
+                  stageNameLookup={stageNameLookup}
+                  agentNameLookup={agentNameLookup}
+                  onOpenCrmDrawer={handleOpenCrmDrawerFromSearch}
+                  onJumpToCrmCard={handleJumpToCrmCard}
+                  onClose={() => setSearchPanelOpen(false)}
+                />
               )}
             </div>
           )}
