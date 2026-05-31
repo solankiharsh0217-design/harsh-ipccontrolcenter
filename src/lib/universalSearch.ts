@@ -104,9 +104,21 @@ async function searchTable(opts: {
   const queries: Promise<{ data: any[] | null; error: any }>[] = [];
 
   if (email && isValidEmail(email)) {
-    let q = (supabase as any).from(table).select(selectCols).ilike("email", email).limit(limit);
+    // Exact / substring match on full email
+    let q = (supabase as any).from(table).select(selectCols).ilike("email", `%${email}%`).limit(limit);
     if (extra) q = extra(q);
     queries.push(q);
+    // Local-part prefix match — surfaces typos like vu3ge@... vs vu3geq@...
+    const localPart = email.split("@")[0] || "";
+    if (localPart && localPart.length >= 3) {
+      let q2 = (supabase as any).from(table).select(selectCols).ilike("email", `${localPart}%`).limit(limit);
+      if (extra) q2 = extra(q2);
+      queries.push(q2);
+      // Also try the local part against the name column (often local = name)
+      let q3 = (supabase as any).from(table).select(selectCols).ilike(nameCol, `%${localPart}%`).limit(limit);
+      if (extra) q3 = extra(q3);
+      queries.push(q3);
+    }
   }
 
   if (phone && phone.length >= 5) {
@@ -116,7 +128,7 @@ async function searchTable(opts: {
     queries.push(q);
   }
 
-  if (name && name.length >= 3) {
+  if (name && name.length >= 3 && !(email && isValidEmail(email))) {
     let q = (supabase as any).from(table).select(selectCols).ilike(nameCol, `%${name}%`).limit(limit);
     if (extra) q = extra(q);
     queries.push(q);
