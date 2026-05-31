@@ -643,7 +643,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
           <thead>
             <tr>
               <th>Created On</th><th>Report Date</th><th>Report Name</th>
-              <th>Media Buyers</th><th>Total Spend</th><th>Total Leads</th><th>Overall CPL</th><th></th>
+              <th>Media Buyers</th><th>Total Spend ({basisLabel})</th><th>Total Leads</th><th>Overall CPL ({basisLabel})</th><th></th>
             </tr>
           </thead>
           <tbody>
