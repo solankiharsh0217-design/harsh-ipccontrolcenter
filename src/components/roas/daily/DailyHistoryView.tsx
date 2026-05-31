@@ -287,24 +287,36 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     await runExportAction(action, full);
   };
 
+  const buildExportFilename = (ext: string) => {
+    const parts = ["Daily-Reports-History"];
+    if (applied.from || applied.to || applied.buyerFilter || applied.accountFilter || applied.templateFilter || applied.search) {
+      parts.push("Filtered");
+    }
+    if (applied.from || applied.to) parts.push(`${applied.from || "start"}-to-${applied.to || "end"}`);
+    if (applied.buyerFilter) parts.push(applied.buyerFilter.replace(/[^A-Za-z0-9_-]+/g, "_"));
+    if (applied.accountFilter) parts.push(applied.accountFilter.replace(/[^A-Za-z0-9_-]+/g, "_"));
+    if (applied.templateFilter) parts.push(applied.templateFilter.replace(/[^A-Za-z0-9_-]+/g, "_"));
+    if (!applied.from && !applied.to) parts.push(new Date().toISOString().slice(0, 10));
+    return parts.join("-") + "." + ext;
+  };
+
   const exportHistory = (action: string) => {
-    const histRows = filtered.map((r) => ({
+    const histRows = filteredWithBuyerScope.map(({ row: r, spend, leads }) => ({
       created_at: r.created_at, report_date: r.report_date, report_name: r.report_name,
       media_buyer_count: (r._media_buyers || []).length,
-      total_ad_spend: Number(r.total_ad_spend) || 0,
-      total_leads: Number(r.total_leads) || 0,
-      overall_cpl: r.overall_cpl == null ? null : Number(r.overall_cpl),
+      total_ad_spend: spend,
+      total_leads: leads,
+      overall_cpl: leads ? spend / leads : null,
       metric_template_name: r._template_name || null,
     }));
     if (action === "csv" || action === "xlsx" || action === "sheets-download") {
-      downloadFile(`daily-reports-history-${new Date().toISOString().slice(0,10)}.csv`, buildHistoryCsv(histRows), "text/csv");
+      downloadFile(buildExportFilename("csv"), buildHistoryCsv(histRows), "text/csv");
     } else if (action === "sheets-copy") {
       copyToClipboard(buildHistoryTSV(histRows)).then((ok) => {
         if (ok) toast.success("History copied for Google Sheets.");
         else toast.error("Could not copy.");
       });
     } else if (action === "pdf") {
-      // minimal PDF for filtered history
       import("jspdf").then(async ({ default: jsPDF }) => {
         const autoTableMod = await import("jspdf-autotable");
         const autoTable = (autoTableMod as any).default || (autoTableMod as any);
@@ -325,12 +337,13 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
           theme: "grid", styles: { fontSize: 8 },
           headStyles: { fillColor: [247, 246, 243], textColor: 0 },
         });
-        doc.save(`daily-reports-history-${new Date().toISOString().slice(0,10)}.pdf`);
+        doc.save(buildExportFilename("pdf"));
       });
     } else if (action === "whatsapp") {
       toast.message("WhatsApp copy is available for individual reports only.");
     }
   };
+
 
   const confirmDelete = async (id: string) => {
     if (!confirm("Move this daily report to Trash? It will be hidden from history and permanently deleted after 14 days unless restored.")) return;
