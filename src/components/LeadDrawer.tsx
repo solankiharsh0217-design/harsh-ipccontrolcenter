@@ -479,6 +479,17 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
               onDone={onChanged}
             />
           )}
+          {sendOnboardingOpen && (
+            <SendToPaidOnboardingModal
+              open={sendOnboardingOpen}
+              onClose={() => setSendOnboardingOpen(false)}
+              leadId={lead.id}
+              leadName={lead.full_name || "Lead"}
+              leadEmail={lead.email}
+              leadPhone={lead.phone}
+              onDone={onChanged}
+            />
+          )}
 
           {(() => {
             const stageName = stagesById.get(lead.stage_id || "")?.name || "";
