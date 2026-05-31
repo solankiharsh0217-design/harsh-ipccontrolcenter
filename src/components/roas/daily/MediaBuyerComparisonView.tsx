@@ -674,6 +674,18 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             <input type="checkbox" checked={includeUnallocated} onChange={(e) => setIncludeUnallocated(e.target.checked)} />
             Include unallocated combined reports
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#555" }}>
+            <span>Spend Basis:</span>
+            <select
+              className="fi-sm"
+              style={{ height: 28, maxWidth: 220 }}
+              value={spendBasis}
+              onChange={(e) => setSpendBasis(e.target.value as SpendBasis)}
+            >
+              <option value="net">Net / Platform Spend</option>
+              <option value="gross">Gross / GST-Inclusive Spend</option>
+            </select>
+          </label>
         </div>
       </div>
 
