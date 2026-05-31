@@ -684,18 +684,23 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
             🔍 Calculation Debug — included report IDs per buyer
           </summary>
           <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 260 }}>
-{JSON.stringify(aggregates.map((a) => {
+{JSON.stringify({ spendBasis, basisLabel, buyers: aggregates.map((a) => {
   const m = calculateBuyerMetrics({
     reports: dailyReportsLike, buyer: a.name,
     from, to, account: account || undefined, template: template || undefined,
     search: search || undefined, includeUnallocatedCombined: includeUnallocated,
+    spendBasis,
   });
   return {
-    buyer: a.name, spend: a.spend, leads: a.leads, cpl: a.avgCpl,
+    buyer: a.name,
+    spendBasis: m.spendBasis,
+    displayedSpend: a.spend, leads: a.leads, cpl: a.avgCpl,
+    netSpend: m.netSpend, grossSpend: m.grossSpend, gstAmount: m.gstAmount,
+    cplNet: m.cplNet, cplGross: m.cplGross,
     formula: m.formula, reportIdsIncluded: m.reportIdsIncluded,
     reportsExcluded: m.reportsExcluded, includeUnallocatedCombined: includeUnallocated,
   };
-}), null, 2)}
+}) }, null, 2)}
           </pre>
         </details>
       )}
