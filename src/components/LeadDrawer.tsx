@@ -26,6 +26,7 @@ import { loadActiveConversionRules, isConvertedStage, DEFAULT_TRIGGER_STAGES, ty
 import SessionAttendanceTimeline from "@/components/crm/SessionAttendanceTimeline";
 import LinkedRecordsPanel from "@/components/crm/LinkedRecordsPanel";
 import MoveCopyLinkPipelineModal from "@/components/crm/MoveCopyLinkPipelineModal";
+import SendToPaidOnboardingModal from "@/components/crm/SendToPaidOnboardingModal";
 
 
 
@@ -56,6 +57,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const [addingStage, setAddingStage] = useState(false);
   const [opsLeadId, setOpsLeadId] = useState<string | null>(null);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
+  const [sendOnboardingOpen, setSendOnboardingOpen] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState("");
@@ -413,6 +415,22 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
           </div>
+          {lead.lead_type === "unpaid"
+            && !(lead as any).paid_pipeline_lead_id
+            && !(lead as any).converted_to_crm_lead_id && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={() => setSendOnboardingOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90"
+                title="Create or link a Paid Onboarding CRM card for this lead"
+              >
+                <ExternalLink className="w-3 h-3" /> Send to Paid Onboarding
+              </button>
+              <button onClick={() => setMoveModalOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line bg-white hover:bg-off">
+                <ExternalLink className="w-3 h-3" /> Move / Copy to Pipeline
+              </button>
+            </div>
+          )}
           {((lead as any).paid_pipeline_lead_id || opsLeadId !== null || lead.lead_type === "paid") && (
             <div className="mt-3 flex flex-wrap gap-2">
               {(lead as any).paid_pipeline_lead_id && (
@@ -458,6 +476,17 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
               leadPhone={lead.phone}
               currentPipelineId={lead.pipeline_id}
               currentStageId={lead.stage_id}
+              onDone={onChanged}
+            />
+          )}
+          {sendOnboardingOpen && (
+            <SendToPaidOnboardingModal
+              open={sendOnboardingOpen}
+              onClose={() => setSendOnboardingOpen(false)}
+              leadId={lead.id}
+              leadName={lead.full_name || "Lead"}
+              leadEmail={lead.email}
+              leadPhone={lead.phone}
               onDone={onChanged}
             />
           )}

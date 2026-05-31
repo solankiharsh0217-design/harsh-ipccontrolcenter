@@ -28,6 +28,7 @@ import { archivePaidBuyer, restorePaidBuyer } from "@/lib/crmArchive";
 import { ArchiveConfirmModal } from "@/components/crm/ArchiveConfirmModal";
 import { stageChip } from "@/lib/stageColors";
 import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
+import { auditPaidPipelineVisibility, type VisibilityAudit } from "@/lib/paidPipelineVisibility";
 import CrmStagePicker, { type CrmStagePickerStage } from "@/components/crm/CrmStagePicker";
 import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
@@ -912,7 +913,9 @@ function BulkTempMenu({ onPick }: { onPick: (s: string) => void }) {
 }
 
 function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; onClose: () => void; stages: string[]; agents: { id: string; full_name: string }[]; onChanged: () => void }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const [visibilityAudit, setVisibilityAudit] = useState<VisibilityAudit | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [activity, setActivity] = useState<any[]>([]);
   const [stage, setStage] = useState(lead.pipeline_stage || "");
@@ -983,6 +986,14 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
     }
   };
   useEffect(() => { loadInner(); }, [lead.id]);
+
+  const loadAudit = async () => {
+    if (!isAdmin) return;
+    setAuditLoading(true);
+    try { setVisibilityAudit(await auditPaidPipelineVisibility(lead.id)); }
+    finally { setAuditLoading(false); }
+  };
+  useEffect(() => { loadAudit(); }, [lead.id, lead.crm_lead_id, isAdmin]);
 
   const hasToken = Number(lead.token_amount_collected || 0) > 0 ||
     payments.some((p: any) => p.is_token || /token/i.test(p.payment_type || "") || /token/i.test(p.payment_category || ""));
@@ -1426,6 +1437,63 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               </div>
             );
           })()}
+
+          {isAdmin && (
+            <details className="rounded-lg border border-dashed border-[#C7D2FE] bg-[#EEF2FF]/30 px-3 py-2 text-[11px]">
+              <summary className="cursor-pointer text-[11px] font-semibold text-[#3730A3] flex items-center gap-2 flex-wrap">
+                <span>🔍 Visibility Debug (admin)</span>
+                {visibilityAudit && (
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                    visibilityAudit.status === "included"
+                      ? "bg-[#DCFCE7] text-[#15803D] border-[#86EFAC]"
+                      : "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]"
+                  }`}>{visibilityAudit.status}</span>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); loadAudit(); }}
+                  className="ml-auto text-[10.5px] underline text-[#3730A3]"
+                >Refresh</button>
+              </summary>
+              <div className="mt-2 space-y-1 text-[11px] text-[#1E1B4B]">
+                {auditLoading && <div className="text-muted-foreground">Checking visibility…</div>}
+                {!auditLoading && !visibilityAudit && <div className="text-muted-foreground">No audit data.</div>}
+                {!auditLoading && visibilityAudit && (() => {
+                  const a = visibilityAudit;
+                  const shouldBeInKanban = !!(a.linkedPipelineType === "paid" && !a.isArchived && !a.isDeleted);
+                  const row = (k: string, v: any) => (
+                    <div className="flex items-baseline gap-2"><span className="text-muted-foreground w-44 shrink-0">{k}</span><span className="font-mono break-all">{v ?? "—"}</span></div>
+                  );
+                  return (
+                    <>
+                      <div className="text-[12px] font-medium">{a.reason}</div>
+                      {row("paid_pipeline_lead_id", a.paidPipelineLeadId)}
+                      {row("crm_lead_id", a.crmLeadId)}
+                      {row("source_unpaid_lead_id", a.sourceUnpaidLeadId)}
+                      {row("linked CRM pipeline", a.linkedPipelineName ? `${a.linkedPipelineName} (${a.linkedPipelineType || "?"})` : null)}
+                      {row("linked CRM stage", a.linkedStageName)}
+                      {row("archived", String(a.isArchived))}
+                      {row("soft-deleted", String(a.isDeleted))}
+                      {row("hidden from sales", String(a.hiddenFromSales))}
+                      {row("owner", a.ownerId)}
+                      {row("Kanban should include", shouldBeInKanban ? "yes" : "no")}
+                      {a.status !== "included" && a.repairable && (
+                        <div className="pt-2">
+                          <button
+                            onClick={async () => { await repairCrmLink(); await loadAudit(); }}
+                            disabled={linkingCrm}
+                            className="ipc-btn ipc-btn-black !h-7 !text-[11px]"
+                          >{linkingCrm ? "Repairing…" : "Repair CRM Link"}</button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </details>
+          )}
+
+
 
           <CodeOfConductPanel
             paidLeadId={lead.id}
