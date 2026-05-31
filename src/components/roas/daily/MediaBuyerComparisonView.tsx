@@ -523,18 +523,80 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
   };
 
   const exportDailyCSV = () => {
-    const headers = ["Date","Report Name","Media Buyer","Ad Accounts","Template","Spend","Leads","CPL","Shared"];
+    const headers = [
+      "Date","Report Name","Media Buyer","Ad Accounts","Template",
+      "Spend Basis","Net Spend","GST Amount","Gross Spend","Displayed Spend",
+      "Leads","CPL (Displayed)","Split Status","Included In Buyer Totals",
+    ];
     const lines = [headers.join(",")];
     for (const r of dailyBreakdown) {
+      const gst = getGstAwareAdSpend({ total_ad_spend: r.spend / (spendBasis === "gross" ? 1.18 : 1) });
+      // r.spend is already gross; recover net properly:
+      const grossSpend = r.spend; // dailyRows stored gross
+      const netSpend = grossSpend / 1.18;
+      const gstAmount = grossSpend - netSpend;
+      const displayed = spendBasis === "gross" ? grossSpend : netSpend;
+      const cpl = r.leads ? displayed / r.leads : null;
       lines.push([
-        r.reportDate, `"${r.reportName}"`, `"${r.buyerNameRaw}"`,
+        r.reportDate, `"${(r.reportName || "").replace(/"/g, '""')}"`, `"${r.buyerNameRaw}"`,
         `"${r.adAccounts.join("; ")}"`, `"${r.templateName || ""}"`,
-        r.spend.toFixed(2), r.leads,
-        r.cpl?.toFixed(2) ?? "", r.shared ? "yes" : "no",
+        spendBasis, netSpend.toFixed(2), gstAmount.toFixed(2), grossSpend.toFixed(2), displayed.toFixed(2),
+        r.leads, cpl != null ? cpl.toFixed(2) : "",
+        r.shared ? "Combined / Split Unavailable" : "Buyer-level",
+        r.shared && !includeUnallocated ? "no" : "yes",
       ].join(","));
     }
-    downloadFile(`media-buyer-daily-breakdown-${new Date().toISOString().slice(0,10)}.csv`, lines.join("\n"), "text/csv");
+    downloadFile(`media-buyer-daily-breakdown-${spendBasis}-${new Date().toISOString().slice(0,10)}.csv`, lines.join("\n"), "text/csv");
     logActivity({ module_key: "reports_history", action_type: "media_buyer_comparison_exported", summary: "Exported Media Buyer Daily Breakdown CSV." });
+  };
+
+  const buildPdfInput = () => ({
+    aggregates: aggregates.map((a) => ({ ...a })),
+    summary: {
+      totalSpend: summary.totalSpend,
+      totalLeads: summary.totalLeads,
+      overallCpl: summary.overallCpl,
+      bestCpl: summary.bestCpl as any,
+      mostLeads: summary.mostLeads as any,
+      bestConv: summary.bestConv as any,
+      bestRev: summary.bestRev as any,
+    },
+    insights,
+    dailyBreakdown: dailyBreakdown.map((r) => ({
+      reportDate: r.reportDate, reportName: r.reportName, buyerNameRaw: r.buyerNameRaw,
+      adAccounts: r.adAccounts, templateName: r.templateName,
+      spend: r.spend, leads: r.leads, cpl: r.cpl, shared: r.shared,
+    })),
+    filters: {
+      from, to, buyers, account, template, reportType, search,
+      includeUnallocated, spendBasis,
+    },
+    meta: {
+      generatedAt: new Date(),
+      generatedBy: profile?.full_name || user?.email || "IPC Admin",
+      basisLabel,
+    },
+  });
+
+  const handleExportPdf = async (mode: "full" | "individual") => {
+    if (aggregates.length === 0) { toast.error("No data to export."); return; }
+    try {
+      setPdfBusy(true);
+      const input = buildPdfInput();
+      if (mode === "full") {
+        await exportComparisonPdf(input);
+        toast.success("Comparison PDF downloaded.");
+      } else {
+        await exportIndividualBuyerPdfs(input);
+        toast.success(`${aggregates.length} buyer PDF${aggregates.length === 1 ? "" : "s"} downloaded.`);
+      }
+      logActivity({ module_key: "reports_history", action_type: "media_buyer_comparison_exported", summary: `Exported Media Buyer Comparison PDF (${mode}).`, metadata: { from, to, buyers, count: aggregates.length, spendBasis, mode } });
+      setPdfModalOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || "PDF export failed.");
+    } finally {
+      setPdfBusy(false);
+    }
   };
 
   const copyFounderSummary = async () => {
