@@ -10,6 +10,8 @@ import { logActivity } from "@/lib/auditLog";
 import { getGstAwareAdSpend } from "@/lib/roas/gst";
 import { normalizeMediaBuyerListSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap } from "@/lib/mediaBuyers";
 import { calculateBuyerMetrics, type ReportLike, type SpendBasis } from "@/lib/dailyReports/buyerMetrics";
+import { exportComparisonPdf, exportIndividualBuyerPdfs } from "@/lib/dailyReports/mediaBuyerComparisonPdf";
+import { useAuth } from "@/context/AuthContext";
 
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
@@ -85,6 +87,9 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
   const [spendBasis, setSpendBasis] = useState<SpendBasis>("net");
   const basisLabel = spendBasis === "gross" ? "GST-Inclusive" : "Net";
   const [attrRows, setAttrRows] = useState<AttrMbRow[]>([]);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const { profile, user } = useAuth();
 
   // Draft filters
   const [datePreset, setDatePreset] = useState<DatePreset>(initialPreset || (initialFrom || initialTo ? "custom" : "all"));
@@ -518,18 +523,79 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
   };
 
   const exportDailyCSV = () => {
-    const headers = ["Date","Report Name","Media Buyer","Ad Accounts","Template","Spend","Leads","CPL","Shared"];
+    const headers = [
+      "Date","Report Name","Media Buyer","Ad Accounts","Template",
+      "Spend Basis","Net Spend","GST Amount","Gross Spend","Displayed Spend",
+      "Leads","CPL (Displayed)","Split Status","Included In Buyer Totals",
+    ];
     const lines = [headers.join(",")];
     for (const r of dailyBreakdown) {
+      // r.spend is the gross (GST-inclusive) figure derived earlier via getGstAwareAdSpend.
+      const grossSpend = r.spend;
+      const netSpend = grossSpend / 1.18;
+      const gstAmount = grossSpend - netSpend;
+      const displayed = spendBasis === "gross" ? grossSpend : netSpend;
+      const cpl = r.leads ? displayed / r.leads : null;
       lines.push([
-        r.reportDate, `"${r.reportName}"`, `"${r.buyerNameRaw}"`,
+        r.reportDate, `"${(r.reportName || "").replace(/"/g, '""')}"`, `"${r.buyerNameRaw}"`,
         `"${r.adAccounts.join("; ")}"`, `"${r.templateName || ""}"`,
-        r.spend.toFixed(2), r.leads,
-        r.cpl?.toFixed(2) ?? "", r.shared ? "yes" : "no",
+        spendBasis, netSpend.toFixed(2), gstAmount.toFixed(2), grossSpend.toFixed(2), displayed.toFixed(2),
+        r.leads, cpl != null ? cpl.toFixed(2) : "",
+        r.shared ? "Combined / Split Unavailable" : "Buyer-level",
+        r.shared && !includeUnallocated ? "no" : "yes",
       ].join(","));
     }
-    downloadFile(`media-buyer-daily-breakdown-${new Date().toISOString().slice(0,10)}.csv`, lines.join("\n"), "text/csv");
+    downloadFile(`media-buyer-daily-breakdown-${spendBasis}-${new Date().toISOString().slice(0,10)}.csv`, lines.join("\n"), "text/csv");
     logActivity({ module_key: "reports_history", action_type: "media_buyer_comparison_exported", summary: "Exported Media Buyer Daily Breakdown CSV." });
+  };
+
+  const buildPdfInput = () => ({
+    aggregates: aggregates.map((a) => ({ ...a })),
+    summary: {
+      totalSpend: summary.totalSpend,
+      totalLeads: summary.totalLeads,
+      overallCpl: summary.overallCpl,
+      bestCpl: summary.bestCpl as any,
+      mostLeads: summary.mostLeads as any,
+      bestConv: summary.bestConv as any,
+      bestRev: summary.bestRev as any,
+    },
+    insights,
+    dailyBreakdown: dailyBreakdown.map((r) => ({
+      reportDate: r.reportDate, reportName: r.reportName, buyerNameRaw: r.buyerNameRaw,
+      adAccounts: r.adAccounts, templateName: r.templateName,
+      spend: r.spend, leads: r.leads, cpl: r.cpl, shared: r.shared,
+    })),
+    filters: {
+      from, to, buyers, account, template, reportType, search,
+      includeUnallocated, spendBasis,
+    },
+    meta: {
+      generatedAt: new Date(),
+      generatedBy: profile?.full_name || user?.email || "IPC Admin",
+      basisLabel,
+    },
+  });
+
+  const handleExportPdf = async (mode: "full" | "individual") => {
+    if (aggregates.length === 0) { toast.error("No data to export."); return; }
+    try {
+      setPdfBusy(true);
+      const input = buildPdfInput();
+      if (mode === "full") {
+        await exportComparisonPdf(input);
+        toast.success("Comparison PDF downloaded.");
+      } else {
+        await exportIndividualBuyerPdfs(input);
+        toast.success(`${aggregates.length} buyer PDF${aggregates.length === 1 ? "" : "s"} downloaded.`);
+      }
+      logActivity({ module_key: "reports_history", action_type: "media_buyer_comparison_exported", summary: `Exported Media Buyer Comparison PDF (${mode}).`, metadata: { from, to, buyers, count: aggregates.length, spendBasis, mode } });
+      setPdfModalOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || "PDF export failed.");
+    } finally {
+      setPdfBusy(false);
+    }
   };
 
   const copyFounderSummary = async () => {
@@ -591,12 +657,49 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button className="btn btn-g btn-sm" onClick={onBack}>← Back to Daily History</button>
+          <button className="btn btn-k btn-sm" onClick={() => setPdfModalOpen(true)} disabled={aggregates.length === 0}>📄 Export PDF Report</button>
           <button className="btn btn-g btn-sm" onClick={exportComparisonCSV}>Export Comparison CSV</button>
           <button className="btn btn-g btn-sm" onClick={exportDailyCSV}>Export Daily CSV</button>
           <button className="btn btn-g btn-sm" onClick={copyFounderSummary}>Copy Founder Summary</button>
           <button className="btn btn-g btn-sm" onClick={copyTeamSummary}>Copy Team Summary</button>
         </div>
       </div>
+
+      {pdfModalOpen && (
+        <div
+          onClick={() => !pdfBusy && setPdfModalOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+            zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: "#fff", borderRadius: 14, maxWidth: 520, width: "100%",
+            padding: 24, boxShadow: "0 10px 40px rgba(0,0,0,.2)",
+          }}>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, marginBottom: 4 }}>Export PDF Report</div>
+            <div style={{ fontSize: 12.5, color: "#666", marginBottom: 16 }}>
+              Uses current applied filters and spend basis ({basisLabel}). {aggregates.length} buyer{aggregates.length === 1 ? "" : "s"} in scope.
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              <button className="btn btn-k" disabled={pdfBusy} onClick={() => handleExportPdf("full")}
+                style={{ textAlign: "left", padding: "12px 14px", lineHeight: 1.35 }}>
+                <div style={{ fontWeight: 600 }}>📊 Full Comparison Report</div>
+                <div style={{ fontSize: 11.5, opacity: 0.85, fontWeight: 400 }}>One PDF with all buyers, charts, tables and insights.</div>
+              </button>
+              <button className="btn btn-g" disabled={pdfBusy || aggregates.length === 0} onClick={() => handleExportPdf("individual")}
+                style={{ textAlign: "left", padding: "12px 14px", lineHeight: 1.35 }}>
+                <div style={{ fontWeight: 600 }}>👤 Individual Buyer Reports</div>
+                <div style={{ fontSize: 11.5, opacity: 0.85, fontWeight: 400 }}>Separate PDF per buyer — useful to send privately to each media buyer.</div>
+              </button>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16, gap: 8 }}>
+              <button className="btn btn-g btn-sm" disabled={pdfBusy} onClick={() => setPdfModalOpen(false)}>Cancel</button>
+            </div>
+            {pdfBusy && <div style={{ marginTop: 12, fontSize: 12, color: "#888" }}>Generating PDF…</div>}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ marginBottom: 14, padding: 12, background: "#F7F6F3", border: "1px solid #E8E5DE", borderRadius: 10 }}>
