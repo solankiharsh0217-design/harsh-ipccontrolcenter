@@ -26,6 +26,7 @@ import { loadActiveConversionRules, isConvertedStage, DEFAULT_TRIGGER_STAGES, ty
 import SessionAttendanceTimeline from "@/components/crm/SessionAttendanceTimeline";
 import LinkedRecordsPanel from "@/components/crm/LinkedRecordsPanel";
 import MoveCopyLinkPipelineModal from "@/components/crm/MoveCopyLinkPipelineModal";
+import SendToPaidOnboardingModal from "@/components/crm/SendToPaidOnboardingModal";
 
 
 
