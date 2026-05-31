@@ -401,7 +401,7 @@ export default function Crm() {
       return hay.includes(q);
     });
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter]);
+  }, [leads, activePipeline, activePipelineType, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
