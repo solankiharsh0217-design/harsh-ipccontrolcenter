@@ -13,6 +13,7 @@ import {
   Tooltip as RTooltip, ResponsiveContainer,
 } from "recharts";
 import { normalizeMediaBuyerNameSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap, subscribeMediaBuyers } from "@/lib/mediaBuyers";
+import { calculateBuyerMetrics, resolveReportForBuyer, type ReportLike } from "@/lib/dailyReports/buyerMetrics";
 
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
@@ -92,6 +93,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   const [showDeleted, setShowDeleted] = useState(false);
   const [showCharts, setShowCharts] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
+  const [includeUnallocated, setIncludeUnallocated] = useState(false);
 
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(applied), [draft, applied]);
 
@@ -214,62 +216,89 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
 
   const filtered = debugStages.afterSearch;
 
-  // When a buyer filter is applied, prefer the report's buyer-level breakdown.
-  // If breakdown is missing for that buyer, fall back to report totals + warning.
+  // Map filtered RowExt -> ReportLike (shared shape used by buyerMetrics helper).
+  const toReportLike = (r: RowExt): ReportLike => ({
+    id: r.id,
+    date: r.report_date || (r.created_at ? r.created_at.slice(0, 10) : ""),
+    name: r.report_name,
+    notes: r.notes || "",
+    template: r._template_name || null,
+    adAccounts: r._ad_accounts || [],
+    totalSpend: Number(r.total_ad_spend) || 0,
+    totalLeads: Number(r.total_leads) || 0,
+    mediaBuyers: (r._media_buyers || []).map((m) => ({ name: m.name, spend: m.spend, leads: m.leads })),
+  });
+
+  // When a buyer filter is applied, resolve each row using the shared helper so
+  // values agree with Media Buyer Comparison. Combined multi-buyer rows without a
+  // per-buyer split are excluded unless "Include unallocated combined reports" is on.
   const filteredWithBuyerScope = useMemo(() => {
-    const buyerQ = applied.buyerFilter.trim().toLowerCase();
+    const buyer = applied.buyerFilter.trim() || null;
     return filtered.map((r) => {
-      if (!buyerQ) {
-        return { row: r, spend: Number(r.total_ad_spend) || 0, leads: Number(r.total_leads) || 0, mixed: (r._media_buyers || []).length > 1, hasBreakdown: true };
-      }
-      const mbs = r._media_buyers || [];
-      const match = mbs.find((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ);
-      const mixed = mbs.length > 1;
-      const hasBreakdown = !!match && (Number(match.spend) > 0 || Number(match.leads) > 0 || mbs.length > 1);
-      if (match && hasBreakdown) {
-        return { row: r, spend: Number(match.spend) || 0, leads: Number(match.leads) || 0, mixed, hasBreakdown: true };
-      }
-      return { row: r, spend: Number(r.total_ad_spend) || 0, leads: Number(r.total_leads) || 0, mixed, hasBreakdown: false };
+      const rl = toReportLike(r);
+      const res = resolveReportForBuyer(rl, buyer, includeUnallocated);
+      const mixed = (r._media_buyers || []).length > 1;
+      return {
+        row: r,
+        spend: res.spend,
+        leads: res.leads,
+        mixed,
+        hasBreakdown: res.matched && !res.isCombined,
+        isCombined: res.isCombined,
+        excluded: !res.matched,
+        reason: res.reason,
+      };
     });
-  }, [filtered, applied.buyerFilter]);
+  }, [filtered, applied.buyerFilter, includeUnallocated]);
 
-  const summary = useMemo(() => {
-    const t = filteredWithBuyerScope.reduce((acc, x) => {
-      acc.spend += x.spend; acc.leads += x.leads; return acc;
-    }, { spend: 0, leads: 0 });
-    return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filteredWithBuyerScope.length };
-  }, [filteredWithBuyerScope]);
+  // Rows that contribute to totals (exclude unmatched combined rows by default).
+  const scopeRowsForTotals = useMemo(
+    () => filteredWithBuyerScope.filter((x) => !x.excluded),
+    [filteredWithBuyerScope],
+  );
 
-  const trendData = useMemo(() => {
-    const map = new Map<string, { date: string; spend: number; leads: number }>();
-    for (const x of filteredWithBuyerScope) {
-      const r = x.row;
-      const date = r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "");
-      if (!date) continue;
-      const cur = map.get(date) || { date, spend: 0, leads: 0 };
-      cur.spend += x.spend; cur.leads += x.leads;
-      map.set(date, cur);
-    }
-    return Array.from(map.values())
-      .map((d) => ({ ...d, cpl: d.leads ? d.spend / d.leads : 0 }))
-      .sort((a, b) => (a.date < b.date ? -1 : 1));
-  }, [filteredWithBuyerScope]);
+  // Shared aggregation — the single source of truth for summary/trend/exports.
+  const buyerMetrics = useMemo(() => {
+    const reports = filtered.map(toReportLike);
+    return calculateBuyerMetrics({
+      reports,
+      buyer: applied.buyerFilter.trim() || null,
+      includeUnallocatedCombined: includeUnallocated,
+    });
+  }, [filtered, applied.buyerFilter, includeUnallocated]);
 
+  const summary = useMemo(() => ({
+    spend: buyerMetrics.spend,
+    leads: buyerMetrics.leads,
+    cpl: buyerMetrics.cpl,
+    count: buyerMetrics.reportIdsIncluded.length,
+  }), [buyerMetrics]);
+
+  const trendData = useMemo(
+    () => buyerMetrics.perDate.map((d) => ({ date: d.date, spend: d.spend, leads: d.leads, cpl: d.cpl ?? 0 })),
+    [buyerMetrics],
+  );
+
+  // Per-buyer comparison chart — call helper per buyer for identical math.
   const buyerComparison = useMemo(() => {
     const buyerQ = applied.buyerFilter.trim().toLowerCase();
-    const acc: Record<string, { name: string; spend: number; leads: number }> = {};
+    const buyers = new Map<string, string>();
     for (const r of filtered) {
       for (const m of r._media_buyers || []) {
-        const canonical = normalizeMediaBuyerNameSync(m.name) || m.name;
-        if (buyerQ && canonical.toLowerCase() !== buyerQ) continue;
-        const key = canonical.toLowerCase();
-        const cur = acc[key] || { name: canonical, spend: 0, leads: 0 };
-        cur.spend += m.spend; cur.leads += m.leads;
-        acc[key] = cur;
+        for (const n of (m.name ? m.name.split(/[,/&]+/) : [])) {
+          const canonical = normalizeMediaBuyerNameSync(n.trim()) || n.trim();
+          if (!canonical) continue;
+          if (buyerQ && canonical.toLowerCase() !== buyerQ) continue;
+          buyers.set(canonical.toLowerCase(), canonical);
+        }
       }
     }
-    return Object.values(acc).map((x) => ({ ...x, cpl: x.leads ? x.spend / x.leads : 0 }));
-  }, [filtered, applied.buyerFilter]);
+    const reports = filtered.map(toReportLike);
+    return Array.from(buyers.values()).map((name) => {
+      const m = calculateBuyerMetrics({ reports, buyer: name, includeUnallocatedCombined: includeUnallocated });
+      return { name, spend: m.spend, leads: m.leads, cpl: m.cpl ?? 0 };
+    });
+  }, [filtered, applied.buyerFilter, includeUnallocated]);
 
   const apply = () => setApplied(draft);
   const reset = () => { setDraft(EMPTY_FILTERS); setApplied(EMPTY_FILTERS); };
@@ -301,7 +330,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   };
 
   const exportHistory = (action: string) => {
-    const histRows = filteredWithBuyerScope.map(({ row: r, spend, leads }) => ({
+    const histRows = scopeRowsForTotals.map(({ row: r, spend, leads }) => ({
       created_at: r.created_at, report_date: r.report_date, report_name: r.report_name,
       media_buyer_count: (r._media_buyers || []).length,
       total_ad_spend: spend,
@@ -504,8 +533,20 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
           </button>
         </div>
 
+        {applied.buyerFilter && (
+          <div style={{ marginTop: 8, fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <input type="checkbox" checked={includeUnallocated} onChange={(e) => setIncludeUnallocated(e.target.checked)} />
+              Include unallocated combined reports
+            </label>
+            <span style={{ color: "#888" }}>
+              ({filteredWithBuyerScope.filter((x) => x.isCombined && x.excluded).length} excluded by default)
+            </span>
+          </div>
+        )}
+
         {showDebug && (
-          <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 260 }}>
+          <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 320 }}>
 {JSON.stringify({
   draftFilters: draft,
   appliedFilters: applied,
@@ -515,12 +556,17 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   afterAccountFilter: debugStages.afterAcc.length,
   afterTemplateFilter: debugStages.afterTpl.length,
   afterSearch: debugStages.afterSearch.length,
-  buyerScope: applied.buyerFilter
-    ? {
-        withBuyerBreakdown: filteredWithBuyerScope.filter((x) => x.hasBreakdown).length,
-        fallbackToReportTotals: filteredWithBuyerScope.filter((x) => !x.hasBreakdown).length,
-      }
-    : "n/a (no buyer filter)",
+  buyerMetrics: {
+    buyer: buyerMetrics.buyer,
+    spend: buyerMetrics.spend,
+    leads: buyerMetrics.leads,
+    cpl: buyerMetrics.cpl,
+    formula: buyerMetrics.formula,
+    reportIdsIncluded: buyerMetrics.reportIdsIncluded,
+    reportsExcluded: buyerMetrics.reportsExcluded,
+    hadCombinedReports: buyerMetrics.hadCombinedReports,
+    includeUnallocatedCombined: includeUnallocated,
+  },
 }, null, 2)}
           </pre>
         )}
@@ -544,11 +590,12 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             </tr>
           </thead>
           <tbody>
-            {filteredWithBuyerScope.map(({ row: r, spend, leads, mixed, hasBreakdown }) => {
+            {filteredWithBuyerScope.map(({ row: r, spend, leads, mixed, hasBreakdown, isCombined, excluded }) => {
               const cpl = leads ? spend / leads : null;
-              const showWarning = !!applied.buyerFilter && mixed && !hasBreakdown;
+              const showCombinedWarn = !!applied.buyerFilter && isCombined;
+              const buyerOnlyBadge = !!applied.buyerFilter && hasBreakdown;
               return (
-                <tr key={r.id} style={r.is_deleted ? { opacity: 0.6 } : undefined}>
+                <tr key={r.id} style={r.is_deleted || excluded ? { opacity: 0.55 } : undefined}>
                   <td style={{ fontSize: 11, color: "#888" }}>{new Date(r.created_at).toLocaleDateString("en-IN")}</td>
                   <td>{fmtDateLong(r.report_date)}</td>
                   <td>
@@ -556,24 +603,33 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
                     {r.report_status === "edited" && !r.is_deleted && (
                       <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#2563EB", textTransform: "uppercase", letterSpacing: ".08em" }}>edited</span>
                     )}
+                    {buyerOnlyBadge && (
+                      <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#ECFDF5", border: "1px solid #A7F3D0", color: "#047857", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                        buyer-level
+                      </span>
+                    )}
+                    {showCombinedWarn && (
+                      <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FDE68A", color: "#92400E", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                        combined / split unavailable
+                      </span>
+                    )}
                     {r.is_deleted && (
                       <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }}>
                         deleted · {daysRemaining(r.deleted_at)}d left
                       </span>
                     )}
-                    {showWarning && (
+                    {showCombinedWarn && excluded && (
                       <div style={{ marginTop: 4, fontSize: 10, color: "#B45309" }}>
-                        ⚠ Includes multiple media buyers. Buyer-level split unavailable, totals shown at report level.
+                        ⚠ Excluded from buyer totals (toggle "Include unallocated combined reports" to count).
                       </div>
                     )}
                   </td>
                   <td style={{ fontSize: 11, color: "#888" }}>
-                    {(r._media_buyers || []).slice(0, 2).map((m) => m.name).join(", ")}
-                    {(r._media_buyers || []).length > 2 && ` +${(r._media_buyers || []).length - 2}`}
+                    {mixed ? (r._media_buyers || []).map((m) => m.name).join(", ") : (r._media_buyers || []).map((m) => m.name).join(", ")}
                   </td>
-                  <td>{inr(spend)}</td>
-                  <td>{fmtNum(leads)}</td>
-                  <td>{cpl == null ? "—" : inr(cpl)}</td>
+                  <td>{excluded ? "—" : inr(spend)}</td>
+                  <td>{excluded ? "—" : fmtNum(leads)}</td>
+                  <td>{excluded || cpl == null ? "—" : inr(cpl)}</td>
                   <td>
                     {r.is_deleted ? (
                       <div style={{ display: "flex", gap: 4 }}>

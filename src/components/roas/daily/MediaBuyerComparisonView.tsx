@@ -9,6 +9,7 @@ import { inr, fmtNum, downloadFile, copyToClipboard } from "@/lib/dailyReports/h
 import { logActivity } from "@/lib/auditLog";
 import { getGstAwareAdSpend } from "@/lib/roas/gst";
 import { normalizeMediaBuyerListSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap } from "@/lib/mediaBuyers";
+import { calculateBuyerMetrics, type ReportLike } from "@/lib/dailyReports/buyerMetrics";
 
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
@@ -79,6 +80,8 @@ function normKey(s: string) { return s.trim().toLowerCase(); }
 export default function MediaBuyerComparisonView({ onBack, initialFrom, initialTo, initialPreset, initialBuyers }: Props) {
   const [loading, setLoading] = useState(true);
   const [dailyRows, setDailyRows] = useState<DailyMbRow[]>([]);
+  const [dailyReportsLike, setDailyReportsLike] = useState<ReportLike[]>([]);
+  const [includeUnallocated, setIncludeUnallocated] = useState(false);
   const [attrRows, setAttrRows] = useState<AttrMbRow[]>([]);
 
   // Draft filters
@@ -165,7 +168,35 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         });
         setDailyRows(dRows);
 
-        // Attribution
+        // Group raw per-buyer rows back into ReportLike per report id, so we can
+        // call the shared calculateBuyerMetrics helper (same one Daily History uses).
+        const grouped: Record<string, ReportLike> = {};
+        for (const r of reports || []) {
+          grouped[r.id] = {
+            id: r.id,
+            date: r.report_date || (r.created_at?.slice(0, 10) ?? ""),
+            name: r.report_name || "",
+            notes: "",
+            template: r.metric_template_id ? (tplMap.get(r.metric_template_id) || null) : null,
+            adAccounts: [],
+            totalSpend: 0,
+            totalLeads: 0,
+            mediaBuyers: [],
+          };
+        }
+        for (const m of mbs) {
+          const g = grouped[m.report_id];
+          if (!g) continue;
+          const spend = Number(m.total_ad_spend) || 0;
+          const leads = Number(m.total_leads) || 0;
+          g.totalSpend += spend;
+          g.totalLeads += leads;
+          g.mediaBuyers.push({ name: m.media_buyer_name || "", spend, leads });
+          for (const acc of aaByMb[m.id] || []) {
+            if (acc && !g.adAccounts!.includes(acc)) g.adAccounts!.push(acc);
+          }
+        }
+        setDailyReportsLike(Object.values(grouped));
         const { data: sessions } = await (supabase as any)
           .from("attribution_sessions")
           .select("id, webinar_name, webinar_date, webinar_single_date, created_at, is_deleted")
@@ -328,49 +359,54 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
   const aggregates: BuyerAgg[] = useMemo(() => {
     return targetBuyers.map((bName) => {
       const bk = normKey(bName);
-      const dailyMatches = useDaily ? fDaily.filter((r) => r.buyerNames.some((n) => normKey(n) === bk)) : [];
+
+      // SHARED HELPER: identical math to Daily Reports History.
+      // Excludes multi-buyer combined rows by default (no duplication).
+      const metrics = useDaily
+        ? calculateBuyerMetrics({
+            reports: dailyReportsLike,
+            buyer: bName,
+            from, to,
+            account: account || undefined,
+            template: template || undefined,
+            search: search || undefined,
+            includeUnallocatedCombined: includeUnallocated,
+          })
+        : { spend: 0, leads: 0, cpl: null, perDate: [], reportIdsIncluded: [], hadCombinedReports: 0 } as any;
+
+      const spend = metrics.spend;
+      const leads = metrics.leads;
+      const avgCpl = metrics.cpl;
+      const sharedCount = metrics.hadCombinedReports;
+      const reportIdsSize = metrics.reportIdsIncluded.length;
+
+      // Best/worst day CPL — derived from per-date breakdown (NOT averaged).
+      const cplList = metrics.perDate.filter((d: any) => d.cpl != null).map((d: any) => ({ cpl: d.cpl, date: d.date }));
+      const bestCplItem = cplList.length ? cplList.reduce((a: any, b: any) => (a.cpl < b.cpl ? a : b)) : null;
+      const worstCplItem = cplList.length ? cplList.reduce((a: any, b: any) => (a.cpl > b.cpl ? a : b)) : null;
+
       const attrMatches = useAttr ? fAttr.filter((r) => r.buyerNames.some((n) => normKey(n) === bk)) : [];
-
-      let spend = 0, leads = 0, sharedCount = 0;
-      const reportIds = new Set<string>();
-      const dailyByDate: Record<string, { spend: number; leads: number }> = {};
-      const cplList: { cpl: number; date: string }[] = [];
-
-      for (const r of dailyMatches) {
-        spend += r.spend; leads += r.leads;
-        if (r.shared) sharedCount++;
-        reportIds.add(r.reportId);
-        if (r.cpl != null) cplList.push({ cpl: r.cpl, date: r.reportDate });
-        const e = (dailyByDate[r.reportDate] ||= { spend: 0, leads: 0 });
-        e.spend += r.spend; e.leads += r.leads;
-      }
-
-      const avgCpl = leads ? spend / leads : null;
-      const bestCplItem = cplList.length ? cplList.reduce((a, b) => (a.cpl < b.cpl ? a : b)) : null;
-      const worstCplItem = cplList.length ? cplList.reduce((a, b) => (a.cpl > b.cpl ? a : b)) : null;
-
       let matchedSales = 0, revenue = 0, attrSpend = 0;
       for (const r of attrMatches) {
         matchedSales += r.matchedSales; revenue += r.revenue; attrSpend += r.spend;
       }
       const realizedRoas = attrSpend > 0 ? revenue / attrSpend : null;
 
-      const dailyArr = Object.entries(dailyByDate)
-        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-        .map(([date, v]) => ({ date, spend: v.spend, leads: v.leads, cpl: v.leads ? v.spend / v.leads : null }));
+      const dailyArr = metrics.perDate.map((d: any) => ({ date: d.date, spend: d.spend, leads: d.leads, cpl: d.cpl }));
 
       // Quality (0–100). Simple heuristic.
       let qParts: number[] = [];
-      if (avgCpl != null && avgCpl > 0) qParts.push(Math.max(0, 100 - Math.min(100, (avgCpl / 1000) * 100))); // lower CPL better
+      if (avgCpl != null && avgCpl > 0) qParts.push(Math.max(0, 100 - Math.min(100, (avgCpl / 1000) * 100)));
       if (leads > 0) qParts.push(Math.min(100, leads / 10));
       if (realizedRoas != null) qParts.push(Math.min(100, realizedRoas * 20));
       const quality = qParts.length >= 2 ? Math.round(qParts.reduce((a, b) => a + b, 0) / qParts.length) : null;
 
+      const hasDaily = reportIdsSize > 0;
       const dataStatus =
-        attrMatches.length === 0 && dailyMatches.length > 0 ? "Revenue Data Missing" :
-        attrMatches.length > 0 && dailyMatches.length > 0 ? "Complete" :
+        attrMatches.length === 0 && hasDaily ? "Revenue Data Missing" :
+        attrMatches.length > 0 && hasDaily ? "Complete" :
         attrMatches.length > 0 ? "Attribution Only" :
-        dailyMatches.length > 0 ? (sharedCount > 0 ? "Shared Report Data" : "Daily Only") :
+        hasDaily ? (sharedCount > 0 ? "Shared Report Data" : "Daily Only") :
         "No Data";
 
       return {
@@ -380,7 +416,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         worstCpl: worstCplItem?.cpl ?? null,
         bestDate: bestCplItem?.date ?? null,
         worstDate: worstCplItem?.date ?? null,
-        reportsCount: reportIds.size,
+        reportsCount: reportIdsSize,
         sharedReports: sharedCount,
         matchedSales, revenue, realizedRoas,
         daily: dailyArr,
@@ -388,7 +424,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         dataStatus,
       };
     }).filter((a) => a.spend > 0 || a.leads > 0 || a.matchedSales > 0 || a.revenue > 0);
-  }, [targetBuyers, fDaily, fAttr, useDaily, useAttr]);
+  }, [targetBuyers, dailyReportsLike, fAttr, useDaily, useAttr, from, to, account, template, search, includeUnallocated]);
 
   // Summary
   const summary = useMemo(() => {
@@ -628,11 +664,38 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
           </div>
         </div>
 
-        <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+        <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <button className="btn btn-k btn-sm" onClick={applyFilters}>Apply Comparison</button>
           <button className="btn btn-g btn-sm" onClick={resetFilters}>Reset Filters</button>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#555", cursor: "pointer" }}>
+            <input type="checkbox" checked={includeUnallocated} onChange={(e) => setIncludeUnallocated(e.target.checked)} />
+            Include unallocated combined reports
+          </label>
         </div>
       </div>
+
+      {/* Buyer-level audit: report IDs included per buyer (matches Daily History). */}
+      {!loading && aggregates.length > 0 && (
+        <details style={{ marginBottom: 12, fontSize: 11, color: "#555" }}>
+          <summary style={{ cursor: "pointer", color: "#888" }}>
+            🔍 Calculation Debug — included report IDs per buyer
+          </summary>
+          <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 260 }}>
+{JSON.stringify(aggregates.map((a) => {
+  const m = calculateBuyerMetrics({
+    reports: dailyReportsLike, buyer: a.name,
+    from, to, account: account || undefined, template: template || undefined,
+    search: search || undefined, includeUnallocatedCombined: includeUnallocated,
+  });
+  return {
+    buyer: a.name, spend: a.spend, leads: a.leads, cpl: a.avgCpl,
+    formula: m.formula, reportIdsIncluded: m.reportIdsIncluded,
+    reportsExcluded: m.reportsExcluded, includeUnallocatedCombined: includeUnallocated,
+  };
+}), null, 2)}
+          </pre>
+        </details>
+      )}
 
       {loading ? (
         <div style={{ color: "#888" }}>Loading…</div>
