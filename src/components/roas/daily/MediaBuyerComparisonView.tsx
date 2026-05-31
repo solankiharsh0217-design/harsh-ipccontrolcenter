@@ -974,9 +974,9 @@ function BuyerCard({ agg, winners, color, basisLabel }: {
           {winners.bestRev && <Badge>Best Revenue</Badge>}
         </div>
       </div>
-      <Stat l="Spend" v={inr(agg.spend)} />
+      <Stat l={`Spend (${basisLabel})`} v={inr(agg.spend)} />
       <Stat l="Leads" v={fmtNum(agg.leads)} />
-      <Stat l="Avg CPL" v={agg.avgCpl != null ? inr(agg.avgCpl) : "—"} />
+      <Stat l={`Avg CPL (${basisLabel})`} v={agg.avgCpl != null ? inr(agg.avgCpl) : "—"} />
       <Stat l="Reports" v={String(agg.reportsCount)} />
       <Stat l="Best Date" v={agg.bestDate || "—"} />
       <Stat l="Worst Date" v={agg.worstDate || "—"} />
