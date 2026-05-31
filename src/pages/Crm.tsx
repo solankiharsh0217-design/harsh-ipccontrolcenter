@@ -1378,6 +1378,7 @@ export default function Crm() {
                             <div className="mb-2 rounded-lg border-2 border-dashed border-gold bg-gold-pale/60 h-[88px]" aria-hidden />
                           )}
                           <div
+                            data-lead-card-id={l.id}
                             draggable
                             onDragStart={(e) => { e.dataTransfer.setData("text/plain", l.id); e.dataTransfer.effectAllowed = "move"; setDragId(l.id); }}
                             onDragEnd={() => { setDragId(null); setHoverStage(null); setHoverBefore(null); }}
