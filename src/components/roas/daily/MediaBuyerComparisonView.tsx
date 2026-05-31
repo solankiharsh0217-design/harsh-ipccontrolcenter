@@ -487,12 +487,22 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
 
   // Exports
   const exportComparisonCSV = () => {
-    const headers = ["Media Buyer","Reports","Shared","Spend","Leads","Avg CPL","Best CPL","Worst CPL","Best Date","Worst Date","Attributed Sales","Revenue","Realized ROAS","Quality","Data Status"];
+    const headers = ["Media Buyer","Reports","Shared","Spend Basis","Net Spend","GST Amount","Gross Spend","Displayed Spend","Leads","CPL (Net)","CPL (Gross)","Displayed CPL","Best CPL","Worst CPL","Best Date","Worst Date","Attributed Sales","Revenue","Realized ROAS","Quality","Data Status"];
     const lines = [headers.join(",")];
     for (const a of aggregates) {
+      const m = calculateBuyerMetrics({
+        reports: dailyReportsLike, buyer: a.name,
+        from, to, account: account || undefined, template: template || undefined,
+        search: search || undefined, includeUnallocatedCombined: includeUnallocated,
+        spendBasis,
+      });
       lines.push([
         `"${a.name}"`, a.reportsCount, a.sharedReports,
+        spendBasis,
+        m.netSpend.toFixed(2), m.gstAmount.toFixed(2), m.grossSpend.toFixed(2),
         a.spend.toFixed(2), a.leads,
+        m.cplNet?.toFixed(2) ?? "",
+        m.cplGross?.toFixed(2) ?? "",
         a.avgCpl?.toFixed(2) ?? "",
         a.bestCpl?.toFixed(2) ?? "",
         a.worstCpl?.toFixed(2) ?? "",
@@ -503,8 +513,8 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         `"${a.dataStatus}"`,
       ].join(","));
     }
-    downloadFile(`media-buyer-comparison-${new Date().toISOString().slice(0,10)}.csv`, lines.join("\n"), "text/csv");
-    logActivity({ module_key: "reports_history", action_type: "media_buyer_comparison_exported", summary: "Exported Media Buyer Comparison CSV.", metadata: { from, to, buyers, count: aggregates.length } });
+    downloadFile(`media-buyer-comparison-${spendBasis}-${new Date().toISOString().slice(0,10)}.csv`, lines.join("\n"), "text/csv");
+    logActivity({ module_key: "reports_history", action_type: "media_buyer_comparison_exported", summary: "Exported Media Buyer Comparison CSV.", metadata: { from, to, buyers, count: aggregates.length, spendBasis } });
   };
 
   const exportDailyCSV = () => {
