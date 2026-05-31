@@ -168,7 +168,35 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         });
         setDailyRows(dRows);
 
-        // Attribution
+        // Group raw per-buyer rows back into ReportLike per report id, so we can
+        // call the shared calculateBuyerMetrics helper (same one Daily History uses).
+        const grouped: Record<string, ReportLike> = {};
+        for (const r of reports || []) {
+          grouped[r.id] = {
+            id: r.id,
+            date: r.report_date || (r.created_at?.slice(0, 10) ?? ""),
+            name: r.report_name || "",
+            notes: "",
+            template: r.metric_template_id ? (tplMap.get(r.metric_template_id) || null) : null,
+            adAccounts: [],
+            totalSpend: 0,
+            totalLeads: 0,
+            mediaBuyers: [],
+          };
+        }
+        for (const m of mbs) {
+          const g = grouped[m.report_id];
+          if (!g) continue;
+          const spend = Number(m.total_ad_spend) || 0;
+          const leads = Number(m.total_leads) || 0;
+          g.totalSpend += spend;
+          g.totalLeads += leads;
+          g.mediaBuyers.push({ name: m.media_buyer_name || "", spend, leads });
+          for (const acc of aaByMb[m.id] || []) {
+            if (acc && !g.adAccounts!.includes(acc)) g.adAccounts!.push(acc);
+          }
+        }
+        setDailyReportsLike(Object.values(grouped));
         const { data: sessions } = await (supabase as any)
           .from("attribution_sessions")
           .select("id, webinar_name, webinar_date, webinar_single_date, created_at, is_deleted")
