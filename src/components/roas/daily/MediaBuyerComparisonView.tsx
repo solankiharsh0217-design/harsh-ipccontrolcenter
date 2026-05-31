@@ -9,7 +9,7 @@ import { inr, fmtNum, downloadFile, copyToClipboard } from "@/lib/dailyReports/h
 import { logActivity } from "@/lib/auditLog";
 import { getGstAwareAdSpend } from "@/lib/roas/gst";
 import { normalizeMediaBuyerListSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap } from "@/lib/mediaBuyers";
-import { calculateBuyerMetrics, type ReportLike } from "@/lib/dailyReports/buyerMetrics";
+import { calculateBuyerMetrics, type ReportLike, type SpendBasis } from "@/lib/dailyReports/buyerMetrics";
 
 
 type DatePreset = "all" | "today" | "yesterday" | "last7" | "thisMonth" | "lastMonth" | "custom";
