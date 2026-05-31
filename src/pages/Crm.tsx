@@ -372,15 +372,23 @@ export default function Crm() {
       return leads.some((l) => l.stage_id === s.id);
     });
   }, [stages, activePipeline, leads]);
+  const activePipelineType = useMemo(
+    () => pipelines.find((p) => p.id === activePipeline)?.type as "unpaid" | "paid" | "operations" | "custom" | undefined,
+    [pipelines, activePipeline]
+  );
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
-    list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at);
-    if (convertedFilter !== "show") {
+    list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
+    // "Converted" / "hide from sales" filter only makes sense for the Sales (unpaid) pipeline.
+    // On Paid — Onboarding and Operations CRM, every lead has a paid link by definition, so this
+    // filter would incorrectly hide every card (the Kanban visibility bug for Paid Onboarding).
+    if (convertedFilter !== "show" && activePipelineType === "unpaid") {
       list = list.filter((l: any) => {
         const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
         return convertedFilter === "only" ? isConv : !isConv;
       });
     }
+
     if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
     if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
     if (tagFilter !== "all") list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => t.id === tagFilter));
