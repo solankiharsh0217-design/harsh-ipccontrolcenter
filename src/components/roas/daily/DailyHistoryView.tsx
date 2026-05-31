@@ -61,24 +61,39 @@ interface Props {
   onCompareMediaBuyers?: (ctx: { from: string; to: string; preset: DatePreset }) => void;
 }
 
+type FilterState = {
+  search: string;
+  datePreset: DatePreset;
+  from: string;
+  to: string;
+  buyerFilter: string;
+  accountFilter: string;
+  templateFilter: string;
+};
+
+const EMPTY_FILTERS: FilterState = {
+  search: "", datePreset: "all", from: "", to: "",
+  buyerFilter: "", accountFilter: "", templateFilter: "",
+};
+
 export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics, onCompareMediaBuyers }: Props) {
   const [rows, setRows] = useState<RowExt[]>([]);
   const [loading, setLoading] = useState(true);
-  // Live filter state (changes apply immediately)
-  const [search, setSearch] = useState("");
-  const [datePreset, setDatePreset] = useState<DatePreset>("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [buyerFilter, setBuyerFilter] = useState("");
-  const [accountFilter, setAccountFilter] = useState("");
-  const [templateFilter, setTemplateFilter] = useState("");
-  const appliedPreset = datePreset;
+
+  // Draft = what user is editing. Applied = what drives table/cards/charts/export.
+  const [draft, setDraft] = useState<FilterState>(EMPTY_FILTERS);
+  const [applied, setApplied] = useState<FilterState>(EMPTY_FILTERS);
+  const setDraftPart = (p: Partial<FilterState>) => setDraft((d) => ({ ...d, ...p }));
+  const appliedPreset = applied.datePreset;
 
   const [viewing, setViewing] = useState<DailyReport | null>(null);
   const [viewingStatus, setViewingStatus] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
   const [showCharts, setShowCharts] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
+
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(applied), [draft, applied]);
 
   const reload = async () => {
     setLoading(true);
@@ -110,7 +125,6 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
           (aaByMb[a.report_media_buyer_id] ||= []).push(a.ad_account_name);
         }
       }
-      // attach
       for (const r of reports || []) {
         const mbs = mbsByReport[r.id] || [];
         (r as any)._media_buyers = mbs.map((m) => ({
@@ -119,7 +133,6 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
         (r as any)._ad_accounts = mbs.flatMap((m) => aaByMb[m.id] || []);
       }
     }
-    // template names
     const tplIds = Array.from(new Set((reports || []).map((r: any) => r.metric_template_id).filter(Boolean)));
     if (tplIds.length) {
       const { data: tpls } = await (supabase as any)
@@ -140,14 +153,11 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleted]);
 
-  // Re-render when alias cache updates
   const [, setMbTick] = useState(0);
   useEffect(() => {
     const off = subscribeMediaBuyers(() => setMbTick((t) => t + 1));
     return () => { off; };
   }, []);
-
-
 
   const allBuyers = useMemo(() => {
     const s = new Map<string, string>();
@@ -157,7 +167,6 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     }));
     return Array.from(s.values()).sort();
   }, [rows]);
-
 
   const allAccounts = useMemo(() => {
     const s = new Set<string>();
@@ -171,67 +180,88 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     return Array.from(s).sort();
   }, [rows]);
 
-  const filtered = useMemo(() => rows.filter((r) => {
-    const dateKey = (r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "")) as string;
-    if (from && dateKey < from) return false;
-    if (to && dateKey > to) return false;
+  // Staged filter passes (table + debug panel).
+  const debugStages = useMemo(() => {
+    const { from, to, buyerFilter, accountFilter, templateFilter, search } = applied;
+    const afterDate = rows.filter((r) => {
+      const dateKey = (r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "")) as string;
+      if (from && dateKey < from) return false;
+      if (to && dateKey > to) return false;
+      return true;
+    });
     const buyerQ = buyerFilter.trim().toLowerCase();
-    if (buyerQ && !(r._media_buyers || []).some((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ)) return false;
+    const afterBuyer = afterDate.filter((r) =>
+      !buyerQ || (r._media_buyers || []).some((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ),
+    );
     const accQ = accountFilter.trim().toLowerCase();
-    if (accQ && !(r._ad_accounts || []).some((a) => (a || "").trim().toLowerCase() === accQ)) return false;
-    if (templateFilter && r._template_name !== templateFilter) return false;
-
-    if (search) {
-      const q = search.toLowerCase();
+    const afterAcc = afterBuyer.filter((r) =>
+      !accQ || (r._ad_accounts || []).some((a) => (a || "").trim().toLowerCase() === accQ),
+    );
+    const afterTpl = afterAcc.filter((r) => !templateFilter || r._template_name === templateFilter);
+    const q = search.trim().toLowerCase();
+    const afterSearch = afterTpl.filter((r) => {
+      if (!q) return true;
       const inName = (r.report_name || "").toLowerCase().includes(q);
       const inNotes = (r.notes || "").toLowerCase().includes(q);
       const inBuyer = (r._media_buyers || []).some((m) => m.name.toLowerCase().includes(q));
       const inAcc = (r._ad_accounts || []).some((a) => (a || "").toLowerCase().includes(q));
       const inTpl = (r._template_name || "").toLowerCase().includes(q);
       const inDate = (r.report_date || "").toLowerCase().includes(q);
-      if (!inName && !inNotes && !inBuyer && !inAcc && !inTpl && !inDate) return false;
-    }
-    return true;
-  }), [rows, from, to, buyerFilter, accountFilter, templateFilter, search]);
+      return inName || inNotes || inBuyer || inAcc || inTpl || inDate;
+    });
+    return { afterDate, afterBuyer, afterAcc, afterTpl, afterSearch };
+  }, [rows, applied]);
+
+  const filtered = debugStages.afterSearch;
+
+  // When a buyer filter is applied, prefer the report's buyer-level breakdown.
+  // If breakdown is missing for that buyer, fall back to report totals + warning.
+  const filteredWithBuyerScope = useMemo(() => {
+    const buyerQ = applied.buyerFilter.trim().toLowerCase();
+    return filtered.map((r) => {
+      if (!buyerQ) {
+        return { row: r, spend: Number(r.total_ad_spend) || 0, leads: Number(r.total_leads) || 0, mixed: (r._media_buyers || []).length > 1, hasBreakdown: true };
+      }
+      const mbs = r._media_buyers || [];
+      const match = mbs.find((m) => (normalizeMediaBuyerNameSync(m.name) || m.name).toLowerCase() === buyerQ);
+      const mixed = mbs.length > 1;
+      const hasBreakdown = !!match && (Number(match.spend) > 0 || Number(match.leads) > 0 || mbs.length > 1);
+      if (match && hasBreakdown) {
+        return { row: r, spend: Number(match.spend) || 0, leads: Number(match.leads) || 0, mixed, hasBreakdown: true };
+      }
+      return { row: r, spend: Number(r.total_ad_spend) || 0, leads: Number(r.total_leads) || 0, mixed, hasBreakdown: false };
+    });
+  }, [filtered, applied.buyerFilter]);
 
   const summary = useMemo(() => {
-    const t = filtered.reduce((acc, r) => {
-      acc.spend += Number(r.total_ad_spend) || 0;
-      acc.leads += Number(r.total_leads) || 0;
-      return acc;
+    const t = filteredWithBuyerScope.reduce((acc, x) => {
+      acc.spend += x.spend; acc.leads += x.leads; return acc;
     }, { spend: 0, leads: 0 });
-    return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filtered.length };
-  }, [filtered]);
+    return { ...t, cpl: t.leads ? t.spend / t.leads : null, count: filteredWithBuyerScope.length };
+  }, [filteredWithBuyerScope]);
 
-  // Chart data — based on filtered rows
   const trendData = useMemo(() => {
     const map = new Map<string, { date: string; spend: number; leads: number }>();
-    for (const r of filtered) {
+    for (const x of filteredWithBuyerScope) {
+      const r = x.row;
       const date = r.report_date || (r.created_at ? r.created_at.slice(0, 10) : "");
       if (!date) continue;
-      let spend = Number(r.total_ad_spend) || 0;
-      let leads = Number(r.total_leads) || 0;
-      if (buyerFilter) {
-        const m = (r._media_buyers || []).find((x) => (normalizeMediaBuyerNameSync(x.name) || x.name).toLowerCase() === buyerFilter.trim().toLowerCase());
-        spend = m ? m.spend : 0;
-        leads = m ? m.leads : 0;
-      }
-
       const cur = map.get(date) || { date, spend: 0, leads: 0 };
-      cur.spend += spend; cur.leads += leads;
+      cur.spend += x.spend; cur.leads += x.leads;
       map.set(date, cur);
     }
     return Array.from(map.values())
       .map((d) => ({ ...d, cpl: d.leads ? d.spend / d.leads : 0 }))
       .sort((a, b) => (a.date < b.date ? -1 : 1));
-  }, [filtered, buyerFilter]);
+  }, [filteredWithBuyerScope]);
 
   const buyerComparison = useMemo(() => {
+    const buyerQ = applied.buyerFilter.trim().toLowerCase();
     const acc: Record<string, { name: string; spend: number; leads: number }> = {};
     for (const r of filtered) {
       for (const m of r._media_buyers || []) {
         const canonical = normalizeMediaBuyerNameSync(m.name) || m.name;
-        if (buyerFilter && canonical.toLowerCase() !== buyerFilter.trim().toLowerCase()) continue;
+        if (buyerQ && canonical.toLowerCase() !== buyerQ) continue;
         const key = canonical.toLowerCase();
         const cur = acc[key] || { name: canonical, spend: 0, leads: 0 };
         cur.spend += m.spend; cur.leads += m.leads;
@@ -239,13 +269,14 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
       }
     }
     return Object.values(acc).map((x) => ({ ...x, cpl: x.leads ? x.spend / x.leads : 0 }));
-  }, [filtered, buyerFilter]);
+  }, [filtered, applied.buyerFilter]);
 
-
-  const reset = () => {
-    setSearch(""); setFrom(""); setTo("");
-    setBuyerFilter(""); setAccountFilter(""); setTemplateFilter("");
-    setDatePreset("all");
+  const apply = () => setApplied(draft);
+  const reset = () => { setDraft(EMPTY_FILTERS); setApplied(EMPTY_FILTERS); };
+  // Chip "x" removes one applied filter immediately and syncs back into draft.
+  const clearApplied = (p: Partial<FilterState>) => {
+    const next = { ...applied, ...p };
+    setApplied(next); setDraft(next);
   };
 
   const onRowExport = async (id: string, action: any) => {
@@ -256,24 +287,36 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     await runExportAction(action, full);
   };
 
+  const buildExportFilename = (ext: string) => {
+    const parts = ["Daily-Reports-History"];
+    if (applied.from || applied.to || applied.buyerFilter || applied.accountFilter || applied.templateFilter || applied.search) {
+      parts.push("Filtered");
+    }
+    if (applied.from || applied.to) parts.push(`${applied.from || "start"}-to-${applied.to || "end"}`);
+    if (applied.buyerFilter) parts.push(applied.buyerFilter.replace(/[^A-Za-z0-9_-]+/g, "_"));
+    if (applied.accountFilter) parts.push(applied.accountFilter.replace(/[^A-Za-z0-9_-]+/g, "_"));
+    if (applied.templateFilter) parts.push(applied.templateFilter.replace(/[^A-Za-z0-9_-]+/g, "_"));
+    if (!applied.from && !applied.to) parts.push(new Date().toISOString().slice(0, 10));
+    return parts.join("-") + "." + ext;
+  };
+
   const exportHistory = (action: string) => {
-    const histRows = filtered.map((r) => ({
+    const histRows = filteredWithBuyerScope.map(({ row: r, spend, leads }) => ({
       created_at: r.created_at, report_date: r.report_date, report_name: r.report_name,
       media_buyer_count: (r._media_buyers || []).length,
-      total_ad_spend: Number(r.total_ad_spend) || 0,
-      total_leads: Number(r.total_leads) || 0,
-      overall_cpl: r.overall_cpl == null ? null : Number(r.overall_cpl),
+      total_ad_spend: spend,
+      total_leads: leads,
+      overall_cpl: leads ? spend / leads : null,
       metric_template_name: r._template_name || null,
     }));
     if (action === "csv" || action === "xlsx" || action === "sheets-download") {
-      downloadFile(`daily-reports-history-${new Date().toISOString().slice(0,10)}.csv`, buildHistoryCsv(histRows), "text/csv");
+      downloadFile(buildExportFilename("csv"), buildHistoryCsv(histRows), "text/csv");
     } else if (action === "sheets-copy") {
       copyToClipboard(buildHistoryTSV(histRows)).then((ok) => {
         if (ok) toast.success("History copied for Google Sheets.");
         else toast.error("Could not copy.");
       });
     } else if (action === "pdf") {
-      // minimal PDF for filtered history
       import("jspdf").then(async ({ default: jsPDF }) => {
         const autoTableMod = await import("jspdf-autotable");
         const autoTable = (autoTableMod as any).default || (autoTableMod as any);
@@ -294,12 +337,13 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
           theme: "grid", styles: { fontSize: 8 },
           headStyles: { fillColor: [247, 246, 243], textColor: 0 },
         });
-        doc.save(`daily-reports-history-${new Date().toISOString().slice(0,10)}.pdf`);
+        doc.save(buildExportFilename("pdf"));
       });
     } else if (action === "whatsapp") {
       toast.message("WhatsApp copy is available for individual reports only.");
     }
   };
+
 
   const confirmDelete = async (id: string) => {
     if (!confirm("Move this daily report to Trash? It will be hidden from history and permanently deleted after 14 days unless restored.")) return;
@@ -331,7 +375,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             {showCharts ? "Hide Charts" : "📊 Show Charts"}
           </button>
           {onCompareMediaBuyers && (
-            <button className="btn btn-g btn-sm" onClick={() => onCompareMediaBuyers({ from, to, preset: appliedPreset })}>⚖️ Compare Media Buyers</button>
+            <button className="btn btn-g btn-sm" onClick={() => onCompareMediaBuyers({ from: applied.from, to: applied.to, preset: appliedPreset })}>⚖️ Compare Media Buyers</button>
           )}
           <ExportMenu label="Export History" onSelect={(a) => exportHistory(a)} includeWhatsapp={false} />
         </div>
@@ -352,15 +396,14 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <label className="fl-sm">Date Range</label>
             <select
               className="fi-sm"
-              value={datePreset}
+              value={draft.datePreset}
               onChange={(e) => {
                 const v = e.target.value as DatePreset;
-                setDatePreset(v);
-                if (v === "all") { setFrom(""); setTo(""); }
+                if (v === "all") setDraftPart({ datePreset: v, from: "", to: "" });
                 else if (v !== "custom") {
                   const p = computePreset(v);
-                  setFrom(p.from); setTo(p.to);
-                }
+                  setDraftPart({ datePreset: v, from: p.from, to: p.to });
+                } else setDraftPart({ datePreset: v });
               }}
             >
               <option value="all">All Dates</option>
@@ -377,8 +420,8 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <input
               type="date"
               className="fi-sm"
-              value={from}
-              onChange={(e) => { setFrom(e.target.value); setDatePreset("custom"); }}
+              value={draft.from}
+              onChange={(e) => setDraftPart({ from: e.target.value, datePreset: "custom" })}
             />
           </div>
           <div>
@@ -386,27 +429,27 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <input
               type="date"
               className="fi-sm"
-              value={to}
-              onChange={(e) => { setTo(e.target.value); setDatePreset("custom"); }}
+              value={draft.to}
+              onChange={(e) => setDraftPart({ to: e.target.value, datePreset: "custom" })}
             />
           </div>
           <div>
             <label className="fl-sm">Media Buyer</label>
-            <select className="fi-sm" value={buyerFilter} onChange={(e) => setBuyerFilter(e.target.value)}>
+            <select className="fi-sm" value={draft.buyerFilter} onChange={(e) => setDraftPart({ buyerFilter: e.target.value })}>
               <option value="">All</option>
               {allBuyers.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="fl-sm">Ad Account</label>
-            <select className="fi-sm" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)}>
+            <select className="fi-sm" value={draft.accountFilter} onChange={(e) => setDraftPart({ accountFilter: e.target.value })}>
               <option value="">All</option>
               {allAccounts.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="fl-sm">Template</label>
-            <select className="fi-sm" value={templateFilter} onChange={(e) => setTemplateFilter(e.target.value)}>
+            <select className="fi-sm" value={draft.templateFilter} onChange={(e) => setDraftPart({ templateFilter: e.target.value })}>
               <option value="">All</option>
               {allTemplates.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
@@ -415,35 +458,74 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             <label className="fl-sm">Search</label>
             <input
               className="fi-sm"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={draft.search}
+              onChange={(e) => setDraftPart({ search: e.target.value })}
+              onKeyDown={(e) => { if (e.key === "Enter") apply(); }}
               placeholder="Report, buyer, account, template, notes…"
             />
           </div>
           <div style={{ display: "flex", alignItems: "end", gap: 6 }}>
+            <button className="btn btn-k btn-sm" onClick={apply} disabled={!dirty}>
+              {dirty ? "Apply Filters" : "Applied"}
+            </button>
             <button className="btn btn-g btn-sm" onClick={reset}>Reset Filters</button>
           </div>
         </div>
 
-        {(from || to || buyerFilter || accountFilter || templateFilter || search) && (
-          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11, color: "#555" }}>
-            <span style={{ color: "#888" }}>Active:</span>
-            {(from || to) && (
-              <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>
-                Date: {from || "…"} → {to || "…"}
-              </span>
+        {(applied.from || applied.to || applied.buyerFilter || applied.accountFilter || applied.templateFilter || applied.search) && (
+          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11, color: "#555", alignItems: "center" }}>
+            <span style={{ color: "#888" }}>Applied:</span>
+            {(applied.from || applied.to) && (
+              <Chip onRemove={() => clearApplied({ from: "", to: "", datePreset: "all" })}>
+                Date: {applied.from || "…"} → {applied.to || "…"}
+              </Chip>
             )}
-            {buyerFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Buyer: {buyerFilter}</span>}
-            {accountFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Account: {accountFilter}</span>}
-            {templateFilter && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Template: {templateFilter}</span>}
-            {search && <span style={{ padding: "2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>Search: "{search}"</span>}
+            {applied.buyerFilter && <Chip onRemove={() => clearApplied({ buyerFilter: "" })}>Buyer: {applied.buyerFilter}</Chip>}
+            {applied.accountFilter && <Chip onRemove={() => clearApplied({ accountFilter: "" })}>Account: {applied.accountFilter}</Chip>}
+            {applied.templateFilter && <Chip onRemove={() => clearApplied({ templateFilter: "" })}>Template: {applied.templateFilter}</Chip>}
+            {applied.search && <Chip onRemove={() => clearApplied({ search: "" })}>Search: "{applied.search}"</Chip>}
           </div>
         )}
 
-        <div style={{ marginTop: 8, fontSize: 11, color: "#888" }}>
-          Showing {filtered.length} of {rows.length} reports
+        {dirty && (
+          <div style={{ marginTop: 8, fontSize: 11, color: "#B45309" }}>
+            You have unapplied filter changes. Click <strong>Apply Filters</strong> to refresh results.
+          </div>
+        )}
+
+        <div style={{ marginTop: 8, fontSize: 11, color: "#888", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span>Showing {filtered.length} of {rows.length} reports</span>
+          <button
+            type="button"
+            onClick={() => setShowDebug((v) => !v)}
+            style={{ background: "transparent", border: "none", color: "#888", cursor: "pointer", fontSize: 11, textDecoration: "underline" }}
+          >
+            {showDebug ? "Hide Filter Debug" : "Filter Debug"}
+          </button>
         </div>
+
+        {showDebug && (
+          <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 260 }}>
+{JSON.stringify({
+  draftFilters: draft,
+  appliedFilters: applied,
+  totalReportsLoaded: rows.length,
+  afterDateFilter: debugStages.afterDate.length,
+  afterBuyerFilter: debugStages.afterBuyer.length,
+  afterAccountFilter: debugStages.afterAcc.length,
+  afterTemplateFilter: debugStages.afterTpl.length,
+  afterSearch: debugStages.afterSearch.length,
+  buyerScope: applied.buyerFilter
+    ? {
+        withBuyerBreakdown: filteredWithBuyerScope.filter((x) => x.hasBreakdown).length,
+        fallbackToReportTotals: filteredWithBuyerScope.filter((x) => !x.hasBreakdown).length,
+      }
+    : "n/a (no buyer filter)",
+}, null, 2)}
+          </pre>
+        )}
       </div>
+
 
       {loading ? (
         <div style={{ color: "#888" }}>Loading…</div>
@@ -462,54 +544,64 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r) => (
-              <tr key={r.id} style={r.is_deleted ? { opacity: 0.6 } : undefined}>
-                <td style={{ fontSize: 11, color: "#888" }}>{new Date(r.created_at).toLocaleDateString("en-IN")}</td>
-                <td>{fmtDateLong(r.report_date)}</td>
-                <td>
-                  {r.report_name}
-                  {r.report_status === "edited" && !r.is_deleted && (
-                    <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#2563EB", textTransform: "uppercase", letterSpacing: ".08em" }}>edited</span>
-                  )}
-                  {r.is_deleted && (
-                    <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }}>
-                      deleted · {daysRemaining(r.deleted_at)}d left
-                    </span>
-                  )}
-                </td>
-                <td style={{ fontSize: 11, color: "#888" }}>
-                  {(r._media_buyers || []).slice(0, 2).map((m) => m.name).join(", ")}
-                  {(r._media_buyers || []).length > 2 && ` +${(r._media_buyers || []).length - 2}`}
-                </td>
-                <td>{inr(Number(r.total_ad_spend))}</td>
-                <td>{fmtNum(r.total_leads)}</td>
-                <td>{r.overall_cpl ? inr(Number(r.overall_cpl)) : "—"}</td>
-                <td>
-                  {r.is_deleted ? (
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button className="btn btn-g btn-sm" onClick={async () => {
-                        try { await restoreReport(r.id); toast.success("Report restored."); reload(); }
-                        catch (e: any) { toast.error(e?.message || "Restore failed."); }
-                      }}>↺ Restore</button>
-                      <button className="btn btn-g btn-sm" style={{ color: "#DC2626" }} onClick={async () => {
-                        if (!confirm("Permanently delete this report now? This cannot be undone.")) return;
-                        try { await permanentlyDeleteReport(r.id); toast.success("Report permanently deleted."); reload(); }
-                        catch (e: any) { toast.error(e?.message || "Delete failed."); }
-                      }}>🗑 Forever</button>
-                    </div>
-                  ) : (
-                    <RowActions
-                      onView={() => onRowExport(r.id, "view")}
-                      onEdit={() => onRowExport(r.id, "edit")}
-                      onWhatsapp={() => onRowExport(r.id, "whatsapp")}
-                      onExport={(a) => onRowExport(r.id, a)}
-                      onDelete={() => confirmDelete(r.id)}
-                      deleting={deletingId === r.id}
-                    />
-                  )}
-                </td>
-              </tr>
-            ))}
+            {filteredWithBuyerScope.map(({ row: r, spend, leads, mixed, hasBreakdown }) => {
+              const cpl = leads ? spend / leads : null;
+              const showWarning = !!applied.buyerFilter && mixed && !hasBreakdown;
+              return (
+                <tr key={r.id} style={r.is_deleted ? { opacity: 0.6 } : undefined}>
+                  <td style={{ fontSize: 11, color: "#888" }}>{new Date(r.created_at).toLocaleDateString("en-IN")}</td>
+                  <td>{fmtDateLong(r.report_date)}</td>
+                  <td>
+                    {r.report_name}
+                    {r.report_status === "edited" && !r.is_deleted && (
+                      <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", color: "#2563EB", textTransform: "uppercase", letterSpacing: ".08em" }}>edited</span>
+                    )}
+                    {r.is_deleted && (
+                      <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 6px", borderRadius: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                        deleted · {daysRemaining(r.deleted_at)}d left
+                      </span>
+                    )}
+                    {showWarning && (
+                      <div style={{ marginTop: 4, fontSize: 10, color: "#B45309" }}>
+                        ⚠ Includes multiple media buyers. Buyer-level split unavailable, totals shown at report level.
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ fontSize: 11, color: "#888" }}>
+                    {(r._media_buyers || []).slice(0, 2).map((m) => m.name).join(", ")}
+                    {(r._media_buyers || []).length > 2 && ` +${(r._media_buyers || []).length - 2}`}
+                  </td>
+                  <td>{inr(spend)}</td>
+                  <td>{fmtNum(leads)}</td>
+                  <td>{cpl == null ? "—" : inr(cpl)}</td>
+                  <td>
+                    {r.is_deleted ? (
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-g btn-sm" onClick={async () => {
+                          try { await restoreReport(r.id); toast.success("Report restored."); reload(); }
+                          catch (e: any) { toast.error(e?.message || "Restore failed."); }
+                        }}>↺ Restore</button>
+                        <button className="btn btn-g btn-sm" style={{ color: "#DC2626" }} onClick={async () => {
+                          if (!confirm("Permanently delete this report now? This cannot be undone.")) return;
+                          try { await permanentlyDeleteReport(r.id); toast.success("Report permanently deleted."); reload(); }
+                          catch (e: any) { toast.error(e?.message || "Delete failed."); }
+                        }}>🗑 Forever</button>
+                      </div>
+                    ) : (
+                      <RowActions
+                        onView={() => onRowExport(r.id, "view")}
+                        onEdit={() => onRowExport(r.id, "edit")}
+                        onWhatsapp={() => onRowExport(r.id, "whatsapp")}
+                        onExport={(a) => onRowExport(r.id, a)}
+                        onDelete={() => confirmDelete(r.id)}
+                        deleting={deletingId === r.id}
+                      />
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+
           </tbody>
         </table>
       )}
@@ -668,5 +760,19 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
       </div>
       {children}
     </div>
+  );
+}
+
+function Chip({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "2px 4px 2px 8px", background: "#fff", border: "1px solid #E8E5DE", borderRadius: 999 }}>
+      <span>{children}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove filter"
+        style={{ width: 16, height: 16, borderRadius: 999, border: "none", background: "#F1EFEA", color: "#555", fontSize: 11, lineHeight: "16px", cursor: "pointer", padding: 0 }}
+      >×</button>
+    </span>
   );
 }
