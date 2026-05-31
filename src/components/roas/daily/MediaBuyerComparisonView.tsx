@@ -657,12 +657,43 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button className="btn btn-g btn-sm" onClick={onBack}>← Back to Daily History</button>
-          <button className="btn btn-k btn-sm" onClick={() => setPdfModalOpen(true)} disabled={aggregates.length === 0}>📄 Export PDF Report</button>
           <button className="btn btn-g btn-sm" onClick={exportComparisonCSV}>Export Comparison CSV</button>
           <button className="btn btn-g btn-sm" onClick={exportDailyCSV}>Export Daily CSV</button>
           <button className="btn btn-g btn-sm" onClick={copyFounderSummary}>Copy Founder Summary</button>
           <button className="btn btn-g btn-sm" onClick={copyTeamSummary}>Copy Team Summary</button>
         </div>
+      </div>
+
+      {/* Prominent PDF Export bar — impossible to miss */}
+      <div
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 12, flexWrap: "wrap",
+          background: "linear-gradient(90deg,#FBF6E9 0%,#F7EFD3 100%)",
+          border: "1px solid #E8DCAE", borderRadius: 12,
+          padding: "12px 16px", marginBottom: 14,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, color: "#0a0a0a" }}>
+            📄 Export Insightful PDF Report
+          </div>
+          <div style={{ fontSize: 11, color: "#6b6b6b" }}>
+            {aggregates.length === 0
+              ? "Apply a comparison first to enable the PDF report."
+              : `Ready for ${aggregates.length} buyer${aggregates.length === 1 ? "" : "s"} · matches current filters & spend basis.`}
+          </div>
+        </div>
+        <button
+          className="btn btn-k"
+          onClick={() => {
+            if (aggregates.length === 0) { toast.error("Apply a comparison first."); return; }
+            setPdfModalOpen(true);
+          }}
+          style={{ minWidth: 200 }}
+        >
+          📄 Export PDF Report
+        </button>
       </div>
 
       {pdfModalOpen && (
