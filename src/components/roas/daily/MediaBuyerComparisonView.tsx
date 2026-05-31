@@ -530,9 +530,8 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
     ];
     const lines = [headers.join(",")];
     for (const r of dailyBreakdown) {
-      const gst = getGstAwareAdSpend({ total_ad_spend: r.spend / (spendBasis === "gross" ? 1.18 : 1) });
-      // r.spend is already gross; recover net properly:
-      const grossSpend = r.spend; // dailyRows stored gross
+      // r.spend is the gross (GST-inclusive) figure derived earlier via getGstAwareAdSpend.
+      const grossSpend = r.spend;
       const netSpend = grossSpend / 1.18;
       const gstAmount = grossSpend - netSpend;
       const displayed = spendBasis === "gross" ? grossSpend : netSpend;
