@@ -913,7 +913,9 @@ function BulkTempMenu({ onPick }: { onPick: (s: string) => void }) {
 }
 
 function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; onClose: () => void; stages: string[]; agents: { id: string; full_name: string }[]; onChanged: () => void }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const [visibilityAudit, setVisibilityAudit] = useState<VisibilityAudit | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [activity, setActivity] = useState<any[]>([]);
   const [stage, setStage] = useState(lead.pipeline_stage || "");
