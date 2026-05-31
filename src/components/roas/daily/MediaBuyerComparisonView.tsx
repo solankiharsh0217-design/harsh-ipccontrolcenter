@@ -87,6 +87,9 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
   const [spendBasis, setSpendBasis] = useState<SpendBasis>("net");
   const basisLabel = spendBasis === "gross" ? "GST-Inclusive" : "Net";
   const [attrRows, setAttrRows] = useState<AttrMbRow[]>([]);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const { profile, user } = useAuth();
 
   // Draft filters
   const [datePreset, setDatePreset] = useState<DatePreset>(initialPreset || (initialFrom || initialTo ? "custom" : "all"));
