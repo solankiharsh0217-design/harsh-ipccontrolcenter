@@ -446,10 +446,27 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
 
       {/* Summary cards */}
       <div className="sum-row" style={{ marginBottom: 14 }}>
-        <div className="sum-card plain"><div className="sum-lbl">Total Spend</div><div className="sum-val">{inr(summary.spend)}</div></div>
+        <div className="sum-card plain"><div className="sum-lbl">Total Spend ({basisLabel})</div><div className="sum-val">{inr(summary.spend)}</div></div>
         <div className="sum-card plain"><div className="sum-lbl">Total Leads</div><div className="sum-val">{fmtNum(summary.leads)}</div></div>
-        <div className="sum-card gold"><div className="sum-lbl">Overall CPL</div><div className="sum-val">{summary.cpl == null ? "—" : inr(summary.cpl)}</div></div>
+        <div className="sum-card gold"><div className="sum-lbl">Overall CPL ({basisLabel})</div><div className="sum-val">{summary.cpl == null ? "—" : inr(summary.cpl)}</div></div>
         <div className="sum-card plain"><div className="sum-lbl">Reports</div><div className="sum-val">{summary.count}</div></div>
+      </div>
+      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <label className="fl-sm" style={{ margin: 0 }}>Spend Basis</label>
+        <select
+          className="fi-sm"
+          style={{ maxWidth: 260 }}
+          value={spendBasis}
+          onChange={(e) => setSpendBasis(e.target.value as SpendBasis)}
+        >
+          <option value="net">Net / Platform Spend (default)</option>
+          <option value="gross">Gross / GST-Inclusive Spend</option>
+        </select>
+        <span style={{ fontSize: 11, color: "#888" }}>
+          {spendBasis === "net"
+            ? "Showing platform ad spend (excludes GST). Recommended for media buyer CPL."
+            : "Showing GST-inclusive cash outflow. Use for finance/cash reporting."}
+        </span>
       </div>
 
       {/* Filters */}
