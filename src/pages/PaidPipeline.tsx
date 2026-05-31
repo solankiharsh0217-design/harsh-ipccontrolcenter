@@ -987,6 +987,14 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   };
   useEffect(() => { loadInner(); }, [lead.id]);
 
+  const loadAudit = async () => {
+    if (!isAdmin) return;
+    setAuditLoading(true);
+    try { setVisibilityAudit(await auditPaidPipelineVisibility(lead.id)); }
+    finally { setAuditLoading(false); }
+  };
+  useEffect(() => { loadAudit(); }, [lead.id, lead.crm_lead_id, isAdmin]);
+
   const hasToken = Number(lead.token_amount_collected || 0) > 0 ||
     payments.some((p: any) => p.is_token || /token/i.test(p.payment_type || "") || /token/i.test(p.payment_category || ""));
   const lastPaymentDate = payments[0]?.payment_date || null;
