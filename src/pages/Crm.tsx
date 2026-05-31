@@ -36,6 +36,12 @@ import type { UniversalSearchResult } from "@/lib/universalSearch";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
+const leadIdentityText = (lead: any) =>
+  [lead?.full_name, lead?.phone, lead?.email, lead?.program_name, lead?.webinar_source]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
 export default function Crm() {
   const { isAdmin } = useAuth();
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -376,6 +382,33 @@ export default function Crm() {
     () => pipelines.find((p) => p.id === activePipeline)?.type as "unpaid" | "paid" | "operations" | "custom" | undefined,
     [pipelines, activePipeline]
   );
+  const linkedIdentityByLeadId = useMemo(() => {
+    const map = new Map<string, string[]>();
+    const add = (id: string | null | undefined, text: string) => {
+      if (!id || !text.trim()) return;
+      const existing = map.get(id) || [];
+      existing.push(text);
+      map.set(id, existing);
+    };
+    const byPaidPipeline = new Map<string, any[]>();
+    for (const l of leads as any[]) {
+      if (l.paid_pipeline_lead_id) {
+        const arr = byPaidPipeline.get(l.paid_pipeline_lead_id) || [];
+        arr.push(l);
+        byPaidPipeline.set(l.paid_pipeline_lead_id, arr);
+      }
+    }
+    for (const l of leads as any[]) {
+      const text = leadIdentityText(l);
+      add(l.converted_to_crm_lead_id, text);
+      if (l.paid_pipeline_lead_id) {
+        for (const sibling of byPaidPipeline.get(l.paid_pipeline_lead_id) || []) {
+          if (sibling.id !== l.id) add(sibling.id, text);
+        }
+      }
+    }
+    return map;
+  }, [leads]);
   const pipelineLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
@@ -407,7 +440,7 @@ export default function Crm() {
       const digitsOnly = q.replace(/\D/g, "");
       if (digitsOnly.length >= 5) tokens.push(digitsOnly);
       list = list.filter((l: any) => {
-        const hay = [l.full_name, l.phone, l.email, l.program_name, l.webinar_source].filter(Boolean).join(" ").toLowerCase();
+        const hay = [leadIdentityText(l), ...(linkedIdentityByLeadId.get(l.id) || [])].join(" ");
         if (tokens.some((t) => hay.includes(t))) return true;
         // Local-part prefix: actual email begins with the searched local part
         if (q.includes("@") && l.email) {
@@ -419,7 +452,7 @@ export default function Crm() {
       });
     }
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, activePipelineType, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter]);
+  }, [leads, activePipeline, activePipelineType, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter, linkedIdentityByLeadId]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
