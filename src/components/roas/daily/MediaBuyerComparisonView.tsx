@@ -657,12 +657,49 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button className="btn btn-g btn-sm" onClick={onBack}>← Back to Daily History</button>
+          <button className="btn btn-k btn-sm" onClick={() => setPdfModalOpen(true)} disabled={aggregates.length === 0}>📄 Export PDF Report</button>
           <button className="btn btn-g btn-sm" onClick={exportComparisonCSV}>Export Comparison CSV</button>
           <button className="btn btn-g btn-sm" onClick={exportDailyCSV}>Export Daily CSV</button>
           <button className="btn btn-g btn-sm" onClick={copyFounderSummary}>Copy Founder Summary</button>
           <button className="btn btn-g btn-sm" onClick={copyTeamSummary}>Copy Team Summary</button>
         </div>
       </div>
+
+      {pdfModalOpen && (
+        <div
+          onClick={() => !pdfBusy && setPdfModalOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+            zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: "#fff", borderRadius: 14, maxWidth: 520, width: "100%",
+            padding: 24, boxShadow: "0 10px 40px rgba(0,0,0,.2)",
+          }}>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, marginBottom: 4 }}>Export PDF Report</div>
+            <div style={{ fontSize: 12.5, color: "#666", marginBottom: 16 }}>
+              Uses current applied filters and spend basis ({basisLabel}). {aggregates.length} buyer{aggregates.length === 1 ? "" : "s"} in scope.
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              <button className="btn btn-k" disabled={pdfBusy} onClick={() => handleExportPdf("full")}
+                style={{ textAlign: "left", padding: "12px 14px", lineHeight: 1.35 }}>
+                <div style={{ fontWeight: 600 }}>📊 Full Comparison Report</div>
+                <div style={{ fontSize: 11.5, opacity: 0.85, fontWeight: 400 }}>One PDF with all buyers, charts, tables and insights.</div>
+              </button>
+              <button className="btn btn-g" disabled={pdfBusy || aggregates.length === 0} onClick={() => handleExportPdf("individual")}
+                style={{ textAlign: "left", padding: "12px 14px", lineHeight: 1.35 }}>
+                <div style={{ fontWeight: 600 }}>👤 Individual Buyer Reports</div>
+                <div style={{ fontSize: 11.5, opacity: 0.85, fontWeight: 400 }}>Separate PDF per buyer — useful to send privately to each media buyer.</div>
+              </button>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16, gap: 8 }}>
+              <button className="btn btn-g btn-sm" disabled={pdfBusy} onClick={() => setPdfModalOpen(false)}>Cancel</button>
+            </div>
+            {pdfBusy && <div style={{ marginTop: 12, fontSize: 12, color: "#888" }}>Generating PDF…</div>}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ marginBottom: 14, padding: 12, background: "#F7F6F3", border: "1px solid #E8E5DE", borderRadius: 10 }}>
