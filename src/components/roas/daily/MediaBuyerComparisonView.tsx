@@ -359,49 +359,54 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
   const aggregates: BuyerAgg[] = useMemo(() => {
     return targetBuyers.map((bName) => {
       const bk = normKey(bName);
-      const dailyMatches = useDaily ? fDaily.filter((r) => r.buyerNames.some((n) => normKey(n) === bk)) : [];
+
+      // SHARED HELPER: identical math to Daily Reports History.
+      // Excludes multi-buyer combined rows by default (no duplication).
+      const metrics = useDaily
+        ? calculateBuyerMetrics({
+            reports: dailyReportsLike,
+            buyer: bName,
+            from, to,
+            account: account || undefined,
+            template: template || undefined,
+            search: search || undefined,
+            includeUnallocatedCombined: includeUnallocated,
+          })
+        : { spend: 0, leads: 0, cpl: null, perDate: [], reportIdsIncluded: [], hadCombinedReports: 0 } as any;
+
+      const spend = metrics.spend;
+      const leads = metrics.leads;
+      const avgCpl = metrics.cpl;
+      const sharedCount = metrics.hadCombinedReports;
+      const reportIdsSize = metrics.reportIdsIncluded.length;
+
+      // Best/worst day CPL — derived from per-date breakdown (NOT averaged).
+      const cplList = metrics.perDate.filter((d: any) => d.cpl != null).map((d: any) => ({ cpl: d.cpl, date: d.date }));
+      const bestCplItem = cplList.length ? cplList.reduce((a: any, b: any) => (a.cpl < b.cpl ? a : b)) : null;
+      const worstCplItem = cplList.length ? cplList.reduce((a: any, b: any) => (a.cpl > b.cpl ? a : b)) : null;
+
       const attrMatches = useAttr ? fAttr.filter((r) => r.buyerNames.some((n) => normKey(n) === bk)) : [];
-
-      let spend = 0, leads = 0, sharedCount = 0;
-      const reportIds = new Set<string>();
-      const dailyByDate: Record<string, { spend: number; leads: number }> = {};
-      const cplList: { cpl: number; date: string }[] = [];
-
-      for (const r of dailyMatches) {
-        spend += r.spend; leads += r.leads;
-        if (r.shared) sharedCount++;
-        reportIds.add(r.reportId);
-        if (r.cpl != null) cplList.push({ cpl: r.cpl, date: r.reportDate });
-        const e = (dailyByDate[r.reportDate] ||= { spend: 0, leads: 0 });
-        e.spend += r.spend; e.leads += r.leads;
-      }
-
-      const avgCpl = leads ? spend / leads : null;
-      const bestCplItem = cplList.length ? cplList.reduce((a, b) => (a.cpl < b.cpl ? a : b)) : null;
-      const worstCplItem = cplList.length ? cplList.reduce((a, b) => (a.cpl > b.cpl ? a : b)) : null;
-
       let matchedSales = 0, revenue = 0, attrSpend = 0;
       for (const r of attrMatches) {
         matchedSales += r.matchedSales; revenue += r.revenue; attrSpend += r.spend;
       }
       const realizedRoas = attrSpend > 0 ? revenue / attrSpend : null;
 
-      const dailyArr = Object.entries(dailyByDate)
-        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-        .map(([date, v]) => ({ date, spend: v.spend, leads: v.leads, cpl: v.leads ? v.spend / v.leads : null }));
+      const dailyArr = metrics.perDate.map((d: any) => ({ date: d.date, spend: d.spend, leads: d.leads, cpl: d.cpl }));
 
       // Quality (0–100). Simple heuristic.
       let qParts: number[] = [];
-      if (avgCpl != null && avgCpl > 0) qParts.push(Math.max(0, 100 - Math.min(100, (avgCpl / 1000) * 100))); // lower CPL better
+      if (avgCpl != null && avgCpl > 0) qParts.push(Math.max(0, 100 - Math.min(100, (avgCpl / 1000) * 100)));
       if (leads > 0) qParts.push(Math.min(100, leads / 10));
       if (realizedRoas != null) qParts.push(Math.min(100, realizedRoas * 20));
       const quality = qParts.length >= 2 ? Math.round(qParts.reduce((a, b) => a + b, 0) / qParts.length) : null;
 
+      const hasDaily = reportIdsSize > 0;
       const dataStatus =
-        attrMatches.length === 0 && dailyMatches.length > 0 ? "Revenue Data Missing" :
-        attrMatches.length > 0 && dailyMatches.length > 0 ? "Complete" :
+        attrMatches.length === 0 && hasDaily ? "Revenue Data Missing" :
+        attrMatches.length > 0 && hasDaily ? "Complete" :
         attrMatches.length > 0 ? "Attribution Only" :
-        dailyMatches.length > 0 ? (sharedCount > 0 ? "Shared Report Data" : "Daily Only") :
+        hasDaily ? (sharedCount > 0 ? "Shared Report Data" : "Daily Only") :
         "No Data";
 
       return {
@@ -411,7 +416,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         worstCpl: worstCplItem?.cpl ?? null,
         bestDate: bestCplItem?.date ?? null,
         worstDate: worstCplItem?.date ?? null,
-        reportsCount: reportIds.size,
+        reportsCount: reportIdsSize,
         sharedReports: sharedCount,
         matchedSales, revenue, realizedRoas,
         daily: dailyArr,
@@ -419,7 +424,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         dataStatus,
       };
     }).filter((a) => a.spend > 0 || a.leads > 0 || a.matchedSales > 0 || a.revenue > 0);
-  }, [targetBuyers, fDaily, fAttr, useDaily, useAttr]);
+  }, [targetBuyers, dailyReportsLike, fAttr, useDaily, useAttr, from, to, account, template, search, includeUnallocated]);
 
   // Summary
   const summary = useMemo(() => {
