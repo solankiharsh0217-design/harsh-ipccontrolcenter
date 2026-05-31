@@ -330,7 +330,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
   };
 
   const exportHistory = (action: string) => {
-    const histRows = filteredWithBuyerScope.map(({ row: r, spend, leads }) => ({
+    const histRows = scopeRowsForTotals.map(({ row: r, spend, leads }) => ({
       created_at: r.created_at, report_date: r.report_date, report_name: r.report_name,
       media_buyer_count: (r._media_buyers || []).length,
       total_ad_spend: spend,
