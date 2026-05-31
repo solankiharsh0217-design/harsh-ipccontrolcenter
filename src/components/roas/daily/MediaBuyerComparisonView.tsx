@@ -664,11 +664,38 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
           </div>
         </div>
 
-        <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+        <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <button className="btn btn-k btn-sm" onClick={applyFilters}>Apply Comparison</button>
           <button className="btn btn-g btn-sm" onClick={resetFilters}>Reset Filters</button>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#555", cursor: "pointer" }}>
+            <input type="checkbox" checked={includeUnallocated} onChange={(e) => setIncludeUnallocated(e.target.checked)} />
+            Include unallocated combined reports
+          </label>
         </div>
       </div>
+
+      {/* Buyer-level audit: report IDs included per buyer (matches Daily History). */}
+      {!loading && aggregates.length > 0 && (
+        <details style={{ marginBottom: 12, fontSize: 11, color: "#555" }}>
+          <summary style={{ cursor: "pointer", color: "#888" }}>
+            🔍 Calculation Debug — included report IDs per buyer
+          </summary>
+          <pre style={{ marginTop: 8, padding: 10, background: "#fff", border: "1px solid #E8E5DE", borderRadius: 8, fontSize: 11, color: "#333", overflow: "auto", maxHeight: 260 }}>
+{JSON.stringify(aggregates.map((a) => {
+  const m = calculateBuyerMetrics({
+    reports: dailyReportsLike, buyer: a.name,
+    from, to, account: account || undefined, template: template || undefined,
+    search: search || undefined, includeUnallocatedCombined: includeUnallocated,
+  });
+  return {
+    buyer: a.name, spend: a.spend, leads: a.leads, cpl: a.avgCpl,
+    formula: m.formula, reportIdsIncluded: m.reportIdsIncluded,
+    reportsExcluded: m.reportsExcluded, includeUnallocatedCombined: includeUnallocated,
+  };
+}), null, 2)}
+          </pre>
+        </details>
+      )}
 
       {loading ? (
         <div style={{ color: "#888" }}>Loading…</div>
