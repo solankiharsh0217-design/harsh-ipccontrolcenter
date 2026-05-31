@@ -80,6 +80,8 @@ function normKey(s: string) { return s.trim().toLowerCase(); }
 export default function MediaBuyerComparisonView({ onBack, initialFrom, initialTo, initialPreset, initialBuyers }: Props) {
   const [loading, setLoading] = useState(true);
   const [dailyRows, setDailyRows] = useState<DailyMbRow[]>([]);
+  const [dailyReportsLike, setDailyReportsLike] = useState<ReportLike[]>([]);
+  const [includeUnallocated, setIncludeUnallocated] = useState(false);
   const [attrRows, setAttrRows] = useState<AttrMbRow[]>([]);
 
   // Draft filters
