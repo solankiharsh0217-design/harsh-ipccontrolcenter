@@ -345,11 +345,12 @@ export async function runUniversalSearch(input: RunUniversalSearchInput): Promis
     isHiddenFromSales: false,
     paidLinked: true,
     cocStatus: null,
-    crmLeadId: null,
+    crmLeadId: r.crm_lead_id || null,
     paidPipelineLeadId: r.id,
-    sourceUnpaidLeadId: null,
+    sourceUnpaidLeadId: r.source_unpaid_lead_id || null,
     raw: r,
   }));
+
 
   const operationsResults: UniversalSearchResult[] = opsRes.data.map((r: any) => ({
     id: r.id,
