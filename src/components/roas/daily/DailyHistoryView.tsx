@@ -238,7 +238,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
     const buyer = applied.buyerFilter.trim() || null;
     return filtered.map((r) => {
       const rl = toReportLike(r);
-      const res = resolveReportForBuyer(rl, buyer, includeUnallocated);
+      const res = resolveReportForBuyer(rl, buyer, includeUnallocated, spendBasis);
       const mixed = (r._media_buyers || []).length > 1;
       return {
         row: r,
@@ -251,7 +251,7 @@ export default function DailyHistoryView({ onNew, onEditReport, onShowAnalytics,
         reason: res.reason,
       };
     });
-  }, [filtered, applied.buyerFilter, includeUnallocated]);
+  }, [filtered, applied.buyerFilter, includeUnallocated, spendBasis]);
 
   // Rows that contribute to totals (exclude unmatched combined rows by default).
   const scopeRowsForTotals = useMemo(
