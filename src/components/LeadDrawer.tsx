@@ -415,6 +415,22 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
           </div>
+          {lead.lead_type === "unpaid"
+            && !(lead as any).paid_pipeline_lead_id
+            && !(lead as any).converted_to_crm_lead_id && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={() => setSendOnboardingOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90"
+                title="Create or link a Paid Onboarding CRM card for this lead"
+              >
+                <ExternalLink className="w-3 h-3" /> Send to Paid Onboarding
+              </button>
+              <button onClick={() => setMoveModalOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line bg-white hover:bg-off">
+                <ExternalLink className="w-3 h-3" /> Move / Copy to Pipeline
+              </button>
+            </div>
+          )}
           {((lead as any).paid_pipeline_lead_id || opsLeadId !== null || lead.lead_type === "paid") && (
             <div className="mt-3 flex flex-wrap gap-2">
               {(lead as any).paid_pipeline_lead_id && (
