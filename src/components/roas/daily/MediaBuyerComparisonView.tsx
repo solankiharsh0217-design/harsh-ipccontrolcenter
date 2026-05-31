@@ -427,7 +427,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
         dataStatus,
       };
     }).filter((a) => a.spend > 0 || a.leads > 0 || a.matchedSales > 0 || a.revenue > 0);
-  }, [targetBuyers, dailyReportsLike, fAttr, useDaily, useAttr, from, to, account, template, search, includeUnallocated]);
+  }, [targetBuyers, dailyReportsLike, fAttr, useDaily, useAttr, from, to, account, template, search, includeUnallocated, spendBasis]);
 
   // Summary
   const summary = useMemo(() => {
