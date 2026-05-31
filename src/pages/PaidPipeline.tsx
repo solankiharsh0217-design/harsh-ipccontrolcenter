@@ -28,6 +28,7 @@ import { archivePaidBuyer, restorePaidBuyer } from "@/lib/crmArchive";
 import { ArchiveConfirmModal } from "@/components/crm/ArchiveConfirmModal";
 import { stageChip } from "@/lib/stageColors";
 import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
+import { auditPaidPipelineVisibility, type VisibilityAudit } from "@/lib/paidPipelineVisibility";
 import CrmStagePicker, { type CrmStagePickerStage } from "@/components/crm/CrmStagePicker";
 import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
