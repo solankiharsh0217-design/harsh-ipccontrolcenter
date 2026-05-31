@@ -756,7 +756,7 @@ export default function MediaBuyerComparisonView({ onBack, initialFrom, initialT
               gap: 12, marginBottom: 18,
             }} className="mbc-split">
               {aggregates.map((a, idx) => (
-                <BuyerCard key={a.name} agg={a} winners={{
+                <BuyerCard key={a.name} agg={a} basisLabel={basisLabel} winners={{
                   bestCpl: summary.bestCpl?.name === a.name,
                   mostLeads: summary.mostLeads?.name === a.name,
                   bestConv: summary.bestConv?.name === a.name,
