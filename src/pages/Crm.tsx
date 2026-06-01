@@ -1671,6 +1671,9 @@ export default function Crm() {
                                       const m = map[cs]; if (!m) return null;
                                       return <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-medium border ${m.cls}`}>{m.l}</span>;
                                     })()}
+                                    {hotnessMap[l.id] && (hotnessMap[l.id].total_sessions_attended || 0) > 0 && (
+                                      <AttendanceBadge score={hotnessMap[l.id]} />
+                                    )}
                                   </div>
                                   {ag && <div className="w-5 h-5 rounded-full bg-black text-gold font-serif text-[9px] flex items-center justify-center" title={ag.full_name}>{ag.full_name.slice(0,1)}</div>}
                                 </div>
