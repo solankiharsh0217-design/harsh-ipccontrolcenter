@@ -446,23 +446,48 @@ export default function Crm() {
       list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => tagSet.has(t.id)));
     }
     if (stageFilter.length > 0) list = list.filter((l) => l.stage_id && stageFilter.includes(l.stage_id));
+    // Map legacy lead.grade (hyphenated) to Phase 1 attendance grade vocabulary
+    const legacyGradeToHotness = (g: any): Hotness => {
+      const s = String(g || "").toLowerCase().replace(/-/g, "_");
+      if (s === "super_hot") return "super_hot";
+      if (s === "hot") return "hot";
+      if (s === "warm") return "warm";
+      if (s === "cold") return "cold";
+      if (s === "true_absentee" || s === "absent" || s === "non_attendee" || s === "inactive") return "inactive";
+      return "inactive";
+    };
+    const leadAttMinutes = (l: any) => {
+      const phase1 = hotnessMap[l.id]?.total_attended_minutes || 0;
+      const legacy = Number(l.total_minutes || 0);
+      return Math.max(phase1, legacy);
+    };
+    const leadAttHasData = (l: any) => {
+      const h = hotnessMap[l.id];
+      if (h && (h.total_sessions_attended || 0) > 0) return true;
+      if (Number(l.total_minutes || 0) > 0) return true;
+      if (Number(l.webinar_count || 0) > 0 && Number(l.attendance_pct || 0) > 0) return true;
+      return false;
+    };
     if (attendanceGradeFilter.length > 0) {
       const aset = new Set(attendanceGradeFilter);
-      list = list.filter((l) => {
+      list = list.filter((l: any) => {
         const h = hotnessMap[l.id];
-        const grade: Hotness = h ? (h.manual_override && h.manual_grade ? h.manual_grade : h.current_hotness) : "inactive";
+        const grade: Hotness = h
+          ? (h.manual_override && h.manual_grade ? h.manual_grade : h.current_hotness)
+          : legacyGradeToHotness(l.grade);
         return aset.has(grade);
       });
     }
     if (minAttendedMinutes > 0) {
-      list = list.filter((l) => (hotnessMap[l.id]?.total_attended_minutes || 0) >= minAttendedMinutes);
+      list = list.filter((l) => leadAttMinutes(l) >= minAttendedMinutes);
     }
     if (attendanceDataFilter !== "any") {
       list = list.filter((l) => {
-        const has = !!hotnessMap[l.id] && (hotnessMap[l.id].total_sessions_attended || 0) > 0;
+        const has = leadAttHasData(l);
         return attendanceDataFilter === "has" ? has : !has;
       });
     }
+
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     const q = searchQuery.trim().toLowerCase();
