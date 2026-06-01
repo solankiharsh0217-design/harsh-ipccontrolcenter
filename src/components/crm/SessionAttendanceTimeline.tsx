@@ -130,18 +130,23 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false, leg
         <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
           <HotnessChip grade={grade} manual={!!hotness?.manual_override} />
           <div className="text-[10px] text-muted-foreground">
-            Score: <b className="text-foreground">{hotness?.score_numeric ?? 0}</b>/100
+            Score: <b className="text-foreground">{eff.score}</b>/100
           </div>
         </div>
+        {!hasHotnessRow && hasLegacy && (
+          <div className="mb-2 text-[10px] text-muted-foreground italic">
+            Showing legacy webinar data. Click Recalculate after re-importing attendance for full breakdown.
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-          <div><span className="text-muted-foreground">Attendance %:</span> <b>{hotness?.cumulative_attendance_percentage ?? 0}%</b></div>
-          <div><span className="text-muted-foreground">Sessions:</span> <b>{hotness?.total_sessions_attended ?? 0}</b></div>
-          <div><span className="text-muted-foreground">Total attended:</span> <b>{hotness?.total_attended_minutes ?? 0} min</b></div>
-          <div><span className="text-muted-foreground">Total possible:</span> <b>{hotness?.total_possible_minutes ?? 0} min</b></div>
-          <div><span className="text-muted-foreground">Webinars:</span> <b>{hotness?.total_webinars_attended ?? 0}</b></div>
-          <div><span className="text-muted-foreground">Best session:</span> <b>{hotness?.highest_attendance_percentage ?? 0}%</b></div>
-          <div className="col-span-2"><span className="text-muted-foreground">Last attended:</span> <b>{hotness?.last_attended_at ? new Date(hotness.last_attended_at).toLocaleDateString() : "—"}</b></div>
-          <div className="col-span-2"><span className="text-muted-foreground">Identity matched by:</span> <b>{rows[0]?.normalized_email ? "email" : rows[0]?.normalized_phone ? "phone" : rows.length ? "name (weak)" : "—"}</b></div>
+          <div><span className="text-muted-foreground">Attendance %:</span> <b>{eff.attendancePct}%</b></div>
+          <div><span className="text-muted-foreground">Sessions:</span> <b>{eff.sessions}</b></div>
+          <div><span className="text-muted-foreground">Total attended:</span> <b>{eff.attendedMin} min</b></div>
+          <div><span className="text-muted-foreground">Total possible:</span> <b>{eff.possibleMin} min</b></div>
+          <div><span className="text-muted-foreground">Webinars:</span> <b>{eff.webinars}</b></div>
+          <div><span className="text-muted-foreground">Best session:</span> <b>{eff.best}%</b></div>
+          <div className="col-span-2"><span className="text-muted-foreground">Last attended:</span> <b>{eff.lastAttended ? new Date(eff.lastAttended).toLocaleDateString() : "—"}</b></div>
+          <div className="col-span-2"><span className="text-muted-foreground">Identity matched by:</span> <b>{rows[0]?.normalized_email ? "email" : rows[0]?.normalized_phone ? "phone" : rows.length ? "name (weak)" : hasLegacy ? "legacy import" : "—"}</b></div>
         </div>
 
         {isAdmin && (
