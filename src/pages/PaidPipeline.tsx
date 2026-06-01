@@ -609,6 +609,74 @@ export default function PaidPipeline() {
         </div>
       )}
 
+      {viewMode === "compact" && (
+        <div className="flex flex-col gap-1.5">
+          {filtered.length === 0 && (
+            <div className="border border-dashed border-line rounded-lg p-10 text-center text-muted-foreground text-[13px]">
+              <div>No paid leads match these filters.</div>
+              <button onClick={resetFilters} className="ipc-btn ipc-btn-ghost !h-8 mt-3">Reset Filters</button>
+            </div>
+          )}
+          {filtered.map(l => {
+            const batch = batches.find(b => b.id === l.webinar_batch_id);
+            return (
+              <CompactPaidRow
+                key={l.id}
+                lead={l}
+                webinarBatchName={batch?.batch_name || null}
+                ownerName={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || null}
+                tags={leadTagsMap[l.id] || []}
+                selected={selected.has(l.id)}
+                onToggleSelect={() => toggleOne(l.id)}
+                onOpen={() => setOpenId(l.id)}
+                onAddPayment={() => setQuickPayId(l.id)}
+                onSetFollowUp={() => setQuickFuId(l.id)}
+                stageSlot={
+                  <InlineManagedSelect
+                    settingType="pipeline_stage"
+                    value={l.pipeline_stage || ""}
+                    onChange={async (v) => { await updateLead(l.id, { pipeline_stage: v }); recomputePaidLead(l.id); }}
+                    width={140}
+                    onListChanged={load}
+                  />
+                }
+                prioritySlot={
+                  <InlineManagedSelect
+                    settingType="lead_priority"
+                    value={l.lead_temperature || ""}
+                    onChange={(v) => updateLead(l.id, { lead_temperature: v })}
+                    width={120}
+                    colorize
+                    onListChanged={load}
+                  />
+                }
+                financeSlot={<FinanceCell lead={l} onClick={() => setQuickFinanceId(l.id)} />}
+                actionsSlot={
+                  <RowActionsMenu
+                    archived={!!(l as any).archived_at}
+                    onAddPayment={() => setQuickPayId(l.id)}
+                    onUpdateFinance={() => setQuickFinanceId(l.id)}
+                    onSetFollowUp={() => setQuickFuId(l.id)}
+                    onOpen={() => setOpenId(l.id)}
+                    onCreateInvoice={() => navigate(`/invoices/new?paidLeadId=${l.id}`)}
+                    onViewInvoices={() => navigate(`/paid-pipeline/${l.id}/invoices`)}
+                    onArchive={() => setArchiveTarget({ id: l.id, name: l.name })}
+                    onRestore={async () => {
+                      try {
+                        await restorePaidBuyer({ id: l.id, name: l.name });
+                        toast.success("Buyer restored");
+                        await load();
+                      } catch (e: any) { toast.error(e.message || "Restore failed"); }
+                    }}
+                  />
+                }
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {viewMode === "detailed" && (
       <div className="border border-line rounded-lg overflow-x-auto">
         <table className="w-full text-[12.5px]">
           <thead className="bg-off">
