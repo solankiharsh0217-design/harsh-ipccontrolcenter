@@ -20,8 +20,8 @@ import {
   type HandoffRule, type AutoHandoffLeadInput,
 } from "@/lib/operationsCrm";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
-import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
-import ManagedStageFilter from "@/components/crm/ManagedStageFilter";
+import MultiSelectFilter, { CANONICAL_GRADES, normalizeGradeValue, gradeLabel } from "@/components/crm/MultiSelectFilter";
+import { Tag as TagIcon, Layers, Flame, FolderOpen } from "lucide-react";
 import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/ArchiveConfirmModal";
 import { BatchDeleteChoicesModal } from "@/components/crm/BatchDeleteChoicesModal";
 import MoveBatchModal from "@/components/crm/MoveBatchModal";
@@ -51,10 +51,10 @@ export default function Crm() {
   const [activePipeline, setActivePipeline] = useState<string | null>(null);
   const [view, setView] = useState<View>("kanban");
   const [openLead, setOpenLead] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
-  const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
-  const [tagFilter, setTagFilter] = useState<string>("all");
-  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [gradeFilter, setGradeFilter] = useState<string[]>([]);
+  const [batchFilter, setBatchFilter] = useState<string[]>([]); // webinar_source values
+  const [tagFilter, setTagFilter] = useState<string[]>([]); // tag ids
+  const [stageFilter, setStageFilter] = useState<string[]>([]); // stage ids
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
@@ -249,7 +249,7 @@ export default function Crm() {
     await load();
     if (!result) return;
     setActivePipeline(result.pipelineId);
-    setBatchFilter(result.batchName);
+    setBatchFilter([result.batchName]);
     setBatchPipelineFilter(result.leadType);
     setView("batches");
     const pipelineLabel = result.leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)";
@@ -328,8 +328,8 @@ export default function Crm() {
     setView("kanban");
     // also detect filtered-out
     const wouldShow =
-      (!batchFilter || batchFilter === "all" || (lead.webinar_source || "—") === batchFilter) &&
-      (stageFilter === "all" || lead.stage_id === stageFilter);
+      (batchFilter.length === 0 || batchFilter.includes(lead.webinar_source || "—")) &&
+      (stageFilter.length === 0 || (lead.stage_id && stageFilter.includes(lead.stage_id)));
     if (!wouldShow) {
       toast.message("Lead is hidden by current filters.", {
         action: { label: "Clear filters", onClick: () => resetAll() },
@@ -422,10 +422,20 @@ export default function Crm() {
       });
     }
 
-    if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
-    if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
-    if (tagFilter !== "all") list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => t.id === tagFilter));
-    if (stageFilter !== "all") list = list.filter((l) => l.stage_id === stageFilter);
+    if (gradeFilter.length > 0) {
+      const set = new Set(gradeFilter);
+      list = list.filter((l: any) => {
+        if (set.has("super-hot") && l.is_super_hot) return true;
+        const g = normalizeGradeValue(l.grade);
+        return g && set.has(g);
+      });
+    }
+    if (batchFilter.length > 0) list = list.filter((l) => batchFilter.includes(l.webinar_source || "—"));
+    if (tagFilter.length > 0) {
+      const tagSet = new Set(tagFilter);
+      list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => tagSet.has(t.id)));
+    }
+    if (stageFilter.length > 0) list = list.filter((l) => l.stage_id && stageFilter.includes(l.stage_id));
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     const q = searchQuery.trim().toLowerCase();
@@ -452,7 +462,7 @@ export default function Crm() {
       });
     }
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, activePipelineType, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter, linkedIdentityByLeadId]);
+  }, [leads, activePipeline, activePipelineType, gradeFilter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter, linkedIdentityByLeadId]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
@@ -813,17 +823,83 @@ export default function Crm() {
     finally { setAssignBusy(false); }
   };
 
+  // Base scope for option counts: leads in the current pipeline, archived/converted filters honored,
+  // but BEFORE multi-select filters apply — so users always see the universe of options.
+  const filterScopeLeads = useMemo(() => {
+    let list = leads.filter((l) => l.pipeline_id === activePipeline);
+    list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
+    if (convertedFilter !== "show" && activePipelineType === "unpaid") {
+      list = list.filter((l: any) => {
+        const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
+        return convertedFilter === "only" ? isConv : !isConv;
+      });
+    }
+    return list;
+  }, [leads, activePipeline, activePipelineType, showArchived, convertedFilter]);
+
+  const batchOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of filterScopeLeads) {
+      const b = l.webinar_source || "—";
+      counts.set(b, (counts.get(b) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([value, count]) => ({ value, label: value, count }));
+  }, [filterScopeLeads]);
+
+  const gradeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    let superHotCount = 0;
+    for (const l of filterScopeLeads as any[]) {
+      if (l.is_super_hot) superHotCount++;
+      const g = normalizeGradeValue(l.grade);
+      if (g) counts.set(g, (counts.get(g) || 0) + 1);
+    }
+    const seen = new Set<string>();
+    const out: { value: string; label: string; count: number }[] = [];
+    for (const c of CANONICAL_GRADES) {
+      const count = c.value === "super-hot" ? superHotCount : (counts.get(c.value) || 0);
+      seen.add(c.value);
+      out.push({ value: c.value, label: c.label, count });
+    }
+    // Surface any grades present in data that aren't in the canonical list.
+    for (const [value, count] of counts.entries()) {
+      if (!seen.has(value)) out.push({ value, label: gradeLabel(value), count });
+    }
+    return out;
+  }, [filterScopeLeads]);
+
+  const tagOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of filterScopeLeads) {
+      for (const t of leadTagsMap[l.id] || []) counts.set(t.id, (counts.get(t.id) || 0) + 1);
+    }
+    return allTags
+      .map((t) => ({ value: t.id, label: t.name, count: counts.get(t.id) || 0, color: t.color || undefined }))
+      .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label));
+  }, [allTags, leadTagsMap, filterScopeLeads]);
+
+  const stageOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of filterScopeLeads) {
+      if (l.stage_id) counts.set(l.stage_id, (counts.get(l.stage_id) || 0) + 1);
+    }
+    return pipelineStages.map((s) => ({ value: s.id, label: s.name, count: counts.get(s.id) || 0 }));
+  }, [pipelineStages, filterScopeLeads]);
+
+  const tagNameLookup = useMemo(() => Object.fromEntries(allTags.map((t) => [t.id, t.name])), [allTags]);
+  const stageNameLookupLocal = useMemo(() => Object.fromEntries(pipelineStages.map((s) => [s.id, s.name])), [pipelineStages]);
+
   const activeFilterCount =
-    (filter !== "all" ? 1 : 0) +
-    (batchFilter !== "all" ? 1 : 0) +
-    (tagFilter !== "all" ? 1 : 0) +
-    (stageFilter !== "all" ? 1 : 0) +
+    gradeFilter.length +
+    batchFilter.length +
+    tagFilter.length +
+    stageFilter.length +
     (dateFrom || dateTo ? 1 : 0) +
     (searchQuery ? 1 : 0);
-  const advancedActiveCount = (tagFilter !== "all" ? 1 : 0) + (stageFilter !== "all" ? 1 : 0);
-  const activeTag = allTags.find((t) => t.id === tagFilter);
-  const activeStage = pipelineStages.find((s) => s.id === stageFilter);
-  const resetAll = () => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+  const advancedActiveCount = tagFilter.length + stageFilter.length;
+  const resetAll = () => { setGradeFilter([]); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
 
   return (
     <div>
@@ -889,12 +965,15 @@ export default function Crm() {
 
           {(view === "kanban" || view === "list") && (
             <>
-              <select className="ipc-input !h-9 !text-xs max-w-[180px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)} title="Webinar batch">
-                <option value="all">All batches</option>
-                {Array.from(new Set(leads.filter((l) => l.pipeline_id === activePipeline).map((l) => l.webinar_source || "—"))).map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
+              <MultiSelectFilter
+                label="Batches"
+                icon={<FolderOpen className="w-3.5 h-3.5" />}
+                options={batchOptions}
+                selectedValues={batchFilter}
+                onChange={setBatchFilter}
+                placeholder="All batches"
+                panelWidth={300}
+              />
               <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-line bg-white h-9">
                 <select className="!text-[11px] bg-transparent border-0 outline-none px-1" value={dateField} onChange={(e) => setDateField(e.target.value as any)} title="Date field">
                   <option value="webinar_date">Webinar</option>
@@ -905,38 +984,37 @@ export default function Crm() {
                 <input type="date" className="!text-[11px] border-0 outline-none px-0.5 w-[110px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To" />
                 {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-muted-foreground hover:text-black px-1" title="Clear"><XIcon className="w-3 h-3" /></button>}
               </div>
-              <select className="ipc-input !h-9 !text-xs" value={filter} onChange={(e) => setFilter(e.target.value as any)} title="Grade">
-                <option value="all">All grades</option>
-                <option value="super-hot">★ Super Hot</option>
-                <option value="hot">Hot</option>
-                <option value="warm">Warm</option>
-                <option value="cold">Cold</option>
-              </select>
+              <MultiSelectFilter
+                label="Grades"
+                icon={<Flame className="w-3.5 h-3.5" />}
+                options={gradeOptions}
+                selectedValues={gradeFilter}
+                onChange={setGradeFilter}
+                placeholder="All grades"
+                panelWidth={260}
+              />
               <select className="ipc-input !h-9 !text-xs" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)} title="Converted leads">
                 <option value="hide">Hide converted</option>
                 <option value="show">Show converted</option>
                 <option value="only">Converted only</option>
               </select>
-              <MoreFiltersMenu
-                tagFilter={
-                  <ManagedTagFilter
-                    value={tagFilter}
-                    onChange={setTagFilter}
-                    tags={allTags}
-                    onChanged={async () => { const tags = await listAllTags().catch(() => [] as Tag[]); setAllTags(tags); }}
-                  />
-                }
-                stageFilter={
-                  <ManagedStageFilter
-                    value={stageFilter}
-                    onChange={setStageFilter}
-                    stages={pipelineStages}
-                    pipelineId={activePipeline}
-                    leadsCountByStage={pipelineLeads.reduce((acc: Record<string, number>, l) => { if (l.stage_id) acc[l.stage_id] = (acc[l.stage_id] || 0) + 1; return acc; }, {})}
-                    onChanged={load}
-                  />
-                }
-                count={advancedActiveCount}
+              <MultiSelectFilter
+                label="Tags"
+                icon={<TagIcon className="w-3.5 h-3.5" />}
+                options={tagOptions}
+                selectedValues={tagFilter}
+                onChange={setTagFilter}
+                placeholder="All tags"
+                panelWidth={280}
+              />
+              <MultiSelectFilter
+                label="Stages"
+                icon={<Layers className="w-3.5 h-3.5" />}
+                options={stageOptions}
+                selectedValues={stageFilter}
+                onChange={setStageFilter}
+                placeholder="All stages"
+                panelWidth={300}
               />
             </>
           )}
@@ -974,25 +1052,26 @@ export default function Crm() {
             {searchQuery && (
               <FilterChip label={`Search: ${searchQuery}`} onClear={() => setSearchQuery("")} />
             )}
-            {batchFilter !== "all" && (
-              <FilterChip label={`Batch: ${batchFilter}`} onClear={() => setBatchFilter("all")} />
-            )}
-            {filter !== "all" && (
-              <FilterChip label={`Grade: ${filter}`} onClear={() => setFilter("all")} />
-            )}
+            {batchFilter.map((b) => (
+              <FilterChip key={`b-${b}`} label={`Batch: ${b}`} onClear={() => setBatchFilter(batchFilter.filter((x) => x !== b))} />
+            ))}
+            {gradeFilter.map((g) => (
+              <FilterChip key={`g-${g}`} label={`Grade: ${gradeLabel(g)}`} onClear={() => setGradeFilter(gradeFilter.filter((x) => x !== g))} />
+            ))}
             {(dateFrom || dateTo) && (
               <FilterChip label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${dateFrom || "…"} → ${dateTo || "…"}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />
             )}
-            {tagFilter !== "all" && activeTag && (
-              <FilterChip label={`Tag: ${activeTag.name}`} onClear={() => setTagFilter("all")} />
-            )}
-            {stageFilter !== "all" && activeStage && (
-              <FilterChip label={`Stage: ${activeStage.name}`} onClear={() => setStageFilter("all")} />
-            )}
+            {tagFilter.map((tid) => (
+              <FilterChip key={`t-${tid}`} label={`Tag: ${tagNameLookup[tid] || tid}`} onClear={() => setTagFilter(tagFilter.filter((x) => x !== tid))} />
+            ))}
+            {stageFilter.map((sid) => (
+              <FilterChip key={`s-${sid}`} label={`Stage: ${stageNameLookupLocal[sid] || sid}`} onClear={() => setStageFilter(stageFilter.filter((x) => x !== sid))} />
+            ))}
             <button onClick={resetAll} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Reset all</button>
           </div>
         )}
       </div>
+
 
       {(view === "kanban" || view === "list") && (
         <div className="text-[11px] text-muted-foreground mb-2">
@@ -1349,8 +1428,8 @@ export default function Crm() {
       {/* Kanban */}
       {view === "kanban" && (
         <div className="overflow-x-auto pb-4">
-          <div className="flex gap-3" style={{ minWidth: (stageFilter !== "all" ? 1 : pipelineStages.length) * 280 }}>
-            {pipelineStages.filter((s) => stageFilter === "all" || s.id === stageFilter).map((s, idx, arr) => {
+          <div className="flex gap-3" style={{ minWidth: (stageFilter.length > 0 ? stageFilter.length : pipelineStages.length) * 280 }}>
+            {pipelineStages.filter((s) => stageFilter.length === 0 || stageFilter.includes(s.id)).map((s, idx, arr) => {
               const items = pipelineLeads.filter((l) => l.stage_id === s.id);
               const total = items.reduce((sum, l) => sum + Number(l.deal_value || 0), 0);
               const color = STAGE_COLORS[s.color] || "#888";
@@ -1601,7 +1680,7 @@ export default function Crm() {
                   className={`relative text-left p-5 rounded-xl border bg-white hover:shadow-md transition-all cursor-pointer ${isArchivedView ? "border-[#FDE68A] bg-[#FFFBEB]/40 opacity-80 hover:border-[#F59E0B]" : "border-line hover:border-gold"}`}
                   onClick={() => {
                     if (b.pipelineId) setActivePipeline(b.pipelineId);
-                    setBatchFilter(b.name);
+                    setBatchFilter([b.name]);
                     setView("kanban");
                   }}
                 >
@@ -1610,7 +1689,7 @@ export default function Crm() {
                     archived={isArchivedView}
                     onView={() => {
                       if (b.pipelineId) setActivePipeline(b.pipelineId);
-                      setBatchFilter(b.name);
+                      setBatchFilter([b.name]);
                       setView("kanban");
                     }}
                     onRename={() => setEditBatch({ origName: b.name, origDate: b.date, name: b.name, date: b.date || "" })}
@@ -1719,7 +1798,9 @@ export default function Crm() {
                   q = editBatch.origDate ? q.eq("webinar_date", editBatch.origDate) : q.is("webinar_date", null);
                   const { error } = await q;
                   if (error) { toast.error(error.message); return; }
-                  if (batchFilter === editBatch.origName) setBatchFilter(newName);
+                  if (batchFilter.includes(editBatch.origName)) {
+                    setBatchFilter(batchFilter.map((x) => x === editBatch.origName ? newName : x));
+                  }
                   toast.success("Batch updated");
                   setEditBatch(null);
                   await load();
