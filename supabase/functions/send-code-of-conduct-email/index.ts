@@ -77,6 +77,8 @@ Deno.serve(async (req) => {
 
     if (action === 'diagnostics') {
       const diagAdmin = createClient(SUPABASE_URL, SERVICE);
+      const { data: isAdmin } = await diagAdmin.rpc('has_role', { _user_id: userId, _role: 'admin' });
+      if (!isAdmin) return jsonResponse({ ok: false, error: { code: 'FORBIDDEN', message: 'Admin only' } }, 403);
       const { data: tpl } = await diagAdmin.from('code_of_conduct_templates')
         .select('id,name,from_email,from_name,reply_to_email,email_subject,email_body,template_pdf_url,html_content,whatsapp_redirect_url,test_recipient_email,updated_at')
         .eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();

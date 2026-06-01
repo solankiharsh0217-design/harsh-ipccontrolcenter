@@ -36,6 +36,10 @@ Deno.serve(async (req) => {
     const { data: r } = await admin.from('code_of_conduct_requests').select('*').eq('id', request_id).maybeSingle();
     if (!r) return fail('REQUEST_NOT_FOUND', 'Request not found', 404);
 
+    const { data: isAdmin } = await admin.rpc('has_role', { _user_id: userId, _role: 'admin' });
+    const isOwner = r.created_by === userId;
+    if (!isAdmin && !isOwner) return fail('FORBIDDEN', 'Admin or request owner only', 403);
+
     const oldEmail = r.member_email;
     const history = Array.isArray(r.email_change_history) ? r.email_change_history : [];
     const entry = { at: new Date().toISOString(), by: userId, old: oldEmail, new: normEmail, reason: reasonText, post_sign: r.status === 'signed' };
