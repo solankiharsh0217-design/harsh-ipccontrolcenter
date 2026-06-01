@@ -462,7 +462,7 @@ export default function Crm() {
       });
     }
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, activePipelineType, filter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter, linkedIdentityByLeadId]);
+  }, [leads, activePipeline, activePipelineType, gradeFilter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter, linkedIdentityByLeadId]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
