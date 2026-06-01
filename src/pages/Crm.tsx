@@ -938,8 +938,16 @@ export default function Crm() {
     stageFilter.length +
     (dateFrom || dateTo ? 1 : 0) +
     (searchQuery ? 1 : 0);
-  const advancedActiveCount = tagFilter.length + stageFilter.length;
-  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+  const advancedActiveCount =
+    gradeFilter.length +
+    attendanceGradeFilter.length +
+    (minAttendedMinutes > 0 ? 1 : 0) +
+    (attendanceDataFilter !== "any" ? 1 : 0) +
+    (convertedFilter !== "hide" ? 1 : 0) +
+    tagFilter.length +
+    stageFilter.length;
+  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("hide"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+  const [chipsExpanded, setChipsExpanded] = useState(false);
 
   return (
     <div>
