@@ -798,6 +798,7 @@ export default function PaidPipeline() {
           </tbody>
         </table>
       </div>
+      )}
       </>)}
 
       {openLead && <LeadDrawer lead={openLead} agents={agents} onClose={() => { setOpenId(null); load(); }} stages={stages} onChanged={load} />}
