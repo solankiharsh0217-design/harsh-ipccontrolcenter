@@ -533,6 +533,61 @@ export default function PaidPipeline() {
         </div>
       </div>
 
+      {/* View toggle + payment-status quick filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="inline-flex rounded-md border border-line overflow-hidden text-[12px]">
+          <button
+            onClick={() => setViewMode("compact")}
+            className={`px-3 h-8 ${viewMode === "compact" ? "bg-black text-white" : "bg-white hover:bg-off"}`}
+            title="Compact view — best for daily follow-up"
+          >Compact</button>
+          <button
+            onClick={() => setViewMode("detailed")}
+            className={`px-3 h-8 border-l border-line ${viewMode === "detailed" ? "bg-black text-white" : "bg-white hover:bg-off"}`}
+            title="Detailed table — for admin review / export"
+          >Detailed</button>
+        </div>
+        <div className="h-6 w-px bg-line mx-1" />
+        {([
+          { k: "fully_paid",      label: "Fully Paid",       cls: "bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]" },
+          { k: "balance_pending", label: "Balance Pending",  cls: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" },
+          { k: "token_paid",      label: "Token Paid",       cls: "bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]" },
+          { k: "token_pending",   label: "Token Pending",    cls: "bg-[#FFE4E6] text-[#9F1239] border-[#FECDD3]" },
+          { k: "no_payment",      label: "No Payment",       cls: "bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]" },
+          { k: "overpaid",        label: "Overpaid · Check", cls: "bg-[#F3E8FF] text-[#6B21A8] border-[#E9D5FF]" },
+        ] as { k: PayStatusKey; label: string; cls: string }[]).map(c => {
+          const active = payStatusFilter === c.k;
+          return (
+            <button
+              key={c.k}
+              onClick={() => setPayStatusFilter(active ? "all" : c.k)}
+              className={`text-[11px] px-2 py-1 rounded-full border transition-all ${c.cls} ${active ? "ring-2 ring-offset-1 ring-black/50" : "opacity-90 hover:opacity-100"}`}
+            >{c.label}</button>
+          );
+        })}
+        <button
+          onClick={() => setFollowUpFilter(followUpFilter === "today" ? "all" : "today")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#EFF6FF] text-[#1E40AF] border-[#BFDBFE] ${followUpFilter === "today" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+        >Follow-up Due Today</button>
+        <button
+          onClick={() => setInsightFilter(insightFilter === "no_followup" ? null : "no_followup")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#F3F4F6] text-[#374151] border-[#E5E7EB] ${insightFilter === "no_followup" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+        >No Follow-up</button>
+        <button
+          onClick={() => setInsightFilter(insightFilter === "high_balance" ? null : "high_balance")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#FEF3C7] text-[#92400E] border-[#FDE68A] ${insightFilter === "high_balance" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+        >High Balance</button>
+        <button
+          onClick={() => setInsightFilter(insightFilter === "urgent_balance" ? null : "urgent_balance")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#FEE2E2] text-[#991B1B] border-[#FECACA] ${insightFilter === "urgent_balance" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+        >Urgent Balance</button>
+        <button
+          onClick={() => setFinanceStatusFilter(financeStatusFilter === "" ? "all" : "")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#F3F4F6] text-[#374151] border-[#E5E7EB] ${financeStatusFilter === "" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+          title="Leads with no finance status set"
+        >Finance Not Set</button>
+      </div>
+
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
