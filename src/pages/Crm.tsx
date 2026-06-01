@@ -328,8 +328,8 @@ export default function Crm() {
     setView("kanban");
     // also detect filtered-out
     const wouldShow =
-      (!batchFilter || batchFilter === "all" || (lead.webinar_source || "—") === batchFilter) &&
-      (stageFilter === "all" || lead.stage_id === stageFilter);
+      (batchFilter.length === 0 || batchFilter.includes(lead.webinar_source || "—")) &&
+      (stageFilter.length === 0 || (lead.stage_id && stageFilter.includes(lead.stage_id)));
     if (!wouldShow) {
       toast.message("Lead is hidden by current filters.", {
         action: { label: "Clear filters", onClick: () => resetAll() },
