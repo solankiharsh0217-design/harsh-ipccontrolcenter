@@ -1798,7 +1798,9 @@ export default function Crm() {
                   q = editBatch.origDate ? q.eq("webinar_date", editBatch.origDate) : q.is("webinar_date", null);
                   const { error } = await q;
                   if (error) { toast.error(error.message); return; }
-                  if (batchFilter === editBatch.origName) setBatchFilter(newName);
+                  if (batchFilter.includes(editBatch.origName)) {
+                    setBatchFilter(batchFilter.map((x) => x === editBatch.origName ? newName : x));
+                  }
                   toast.success("Batch updated");
                   setEditBatch(null);
                   await load();
