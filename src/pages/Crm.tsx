@@ -1939,11 +1939,11 @@ export default function Crm() {
           <table className="w-full font-sans text-sm">
             <thead className="bg-off">
               <tr className="text-left">
-                {["Lead","Phone","Score","Grade","Stage","Webinar","Agent","Deal"].map((h) => <th key={h} className="px-4 py-2.5 uppercase-label !text-[10px]">{h}</th>)}
+                {["Lead","Phone","Score","Grade","Attendance","Stage","Webinar","Agent","Deal"].map((h) => <th key={h} className="px-4 py-2.5 uppercase-label !text-[10px]">{h}</th>)}
               </tr>
             </thead>
             <tbody>
-              {pipelineLeads.length === 0 && <tr><td colSpan={8} className="p-10 text-center text-muted-foreground">No leads.</td></tr>}
+              {pipelineLeads.length === 0 && <tr><td colSpan={9} className="p-10 text-center text-muted-foreground">No leads.</td></tr>}
               {pipelineLeads.map((l) => {
                 const g = GRADE_STYLES[l.grade];
                 const stg = pipelineStages.find((s) => s.id === l.stage_id);
