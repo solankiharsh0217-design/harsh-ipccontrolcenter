@@ -15,6 +15,7 @@ export type CompactPaidRowProps = {
   onOpen: () => void;
   onAddPayment: () => void;
   onSetFollowUp: () => void;
+  onUpdateFinance?: () => void;
   actionsSlot?: React.ReactNode;
   financeSlot?: React.ReactNode;
   stageSlot?: React.ReactNode;
@@ -23,13 +24,16 @@ export type CompactPaidRowProps = {
 
 function CompactPaidRow({
   lead, webinarBatchName, ownerName, tags = [],
-  selected, onToggleSelect, onOpen, onAddPayment,
+  selected, onToggleSelect, onOpen, onAddPayment, onSetFollowUp, onUpdateFinance,
   actionsSlot, financeSlot, stageSlot,
 }: CompactPaidRowProps) {
   const status = getPaymentStatus(lead);
   const today = new Date().toISOString().slice(0, 10);
   const fu = lead.next_follow_up_date || lead.follow_up_date;
-  const fuColor = fu === today ? "#CA8A04" : (fu && fu < today) ? "#DC2626" : (fu && fu > today) ? "#2563EB" : "#9CA3AF";
+  const fuOverdue = !!(fu && fu < today);
+  const fuToday = fu === today;
+  const fuColor = fuToday ? "#CA8A04" : fuOverdue ? "#DC2626" : (fu ? "#2563EB" : "#9CA3AF");
+  const fuLabel = !fu ? "No follow-up" : fuToday ? `Due today` : fuOverdue ? `Overdue · ${fmtDate(fu)}` : `FU · ${fmtDate(fu)}`;
   const isFullyPaid = status.key === "fully_paid";
 
   const program = lead.product_name_snapshot || "—";
@@ -38,7 +42,7 @@ function CompactPaidRow({
 
   return (
     <div
-      className={`group relative grid grid-cols-[18px_minmax(170px,1.3fr)_minmax(180px,1.5fr)_minmax(150px,1fr)_minmax(150px,1fr)_minmax(130px,0.9fr)_112px] gap-2.5 items-center px-2.5 py-1.5 border border-line ${status.rowBorder} ${status.rowTint} hover:shadow-sm transition-all`}
+      className={`group relative grid grid-cols-[18px_minmax(160px,1.2fr)_minmax(170px,1.3fr)_minmax(135px,0.9fr)_148px_minmax(140px,0.95fr)_minmax(135px,0.9fr)_160px] gap-2 items-center px-2.5 py-1.5 border border-line ${status.rowBorder} ${status.rowTint} hover:shadow-sm transition-all`}
       style={{ borderRadius: 6 }}
     >
       {/* select */}
@@ -63,7 +67,7 @@ function CompactPaidRow({
           )}
           {firstTag && (
             <span
-              className="inline-flex items-center px-1 py-0 rounded-full text-[9px] font-medium border shrink-0 max-w-[80px] truncate"
+              className="inline-flex items-center px-1 py-0 rounded-full text-[9px] font-medium border shrink-0 max-w-[70px] truncate"
               title={firstTag.name}
               style={{
                 background: (firstTag.color || pickTagColor(firstTag.name)) + "1A",
@@ -79,13 +83,13 @@ function CompactPaidRow({
         </div>
       </div>
 
-      {/* Program / Batch — single line each, tight */}
+      {/* Program / Batch */}
       <div className="min-w-0 cursor-pointer leading-tight" onClick={onOpen}>
         <div className="text-[12px] font-medium truncate" title={program}>{program}</div>
         {batchName && (
-          <div className="mt-0.5 min-w-0">
+          <div className="mt-0.5 min-w-0 flex">
             <span
-              className="inline-block max-w-full truncate align-bottom text-[10px] px-1.5 py-0 rounded border border-line bg-white text-muted-foreground"
+              className="inline-block max-w-full truncate text-[10px] px-1.5 py-0 rounded border border-line bg-white text-muted-foreground"
               title={batchName}
             >
               {batchName}
@@ -94,45 +98,59 @@ function CompactPaidRow({
         )}
       </div>
 
-      {/* Money — inline single column tight */}
-      <div className="min-w-0 text-[11.5px] leading-tight">
-        <div className="flex justify-between gap-2">
-          <span className="text-muted-foreground text-[10px]">Deal</span>
-          <span className="font-medium tabular-nums">{inr(lead.deal_value_including_gst || 0)}</span>
-        </div>
-        <div className="flex justify-between gap-2">
-          <span className="text-muted-foreground text-[10px]">Coll</span>
-          <span className="tabular-nums">{inr(lead.total_collected || 0)}</span>
-        </div>
-        <div className="flex justify-between gap-2">
-          <span className="text-muted-foreground text-[10px]">Bal</span>
-          <span className={`tabular-nums ${isFullyPaid ? "text-[#16A34A] font-medium" : "text-[#CA8A04] font-medium"}`}>
-            {isFullyPaid ? "₹0" : inr(lead.balance_pending || 0)}
-          </span>
-        </div>
+      {/* Money: Deal / Token / Coll / Bal — tight 2-col grid */}
+      <div className="min-w-0 text-[11px] leading-tight grid grid-cols-2 gap-x-2 gap-y-0">
+        <span className="text-muted-foreground text-[10px]">Deal</span>
+        <span className="font-medium tabular-nums text-right">{inr(lead.deal_value_including_gst || 0)}</span>
+        <span className="text-muted-foreground text-[10px]">Tok</span>
+        <span className="tabular-nums text-right">{inr(lead.token_amount_collected || 0)}</span>
+        <span className="text-muted-foreground text-[10px]">Coll</span>
+        <span className="tabular-nums text-right">{inr(lead.total_collected || 0)}</span>
+        <span className="text-muted-foreground text-[10px]">Bal</span>
+        <span className={`tabular-nums text-right ${isFullyPaid ? "text-[#16A34A] font-medium" : "text-[#CA8A04] font-medium"}`}>
+          {isFullyPaid ? "₹0" : inr(lead.balance_pending || 0)}
+        </span>
       </div>
 
-      {/* Status: payment chip + stage + finance */}
-      <div className="min-w-0 flex flex-col gap-0.5 leading-tight">
+      {/* Stage column (dropdown lives here; no overflow-hidden ancestor) */}
+      <div className="min-w-0 flex flex-col gap-1 leading-tight">
         <span className={`inline-flex items-center gap-1 self-start text-[10px] font-medium px-1.5 py-0 rounded-full border ${status.chipBg} ${status.chipText} ${status.chipBorder}`}>
           <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: status.dot }} />
           {status.label}
         </span>
-        {stageSlot && <div className="text-[10.5px] truncate">{stageSlot}</div>}
-        {financeSlot && <div className="text-[10.5px] truncate">{financeSlot}</div>}
+        {stageSlot}
       </div>
 
-      {/* Follow-up + owner */}
-      <div className="min-w-0 text-[11px] leading-tight">
-        <div style={{ color: fuColor }} className="truncate">
-          {fu ? `FU · ${fmtDate(fu)}` : "No follow-up"}
+      {/* Finance */}
+      <div className="min-w-0 flex flex-col gap-0.5 leading-tight">
+        {financeSlot}
+        {onUpdateFinance && (
+          <button
+            onClick={onUpdateFinance}
+            className="self-start text-[10px] px-1.5 h-5 rounded border border-line bg-white hover:bg-off text-muted-foreground"
+            title="Update Finance"
+          >Finance</button>
+        )}
+      </div>
+
+      {/* Follow-up */}
+      <div className="min-w-0 flex flex-col gap-0.5 leading-tight">
+        <div className="text-[11px] truncate" style={{ color: fuColor }} title={fu || ""}>
+          {fuLabel}
         </div>
-        <div className="text-muted-foreground truncate mt-0.5" title={ownerName || ""}>
-          {ownerName || "— Unassigned —"}
+        <div className="flex items-center gap-1 min-w-0">
+          <button
+            onClick={onSetFollowUp}
+            className="text-[10px] px-1.5 h-5 rounded border border-line bg-white hover:bg-off text-muted-foreground shrink-0"
+            title="Set follow-up"
+          >Follow-up</button>
+          <span className="text-[10px] text-muted-foreground truncate" title={ownerName || ""}>
+            {ownerName ? `· ${ownerName}` : ""}
+          </span>
         </div>
       </div>
 
-      {/* Right actions: Open · ₹ · three-dot */}
+      {/* Right actions: Open · ₹ · ⋯ */}
       <div className="flex items-center gap-1 justify-end">
         <button
           onClick={onOpen}
