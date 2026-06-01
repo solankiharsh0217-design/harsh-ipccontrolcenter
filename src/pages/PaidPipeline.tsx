@@ -256,9 +256,12 @@ export default function PaidPipeline() {
         if (!(`${l.name || ""} ${l.email || ""} ${l.phone || ""}`.toLowerCase().includes(q))) return false;
       }
       if (tagFilter !== "all" && !(leadTagsMap[l.id] || []).some((t) => t.id === tagFilter)) return false;
+      if (payStatusFilter !== "all") {
+        if (getPaymentStatus(l as any).key !== payStatusFilter) return false;
+      }
       return true;
     });
-  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter]);
+  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter]);
 
   const insights = useMemo(() => {
     let highBalCount = 0, highBalAmt = 0;
