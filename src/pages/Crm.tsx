@@ -965,12 +965,15 @@ export default function Crm() {
 
           {(view === "kanban" || view === "list") && (
             <>
-              <select className="ipc-input !h-9 !text-xs max-w-[180px]" value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)} title="Webinar batch">
-                <option value="all">All batches</option>
-                {Array.from(new Set(leads.filter((l) => l.pipeline_id === activePipeline).map((l) => l.webinar_source || "—"))).map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
+              <MultiSelectFilter
+                label="Batches"
+                icon={<FolderOpen className="w-3.5 h-3.5" />}
+                options={batchOptions}
+                selectedValues={batchFilter}
+                onChange={setBatchFilter}
+                placeholder="All batches"
+                panelWidth={300}
+              />
               <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-line bg-white h-9">
                 <select className="!text-[11px] bg-transparent border-0 outline-none px-1" value={dateField} onChange={(e) => setDateField(e.target.value as any)} title="Date field">
                   <option value="webinar_date">Webinar</option>
@@ -981,38 +984,37 @@ export default function Crm() {
                 <input type="date" className="!text-[11px] border-0 outline-none px-0.5 w-[110px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To" />
                 {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-muted-foreground hover:text-black px-1" title="Clear"><XIcon className="w-3 h-3" /></button>}
               </div>
-              <select className="ipc-input !h-9 !text-xs" value={filter} onChange={(e) => setFilter(e.target.value as any)} title="Grade">
-                <option value="all">All grades</option>
-                <option value="super-hot">★ Super Hot</option>
-                <option value="hot">Hot</option>
-                <option value="warm">Warm</option>
-                <option value="cold">Cold</option>
-              </select>
+              <MultiSelectFilter
+                label="Grades"
+                icon={<Flame className="w-3.5 h-3.5" />}
+                options={gradeOptions}
+                selectedValues={gradeFilter}
+                onChange={setGradeFilter}
+                placeholder="All grades"
+                panelWidth={260}
+              />
               <select className="ipc-input !h-9 !text-xs" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)} title="Converted leads">
                 <option value="hide">Hide converted</option>
                 <option value="show">Show converted</option>
                 <option value="only">Converted only</option>
               </select>
-              <MoreFiltersMenu
-                tagFilter={
-                  <ManagedTagFilter
-                    value={tagFilter}
-                    onChange={setTagFilter}
-                    tags={allTags}
-                    onChanged={async () => { const tags = await listAllTags().catch(() => [] as Tag[]); setAllTags(tags); }}
-                  />
-                }
-                stageFilter={
-                  <ManagedStageFilter
-                    value={stageFilter}
-                    onChange={setStageFilter}
-                    stages={pipelineStages}
-                    pipelineId={activePipeline}
-                    leadsCountByStage={pipelineLeads.reduce((acc: Record<string, number>, l) => { if (l.stage_id) acc[l.stage_id] = (acc[l.stage_id] || 0) + 1; return acc; }, {})}
-                    onChanged={load}
-                  />
-                }
-                count={advancedActiveCount}
+              <MultiSelectFilter
+                label="Tags"
+                icon={<TagIcon className="w-3.5 h-3.5" />}
+                options={tagOptions}
+                selectedValues={tagFilter}
+                onChange={setTagFilter}
+                placeholder="All tags"
+                panelWidth={280}
+              />
+              <MultiSelectFilter
+                label="Stages"
+                icon={<Layers className="w-3.5 h-3.5" />}
+                options={stageOptions}
+                selectedValues={stageFilter}
+                onChange={setStageFilter}
+                placeholder="All stages"
+                panelWidth={300}
               />
             </>
           )}
@@ -1050,25 +1052,26 @@ export default function Crm() {
             {searchQuery && (
               <FilterChip label={`Search: ${searchQuery}`} onClear={() => setSearchQuery("")} />
             )}
-            {batchFilter !== "all" && (
-              <FilterChip label={`Batch: ${batchFilter}`} onClear={() => setBatchFilter("all")} />
-            )}
-            {filter !== "all" && (
-              <FilterChip label={`Grade: ${filter}`} onClear={() => setFilter("all")} />
-            )}
+            {batchFilter.map((b) => (
+              <FilterChip key={`b-${b}`} label={`Batch: ${b}`} onClear={() => setBatchFilter(batchFilter.filter((x) => x !== b))} />
+            ))}
+            {gradeFilter.map((g) => (
+              <FilterChip key={`g-${g}`} label={`Grade: ${gradeLabel(g)}`} onClear={() => setGradeFilter(gradeFilter.filter((x) => x !== g))} />
+            ))}
             {(dateFrom || dateTo) && (
               <FilterChip label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${dateFrom || "…"} → ${dateTo || "…"}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />
             )}
-            {tagFilter !== "all" && activeTag && (
-              <FilterChip label={`Tag: ${activeTag.name}`} onClear={() => setTagFilter("all")} />
-            )}
-            {stageFilter !== "all" && activeStage && (
-              <FilterChip label={`Stage: ${activeStage.name}`} onClear={() => setStageFilter("all")} />
-            )}
+            {tagFilter.map((tid) => (
+              <FilterChip key={`t-${tid}`} label={`Tag: ${tagNameLookup[tid] || tid}`} onClear={() => setTagFilter(tagFilter.filter((x) => x !== tid))} />
+            ))}
+            {stageFilter.map((sid) => (
+              <FilterChip key={`s-${sid}`} label={`Stage: ${stageNameLookupLocal[sid] || sid}`} onClear={() => setStageFilter(stageFilter.filter((x) => x !== sid))} />
+            ))}
             <button onClick={resetAll} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Reset all</button>
           </div>
         )}
       </div>
+
 
       {(view === "kanban" || view === "list") && (
         <div className="text-[11px] text-muted-foreground mb-2">
