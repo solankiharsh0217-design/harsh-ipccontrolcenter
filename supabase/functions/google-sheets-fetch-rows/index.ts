@@ -27,6 +27,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized", code: "UNAUTHORIZED" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    const serviceClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: prof } = await serviceClient.from("profiles").select("status").eq("id", userData.user.id).maybeSingle();
+    if (!prof || prof.status !== "active") {
+      return new Response(JSON.stringify({ error: "Forbidden: active members only", code: "FORBIDDEN" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const apiKey = Deno.env.get("GOOGLE_SHEETS_API_KEY");
     if (!apiKey) {
