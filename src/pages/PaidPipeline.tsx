@@ -32,6 +32,8 @@ import { auditPaidPipelineVisibility, type VisibilityAudit } from "@/lib/paidPip
 import CrmStagePicker, { type CrmStagePickerStage } from "@/components/crm/CrmStagePicker";
 import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
+import CompactPaidRow from "@/components/paid-pipeline/CompactPaidRow";
+import { getPaymentStatus, type PayStatusKey } from "@/lib/paidPaymentStatus";
 
 type Lead = {
   id: string;
@@ -129,6 +131,13 @@ export default function PaidPipeline() {
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [viewMode, setViewMode] = useState<"compact"|"detailed">(() => {
+    if (typeof window === "undefined") return "compact";
+    const v = window.localStorage.getItem("paidPipeline.viewMode");
+    return v === "detailed" ? "detailed" : "compact";
+  });
+  useEffect(() => { try { window.localStorage.setItem("paidPipeline.viewMode", viewMode); } catch {} }, [viewMode]);
+  const [payStatusFilter, setPayStatusFilter] = useState<PayStatusKey | "all">("all");
   const HIGH_BAL_THRESHOLD = 50000;
 
   const load = async () => {
@@ -186,8 +195,9 @@ export default function PaidPipeline() {
     setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
     setFollowUpFilter("all"); setRevenueStatusFilter("all");
     setTagFilter("all"); setOwnerFilter("all"); setInsightFilter(null);
+    setPayStatusFilter("all");
   };
-  const anyFilterActive = !!search || !!insightFilter || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter, ownerFilter].some(v => v !== "all");
+  const anyFilterActive = !!search || !!insightFilter || payStatusFilter !== "all" || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter, ownerFilter].some(v => v !== "all");
 
   const financePartnerOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_FINANCE_PARTNERS);
@@ -246,9 +256,12 @@ export default function PaidPipeline() {
         if (!(`${l.name || ""} ${l.email || ""} ${l.phone || ""}`.toLowerCase().includes(q))) return false;
       }
       if (tagFilter !== "all" && !(leadTagsMap[l.id] || []).some((t) => t.id === tagFilter)) return false;
+      if (payStatusFilter !== "all") {
+        if (getPaymentStatus(l as any).key !== payStatusFilter) return false;
+      }
       return true;
     });
-  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter]);
+  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter]);
 
   const insights = useMemo(() => {
     let highBalCount = 0, highBalAmt = 0;
@@ -520,6 +533,61 @@ export default function PaidPipeline() {
         </div>
       </div>
 
+      {/* View toggle + payment-status quick filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="inline-flex rounded-md border border-line overflow-hidden text-[12px]">
+          <button
+            onClick={() => setViewMode("compact")}
+            className={`px-3 h-8 ${viewMode === "compact" ? "bg-black text-white" : "bg-white hover:bg-off"}`}
+            title="Compact view — best for daily follow-up"
+          >Compact</button>
+          <button
+            onClick={() => setViewMode("detailed")}
+            className={`px-3 h-8 border-l border-line ${viewMode === "detailed" ? "bg-black text-white" : "bg-white hover:bg-off"}`}
+            title="Detailed table — for admin review / export"
+          >Detailed</button>
+        </div>
+        <div className="h-6 w-px bg-line mx-1" />
+        {([
+          { k: "fully_paid",      label: "Fully Paid",       cls: "bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]" },
+          { k: "balance_pending", label: "Balance Pending",  cls: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" },
+          { k: "token_paid",      label: "Token Paid",       cls: "bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]" },
+          { k: "token_pending",   label: "Token Pending",    cls: "bg-[#FFE4E6] text-[#9F1239] border-[#FECDD3]" },
+          { k: "no_payment",      label: "No Payment",       cls: "bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]" },
+          { k: "overpaid",        label: "Overpaid · Check", cls: "bg-[#F3E8FF] text-[#6B21A8] border-[#E9D5FF]" },
+        ] as { k: PayStatusKey; label: string; cls: string }[]).map(c => {
+          const active = payStatusFilter === c.k;
+          return (
+            <button
+              key={c.k}
+              onClick={() => setPayStatusFilter(active ? "all" : c.k)}
+              className={`text-[11px] px-2 py-1 rounded-full border transition-all ${c.cls} ${active ? "ring-2 ring-offset-1 ring-black/50" : "opacity-90 hover:opacity-100"}`}
+            >{c.label}</button>
+          );
+        })}
+        <button
+          onClick={() => setFollowUpFilter(followUpFilter === "today" ? "all" : "today")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#EFF6FF] text-[#1E40AF] border-[#BFDBFE] ${followUpFilter === "today" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+        >Follow-up Due Today</button>
+        <button
+          onClick={() => setInsightFilter(insightFilter === "no_followup" ? null : "no_followup")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#F3F4F6] text-[#374151] border-[#E5E7EB] ${insightFilter === "no_followup" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+        >No Follow-up</button>
+        <button
+          onClick={() => setInsightFilter(insightFilter === "high_balance" ? null : "high_balance")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#FEF3C7] text-[#92400E] border-[#FDE68A] ${insightFilter === "high_balance" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+        >High Balance</button>
+        <button
+          onClick={() => setInsightFilter(insightFilter === "urgent_balance" ? null : "urgent_balance")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#FEE2E2] text-[#991B1B] border-[#FECACA] ${insightFilter === "urgent_balance" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+        >Urgent Balance</button>
+        <button
+          onClick={() => setFinanceStatusFilter(financeStatusFilter === "" ? "all" : "")}
+          className={`text-[11px] px-2 py-1 rounded-full border bg-[#F3F4F6] text-[#374151] border-[#E5E7EB] ${financeStatusFilter === "" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
+          title="Leads with no finance status set"
+        >Finance Not Set</button>
+      </div>
+
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
@@ -541,6 +609,74 @@ export default function PaidPipeline() {
         </div>
       )}
 
+      {viewMode === "compact" && (
+        <div className="flex flex-col gap-1.5">
+          {filtered.length === 0 && (
+            <div className="border border-dashed border-line rounded-lg p-10 text-center text-muted-foreground text-[13px]">
+              <div>No paid leads match these filters.</div>
+              <button onClick={resetFilters} className="ipc-btn ipc-btn-ghost !h-8 mt-3">Reset Filters</button>
+            </div>
+          )}
+          {filtered.map(l => {
+            const batch = batches.find(b => b.id === l.webinar_batch_id);
+            return (
+              <CompactPaidRow
+                key={l.id}
+                lead={l}
+                webinarBatchName={batch?.batch_name || null}
+                ownerName={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || null}
+                tags={leadTagsMap[l.id] || []}
+                selected={selected.has(l.id)}
+                onToggleSelect={() => toggleOne(l.id)}
+                onOpen={() => setOpenId(l.id)}
+                onAddPayment={() => setQuickPayId(l.id)}
+                onSetFollowUp={() => setQuickFuId(l.id)}
+                stageSlot={
+                  <InlineManagedSelect
+                    settingType="pipeline_stage"
+                    value={l.pipeline_stage || ""}
+                    onChange={async (v) => { await updateLead(l.id, { pipeline_stage: v }); recomputePaidLead(l.id); }}
+                    width={140}
+                    onListChanged={load}
+                  />
+                }
+                prioritySlot={
+                  <InlineManagedSelect
+                    settingType="lead_priority"
+                    value={l.lead_temperature || ""}
+                    onChange={(v) => updateLead(l.id, { lead_temperature: v })}
+                    width={120}
+                    colorize
+                    onListChanged={load}
+                  />
+                }
+                financeSlot={<FinanceCell lead={l} onClick={() => setQuickFinanceId(l.id)} />}
+                actionsSlot={
+                  <RowActionsMenu
+                    archived={!!(l as any).archived_at}
+                    onAddPayment={() => setQuickPayId(l.id)}
+                    onUpdateFinance={() => setQuickFinanceId(l.id)}
+                    onSetFollowUp={() => setQuickFuId(l.id)}
+                    onOpen={() => setOpenId(l.id)}
+                    onCreateInvoice={() => navigate(`/invoices/new?paidLeadId=${l.id}`)}
+                    onViewInvoices={() => navigate(`/paid-pipeline/${l.id}/invoices`)}
+                    onArchive={() => setArchiveTarget({ id: l.id, name: l.name })}
+                    onRestore={async () => {
+                      try {
+                        await restorePaidBuyer({ id: l.id, name: l.name });
+                        toast.success("Buyer restored");
+                        await load();
+                      } catch (e: any) { toast.error(e.message || "Restore failed"); }
+                    }}
+                  />
+                }
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {viewMode === "detailed" && (
       <div className="border border-line rounded-lg overflow-x-auto">
         <table className="w-full text-[12.5px]">
           <thead className="bg-off">
@@ -662,6 +798,7 @@ export default function PaidPipeline() {
           </tbody>
         </table>
       </div>
+      )}
       </>)}
 
       {openLead && <LeadDrawer lead={openLead} agents={agents} onClose={() => { setOpenId(null); load(); }} stages={stages} onChanged={load} />}
