@@ -1178,39 +1178,35 @@ export default function Crm() {
           </div>
         </div>
 
-        {/* Active filter chips */}
-        {activeFilterCount > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap mt-2">
-            {searchQuery && (
-              <FilterChip label={`Search: ${searchQuery}`} onClear={() => setSearchQuery("")} />
-            )}
-            {batchFilter.map((b) => (
-              <FilterChip key={`b-${b}`} label={`Batch: ${b}`} onClear={() => setBatchFilter(batchFilter.filter((x) => x !== b))} />
-            ))}
-            {gradeFilter.map((g) => (
-              <FilterChip key={`g-${g}`} label={`Grade: ${gradeLabel(g)}`} onClear={() => setGradeFilter(gradeFilter.filter((x) => x !== g))} />
-            ))}
-            {attendanceGradeFilter.map((g) => (
-              <FilterChip key={`ag-${g}`} label={`Attendance: ${HOTNESS_LABEL[g as Hotness] || g}`} onClear={() => setAttendanceGradeFilter(attendanceGradeFilter.filter((x) => x !== g))} />
-            ))}
-            {minAttendedMinutes > 0 && (
-              <FilterChip label={`Attended: ${minAttendedMinutes}+ min`} onClear={() => setMinAttendedMinutes(0)} />
-            )}
-            {attendanceDataFilter !== "any" && (
-              <FilterChip label={attendanceDataFilter === "has" ? "Has attendance data" : "No attendance data"} onClear={() => setAttendanceDataFilter("any")} />
-            )}
-            {(dateFrom || dateTo) && (
-              <FilterChip label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${dateFrom || "…"} → ${dateTo || "…"}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />
-            )}
-            {tagFilter.map((tid) => (
-              <FilterChip key={`t-${tid}`} label={`Tag: ${tagNameLookup[tid] || tid}`} onClear={() => setTagFilter(tagFilter.filter((x) => x !== tid))} />
-            ))}
-            {stageFilter.map((sid) => (
-              <FilterChip key={`s-${sid}`} label={`Stage: ${stageNameLookupLocal[sid] || sid}`} onClear={() => setStageFilter(stageFilter.filter((x) => x !== sid))} />
-            ))}
-            <button onClick={resetAll} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Reset all</button>
-          </div>
-        )}
+        {/* Active filter chips — capped, with +X more */}
+        {activeFilterCount > 0 && (() => {
+          const chips: React.ReactNode[] = [];
+          if (searchQuery) chips.push(<FilterChip key="q" label={`Search: ${searchQuery}`} onClear={() => setSearchQuery("")} />);
+          batchFilter.forEach((b) => chips.push(<FilterChip key={`b-${b}`} label={`Batch: ${b}`} onClear={() => setBatchFilter(batchFilter.filter((x) => x !== b))} />));
+          gradeFilter.forEach((g) => chips.push(<FilterChip key={`g-${g}`} label={`Grade: ${gradeLabel(g)}`} onClear={() => setGradeFilter(gradeFilter.filter((x) => x !== g))} />));
+          attendanceGradeFilter.forEach((g) => chips.push(<FilterChip key={`ag-${g}`} label={`Attendance: ${HOTNESS_LABEL[g as Hotness] || g}`} onClear={() => setAttendanceGradeFilter(attendanceGradeFilter.filter((x) => x !== g))} />));
+          if (minAttendedMinutes > 0) chips.push(<FilterChip key="min" label={`Attended: ${minAttendedMinutes}+ min`} onClear={() => setMinAttendedMinutes(0)} />);
+          if (attendanceDataFilter !== "any") chips.push(<FilterChip key="ad" label={attendanceDataFilter === "has" ? "Has attendance data" : "No attendance data"} onClear={() => setAttendanceDataFilter("any")} />);
+          if (dateFrom || dateTo) chips.push(<FilterChip key="d" label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${dateFrom || "…"} → ${dateTo || "…"}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />);
+          tagFilter.forEach((tid) => chips.push(<FilterChip key={`t-${tid}`} label={`Tag: ${tagNameLookup[tid] || tid}`} onClear={() => setTagFilter(tagFilter.filter((x) => x !== tid))} />));
+          stageFilter.forEach((sid) => chips.push(<FilterChip key={`s-${sid}`} label={`Stage: ${stageNameLookupLocal[sid] || sid}`} onClear={() => setStageFilter(stageFilter.filter((x) => x !== sid))} />));
+          const MAX = 6;
+          const visible = chipsExpanded ? chips : chips.slice(0, MAX);
+          const hidden = chips.length - visible.length;
+          return (
+            <div className="flex items-center gap-1.5 flex-wrap mt-2">
+              {visible}
+              {hidden > 0 && (
+                <button onClick={() => setChipsExpanded(true)} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">+ {hidden} more</button>
+              )}
+              {chipsExpanded && chips.length > MAX && (
+                <button onClick={() => setChipsExpanded(false)} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Show less</button>
+              )}
+              <button onClick={resetAll} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Clear all</button>
+            </div>
+          );
+        })()}
+
       </div>
 
 
