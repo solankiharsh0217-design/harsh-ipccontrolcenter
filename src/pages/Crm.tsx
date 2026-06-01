@@ -1689,7 +1689,7 @@ export default function Crm() {
                     archived={isArchivedView}
                     onView={() => {
                       if (b.pipelineId) setActivePipeline(b.pipelineId);
-                      setBatchFilter(b.name);
+                      setBatchFilter([b.name]);
                       setView("kanban");
                     }}
                     onRename={() => setEditBatch({ origName: b.name, origDate: b.date, name: b.name, date: b.date || "" })}
