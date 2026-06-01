@@ -446,6 +446,23 @@ export default function Crm() {
       list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => tagSet.has(t.id)));
     }
     if (stageFilter.length > 0) list = list.filter((l) => l.stage_id && stageFilter.includes(l.stage_id));
+    if (attendanceGradeFilter.length > 0) {
+      const aset = new Set(attendanceGradeFilter);
+      list = list.filter((l) => {
+        const h = hotnessMap[l.id];
+        const grade: Hotness = h ? (h.manual_override && h.manual_grade ? h.manual_grade : h.current_hotness) : "inactive";
+        return aset.has(grade);
+      });
+    }
+    if (minAttendedMinutes > 0) {
+      list = list.filter((l) => (hotnessMap[l.id]?.total_attended_minutes || 0) >= minAttendedMinutes);
+    }
+    if (attendanceDataFilter !== "any") {
+      list = list.filter((l) => {
+        const has = !!hotnessMap[l.id] && (hotnessMap[l.id].total_sessions_attended || 0) > 0;
+        return attendanceDataFilter === "has" ? has : !has;
+      });
+    }
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     const q = searchQuery.trim().toLowerCase();
