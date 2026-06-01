@@ -20,8 +20,8 @@ import {
   type HandoffRule, type AutoHandoffLeadInput,
 } from "@/lib/operationsCrm";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
-import ManagedTagFilter from "@/components/crm/ManagedTagFilter";
-import ManagedStageFilter from "@/components/crm/ManagedStageFilter";
+import MultiSelectFilter, { CANONICAL_GRADES, normalizeGradeValue, gradeLabel } from "@/components/crm/MultiSelectFilter";
+import { Tag as TagIcon, Layers, Flame, FolderOpen } from "lucide-react";
 import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/ArchiveConfirmModal";
 import { BatchDeleteChoicesModal } from "@/components/crm/BatchDeleteChoicesModal";
 import MoveBatchModal from "@/components/crm/MoveBatchModal";
