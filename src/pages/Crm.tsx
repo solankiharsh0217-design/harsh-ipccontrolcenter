@@ -369,9 +369,13 @@ export default function Crm() {
       const tags = await listAllTags().catch(() => [] as Tag[]);
       setAllTags(tags);
       const ids = leads.map((l) => l.id);
-      if (ids.length === 0) { setLeadTagsMap({}); return; }
-      const map = await getTagsForLeads({ crmLeadIds: ids }).catch(() => ({}));
+      if (ids.length === 0) { setLeadTagsMap({}); setHotnessMap({}); return; }
+      const [map, hmap] = await Promise.all([
+        getTagsForLeads({ crmLeadIds: ids }).catch(() => ({} as Record<string, Tag[]>)),
+        getHotnessForLeads(ids).catch(() => ({} as Record<string, HotnessScore>)),
+      ]);
       setLeadTagsMap(map);
+      setHotnessMap(hmap);
     })();
   }, [leads]);
 
