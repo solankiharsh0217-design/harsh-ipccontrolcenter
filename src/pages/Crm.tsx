@@ -823,17 +823,83 @@ export default function Crm() {
     finally { setAssignBusy(false); }
   };
 
+  // Base scope for option counts: leads in the current pipeline, archived/converted filters honored,
+  // but BEFORE multi-select filters apply — so users always see the universe of options.
+  const filterScopeLeads = useMemo(() => {
+    let list = leads.filter((l) => l.pipeline_id === activePipeline);
+    list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
+    if (convertedFilter !== "show" && activePipelineType === "unpaid") {
+      list = list.filter((l: any) => {
+        const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
+        return convertedFilter === "only" ? isConv : !isConv;
+      });
+    }
+    return list;
+  }, [leads, activePipeline, activePipelineType, showArchived, convertedFilter]);
+
+  const batchOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of filterScopeLeads) {
+      const b = l.webinar_source || "—";
+      counts.set(b, (counts.get(b) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([value, count]) => ({ value, label: value, count }));
+  }, [filterScopeLeads]);
+
+  const gradeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    let superHotCount = 0;
+    for (const l of filterScopeLeads as any[]) {
+      if (l.is_super_hot) superHotCount++;
+      const g = normalizeGradeValue(l.grade);
+      if (g) counts.set(g, (counts.get(g) || 0) + 1);
+    }
+    const seen = new Set<string>();
+    const out: { value: string; label: string; count: number }[] = [];
+    for (const c of CANONICAL_GRADES) {
+      const count = c.value === "super-hot" ? superHotCount : (counts.get(c.value) || 0);
+      seen.add(c.value);
+      out.push({ value: c.value, label: c.label, count });
+    }
+    // Surface any grades present in data that aren't in the canonical list.
+    for (const [value, count] of counts.entries()) {
+      if (!seen.has(value)) out.push({ value, label: gradeLabel(value), count });
+    }
+    return out;
+  }, [filterScopeLeads]);
+
+  const tagOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of filterScopeLeads) {
+      for (const t of leadTagsMap[l.id] || []) counts.set(t.id, (counts.get(t.id) || 0) + 1);
+    }
+    return allTags
+      .map((t) => ({ value: t.id, label: t.name, count: counts.get(t.id) || 0, color: t.color || undefined }))
+      .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label));
+  }, [allTags, leadTagsMap, filterScopeLeads]);
+
+  const stageOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of filterScopeLeads) {
+      if (l.stage_id) counts.set(l.stage_id, (counts.get(l.stage_id) || 0) + 1);
+    }
+    return pipelineStages.map((s) => ({ value: s.id, label: s.name, count: counts.get(s.id) || 0 }));
+  }, [pipelineStages, filterScopeLeads]);
+
+  const tagNameLookup = useMemo(() => Object.fromEntries(allTags.map((t) => [t.id, t.name])), [allTags]);
+  const stageNameLookupLocal = useMemo(() => Object.fromEntries(pipelineStages.map((s) => [s.id, s.name])), [pipelineStages]);
+
   const activeFilterCount =
-    (filter !== "all" ? 1 : 0) +
-    (batchFilter !== "all" ? 1 : 0) +
-    (tagFilter !== "all" ? 1 : 0) +
-    (stageFilter !== "all" ? 1 : 0) +
+    gradeFilter.length +
+    batchFilter.length +
+    tagFilter.length +
+    stageFilter.length +
     (dateFrom || dateTo ? 1 : 0) +
     (searchQuery ? 1 : 0);
-  const advancedActiveCount = (tagFilter !== "all" ? 1 : 0) + (stageFilter !== "all" ? 1 : 0);
-  const activeTag = allTags.find((t) => t.id === tagFilter);
-  const activeStage = pipelineStages.find((s) => s.id === stageFilter);
-  const resetAll = () => { setFilter("all"); setBatchFilter("all"); setTagFilter("all"); setStageFilter("all"); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+  const advancedActiveCount = tagFilter.length + stageFilter.length;
+  const resetAll = () => { setGradeFilter([]); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
 
   return (
     <div>
