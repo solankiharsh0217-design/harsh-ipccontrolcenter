@@ -2535,6 +2535,7 @@ export type Database = {
       lead_hotness_scores: {
         Row: {
           avg_attendance_percentage: number
+          cumulative_attendance_percentage: number
           current_hotness: string
           highest_attendance_percentage: number
           id: string
@@ -2548,12 +2549,14 @@ export type Database = {
           score_numeric: number
           score_reason: Json
           total_attended_minutes: number
+          total_possible_minutes: number
           total_sessions_attended: number
           total_webinars_attended: number
           updated_at: string
         }
         Insert: {
           avg_attendance_percentage?: number
+          cumulative_attendance_percentage?: number
           current_hotness?: string
           highest_attendance_percentage?: number
           id?: string
@@ -2567,12 +2570,14 @@ export type Database = {
           score_numeric?: number
           score_reason?: Json
           total_attended_minutes?: number
+          total_possible_minutes?: number
           total_sessions_attended?: number
           total_webinars_attended?: number
           updated_at?: string
         }
         Update: {
           avg_attendance_percentage?: number
+          cumulative_attendance_percentage?: number
           current_hotness?: string
           highest_attendance_percentage?: number
           id?: string
@@ -2586,6 +2591,7 @@ export type Database = {
           score_numeric?: number
           score_reason?: Json
           total_attended_minutes?: number
+          total_possible_minutes?: number
           total_sessions_attended?: number
           total_webinars_attended?: number
           updated_at?: string
@@ -6944,6 +6950,7 @@ export type Database = {
         Args: { _lead_id: string }
         Returns: {
           avg_attendance_percentage: number
+          cumulative_attendance_percentage: number
           current_hotness: string
           highest_attendance_percentage: number
           id: string
@@ -6957,6 +6964,7 @@ export type Database = {
           score_numeric: number
           score_reason: Json
           total_attended_minutes: number
+          total_possible_minutes: number
           total_sessions_attended: number
           total_webinars_attended: number
           updated_at: string
