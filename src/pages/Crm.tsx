@@ -22,6 +22,8 @@ import {
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
 import MultiSelectFilter, { CANONICAL_GRADES, normalizeGradeValue, gradeLabel } from "@/components/crm/MultiSelectFilter";
 import { Tag as TagIcon, Layers, Flame, FolderOpen } from "lucide-react";
+import AttendanceBadge, { ATTENDANCE_GRADE_OPTIONS, ATTENDANCE_MIN_MINUTES_OPTIONS, ATTENDANCE_DATA_OPTIONS } from "@/components/crm/AttendanceBadge";
+import { getHotnessForLeads, HOTNESS_LABEL, type HotnessScore, type Hotness } from "@/lib/leadAttendance";
 import { ArchiveConfirmModal, PermanentDeleteModal } from "@/components/crm/ArchiveConfirmModal";
 import { BatchDeleteChoicesModal } from "@/components/crm/BatchDeleteChoicesModal";
 import MoveBatchModal from "@/components/crm/MoveBatchModal";
@@ -52,6 +54,10 @@ export default function Crm() {
   const [view, setView] = useState<View>("kanban");
   const [openLead, setOpenLead] = useState<string | null>(null);
   const [gradeFilter, setGradeFilter] = useState<string[]>([]);
+  const [attendanceGradeFilter, setAttendanceGradeFilter] = useState<string[]>([]);
+  const [minAttendedMinutes, setMinAttendedMinutes] = useState<number>(0);
+  const [attendanceDataFilter, setAttendanceDataFilter] = useState<"any" | "has" | "none">("any");
+  const [hotnessMap, setHotnessMap] = useState<Record<string, HotnessScore>>({});
   const [batchFilter, setBatchFilter] = useState<string[]>([]); // webinar_source values
   const [tagFilter, setTagFilter] = useState<string[]>([]); // tag ids
   const [stageFilter, setStageFilter] = useState<string[]>([]); // stage ids
@@ -363,9 +369,13 @@ export default function Crm() {
       const tags = await listAllTags().catch(() => [] as Tag[]);
       setAllTags(tags);
       const ids = leads.map((l) => l.id);
-      if (ids.length === 0) { setLeadTagsMap({}); return; }
-      const map = await getTagsForLeads({ crmLeadIds: ids }).catch(() => ({}));
+      if (ids.length === 0) { setLeadTagsMap({}); setHotnessMap({}); return; }
+      const [map, hmap] = await Promise.all([
+        getTagsForLeads({ crmLeadIds: ids }).catch(() => ({} as Record<string, Tag[]>)),
+        getHotnessForLeads(ids).catch(() => ({} as Record<string, HotnessScore>)),
+      ]);
       setLeadTagsMap(map);
+      setHotnessMap(hmap);
     })();
   }, [leads]);
 
@@ -436,6 +446,23 @@ export default function Crm() {
       list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => tagSet.has(t.id)));
     }
     if (stageFilter.length > 0) list = list.filter((l) => l.stage_id && stageFilter.includes(l.stage_id));
+    if (attendanceGradeFilter.length > 0) {
+      const aset = new Set(attendanceGradeFilter);
+      list = list.filter((l) => {
+        const h = hotnessMap[l.id];
+        const grade: Hotness = h ? (h.manual_override && h.manual_grade ? h.manual_grade : h.current_hotness) : "inactive";
+        return aset.has(grade);
+      });
+    }
+    if (minAttendedMinutes > 0) {
+      list = list.filter((l) => (hotnessMap[l.id]?.total_attended_minutes || 0) >= minAttendedMinutes);
+    }
+    if (attendanceDataFilter !== "any") {
+      list = list.filter((l) => {
+        const has = !!hotnessMap[l.id] && (hotnessMap[l.id].total_sessions_attended || 0) > 0;
+        return attendanceDataFilter === "has" ? has : !has;
+      });
+    }
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     const q = searchQuery.trim().toLowerCase();
@@ -462,7 +489,7 @@ export default function Crm() {
       });
     }
     return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, activePipelineType, gradeFilter, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter, linkedIdentityByLeadId]);
+  }, [leads, activePipeline, activePipelineType, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter, linkedIdentityByLeadId]);
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
@@ -888,18 +915,31 @@ export default function Crm() {
     return pipelineStages.map((s) => ({ value: s.id, label: s.name, count: counts.get(s.id) || 0 }));
   }, [pipelineStages, filterScopeLeads]);
 
+  const attendanceGradeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of filterScopeLeads as any[]) {
+      const h = hotnessMap[l.id];
+      const grade: Hotness = h ? (h.manual_override && h.manual_grade ? h.manual_grade : h.current_hotness) : "inactive";
+      counts.set(grade, (counts.get(grade) || 0) + 1);
+    }
+    return ATTENDANCE_GRADE_OPTIONS.map((o) => ({ value: o.value, label: o.label, count: counts.get(o.value) || 0 }));
+  }, [filterScopeLeads, hotnessMap]);
+
   const tagNameLookup = useMemo(() => Object.fromEntries(allTags.map((t) => [t.id, t.name])), [allTags]);
   const stageNameLookupLocal = useMemo(() => Object.fromEntries(pipelineStages.map((s) => [s.id, s.name])), [pipelineStages]);
 
   const activeFilterCount =
     gradeFilter.length +
+    attendanceGradeFilter.length +
+    (minAttendedMinutes > 0 ? 1 : 0) +
+    (attendanceDataFilter !== "any" ? 1 : 0) +
     batchFilter.length +
     tagFilter.length +
     stageFilter.length +
     (dateFrom || dateTo ? 1 : 0) +
     (searchQuery ? 1 : 0);
   const advancedActiveCount = tagFilter.length + stageFilter.length;
-  const resetAll = () => { setGradeFilter([]); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
 
   return (
     <div>
@@ -993,6 +1033,36 @@ export default function Crm() {
                 placeholder="All grades"
                 panelWidth={260}
               />
+              <MultiSelectFilter
+                label="Attendance"
+                icon={<Flame className="w-3.5 h-3.5" />}
+                options={attendanceGradeOptions}
+                selectedValues={attendanceGradeFilter}
+                onChange={setAttendanceGradeFilter}
+                placeholder="All attendance"
+                panelWidth={240}
+                searchable={false}
+              />
+              <select
+                className="ipc-input !h-9 !text-xs"
+                value={String(minAttendedMinutes)}
+                onChange={(e) => setMinAttendedMinutes(Number(e.target.value) || 0)}
+                title="Minimum attended time"
+              >
+                {ATTENDANCE_MIN_MINUTES_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <select
+                className="ipc-input !h-9 !text-xs"
+                value={attendanceDataFilter}
+                onChange={(e) => setAttendanceDataFilter(e.target.value as any)}
+                title="Attendance data presence"
+              >
+                {ATTENDANCE_DATA_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
               <select className="ipc-input !h-9 !text-xs" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)} title="Converted leads">
                 <option value="hide">Hide converted</option>
                 <option value="show">Show converted</option>
@@ -1058,6 +1128,15 @@ export default function Crm() {
             {gradeFilter.map((g) => (
               <FilterChip key={`g-${g}`} label={`Grade: ${gradeLabel(g)}`} onClear={() => setGradeFilter(gradeFilter.filter((x) => x !== g))} />
             ))}
+            {attendanceGradeFilter.map((g) => (
+              <FilterChip key={`ag-${g}`} label={`Attendance: ${HOTNESS_LABEL[g as Hotness] || g}`} onClear={() => setAttendanceGradeFilter(attendanceGradeFilter.filter((x) => x !== g))} />
+            ))}
+            {minAttendedMinutes > 0 && (
+              <FilterChip label={`Attended: ${minAttendedMinutes}+ min`} onClear={() => setMinAttendedMinutes(0)} />
+            )}
+            {attendanceDataFilter !== "any" && (
+              <FilterChip label={attendanceDataFilter === "has" ? "Has attendance data" : "No attendance data"} onClear={() => setAttendanceDataFilter("any")} />
+            )}
             {(dateFrom || dateTo) && (
               <FilterChip label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${dateFrom || "…"} → ${dateTo || "…"}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />
             )}
@@ -1592,6 +1671,9 @@ export default function Crm() {
                                       const m = map[cs]; if (!m) return null;
                                       return <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-medium border ${m.cls}`}>{m.l}</span>;
                                     })()}
+                                    {hotnessMap[l.id] && (hotnessMap[l.id].total_sessions_attended || 0) > 0 && (
+                                      <AttendanceBadge score={hotnessMap[l.id]} />
+                                    )}
                                   </div>
                                   {ag && <div className="w-5 h-5 rounded-full bg-black text-gold font-serif text-[9px] flex items-center justify-center" title={ag.full_name}>{ag.full_name.slice(0,1)}</div>}
                                 </div>
@@ -1857,11 +1939,11 @@ export default function Crm() {
           <table className="w-full font-sans text-sm">
             <thead className="bg-off">
               <tr className="text-left">
-                {["Lead","Phone","Score","Grade","Stage","Webinar","Agent","Deal"].map((h) => <th key={h} className="px-4 py-2.5 uppercase-label !text-[10px]">{h}</th>)}
+                {["Lead","Phone","Score","Grade","Attendance","Stage","Webinar","Agent","Deal"].map((h) => <th key={h} className="px-4 py-2.5 uppercase-label !text-[10px]">{h}</th>)}
               </tr>
             </thead>
             <tbody>
-              {pipelineLeads.length === 0 && <tr><td colSpan={8} className="p-10 text-center text-muted-foreground">No leads.</td></tr>}
+              {pipelineLeads.length === 0 && <tr><td colSpan={9} className="p-10 text-center text-muted-foreground">No leads.</td></tr>}
               {pipelineLeads.map((l) => {
                 const g = GRADE_STYLES[l.grade];
                 const stg = pipelineStages.find((s) => s.id === l.stage_id);
@@ -1875,6 +1957,7 @@ export default function Crm() {
                     <td className="px-4 py-3 text-xs">{l.phone || "—"}</td>
                     <td className="px-4 py-3 text-xs">{l.score}</td>
                     <td className="px-4 py-3"><span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span></td>
+                    <td className="px-4 py-3">{hotnessMap[l.id] && (hotnessMap[l.id].total_sessions_attended || 0) > 0 ? <AttendanceBadge score={hotnessMap[l.id]} /> : <span className="text-[10px] text-muted-foreground">—</span>}</td>
                     <td className="px-4 py-3 text-xs">{stg?.name || "—"}</td>
                     <td className="px-4 py-3 text-xs">{l.webinar_source || "—"}</td>
                     <td className="px-4 py-3 text-xs">{ag?.full_name || "—"}</td>
