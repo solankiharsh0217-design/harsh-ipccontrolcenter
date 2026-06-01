@@ -527,21 +527,9 @@ export default function PaidPipeline() {
         </div>
       </div>
 
-      {/* View toggle + payment-status quick filters */}
+      {/* payment-status quick filters */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <div className="inline-flex rounded-md border border-line overflow-hidden text-[12px]">
-          <button
-            onClick={() => setViewMode("compact")}
-            className={`px-3 h-8 ${viewMode === "compact" ? "bg-black text-white" : "bg-white hover:bg-off"}`}
-            title="Compact view — best for daily follow-up"
-          >Compact</button>
-          <button
-            onClick={() => setViewMode("detailed")}
-            className={`px-3 h-8 border-l border-line ${viewMode === "detailed" ? "bg-black text-white" : "bg-white hover:bg-off"}`}
-            title="Detailed table — for admin review / export"
-          >Detailed</button>
-        </div>
-        <div className="h-6 w-px bg-line mx-1" />
+
         {([
           { k: "fully_paid",      label: "Fully Paid",       cls: "bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]" },
           { k: "balance_pending", label: "Balance Pending",  cls: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" },
