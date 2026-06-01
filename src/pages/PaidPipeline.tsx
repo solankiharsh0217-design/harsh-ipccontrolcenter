@@ -195,8 +195,9 @@ export default function PaidPipeline() {
     setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
     setFollowUpFilter("all"); setRevenueStatusFilter("all");
     setTagFilter("all"); setOwnerFilter("all"); setInsightFilter(null);
+    setPayStatusFilter("all");
   };
-  const anyFilterActive = !!search || !!insightFilter || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter, ownerFilter].some(v => v !== "all");
+  const anyFilterActive = !!search || !!insightFilter || payStatusFilter !== "all" || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter, ownerFilter].some(v => v !== "all");
 
   const financePartnerOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_FINANCE_PARTNERS);
