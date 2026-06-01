@@ -23,6 +23,8 @@ export interface AttendanceRow {
   first_joined_at: string | null;
   last_left_at: string | null;
   attendance_grade: "hot" | "warm" | "cold" | "absent";
+  normalized_email: string | null;
+  normalized_phone: string | null;
   source: "zoom" | "csv" | "google_sheet" | "manual";
   metadata_json: any;
   created_at: string;
@@ -35,6 +37,8 @@ export interface HotnessScore {
   total_sessions_attended: number;
   total_webinars_attended: number;
   total_attended_minutes: number;
+  total_possible_minutes: number;
+  cumulative_attendance_percentage: number;
   avg_attendance_percentage: number;
   highest_attendance_percentage: number;
   last_attended_at: string | null;
@@ -54,8 +58,9 @@ export const HOTNESS_LABEL: Record<Hotness, string> = {
   hot: "Hot",
   warm: "Warm",
   cold: "Cold",
-  inactive: "Inactive",
+  inactive: "True Absentee",
 };
+
 
 export const HOTNESS_STYLE: Record<Hotness, { bg: string; text: string; border: string; emoji: string }> = {
   super_hot: { bg: "#FCE7F3", text: "#9D174D", border: "#F9A8D4", emoji: "🔥" },
@@ -86,6 +91,15 @@ export interface UpsertAttendanceInput {
 }
 
 export async function upsertAttendance(input: UpsertAttendanceInput) {
+  if (!input.sessionDurationMinutes || input.sessionDurationMinutes <= 0) {
+    throw new Error("Session duration is required and must be greater than 0 minutes.");
+  }
+  if (!input.webinarId && !input.webinarName) {
+    throw new Error("Webinar/session name is required.");
+  }
+  if (!input.sessionDate) {
+    throw new Error("Webinar date is required.");
+  }
   const { data, error } = await supabase.rpc("upsert_lead_session_attendance", {
     _lead_id: input.leadId,
     _batch_id: input.batchId ?? null,

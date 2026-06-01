@@ -71,7 +71,7 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false }: P
   return (
     <div className="px-6 py-4 border-b border-line">
       <div className="section-divider flex items-center justify-between">
-        <span>Session Attendance Timeline</span>
+        <span>Attendance Intelligence</span>
         {isAdmin && (
           <button onClick={recalc} className="text-[10px] text-muted-foreground hover:text-black underline">
             Recalculate
@@ -83,16 +83,20 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false }: P
         <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
           <HotnessChip grade={grade} manual={!!hotness?.manual_override} />
           <div className="text-[10px] text-muted-foreground">
-            Score: <b className="text-foreground">{hotness?.score_numeric ?? 0}</b>
+            Score: <b className="text-foreground">{hotness?.score_numeric ?? 0}</b>/100
           </div>
         </div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+          <div><span className="text-muted-foreground">Attendance %:</span> <b>{hotness?.cumulative_attendance_percentage ?? 0}%</b></div>
           <div><span className="text-muted-foreground">Sessions:</span> <b>{hotness?.total_sessions_attended ?? 0}</b></div>
+          <div><span className="text-muted-foreground">Total attended:</span> <b>{hotness?.total_attended_minutes ?? 0} min</b></div>
+          <div><span className="text-muted-foreground">Total possible:</span> <b>{hotness?.total_possible_minutes ?? 0} min</b></div>
           <div><span className="text-muted-foreground">Webinars:</span> <b>{hotness?.total_webinars_attended ?? 0}</b></div>
-          <div><span className="text-muted-foreground">Total min:</span> <b>{hotness?.total_attended_minutes ?? 0}</b></div>
-          <div><span className="text-muted-foreground">Avg %:</span> <b>{hotness?.avg_attendance_percentage ?? 0}</b></div>
+          <div><span className="text-muted-foreground">Best session:</span> <b>{hotness?.highest_attendance_percentage ?? 0}%</b></div>
           <div className="col-span-2"><span className="text-muted-foreground">Last attended:</span> <b>{hotness?.last_attended_at ? new Date(hotness.last_attended_at).toLocaleDateString() : "—"}</b></div>
+          <div className="col-span-2"><span className="text-muted-foreground">Identity matched by:</span> <b>{rows[0]?.normalized_email ? "email" : rows[0]?.normalized_phone ? "phone" : rows.length ? "name (weak)" : "—"}</b></div>
         </div>
+
         {isAdmin && (
           <div className="mt-2 pt-2 border-t border-line">
             {!showOverride ? (
