@@ -591,7 +591,7 @@ export default function PaidPipeline() {
         </div>
       )}
 
-      {viewMode === "compact" && (
+      {true && (
         <div className="flex flex-col gap-1">
           {filtered.length === 0 && (
             <div className="border border-dashed border-line rounded-lg p-10 text-center text-muted-foreground text-[13px]">
