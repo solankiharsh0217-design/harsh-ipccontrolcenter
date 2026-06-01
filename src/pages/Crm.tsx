@@ -51,10 +51,10 @@ export default function Crm() {
   const [activePipeline, setActivePipeline] = useState<string | null>(null);
   const [view, setView] = useState<View>("kanban");
   const [openLead, setOpenLead] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all"|"super-hot"|"hot"|"warm"|"cold">("all");
-  const [batchFilter, setBatchFilter] = useState<string>("all"); // webinar_source value or "all"
-  const [tagFilter, setTagFilter] = useState<string>("all");
-  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [gradeFilter, setGradeFilter] = useState<string[]>([]);
+  const [batchFilter, setBatchFilter] = useState<string[]>([]); // webinar_source values
+  const [tagFilter, setTagFilter] = useState<string[]>([]); // tag ids
+  const [stageFilter, setStageFilter] = useState<string[]>([]); // stage ids
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
