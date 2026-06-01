@@ -14,12 +14,25 @@ import {
 } from "@/lib/leadAttendance";
 import HotnessChip from "./HotnessChip";
 
+interface LegacyAttendance {
+  grade?: "hot" | "warm" | "cold" | "absent" | string | null;
+  is_super_hot?: boolean | null;
+  score?: number | null;
+  attendance_pct?: number | null;
+  sessions_count?: number | null;
+  total_minutes?: number | null;
+  webinar_count?: number | null;
+  webinar_source?: string | null;
+  webinar_date?: string | null;
+}
+
 interface Props {
   leadId: string;
   isAdmin?: boolean;
+  legacy?: LegacyAttendance;
 }
 
-export default function SessionAttendanceTimeline({ leadId, isAdmin = false }: Props) {
+export default function SessionAttendanceTimeline({ leadId, isAdmin = false, legacy }: Props) {
   const { profile } = useAuth();
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [hotness, setHotness] = useState<HotnessScore | null>(null);
