@@ -32,6 +32,8 @@ import { auditPaidPipelineVisibility, type VisibilityAudit } from "@/lib/paidPip
 import CrmStagePicker, { type CrmStagePickerStage } from "@/components/crm/CrmStagePicker";
 import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
+import CompactPaidRow from "@/components/paid-pipeline/CompactPaidRow";
+import { getPaymentStatus, type PayStatusKey } from "@/lib/paidPaymentStatus";
 
 type Lead = {
   id: string;
