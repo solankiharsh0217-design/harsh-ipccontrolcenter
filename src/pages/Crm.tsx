@@ -1680,7 +1680,7 @@ export default function Crm() {
                   className={`relative text-left p-5 rounded-xl border bg-white hover:shadow-md transition-all cursor-pointer ${isArchivedView ? "border-[#FDE68A] bg-[#FFFBEB]/40 opacity-80 hover:border-[#F59E0B]" : "border-line hover:border-gold"}`}
                   onClick={() => {
                     if (b.pipelineId) setActivePipeline(b.pipelineId);
-                    setBatchFilter(b.name);
+                    setBatchFilter([b.name]);
                     setView("kanban");
                   }}
                 >
