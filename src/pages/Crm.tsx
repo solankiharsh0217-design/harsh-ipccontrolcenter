@@ -1033,6 +1033,36 @@ export default function Crm() {
                 placeholder="All grades"
                 panelWidth={260}
               />
+              <MultiSelectFilter
+                label="Attendance"
+                icon={<Flame className="w-3.5 h-3.5" />}
+                options={attendanceGradeOptions}
+                selectedValues={attendanceGradeFilter}
+                onChange={setAttendanceGradeFilter}
+                placeholder="All attendance"
+                panelWidth={240}
+                searchable={false}
+              />
+              <select
+                className="ipc-input !h-9 !text-xs"
+                value={String(minAttendedMinutes)}
+                onChange={(e) => setMinAttendedMinutes(Number(e.target.value) || 0)}
+                title="Minimum attended time"
+              >
+                {ATTENDANCE_MIN_MINUTES_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <select
+                className="ipc-input !h-9 !text-xs"
+                value={attendanceDataFilter}
+                onChange={(e) => setAttendanceDataFilter(e.target.value as any)}
+                title="Attendance data presence"
+              >
+                {ATTENDANCE_DATA_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
               <select className="ipc-input !h-9 !text-xs" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)} title="Converted leads">
                 <option value="hide">Hide converted</option>
                 <option value="show">Show converted</option>
