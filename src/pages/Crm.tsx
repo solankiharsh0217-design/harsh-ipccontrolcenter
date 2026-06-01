@@ -54,6 +54,10 @@ export default function Crm() {
   const [view, setView] = useState<View>("kanban");
   const [openLead, setOpenLead] = useState<string | null>(null);
   const [gradeFilter, setGradeFilter] = useState<string[]>([]);
+  const [attendanceGradeFilter, setAttendanceGradeFilter] = useState<string[]>([]);
+  const [minAttendedMinutes, setMinAttendedMinutes] = useState<number>(0);
+  const [attendanceDataFilter, setAttendanceDataFilter] = useState<"any" | "has" | "none">("any");
+  const [hotnessMap, setHotnessMap] = useState<Record<string, HotnessScore>>({});
   const [batchFilter, setBatchFilter] = useState<string[]>([]); // webinar_source values
   const [tagFilter, setTagFilter] = useState<string[]>([]); // tag ids
   const [stageFilter, setStageFilter] = useState<string[]>([]); // stage ids
