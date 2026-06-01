@@ -1032,70 +1032,124 @@ export default function Crm() {
                 <input type="date" className="!text-[11px] border-0 outline-none px-0.5 w-[110px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To" />
                 {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-muted-foreground hover:text-black px-1" title="Clear"><XIcon className="w-3 h-3" /></button>}
               </div>
-              <MultiSelectFilter
-                label="Grades"
-                icon={<Flame className="w-3.5 h-3.5" />}
-                options={gradeOptions}
-                selectedValues={gradeFilter}
-                onChange={setGradeFilter}
-                placeholder="All grades"
-                panelWidth={260}
-              />
-              <MultiSelectFilter
-                label="Attendance"
-                icon={<Flame className="w-3.5 h-3.5" />}
-                options={attendanceGradeOptions}
-                selectedValues={attendanceGradeFilter}
-                onChange={setAttendanceGradeFilter}
-                placeholder="All attendance"
-                panelWidth={240}
-                searchable={false}
-              />
-              <select
-                className="ipc-input !h-9 !text-xs"
-                value={String(minAttendedMinutes)}
-                onChange={(e) => setMinAttendedMinutes(Number(e.target.value) || 0)}
-                title="Minimum attended time"
-              >
-                {ATTENDANCE_MIN_MINUTES_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              <select
-                className="ipc-input !h-9 !text-xs"
-                value={attendanceDataFilter}
-                onChange={(e) => setAttendanceDataFilter(e.target.value as any)}
-                title="Attendance data presence"
-              >
-                {ATTENDANCE_DATA_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              <select className="ipc-input !h-9 !text-xs" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)} title="Converted leads">
-                <option value="hide">Hide converted</option>
-                <option value="show">Show converted</option>
-                <option value="only">Converted only</option>
-              </select>
-              <MultiSelectFilter
-                label="Tags"
-                icon={<TagIcon className="w-3.5 h-3.5" />}
-                options={tagOptions}
-                selectedValues={tagFilter}
-                onChange={setTagFilter}
-                placeholder="All tags"
-                panelWidth={280}
-              />
-              <MultiSelectFilter
-                label="Stages"
-                icon={<Layers className="w-3.5 h-3.5" />}
-                options={stageOptions}
-                selectedValues={stageFilter}
-                onChange={setStageFilter}
-                placeholder="All stages"
-                panelWidth={300}
-              />
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Grades, attendance, tags, stages & more">
+                    <Settings2 className="w-3.5 h-3.5" /> More filters{advancedActiveCount > 0 ? (
+                      <span className="ml-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-black text-white text-[9px] font-medium">{advancedActiveCount}</span>
+                    ) : null}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={6}
+                  collisionPadding={16}
+                  className="z-[1080] w-[340px] p-0 bg-white border border-line rounded-md shadow-xl"
+                >
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-line">
+                    <div className="font-serif text-[13px]">More filters</div>
+                    <div className="flex items-center gap-2">
+                      {advancedActiveCount > 0 && (
+                        <button onClick={() => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("hide"); setTagFilter([]); setStageFilter([]); }} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Reset</button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="max-h-[60vh] overflow-y-auto p-3 space-y-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Grade</div>
+                      <MultiSelectFilter
+                        label="Grades"
+                        icon={<Flame className="w-3.5 h-3.5" />}
+                        options={gradeOptions}
+                        selectedValues={gradeFilter}
+                        onChange={setGradeFilter}
+                        placeholder="All grades"
+                        panelWidth={260}
+                        buttonClassName="ipc-input !h-9 !text-xs flex items-center gap-1.5 w-full justify-between bg-white"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Attendance grade</div>
+                      <MultiSelectFilter
+                        label="Attendance"
+                        icon={<Flame className="w-3.5 h-3.5" />}
+                        options={attendanceGradeOptions}
+                        selectedValues={attendanceGradeFilter}
+                        onChange={setAttendanceGradeFilter}
+                        placeholder="All attendance"
+                        panelWidth={240}
+                        searchable={false}
+                        buttonClassName="ipc-input !h-9 !text-xs flex items-center gap-1.5 w-full justify-between bg-white"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Min attended</div>
+                        <select
+                          className="ipc-input !h-9 !text-xs w-full"
+                          value={String(minAttendedMinutes)}
+                          onChange={(e) => setMinAttendedMinutes(Number(e.target.value) || 0)}
+                        >
+                          {ATTENDANCE_MIN_MINUTES_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Attendance data</div>
+                        <select
+                          className="ipc-input !h-9 !text-xs w-full"
+                          value={attendanceDataFilter}
+                          onChange={(e) => setAttendanceDataFilter(e.target.value as any)}
+                        >
+                          {ATTENDANCE_DATA_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Converted</div>
+                      <select className="ipc-input !h-9 !text-xs w-full" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)}>
+                        <option value="hide">Hide converted</option>
+                        <option value="show">Show converted</option>
+                        <option value="only">Converted only</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Tags</div>
+                      <MultiSelectFilter
+                        label="Tags"
+                        icon={<TagIcon className="w-3.5 h-3.5" />}
+                        options={tagOptions}
+                        selectedValues={tagFilter}
+                        onChange={setTagFilter}
+                        placeholder="All tags"
+                        panelWidth={280}
+                        buttonClassName="ipc-input !h-9 !text-xs flex items-center gap-1.5 w-full justify-between bg-white"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Stages</div>
+                      <MultiSelectFilter
+                        label="Stages"
+                        icon={<Layers className="w-3.5 h-3.5" />}
+                        options={stageOptions}
+                        selectedValues={stageFilter}
+                        onChange={setStageFilter}
+                        placeholder="All stages"
+                        panelWidth={300}
+                        buttonClassName="ipc-input !h-9 !text-xs flex items-center gap-1.5 w-full justify-between bg-white"
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </>
           )}
+
 
           <div className="flex items-center gap-1 ml-auto">
             <button
