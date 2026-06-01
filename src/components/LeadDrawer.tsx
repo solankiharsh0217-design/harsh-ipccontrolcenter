@@ -688,7 +688,21 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
           dealValue={lead.deal_value}
         />
 
-        <SessionAttendanceTimeline leadId={lead.id} isAdmin={isAdmin} />
+        <SessionAttendanceTimeline
+          leadId={lead.id}
+          isAdmin={isAdmin}
+          legacy={{
+            grade: lead.grade,
+            is_super_hot: lead.is_super_hot,
+            score: lead.score,
+            attendance_pct: lead.attendance_pct,
+            sessions_count: lead.sessions_count,
+            total_minutes: lead.total_minutes,
+            webinar_count: lead.webinar_count,
+            webinar_source: (lead as any).webinar_source,
+            webinar_date: (lead as any).webinar_date,
+          }}
+        />
 
 
 
