@@ -1957,6 +1957,7 @@ export default function Crm() {
                     <td className="px-4 py-3 text-xs">{l.phone || "—"}</td>
                     <td className="px-4 py-3 text-xs">{l.score}</td>
                     <td className="px-4 py-3"><span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase" style={{ background: g.bg, color: g.fg, border: `1px solid ${g.border}` }}>{g.label}</span></td>
+                    <td className="px-4 py-3">{hotnessMap[l.id] && (hotnessMap[l.id].total_sessions_attended || 0) > 0 ? <AttendanceBadge score={hotnessMap[l.id]} /> : <span className="text-[10px] text-muted-foreground">—</span>}</td>
                     <td className="px-4 py-3 text-xs">{stg?.name || "—"}</td>
                     <td className="px-4 py-3 text-xs">{l.webinar_source || "—"}</td>
                     <td className="px-4 py-3 text-xs">{ag?.full_name || "—"}</td>
