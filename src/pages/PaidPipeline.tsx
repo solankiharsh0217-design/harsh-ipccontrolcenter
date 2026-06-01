@@ -131,12 +131,6 @@ export default function PaidPipeline() {
   const [showMoreMetrics, setShowMoreMetrics] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [viewMode, setViewMode] = useState<"compact"|"detailed">(() => {
-    if (typeof window === "undefined") return "compact";
-    const v = window.localStorage.getItem("paidPipeline.viewMode");
-    return v === "detailed" ? "detailed" : "compact";
-  });
-  useEffect(() => { try { window.localStorage.setItem("paidPipeline.viewMode", viewMode); } catch {} }, [viewMode]);
   const [payStatusFilter, setPayStatusFilter] = useState<PayStatusKey | "all">("all");
   const HIGH_BAL_THRESHOLD = 50000;
 
