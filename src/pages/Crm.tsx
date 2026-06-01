@@ -1127,6 +1127,7 @@ export default function Crm() {
             ))}
             {gradeFilter.map((g) => (
               <FilterChip key={`g-${g}`} label={`Grade: ${gradeLabel(g)}`} onClear={() => setGradeFilter(gradeFilter.filter((x) => x !== g))} />
+            ))}
             {attendanceGradeFilter.map((g) => (
               <FilterChip key={`ag-${g}`} label={`Attendance: ${HOTNESS_LABEL[g as Hotness] || g}`} onClear={() => setAttendanceGradeFilter(attendanceGradeFilter.filter((x) => x !== g))} />
             ))}
