@@ -89,6 +89,15 @@ export interface UpsertAttendanceInput {
 }
 
 export async function upsertAttendance(input: UpsertAttendanceInput) {
+  if (!input.sessionDurationMinutes || input.sessionDurationMinutes <= 0) {
+    throw new Error("Session duration is required and must be greater than 0 minutes.");
+  }
+  if (!input.webinarId && !input.webinarName) {
+    throw new Error("Webinar/session name is required.");
+  }
+  if (!input.sessionDate) {
+    throw new Error("Webinar date is required.");
+  }
   const { data, error } = await supabase.rpc("upsert_lead_session_attendance", {
     _lead_id: input.leadId,
     _batch_id: input.batchId ?? null,
