@@ -610,7 +610,7 @@ export default function PaidPipeline() {
       )}
 
       {viewMode === "compact" && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           {filtered.length === 0 && (
             <div className="border border-dashed border-line rounded-lg p-10 text-center text-muted-foreground text-[13px]">
               <div>No paid leads match these filters.</div>
