@@ -915,18 +915,31 @@ export default function Crm() {
     return pipelineStages.map((s) => ({ value: s.id, label: s.name, count: counts.get(s.id) || 0 }));
   }, [pipelineStages, filterScopeLeads]);
 
+  const attendanceGradeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const l of filterScopeLeads as any[]) {
+      const h = hotnessMap[l.id];
+      const grade: Hotness = h ? (h.manual_override && h.manual_grade ? h.manual_grade : h.current_hotness) : "inactive";
+      counts.set(grade, (counts.get(grade) || 0) + 1);
+    }
+    return ATTENDANCE_GRADE_OPTIONS.map((o) => ({ value: o.value, label: o.label, count: counts.get(o.value) || 0 }));
+  }, [filterScopeLeads, hotnessMap]);
+
   const tagNameLookup = useMemo(() => Object.fromEntries(allTags.map((t) => [t.id, t.name])), [allTags]);
   const stageNameLookupLocal = useMemo(() => Object.fromEntries(pipelineStages.map((s) => [s.id, s.name])), [pipelineStages]);
 
   const activeFilterCount =
     gradeFilter.length +
+    attendanceGradeFilter.length +
+    (minAttendedMinutes > 0 ? 1 : 0) +
+    (attendanceDataFilter !== "any" ? 1 : 0) +
     batchFilter.length +
     tagFilter.length +
     stageFilter.length +
     (dateFrom || dateTo ? 1 : 0) +
     (searchQuery ? 1 : 0);
   const advancedActiveCount = tagFilter.length + stageFilter.length;
-  const resetAll = () => { setGradeFilter([]); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
 
   return (
     <div>
