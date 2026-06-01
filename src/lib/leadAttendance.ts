@@ -23,6 +23,8 @@ export interface AttendanceRow {
   first_joined_at: string | null;
   last_left_at: string | null;
   attendance_grade: "hot" | "warm" | "cold" | "absent";
+  normalized_email: string | null;
+  normalized_phone: string | null;
   source: "zoom" | "csv" | "google_sheet" | "manual";
   metadata_json: any;
   created_at: string;
