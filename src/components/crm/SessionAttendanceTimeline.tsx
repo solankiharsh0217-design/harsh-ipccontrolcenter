@@ -78,7 +78,41 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false, leg
     }
   };
 
-  const grade = displayedHotness(hotness);
+  // No row in lead_hotness_scores yet → fall back to legacy fields stored on the lead
+  // (older webinar imports populated leads.grade / attendance_pct directly).
+  const hasHotnessRow = !!hotness;
+  const hasLegacy =
+    !hasHotnessRow &&
+    !!legacy &&
+    ((legacy.sessions_count ?? 0) > 0 ||
+      (legacy.total_minutes ?? 0) > 0 ||
+      (legacy.attendance_pct ?? 0) > 0 ||
+      !!legacy.is_super_hot ||
+      (legacy.grade && legacy.grade !== "absent"));
+
+  const legacyHotness: Hotness = legacy?.is_super_hot
+    ? "super_hot"
+    : legacy?.grade === "hot"
+      ? "hot"
+      : legacy?.grade === "warm"
+        ? "warm"
+        : legacy?.grade === "cold"
+          ? "cold"
+          : "inactive";
+
+  const grade: Hotness = hasHotnessRow ? displayedHotness(hotness) : hasLegacy ? legacyHotness : "inactive";
+
+  const eff = {
+    score: hotness?.score_numeric ?? (hasLegacy ? Math.round(legacy?.score ?? 0) : 0),
+    attendancePct: hotness?.cumulative_attendance_percentage ?? (hasLegacy ? Number(legacy?.attendance_pct ?? 0) : 0),
+    sessions: hotness?.total_sessions_attended ?? (hasLegacy ? (legacy?.sessions_count ?? 0) : 0),
+    attendedMin: hotness?.total_attended_minutes ?? (hasLegacy ? (legacy?.total_minutes ?? 0) : 0),
+    possibleMin: hotness?.total_possible_minutes ?? 0,
+    webinars: hotness?.total_webinars_attended ?? (hasLegacy ? (legacy?.webinar_count ?? 1) : 0),
+    best: hotness?.highest_attendance_percentage ?? (hasLegacy ? Number(legacy?.attendance_pct ?? 0) : 0),
+    lastAttended: hotness?.last_attended_at ?? (hasLegacy ? legacy?.webinar_date ?? null : null),
+  };
+
   const visible = expanded ? rows : rows.slice(0, 3);
 
   return (
