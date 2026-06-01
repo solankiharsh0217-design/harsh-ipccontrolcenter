@@ -18,8 +18,8 @@ Deno.serve(async (req) => {
     if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } });
 
     const admin = createClient(url, service);
-    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", user.id);
-    if (!roles?.some((r: any) => r.role === "admin"))
+    const { data: isAdmin, error: roleErr } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    if (roleErr || !isAdmin)
       return new Response(JSON.stringify({ error: "Admin only" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
 
     const body = await req.json();
