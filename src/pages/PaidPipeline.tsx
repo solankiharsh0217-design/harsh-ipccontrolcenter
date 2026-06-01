@@ -613,6 +613,7 @@ export default function PaidPipeline() {
                 onOpen={() => setOpenId(l.id)}
                 onAddPayment={() => setQuickPayId(l.id)}
                 onSetFollowUp={() => setQuickFuId(l.id)}
+                onUpdateFinance={() => setQuickFinanceId(l.id)}
                 stageSlot={
                   <InlineManagedSelect
                     settingType="pipeline_stage"
