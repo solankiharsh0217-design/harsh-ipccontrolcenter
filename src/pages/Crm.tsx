@@ -1428,8 +1428,8 @@ export default function Crm() {
       {/* Kanban */}
       {view === "kanban" && (
         <div className="overflow-x-auto pb-4">
-          <div className="flex gap-3" style={{ minWidth: (stageFilter !== "all" ? 1 : pipelineStages.length) * 280 }}>
-            {pipelineStages.filter((s) => stageFilter === "all" || s.id === stageFilter).map((s, idx, arr) => {
+          <div className="flex gap-3" style={{ minWidth: (stageFilter.length > 0 ? stageFilter.length : pipelineStages.length) * 280 }}>
+            {pipelineStages.filter((s) => stageFilter.length === 0 || stageFilter.includes(s.id)).map((s, idx, arr) => {
               const items = pipelineLeads.filter((l) => l.stage_id === s.id);
               const total = items.reduce((sum, l) => sum + Number(l.deal_value || 0), 0);
               const color = STAGE_COLORS[s.color] || "#888";
