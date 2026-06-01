@@ -422,10 +422,20 @@ export default function Crm() {
       });
     }
 
-    if (filter !== "all") list = list.filter((l) => filter === "super-hot" ? l.is_super_hot : l.grade === filter);
-    if (batchFilter !== "all") list = list.filter((l) => (l.webinar_source || "—") === batchFilter);
-    if (tagFilter !== "all") list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => t.id === tagFilter));
-    if (stageFilter !== "all") list = list.filter((l) => l.stage_id === stageFilter);
+    if (gradeFilter.length > 0) {
+      const set = new Set(gradeFilter);
+      list = list.filter((l: any) => {
+        if (set.has("super-hot") && l.is_super_hot) return true;
+        const g = normalizeGradeValue(l.grade);
+        return g && set.has(g);
+      });
+    }
+    if (batchFilter.length > 0) list = list.filter((l) => batchFilter.includes(l.webinar_source || "—"));
+    if (tagFilter.length > 0) {
+      const tagSet = new Set(tagFilter);
+      list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => tagSet.has(t.id)));
+    }
+    if (stageFilter.length > 0) list = list.filter((l) => l.stage_id && stageFilter.includes(l.stage_id));
     if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
     if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     const q = searchQuery.trim().toLowerCase();
