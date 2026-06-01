@@ -249,7 +249,7 @@ export default function Crm() {
     await load();
     if (!result) return;
     setActivePipeline(result.pipelineId);
-    setBatchFilter(result.batchName);
+    setBatchFilter([result.batchName]);
     setBatchPipelineFilter(result.leadType);
     setView("batches");
     const pipelineLabel = result.leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)";
