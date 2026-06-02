@@ -8,6 +8,7 @@ import {
   Pencil, Trash2,
 } from "lucide-react";
 import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, computeServiceCalc } from "@/lib/operationsCrm";
+import { ensureSeedTemplate } from "@/lib/operationsTemplates";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import OperationsLeadDrawer, { type OpsLeadFull } from "@/components/OperationsLeadDrawer";
 import RewardWidget from "@/components/operations/RewardWidget";
@@ -15,6 +16,8 @@ import MediaBuyerPerformancePanel from "@/components/operations/MediaBuyerPerfor
 import OpsReportsTab from "@/components/operations/OpsReportsTab";
 import OpsConversionsTab from "@/components/operations/OpsConversionsTab";
 import OpsRewardsTab from "@/components/operations/OpsRewardsTab";
+import OperationsIntakeTab from "@/components/operations/OperationsIntakeTab";
+import OperationsSettingsTab from "@/components/operations/OperationsSettingsTab";
 import { getMonthlyCountsByBuyer, currentMonthStr } from "@/lib/operationsConversions";
 import type { Pipeline, Stage } from "@/lib/crmTypes";
 
