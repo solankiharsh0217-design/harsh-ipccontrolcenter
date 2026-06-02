@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { parseCsvText, importRows, fetchSheetCsv, type ParsedRow, type ImportPreview } from "@/lib/operationsIntake";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
+import NoTemplateBanner from "@/components/operations/NoTemplateBanner";
 import { useEffect } from "react";
 
 type Mode = "csv" | "sheet" | "manual";
@@ -11,7 +12,7 @@ type Mode = "csv" | "sheet" | "manual";
 export default function OperationsImportModal({
   onClose, onDone,
 }: { onClose: () => void; onDone: () => void }) {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [mode, setMode] = useState<Mode>("csv");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
@@ -23,9 +24,12 @@ export default function OperationsImportModal({
     name: "", email: null, phone: null, brand_name: null, product_name: null, batch_name: null, notes: null, raw: {},
   });
 
-  useEffect(() => {
+  const reloadTemplates = () => {
     listProcessTemplates(true).then(setTemplates).catch(() => {});
-  }, []);
+  };
+
+  useEffect(() => { reloadTemplates(); }, []);
+  const noTemplates = templates.length === 0;
 
   const onFile = async (f: File) => {
     setFileName(f.name);
@@ -106,13 +110,17 @@ export default function OperationsImportModal({
         </div>
 
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
-          <div>
-            <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Apply process template (optional)</label>
-            <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="ipc-input !h-9 !text-xs w-full max-w-sm">
-              <option value="">— No template —</option>
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
+          {noTemplates ? (
+            <NoTemplateBanner isAdmin={isAdmin} onCreated={reloadTemplates} compact />
+          ) : (
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Apply process template (optional)</label>
+              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="ipc-input !h-9 !text-xs w-full max-w-sm">
+                <option value="">— No template —</option>
+                {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
 
           {mode === "csv" && (
             <div>
@@ -176,7 +184,8 @@ export default function OperationsImportModal({
 
         <div className="px-5 py-3 border-t border-line flex justify-end gap-2 bg-off/30">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost !text-xs">Cancel</button>
-          <button onClick={confirmImport} disabled={busy || (mode !== "manual" && (!preview || preview.rows.length === 0))}
+          <button onClick={confirmImport} disabled={busy || (noTemplates && !isAdmin) || (mode !== "manual" && (!preview || preview.rows.length === 0))}
+            title={noTemplates && !isAdmin ? "Operations process template is not configured yet. Please contact admin." : undefined}
             className="ipc-btn ipc-btn-black !text-xs">
             {busy ? "Working…" : mode === "manual" ? "Add to Intake" : `Import ${preview?.rows.length ?? 0} rows`}
           </button>

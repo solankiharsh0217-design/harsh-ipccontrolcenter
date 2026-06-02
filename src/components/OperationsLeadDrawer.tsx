@@ -81,7 +81,7 @@ export default function OperationsLeadDrawer({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [events, setEvents] = useState<ServiceEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [action, setAction] = useState<ActionType | null>(null);
@@ -187,6 +187,43 @@ export default function OperationsLeadDrawer({
                 <Card label="Override" value={lead.readiness_override_reason} />
               )}
             </div>
+            {!lead.process_template_id && (
+              <div className="mt-3 border border-[#FDE68A] bg-[#FFFBEB] rounded-md p-2.5">
+                <div className="text-[11px] text-[#92400E] font-medium">No process template assigned</div>
+                {isAdmin ? (
+                  templates.length === 0 ? (
+                    <div className="text-[10px] text-[#92400E]/80 mt-1">
+                      No templates exist yet. Create one from Operations CRM → Settings.
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-2">
+                      <select
+                        defaultValue=""
+                        onChange={async (e) => {
+                          const v = e.target.value;
+                          if (!v) return;
+                          const { error } = await supabase
+                            .from("operations_leads" as any)
+                            .update({ process_template_id: v } as any)
+                            .eq("id", lead.id);
+                          if (error) { toast.error(error.message); return; }
+                          toast.success("Process template assigned");
+                          onSaved();
+                        }}
+                        className="ipc-input !h-8 !text-xs"
+                      >
+                        <option value="">Assign Process Template…</option>
+                        {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                  )
+                ) : (
+                  <div className="text-[10px] text-[#92400E]/80 mt-1">
+                    Please contact admin to assign a process template.
+                  </div>
+                )}
+              </div>
+            )}
           </Section>
 
           {/* Readiness Checklist */}

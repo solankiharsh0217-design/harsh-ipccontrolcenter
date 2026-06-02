@@ -8,7 +8,8 @@ import {
   Pencil, Trash2,
 } from "lucide-react";
 import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, computeServiceCalc } from "@/lib/operationsCrm";
-import { ensureSeedTemplate } from "@/lib/operationsTemplates";
+import { ensureSeedTemplate, listProcessTemplates } from "@/lib/operationsTemplates";
+import NoTemplateBanner from "@/components/operations/NoTemplateBanner";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import OperationsLeadDrawer, { type OpsLeadFull } from "@/components/OperationsLeadDrawer";
 import RewardWidget from "@/components/operations/RewardWidget";
@@ -75,7 +76,23 @@ export default function OperationsCrm() {
   const initialTab = (params.get("tab") as "intake" | "kanban" | "reports" | "conversions" | "rewards" | "settings") || "kanban";
   const [tab, setTab] = useState<"intake" | "kanban" | "reports" | "conversions" | "rewards" | "settings">(initialTab);
 
-  useEffect(() => { ensureSeedTemplate().catch(() => {}); }, []);
+  const [hasTemplates, setHasTemplates] = useState<boolean | null>(null);
+
+  const checkTemplates = async () => {
+    try {
+      const t = await listProcessTemplates(false);
+      setHasTemplates(t.length > 0);
+    } catch { setHasTemplates(null); }
+  };
+
+  useEffect(() => {
+    (async () => {
+      if (isAdmin) {
+        await ensureSeedTemplate().catch(() => {});
+      }
+      await checkTemplates();
+    })();
+  }, [isAdmin]);
 
   const load = async () => {
     setLoading(true);
@@ -245,6 +262,12 @@ export default function OperationsCrm() {
           </div>
         ))}
       </div>
+
+      {hasTemplates === false && (
+        <div className="mb-3">
+          <NoTemplateBanner isAdmin={isAdmin} onCreated={checkTemplates} />
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-line mb-3">
