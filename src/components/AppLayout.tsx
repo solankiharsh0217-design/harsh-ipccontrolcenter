@@ -27,6 +27,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/crm/paid-pipeline": "Paid Pipeline",
   "/paid-pipeline/access-readiness": "Access Readiness",
   "/follow-up-command-center": "Follow-Up Command Center",
+  "/follow-up-board": "Follow-up Board",
   "/payment-recovery": "Payment Recovery",
   "/operations-crm": "Operations CRM",
   "/webinar-performance": "Webinar Performance",
