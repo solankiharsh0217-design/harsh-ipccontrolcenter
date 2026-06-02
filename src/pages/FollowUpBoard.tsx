@@ -352,51 +352,52 @@ export default function FollowUpBoard() {
   const ownerOptions = Array.from(new Set(fus.map(ownerOf).filter(Boolean) as string[]));
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="font-serif text-[24px] text-black">Follow-up Board</h1>
-          <p className="text-[12px] text-muted-foreground mt-1">Your daily call list — what to call now, today, and this week.</p>
+    <div className="p-4 max-w-[1400px] mx-auto">
+      {/* Compact header with inline stats strip */}
+      <div className="flex items-center justify-between gap-3 mb-2.5 flex-wrap">
+        <div className="flex items-baseline gap-3 min-w-0">
+          <h1 className="font-serif text-[18px] text-black leading-none">Follow-up Board</h1>
+          <span className="text-[11px] text-muted-foreground hidden md:inline">Your daily call list</span>
         </div>
-        <div className="flex items-center gap-2 text-[12px]">
-          <button onClick={() => load()} className="px-2.5 py-1 rounded border border-line bg-white hover:bg-off">↻ Refresh</button>
-          <span className="text-muted-foreground">Reminder:</span>
-          <select className="qsi-input !h-8 !w-auto" value={reminderMin} onChange={(e) => setReminderMin(Number(e.target.value))}>
-            {REMINDER_OFFSETS.map((m) => <option key={m} value={m}>{m} min before</option>)}
+
+        <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
+          <StatPill label="Overdue" value={summary.overdue} tone="red" onClick={() => { setBucketFilter("overdue"); setStatusF("Pending"); }} />
+          <StatPill label="Today" value={summary.today} tone="blue" onClick={() => { setBucketFilter("today"); setStatusF("Pending"); }} />
+          <StatPill label="This Week" value={summary.week} tone="amber" onClick={() => { setBucketFilter("thisWeek"); setStatusF("Pending"); }} />
+          <StatPill label="Completed" value={summary.doneToday} tone="green" onClick={() => { setBucketFilter("all"); setStatusF("Done"); }} />
+        </div>
+
+        <div className="flex items-center gap-1.5 text-[11px] ml-auto">
+          <button onClick={() => load()} className="px-2 py-1 rounded border border-line bg-white hover:bg-off" title="Refresh">↻</button>
+          <span className="text-muted-foreground">Reminder</span>
+          <select className="qsi-input !h-7 !w-auto !text-[11px] !py-0 !px-2" value={reminderMin} onChange={(e) => setReminderMin(Number(e.target.value))}>
+            {REMINDER_OFFSETS.map((m) => <option key={m} value={m}>{m}m</option>)}
           </select>
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <SummaryCard label="Overdue" value={summary.overdue} tone="red" onClick={() => { setBucketFilter("overdue"); setStatusF("Pending"); }} />
-        <SummaryCard label="Due Today" value={summary.today} tone="blue" onClick={() => { setBucketFilter("today"); setStatusF("Pending"); }} />
-        <SummaryCard label="Upcoming This Week" value={summary.week} tone="amber" onClick={() => { setBucketFilter("thisWeek"); setStatusF("Pending"); }} />
-        <SummaryCard label="Completed Today" value={summary.doneToday} tone="green" onClick={() => { setBucketFilter("all"); setStatusF("Done"); }} />
-      </div>
-
       {/* Tabs */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="flex bg-white border border-line rounded-md overflow-hidden text-[12px]">
-          <button onClick={() => setTab("mine")} className={`px-3 py-1.5 ${tab === "mine" ? "bg-black text-white" : ""}`}>My Follow-ups</button>
-          {isAdmin && <button onClick={() => setTab("team")} className={`px-3 py-1.5 ${tab === "team" ? "bg-black text-white" : ""}`}>Team Follow-ups</button>}
-          {isAdmin && <button onClick={() => { setTab("all"); setBucketFilter("all"); setOwnerF("all"); setStatusF("all"); }} className={`px-3 py-1.5 ${tab === "all" ? "bg-black text-white" : ""}`}>All Follow-ups</button>}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex bg-white border border-line rounded-md overflow-hidden text-[11px]">
+          <button onClick={() => setTab("mine")} className={`px-2.5 py-1 ${tab === "mine" ? "bg-black text-white" : ""}`}>My Follow-ups</button>
+          {isAdmin && <button onClick={() => setTab("team")} className={`px-2.5 py-1 ${tab === "team" ? "bg-black text-white" : ""}`}>Team</button>}
+          {isAdmin && <button onClick={() => { setTab("all"); setBucketFilter("all"); setOwnerF("all"); setStatusF("all"); }} className={`px-2.5 py-1 ${tab === "all" ? "bg-black text-white" : ""}`}>All</button>}
         </div>
       </div>
 
-      {/* Main filter bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-3 p-2 border border-line rounded-lg bg-off/40">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name / phone / note" className="qsi-input !h-8 !w-[200px]" />
+      {/* Main filter bar — single compact row */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-2 p-1.5 border border-line rounded-lg bg-off/40">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name / phone / note" className="qsi-input !h-7 !w-[200px] !text-[12px]" />
 
-        {/* Date range picker */}
+        {/* Prominent Date Range button */}
         <Popover>
           <PopoverTrigger asChild>
-            <button type="button" className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded border border-line bg-white hover:bg-off">
-              <CalendarIcon className="w-3.5 h-3.5 opacity-60" />
-              <span className="truncate">
+            <button type="button" className={`flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded border ${(dateFrom || dateTo) ? "border-gold-mid bg-gold-pale text-gold-deep" : "border-line bg-white"} hover:bg-off`}>
+              <CalendarIcon className="w-3.5 h-3.5 opacity-70" />
+              <span className="truncate font-medium">
                 {dateFrom || dateTo
-                  ? `${dateFrom ? fmtNiceShort(dateFrom) : "…"} → ${dateTo ? fmtNiceShort(dateTo) : "…"}`
-                  : "Follow-up Date Range"}
+                  ? `Date: ${dateFrom ? fmtNiceShort(dateFrom) : "…"} → ${dateTo ? fmtNiceShort(dateTo) : "…"}`
+                  : "Date Range: Select dates"}
               </span>
               {(dateFrom || dateTo) && (
                 <span
@@ -453,23 +454,14 @@ export default function FollowUpBoard() {
                   initialFocus
                   className="pointer-events-auto"
                 />
-                <div className="flex justify-end gap-2 px-3 pb-3">
-                  <button
-                    type="button"
-                    onClick={() => { setDateFrom(""); setDateTo(""); setDatePreset(""); }}
-                    className="text-xs px-3 py-1.5 rounded-md border border-line bg-white hover:bg-off"
-                  >
-                    Clear
-                  </button>
-                </div>
               </div>
             </div>
           </PopoverContent>
         </Popover>
 
-        {/* Quick presets */}
-        <div className="flex gap-1 text-[11px] flex-wrap">
-          {PRESETS.map((p) => (
+        {/* Inline quick presets */}
+        <div className="flex gap-1 text-[11px]">
+          {PRESETS.slice(0, 4).map((p) => (
             <button
               key={p.key}
               onClick={() => {
@@ -478,14 +470,14 @@ export default function FollowUpBoard() {
                 setDateTo(r.to);
                 setDatePreset(p.key);
               }}
-              className={`px-2 py-1 rounded border ${datePreset === p.key ? "bg-black text-white border-black" : "bg-white border-line"}`}
+              className={`px-1.5 py-0.5 rounded border ${datePreset === p.key ? "bg-black text-white border-black" : "bg-white border-line"}`}
             >
               {p.label}
             </button>
           ))}
         </div>
 
-        <button onClick={() => setMoreOpen((v) => !v)} className={`text-[12px] px-2.5 py-1 rounded border ${moreOpen ? "bg-black text-white border-black" : "border-line bg-white"}`}>
+        <button onClick={() => setMoreOpen((v) => !v)} className={`text-[11px] px-2 py-1 rounded border ${moreOpen ? "bg-black text-white border-black" : "border-line bg-white"}`}>
           {moreOpen ? "Hide filters" : "More filters"}
         </button>
 
@@ -495,7 +487,7 @@ export default function FollowUpBoard() {
             setDateFrom(""); setDateTo(""); setDatePreset("");
             setBucketFilter("all"); setStatusF("Pending"); setPriorityF("all"); setOwnerF("all"); setGradeF("all");
           }}
-          className="text-[12px] px-2.5 py-1 rounded border border-line bg-white hover:bg-off text-muted-foreground ml-auto"
+          className="text-[11px] px-2 py-1 rounded border border-line bg-white hover:bg-off text-muted-foreground ml-auto"
         >
           Clear all
         </button>
