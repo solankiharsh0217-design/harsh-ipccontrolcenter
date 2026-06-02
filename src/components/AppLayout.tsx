@@ -156,6 +156,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M5 8l2 2 4-5"/></></Icon>
             Access Readiness
           </NavItem>
+          <NavItem to="/follow-up-board" show={isAdmin || hasModule("follow_up_command_center") || hasModule("crm") || hasModule("calling_crm")}>
+            <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
+            Follow-up Board
+          </NavItem>
           <NavItem to="/follow-up-command-center" show={!isAdmin && hasModule("follow_up_command_center")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
             Follow-Up Center
