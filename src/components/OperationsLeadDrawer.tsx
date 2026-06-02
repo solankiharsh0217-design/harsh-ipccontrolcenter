@@ -304,6 +304,36 @@ export default function OperationsLeadDrawer({
           onDone={() => { setAction(null); loadEvents(); onSaved(); }}
         />
       )}
+
+      {showCommModal && (
+        <CommTemplatePickerModal
+          lead={{
+            name: lead.name,
+            email: lead.email,
+            brand_name: lead.brand_name ?? null,
+            program_name: lead.program_name ?? null,
+            product_name: lead.product_name,
+            assigned_media_buyer_name: lead.assigned_media_buyer_name,
+          }}
+          onClose={() => setShowCommModal(false)}
+        />
+      )}
+
+      {showStartProcess && (
+        <StartProcessModal
+          lead={{
+            id: lead.id,
+            name: lead.name,
+            process_template_id: lead.process_template_id ?? null,
+            service_days_committed: lead.service_days_committed,
+            service_months: lead.service_months,
+            assigned_media_buyer_id: lead.assigned_media_buyer_id,
+            readiness_override_reason: lead.readiness_override_reason ?? null,
+          }}
+          onClose={() => setShowStartProcess(false)}
+          onDone={() => { setShowStartProcess(false); loadEvents(); onSaved(); }}
+        />
+      )}
     </div>
   );
 }
