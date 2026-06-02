@@ -375,29 +375,184 @@ export default function FollowUpBoard() {
         <SummaryCard label="Completed Today" value={summary.doneToday} tone="green" onClick={() => { setBucketFilter("all"); setStatusF("Done"); }} />
       </div>
 
-      {/* Tabs + filter bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-3 p-2 border border-line rounded-lg bg-off/40">
+      {/* Tabs */}
+      <div className="flex items-center gap-2 mb-3">
         <div className="flex bg-white border border-line rounded-md overflow-hidden text-[12px]">
           <button onClick={() => setTab("mine")} className={`px-3 py-1.5 ${tab === "mine" ? "bg-black text-white" : ""}`}>My Follow-ups</button>
           {isAdmin && <button onClick={() => setTab("team")} className={`px-3 py-1.5 ${tab === "team" ? "bg-black text-white" : ""}`}>Team Follow-ups</button>}
           {isAdmin && <button onClick={() => { setTab("all"); setBucketFilter("all"); setOwnerF("all"); setStatusF("all"); }} className={`px-3 py-1.5 ${tab === "all" ? "bg-black text-white" : ""}`}>All Follow-ups</button>}
         </div>
-        <div className="flex gap-1 text-[12px] flex-wrap">
-          {(["default", "overdue", "today", "tomorrow", "thisWeek", "future", "completed", "all"] as const).map((b) => (
-            <button key={b} onClick={() => setBucketFilter(b)} className={`px-2.5 py-1 rounded border ${bucketFilter === b ? "bg-black text-white border-black" : "bg-white border-line"}`}>
-              {b === "default" ? "Today + Overdue" : b === "all" ? "All" : BUCKET_LABELS[b]}
+      </div>
+
+      {/* Main filter bar */}
+      <div className="flex flex-wrap items-center gap-2 mb-3 p-2 border border-line rounded-lg bg-off/40">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name / phone / note" className="qsi-input !h-8 !w-[200px]" />
+
+        {/* Date range picker */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className="flex items-center gap-1.5 text-[12px] px-2.5 py-1.5 rounded border border-line bg-white hover:bg-off">
+              <CalendarIcon className="w-3.5 h-3.5 opacity-60" />
+              <span className="truncate">
+                {dateFrom || dateTo
+                  ? `${dateFrom ? fmtNiceShort(dateFrom) : "…"} → ${dateTo ? fmtNiceShort(dateTo) : "…"}`
+                  : "Follow-up Date Range"}
+              </span>
+              {(dateFrom || dateTo) && (
+                <span
+                  className="ml-0.5 text-muted-foreground hover:text-black"
+                  onClick={(e) => { e.stopPropagation(); setDateFrom(""); setDateTo(""); setDatePreset(""); }}
+                  title="Clear date range"
+                >×</span>
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-auto p-0 bg-white border border-line shadow-lg" sideOffset={6}>
+            <div className="flex">
+              <div className="flex flex-col border-r border-line py-3 px-2 gap-1 min-w-[130px] bg-[#FAF9F6]">
+                <div className="px-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground">Quick ranges</div>
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => {
+                      const r = applyPreset(p.key);
+                      setDateFrom(r.from);
+                      setDateTo(r.to);
+                      setDatePreset(p.key);
+                    }}
+                    className={`text-left text-xs px-2 py-1.5 rounded-md hover:bg-white ${datePreset === p.key ? "bg-white font-medium" : ""}`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => { setDateFrom(""); setDateTo(""); setDatePreset(""); }}
+                  className="text-left text-xs px-2 py-1.5 rounded-md hover:bg-white text-muted-foreground"
+                >
+                  Clear
+                </button>
+              </div>
+              <div>
+                <Calendar
+                  mode="range"
+                  numberOfMonths={1}
+                  selected={
+                    dateFrom || dateTo
+                      ? { from: dateFrom ? parseISO(dateFrom + "T00:00:00") : undefined, to: dateTo ? parseISO(dateTo + "T00:00:00") : undefined }
+                      : undefined
+                  }
+                  onSelect={(r) => {
+                    if (r?.from) setDateFrom(ymd(r.from));
+                    if (r?.to) setDateTo(ymd(r.to));
+                    if (!r?.from && !r?.to) { setDateFrom(""); setDateTo(""); }
+                    setDatePreset("");
+                  }}
+                  defaultMonth={dateFrom ? parseISO(dateFrom + "T00:00:00") : new Date()}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+                <div className="flex justify-end gap-2 px-3 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => { setDateFrom(""); setDateTo(""); setDatePreset(""); }}
+                    className="text-xs px-3 py-1.5 rounded-md border border-line bg-white hover:bg-off"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Quick presets */}
+        <div className="flex gap-1 text-[11px] flex-wrap">
+          {PRESETS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => {
+                const r = applyPreset(p.key);
+                setDateFrom(r.from);
+                setDateTo(r.to);
+                setDatePreset(p.key);
+              }}
+              className={`px-2 py-1 rounded border ${datePreset === p.key ? "bg-black text-white border-black" : "bg-white border-line"}`}
+            >
+              {p.label}
             </button>
           ))}
         </div>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name / phone / note" className="qsi-input !h-8 !w-[220px] ml-auto" />
-        <button onClick={() => setMoreOpen((v) => !v)} className="text-[12px] px-2.5 py-1 rounded border border-line bg-white">More filters</button>
+
+        <button onClick={() => setMoreOpen((v) => !v)} className={`text-[12px] px-2.5 py-1 rounded border ${moreOpen ? "bg-black text-white border-black" : "border-line bg-white"}`}>
+          {moreOpen ? "Hide filters" : "More filters"}
+        </button>
+
+        <button
+          onClick={() => {
+            setSearch("");
+            setDateFrom(""); setDateTo(""); setDatePreset("");
+            setBucketFilter("all"); setStatusF("Pending"); setPriorityF("all"); setOwnerF("all"); setGradeF("all");
+          }}
+          className="text-[12px] px-2.5 py-1 rounded border border-line bg-white hover:bg-off text-muted-foreground ml-auto"
+        >
+          Clear all
+        </button>
       </div>
+
+      {/* Active chips */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {dateFrom && (
+          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-gold-pale text-gold-deep border border-gold-mid">
+            {dateTo ? `Date: ${fmtNiceShort(dateFrom)} → ${fmtNiceShort(dateTo)}` : `Date: from ${fmtNiceShort(dateFrom)}`}
+            <button onClick={() => { setDateFrom(""); setDateTo(""); setDatePreset(""); }} className="hover:text-black">×</button>
+          </span>
+        )}
+        {dateTo && !dateFrom && (
+          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-gold-pale text-gold-deep border border-gold-mid">
+            Date: up to {fmtNiceShort(dateTo)}
+            <button onClick={() => { setDateFrom(""); setDateTo(""); setDatePreset(""); }} className="hover:text-black">×</button>
+          </span>
+        )}
+        {statusF !== "all" && (
+          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+            Status: {statusF}
+            <button onClick={() => setStatusF("all")} className="hover:text-black">×</button>
+          </span>
+        )}
+        {priorityF !== "all" && (
+          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+            Priority: {priorityF}
+            <button onClick={() => setPriorityF("all")} className="hover:text-black">×</button>
+          </span>
+        )}
+        {ownerF !== "all" && (
+          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-50 text-slate-700 border border-slate-200">
+            Owner: {profMap[ownerF] || ownerF.slice(0, 8)}
+            <button onClick={() => setOwnerF("all")} className="hover:text-black">×</button>
+          </span>
+        )}
+        {gradeF !== "all" && (
+          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Grade: {gradeF}
+            <button onClick={() => setGradeF("all")} className="hover:text-black">×</button>
+          </span>
+        )}
+        {bucketFilter !== "all" && (
+          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+            Bucket: {bucketFilter === "default" ? "Today + Overdue" : BUCKET_LABELS[bucketFilter] || bucketFilter}
+            <button onClick={() => setBucketFilter("all")} className="hover:text-black">×</button>
+          </span>
+        )}
+      </div>
+
       {isAdmin && (
         <div className="mb-3">
           <button onClick={() => setDebugOpen((v) => !v)} className="text-[11px] text-muted-foreground underline">{debugOpen ? "Hide" : "Show"} debug</button>
           {debugOpen && (
             <div className="mt-1 p-2 bg-slate-50 border border-line rounded text-[11px] font-mono text-slate-700">
-              fetched: {fus.length} · visible: {filtered.length} · tab: {tab} · bucket: {bucketFilter} · status: {statusF} · owner: {ownerF} · user: {user?.id?.slice(0,8)} · admin: {String(isAdmin)}
+              fetched: {fus.length} · visible: {filtered.length} · tab: {tab} · bucket: {bucketFilter} · status: {statusF} · owner: {ownerF} · date: {dateFrom || "—"} to {dateTo || "—"} · user: {user?.id?.slice(0,8)} · admin: {String(isAdmin)}
             </div>
           )}
         </div>
@@ -433,6 +588,19 @@ export default function FollowUpBoard() {
             <select className="qsi-input !h-8" value={gradeF} onChange={(e) => setGradeF(e.target.value)}>
               <option value="all">All</option>
               {["super-hot", "hot", "warm", "cold", "inactive", "true-absentee"].map((g) => <option key={g}>{g}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="qsi-label">Bucket</label>
+            <select className="qsi-input !h-8" value={bucketFilter} onChange={(e) => setBucketFilter(e.target.value)}>
+              <option value="all">All</option>
+              <option value="default">Today + Overdue</option>
+              <option value="overdue">Overdue</option>
+              <option value="today">Today</option>
+              <option value="tomorrow">Tomorrow</option>
+              <option value="thisWeek">This Week</option>
+              <option value="future">Future</option>
+              <option value="completed">Completed</option>
             </select>
           </div>
         </div>
