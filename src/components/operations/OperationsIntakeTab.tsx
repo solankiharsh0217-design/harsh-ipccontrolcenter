@@ -30,13 +30,11 @@ export default function OperationsIntakeTab({
   const load = async () => {
     setLoading(true);
     try {
-      const [ldRes, tplRes] = await Promise.all([
-        supabase.from("operations_leads" as any)
-          .select("id, name, email, phone, brand_name, product_name, intake_source, process_template_id, assigned_media_buyer_name, created_at")
-          .eq("intake_status" as any, "intake")
-          .order("created_at", { ascending: false }),
-        listProcessTemplates(true),
-      ]);
+      const ldRes = await (supabase.from("operations_leads" as any) as any)
+        .select("id, name, email, phone, brand_name, product_name, intake_source, process_template_id, assigned_media_buyer_name, created_at")
+        .eq("intake_status", "intake")
+        .order("created_at", { ascending: false });
+      const tplRes = await listProcessTemplates(true);
       const rows = (ldRes.data ?? []) as any as IntakeLead[];
       setLeads(rows);
       setTemplates(tplRes);
