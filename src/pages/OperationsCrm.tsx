@@ -76,7 +76,23 @@ export default function OperationsCrm() {
   const initialTab = (params.get("tab") as "intake" | "kanban" | "reports" | "conversions" | "rewards" | "settings") || "kanban";
   const [tab, setTab] = useState<"intake" | "kanban" | "reports" | "conversions" | "rewards" | "settings">(initialTab);
 
-  useEffect(() => { ensureSeedTemplate().catch(() => {}); }, []);
+  const [hasTemplates, setHasTemplates] = useState<boolean | null>(null);
+
+  const checkTemplates = async () => {
+    try {
+      const t = await listProcessTemplates(false);
+      setHasTemplates(t.length > 0);
+    } catch { setHasTemplates(null); }
+  };
+
+  useEffect(() => {
+    (async () => {
+      if (isAdmin) {
+        await ensureSeedTemplate().catch(() => {});
+      }
+      await checkTemplates();
+    })();
+  }, [isAdmin]);
 
   const load = async () => {
     setLoading(true);
