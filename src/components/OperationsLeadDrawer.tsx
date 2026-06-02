@@ -13,6 +13,12 @@ import {
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
 import ConversionsSection from "@/components/operations/ConversionsSection";
+import ReadinessChecklist from "@/components/operations/ReadinessChecklist";
+import CustomFieldsPanel from "@/components/operations/CustomFieldsPanel";
+import CommTemplatePickerModal from "@/components/operations/CommTemplatePickerModal";
+import StartProcessModal from "@/components/operations/StartProcessModal";
+import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
+import { Mail, Rocket } from "lucide-react";
 
 export interface OpsLeadFull {
   id: string;
@@ -37,6 +43,14 @@ export interface OpsLeadFull {
   notes: string | null;
   crm_lead_id: string | null;
   paid_pipeline_lead_id: string | null;
+  process_template_id?: string | null;
+  intake_status?: string | null;
+  intake_source?: string | null;
+  brand_name?: string | null;
+  program_name?: string | null;
+  readiness_override_reason?: string | null;
+  readiness_override_by?: string | null;
+  readiness_override_at?: string | null;
 }
 
 interface ServiceEvent {
