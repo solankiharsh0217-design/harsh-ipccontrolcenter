@@ -99,6 +99,9 @@ export default function FollowUpBoard() {
   const [gradeF, setGradeF] = useState("all");
   const [moreOpen, setMoreOpen] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [datePreset, setDatePreset] = useState<string>("");
 
   // reminder
   const [reminderMin, setReminderMin] = useState<number>(() => {
