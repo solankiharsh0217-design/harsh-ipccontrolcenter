@@ -249,10 +249,12 @@ export default function OperationsCrm() {
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-line mb-3">
         {([
-          ["kanban", "Kanban"],
+          ["intake", "Intake"],
+          ["kanban", "Active"],
           ["reports", "Reports"],
           ["conversions", "Conversions"],
           ["rewards", "Rewards"],
+          ["settings", "Settings"],
         ] as const).map(([k, l]) => (
           <button key={k} onClick={() => { setTab(k); const p = new URLSearchParams(params); if (k === "kanban") p.delete("tab"); else p.set("tab", k); setParams(p, { replace: true }); }}
             className={`relative px-3 py-2 text-[12px] font-sans ${tab === k ? "text-black after:absolute after:left-2 after:right-2 after:bottom-[-1px] after:h-[2px] after:bg-gold" : "text-muted-foreground hover:text-black"}`}>
@@ -261,8 +263,11 @@ export default function OperationsCrm() {
         ))}
       </div>
 
-      {tab !== "kanban" && !isAdmin && tab === "conversions" && profile?.id && (
-        <div className="mb-3"><RewardWidget buyerId={profile.id} /></div>
+      {tab === "intake" && (
+        <OperationsIntakeTab onOpenLead={(id) => setOpenLead(id)} />
+      )}
+      {tab === "settings" && (
+        <OperationsSettingsTab isAdmin={isAdmin} />
       )}
       {tab === "reports" && (
         <OpsReportsTab leads={leads as any} onOpenLead={(id) => setOpenLead(id)} isAdmin={isAdmin} />
