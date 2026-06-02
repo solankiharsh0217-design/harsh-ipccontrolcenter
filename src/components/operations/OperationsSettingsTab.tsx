@@ -1,0 +1,95 @@
+import { useEffect, useState } from "react";
+import { Plus, Pencil } from "lucide-react";
+import { toast } from "sonner";
+import {
+  listProcessTemplates, listCommunicationTemplates,
+  type ProcessTemplate, type CommunicationTemplate,
+} from "@/lib/operationsTemplates";
+import ProcessTemplateEditor from "@/components/operations/ProcessTemplateEditor";
+import CommunicationTemplateEditor from "@/components/operations/CommunicationTemplateEditor";
+
+export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean }) {
+  const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
+  const [comms, setComms] = useState<CommunicationTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingTpl, setEditingTpl] = useState<ProcessTemplate | null>(null);
+  const [creatingTpl, setCreatingTpl] = useState(false);
+  const [editingComm, setEditingComm] = useState<CommunicationTemplate | null>(null);
+  const [creatingComm, setCreatingComm] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [t, c] = await Promise.all([listProcessTemplates(false), listCommunicationTemplates(false)]);
+      setTemplates(t); setComms(c);
+    } catch (e: any) { toast.error(e.message || "Failed to load"); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  if (!isAdmin) {
+    return <div className="text-sm text-muted-foreground py-12 text-center">Only admins can edit Operations settings.</div>;
+  }
+  if (loading) return <div className="text-sm text-muted-foreground py-12 text-center">Loading…</div>;
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <div className="flex items-center justify-between mb-2">
+          <div className="font-serif text-base text-black">Process Templates</div>
+          <button onClick={() => setCreatingTpl(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> New template</button>
+        </div>
+        {templates.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic">No templates yet.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {templates.map((t) => (
+              <div key={t.id} className="border border-line rounded p-3 bg-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-serif text-sm">{t.name} {!t.is_active && <span className="text-[10px] text-muted-foreground">(inactive)</span>}</div>
+                    {t.description && <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{t.description}</div>}
+                    <div className="text-[10px] text-muted-foreground mt-1">{t.default_service_duration_days ?? "—"} days · {t.default_owner_rule}</div>
+                  </div>
+                  <button onClick={() => setEditingTpl(t)} className="text-muted-foreground hover:text-black"><Pencil className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-2">
+          <div className="font-serif text-base text-black">Communication Templates</div>
+          <button onClick={() => setCreatingComm(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> New message</button>
+        </div>
+        {comms.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic">No templates yet.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {comms.map((c) => (
+              <div key={c.id} className="border border-line rounded p-3 bg-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-serif text-sm">{c.name} <span className="text-[10px] text-muted-foreground">· {c.template_type}</span></div>
+                    {c.subject && <div className="text-[11px] mt-0.5 truncate">{c.subject}</div>}
+                    <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{c.body}</div>
+                  </div>
+                  <button onClick={() => setEditingComm(c)} className="text-muted-foreground hover:text-black"><Pencil className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {(editingTpl || creatingTpl) && (
+        <ProcessTemplateEditor template={editingTpl} onClose={() => { setEditingTpl(null); setCreatingTpl(false); }} onSaved={() => { setEditingTpl(null); setCreatingTpl(false); load(); }} />
+      )}
+      {(editingComm || creatingComm) && (
+        <CommunicationTemplateEditor template={editingComm} onClose={() => { setEditingComm(null); setCreatingComm(false); }} onSaved={() => { setEditingComm(null); setCreatingComm(false); load(); }} />
+      )}
+    </div>
+  );
+}
