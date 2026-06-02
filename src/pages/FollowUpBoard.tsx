@@ -145,6 +145,20 @@ export default function FollowUpBoard() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [allowed]);
 
+  // Realtime + focus refetch
+  useEffect(() => {
+    if (!allowed) return;
+    const ch = (supabase as any)
+      .channel("followup-board-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "paid_pipeline_followups" }, () => load())
+      .subscribe();
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => { try { (supabase as any).removeChannel(ch); } catch {} window.removeEventListener("focus", onFocus); };
+    // eslint-disable-next-line
+  }, [allowed]);
+
+
   // owner resolution for "mine" filter
   const ownerOf = (f: FU): string | null => {
     if (f.assigned_to && /^[0-9a-f-]{36}$/i.test(f.assigned_to)) return f.assigned_to;
