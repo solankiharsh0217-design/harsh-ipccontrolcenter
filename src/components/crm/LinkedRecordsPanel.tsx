@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Wrench, RefreshCw, AlertTriangle } from "lucide-react";
+import { ExternalLink, Wrench, RefreshCw, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { resolveLinkBundle, type LinkBundle, type SiblingRef } from "@/lib/leadLinks";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
