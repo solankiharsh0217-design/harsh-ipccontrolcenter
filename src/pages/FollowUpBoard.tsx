@@ -5,6 +5,10 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { saveCentralFollowUp } from "@/lib/followUps";
 import { logActivity } from "@/lib/auditLog";
+import { format, parseISO } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type FU = {
   id: string;
