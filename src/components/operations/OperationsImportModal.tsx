@@ -110,13 +110,17 @@ export default function OperationsImportModal({
         </div>
 
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
-          <div>
-            <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Apply process template (optional)</label>
-            <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="ipc-input !h-9 !text-xs w-full max-w-sm">
-              <option value="">— No template —</option>
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
+          {noTemplates ? (
+            <NoTemplateBanner isAdmin={isAdmin} onCreated={reloadTemplates} compact />
+          ) : (
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Apply process template (optional)</label>
+              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="ipc-input !h-9 !text-xs w-full max-w-sm">
+                <option value="">— No template —</option>
+                {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          )}
 
           {mode === "csv" && (
             <div>
