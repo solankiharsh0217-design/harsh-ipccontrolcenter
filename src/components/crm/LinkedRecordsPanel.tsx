@@ -65,6 +65,7 @@ export default function LinkedRecordsPanel({ crmLeadId, paidPipelineLeadId, emai
   const [bundle, setBundle] = useState<LinkBundle | null>(null);
   const [loading, setLoading] = useState(false);
   const [repairing, setRepairing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -107,38 +108,89 @@ export default function LinkedRecordsPanel({ crmLeadId, paidPipelineLeadId, emai
   const total = bundle ? bundle.source_unpaid_crm.length + bundle.paid_onboarding_crm.length + bundle.paid_pipeline_buyer.length + bundle.operations_lead.length : 0;
   const showRepair = bundle && (bundle.missing.paid_onboarding_crm || bundle.missing.crm_link_repair_needed);
 
+  // Compact chip summary by kind
+  const summaryChips: { label: string; count: number; cls: string }[] = bundle ? [
+    { label: "Source", count: bundle.source_unpaid_crm.length, cls: "bg-slate-100 text-slate-700 border-slate-200" },
+    { label: "Paid Onboarding", count: bundle.paid_onboarding_crm.length, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    { label: "Paid Buyer", count: bundle.paid_pipeline_buyer.length, cls: "bg-amber-50 text-amber-700 border-amber-200" },
+    { label: "Operations", count: bundle.operations_lead.length, cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  ].filter(c => c.count > 0) : [];
+
   return (
-    <div className="rounded-xl border border-line bg-white p-3">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80">🔗 Linked Records</div>
-        <button onClick={load} disabled={loading} className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-          <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
-      </div>
-      {loading && !bundle && <div className="text-[11px] text-muted-foreground">Looking up linked records…</div>}
-      {bundle && total === 0 && <div className="text-[11px] text-muted-foreground">No linked records found for this identity.</div>}
-      {bundle && (
-        <div className="space-y-1.5">
-          {bundle.source_unpaid_crm.map((s) => <SiblingCard key={`u-${s.id}`} s={s} currentId={crmLeadId || null} />)}
-          {bundle.paid_onboarding_crm.map((s) => <SiblingCard key={`p-${s.id}`} s={s} currentId={crmLeadId || null} />)}
-          {bundle.paid_pipeline_buyer.map((s) => <SiblingCard key={`b-${s.id}`} s={s} currentId={paidPipelineLeadId || null} />)}
-          {bundle.operations_lead.map((s) => <SiblingCard key={`o-${s.id}`} s={s} currentId={null} />)}
+    <div className="rounded-xl border border-line bg-white">
+      <button
+        type="button"
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center justify-between gap-2 p-3 text-left"
+        aria-expanded={expanded}
+      >
+        <div className="min-w-0 flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80">🔗 Linked Records</span>
+          <span className="text-[11px] text-muted-foreground">
+            {loading && !bundle ? "Loading…" : total === 0 ? "No links" : `${total} linked record${total === 1 ? "" : "s"}`}
+          </span>
+          {summaryChips.map(c => (
+            <span key={c.label} className={`text-[10px] px-1.5 py-0.5 rounded-full border ${c.cls}`}>
+              {c.label}{c.count > 1 ? ` ×${c.count}` : ""}
+            </span>
+          ))}
+          {showRepair && (
+            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800">
+              <AlertTriangle className="w-3 h-3" /> Repair needed
+            </span>
+          )}
+        </div>
+        <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+          {expanded ? <>Hide <ChevronUp className="w-3 h-3" /></> : <>Expand <ChevronDown className="w-3 h-3" /></>}
+        </span>
+      </button>
+
+      {showRepair && !expanded && (
+        <div className="mx-3 mb-3 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 flex items-center justify-between gap-2">
+          <div className="text-[11px] text-amber-900 truncate">
+            {bundle?.missing.paid_onboarding_crm
+              ? "Paid Onboarding CRM card missing for this buyer."
+              : "Linked CRM record may need repair."}
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); repair(); }} disabled={repairing} className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] bg-black text-white disabled:opacity-50">
+            <Wrench className="w-3 h-3" /> {repairing ? "…" : "Repair"}
+          </button>
         </div>
       )}
-      {showRepair && (
-        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 flex items-center justify-between gap-2">
-          <div className="flex items-start gap-1.5 min-w-0">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
-            <div className="text-[11px] text-amber-900">
-              {bundle?.missing.paid_onboarding_crm
-                ? "Paid Onboarding CRM card missing for this buyer."
-                : "crm_lead_id may point to the source unpaid lead instead of Paid Onboarding."}
-            </div>
-          </div>
-          {(isAdmin || true) && (
-            <button onClick={repair} disabled={repairing} className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] bg-black text-white disabled:opacity-50">
-              <Wrench className="w-3 h-3" /> {repairing ? "Repairing…" : "Create / Repair"}
+
+      {expanded && (
+        <div className="px-3 pb-3 -mt-1">
+          <div className="flex items-center justify-end mb-2">
+            <button onClick={(e) => { e.stopPropagation(); load(); }} disabled={loading} className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+              <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} /> Refresh
             </button>
+          </div>
+          {loading && !bundle && <div className="text-[11px] text-muted-foreground">Looking up linked records…</div>}
+          {bundle && total === 0 && <div className="text-[11px] text-muted-foreground">No linked records found for this identity.</div>}
+          {bundle && (
+            <div className="space-y-1.5">
+              {bundle.source_unpaid_crm.map((s) => <SiblingCard key={`u-${s.id}`} s={s} currentId={crmLeadId || null} />)}
+              {bundle.paid_onboarding_crm.map((s) => <SiblingCard key={`p-${s.id}`} s={s} currentId={crmLeadId || null} />)}
+              {bundle.paid_pipeline_buyer.map((s) => <SiblingCard key={`b-${s.id}`} s={s} currentId={paidPipelineLeadId || null} />)}
+              {bundle.operations_lead.map((s) => <SiblingCard key={`o-${s.id}`} s={s} currentId={null} />)}
+            </div>
+          )}
+          {showRepair && (
+            <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 flex items-center justify-between gap-2">
+              <div className="flex items-start gap-1.5 min-w-0">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                <div className="text-[11px] text-amber-900">
+                  {bundle?.missing.paid_onboarding_crm
+                    ? "Paid Onboarding CRM card missing for this buyer."
+                    : "crm_lead_id may point to the source unpaid lead instead of Paid Onboarding."}
+                </div>
+              </div>
+              {(isAdmin || true) && (
+                <button onClick={repair} disabled={repairing} className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] bg-black text-white disabled:opacity-50">
+                  <Wrench className="w-3 h-3" /> {repairing ? "Repairing…" : "Create / Repair"}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
