@@ -184,7 +184,8 @@ export default function OperationsImportModal({
 
         <div className="px-5 py-3 border-t border-line flex justify-end gap-2 bg-off/30">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost !text-xs">Cancel</button>
-          <button onClick={confirmImport} disabled={busy || (mode !== "manual" && (!preview || preview.rows.length === 0))}
+          <button onClick={confirmImport} disabled={busy || (noTemplates && !isAdmin) || (mode !== "manual" && (!preview || preview.rows.length === 0))}
+            title={noTemplates && !isAdmin ? "Operations process template is not configured yet. Please contact admin." : undefined}
             className="ipc-btn ipc-btn-black !text-xs">
             {busy ? "Working…" : mode === "manual" ? "Add to Intake" : `Import ${preview?.rows.length ?? 0} rows`}
           </button>
