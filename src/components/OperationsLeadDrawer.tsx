@@ -175,6 +175,52 @@ export default function OperationsLeadDrawer({
             </div>
           </Section>
 
+          {/* Process / Intake summary */}
+          <Section title="Process / Intake">
+            <div className="grid grid-cols-2 gap-2">
+              <Card label="Process template" value={templateName || "—"} />
+              <Card label="Intake status" value={lead.intake_status || "—"} />
+              <Card label="Readiness" value={readinessSummary ? `${readinessSummary.pct}%${readinessSummary.blocked ? " · blocked" : ""}` : "—"} />
+              <Card label="Source" value={lead.intake_source || "—"} />
+              <Card label="Owner" value={lead.assigned_media_buyer_name || "Unassigned"} />
+              {lead.readiness_override_reason && (
+                <Card label="Override" value={lead.readiness_override_reason} />
+              )}
+            </div>
+          </Section>
+
+          {/* Readiness Checklist */}
+          <Section title="Readiness checklist">
+            <ReadinessChecklist
+              leadId={lead.id}
+              templateId={lead.process_template_id ?? null}
+              onChange={(pct, blocked) => setReadinessSummary({ pct, blocked })}
+            />
+          </Section>
+
+          {/* Custom Fields */}
+          {lead.process_template_id && (
+            <Section title="Custom fields">
+              <CustomFieldsPanel leadId={lead.id} templateId={lead.process_template_id ?? null} />
+            </Section>
+          )}
+
+          {/* Communication Templates */}
+          <Section title="Communication">
+            <button onClick={() => setShowCommModal(true)} className="ipc-btn ipc-btn-ghost !text-xs">
+              <Mail className="w-3.5 h-3.5" /> Send / Copy Client Instructions
+            </button>
+          </Section>
+
+          {/* Start Operations Process */}
+          {lead.intake_status !== "active" && lead.service_status === "not_started" && (
+            <Section title="Operations process">
+              <button onClick={() => setShowStartProcess(true)} className="ipc-btn ipc-btn-black !text-xs">
+                <Rocket className="w-3.5 h-3.5" /> Start Operations Process
+              </button>
+            </Section>
+          )}
+
           {/* Service Summary */}
           <Section title="Service summary">
             <div className="grid grid-cols-2 gap-2">
