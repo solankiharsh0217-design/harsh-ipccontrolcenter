@@ -1,102 +1,103 @@
-# Universal Lead Visibility + Cross-Pipeline Movement + Paid Onboarding Sync
+# Configurable Operations Intake V1 — Plan
 
-Scope strictly limited to: universal search, drawer linked-records UX, cross-pipeline move/copy/link, paid pipeline ↔ paid onboarding invariant, paid onboarding Kanban visibility. **Untouched:** invoices, daily reporting, qualifier, CoC signed PDFs, payments, financial amounts, import logic, report data.
+This is a large P1 feature. I'll get your approval on scope before building, since it spans new tables, an intake inbox, importer, checklist, custom fields, communication templates, and drawer changes.
 
-## 1. Universal search — show ALL linked records (Parts 1, 2, 10, 11)
+## What I will NOT touch
+Calling CRM logic, Paid Pipeline calcs, finance/payments, invoices, CoC, attendance, Follow-up Board, Daily Reporting, rewards, analytics, AI insights, existing `operations_leads` shape, `operations_service_events`, `operations_handoff_rules`, existing assignment eligibility (`can_receive_operations_leads`).
 
-`src/lib/universalSearch.ts` — keep current direct text matching, then add a **link-expansion pass**:
+## New database tables (with RLS + GRANTs)
 
-1. After the initial parallel search returns rows from `leads`, `paid_pipeline_leads`, `operations_leads`, collect all linked IDs found in any result:
-   - `paid_pipeline_leads.crm_lead_id`, `paid_pipeline_leads.source_unpaid_lead_id`
-   - `leads.paid_pipeline_lead_id`, `leads.converted_to_crm_lead_id`, `leads.converted_to_paid_pipeline_lead_id`
-   - `operations_leads.crm_lead_id`, `operations_leads.paid_pipeline_lead_id`
-2. Run a second batched fetch by id (3 parallel `in("id", …)` queries) for any linked records not already in the result set.
-3. Merge in (dedup by id) and re-classify Sales vs Paid Onboarding using `pipeline_id` resolved to the Paid — Onboarding pipeline name (not just `lead_type`).
-4. Build a **`linkBundles`** map keyed by a stable identity key (last-10 phone or normalized email or paid_pipeline_lead_id) so each `UniversalSearchResult` knows the IDs of its sibling source/paid-onboarding/paid-buyer/operations records.
-5. Surface **missing-record warnings** on each result: e.g. paid-pipeline result with no paid-onboarding sibling → `missing: "paid_onboarding_crm"` with a "Repair CRM Link" action; converted source with no paid-onboarding sibling → `missing: "paid_onboarding_from_source"` with a "Create Paid Onboarding CRM" action.
-6. Admin debug payload extended with `linkExpansion: { extraFetched, bundles }`.
+1. `operations_process_templates` — name, description, default_owner_rule (`unassigned|single|round_robin`), default_owner_id, default_service_duration_days, is_active, created_by.
+2. `operations_template_checklist_items` — template_id, label, is_required, sort_order, is_active, note.
+3. `operations_template_fields` — template_id, field_key, label, field_type (`text|number|date|dropdown|checkbox|link|textarea`), options (jsonb for dropdown), is_required, sort_order.
+4. `operations_communication_templates` — name, subject, body, template_type (`email|form_link|call_link|instruction`), is_active.
+5. `operations_lead_checklist_state` — operations_lead_id, checklist_item_id, is_checked, checked_by, checked_at, note. Unique(lead, item).
+6. `operations_lead_custom_values` — operations_lead_id, field_id, value_text/value_number/value_date/value_bool. Unique(lead, field).
+7. `operations_intake_imports` — source (`csv|sheet_link|manual|crm_handoff|paid_handoff`), file_name, imported_count, skipped_count, updated_count, created_by, raw_summary jsonb.
 
-`UniversalSearchPanel.tsx` — render missing-record chips inline on the relevant card, plus quick actions: **Open Source Lead**, **Open Paid Onboarding**, **Open Paid Buyer**, **Jump to Card**. Per-card actions already exist; this PR fills in the cross-links using `linkBundles`.
+## Existing columns added to `operations_leads`
+- `process_template_id uuid` (nullable, FK)
+- `intake_status text` default `intake` — values: `intake|ready|active|paused|completed`. Intake tab filters `intake_status='intake'`.
+- `readiness_override_reason text`, `readiness_override_by uuid`, `readiness_override_at timestamptz`
+- `brand_name text`, `program_name text` (only if missing — reuse if present)
 
-Audit: log `universal_search_linked_records_expanded` once per query (counts only, no PII).
+Existing `service_status` and pause/resume/complete logic untouched. `intake_status` is additive — once Start Operations Process runs, it flips to `active` and existing service flow takes over.
 
-## 2. Paid Pipeline ↔ Paid Onboarding invariant + Kanban repair (Parts 3, 4, 8, 9)
+## RLS model
+- Admin/manager: full CRUD on all 7 new tables.
+- Eligible operations team (`can_receive_operations_leads=true` or has manager role): SELECT templates/checklist/fields/comm templates; INSERT/UPDATE state + custom values for leads assigned to them.
+- Plain authenticated: SELECT operations_communication_templates only when their lead references them.
+- Service role: ALL.
 
-`src/lib/paidCrmMirror.ts` already implements the invariant (`crm_lead_id` must point at a lead in the Paid — Onboarding pipeline, not the source unpaid lead). Two follow-ups:
+## UI work
 
-1. **New helper** `auditPaidPipelineVisibility(paidPipelineLeadId)` → returns
-   ```
-   {
-     paidPipelineLeadId, crmLeadId, sourceUnpaidLeadId,
-     linkedPipelineId, linkedPipelineName, linkedStageId, linkedStageName,
-     isArchived, isDeleted, hiddenFromSales, ownerId,
-     status: "included" | "wrong_pipeline" | "archived" | "soft_deleted"
-           | "points_to_source_unpaid" | "missing_link" | "lead_not_found",
-     reason: string,
-     repairable: boolean
-   }
-   ```
-   Reuses `ensurePaidPipelineCrmLead` for repair. **No filter logic here** — Kanban-filter exclusion is reported by the panel that knows the active filter set (see point 3 below).
-2. **Paid Pipeline drawer** (file: locate inside `src/pages/PaidPipeline.tsx` or `src/components/paid-pipeline/*`) — admin-only "Visibility Debug" disclosure beside "Linked Calling CRM Stage" calling the audit helper and rendering each field plus a "Repair link" button when `repairable && status !== "included"`. Stage chip already shown; only add the disclosure + repair CTA.
-3. **Paid Onboarding Kanban query** (file inside `src/pages/Crm.tsx` paid-onboarding view): remove any `hide_from_sales_workload` filter for the Paid — Onboarding pipeline (it only applies to Sales). Confirm filter is: `pipeline_id = paidOnboarding && archived_at IS NULL && deleted_at IS NULL`. RLS already gates per role. Add a one-liner audit log when this filter drops a card that was specifically referenced by `focusLead` or repair (`paid_onboarding_card_filtered_out`).
+### OperationsCrm.tsx — tabs
+Add tabs: **Intake | Active | Paused | Completed | Settings**. Existing Kanban stays under Active. Intake/Paused/Completed are filtered list views of `operations_leads` by `intake_status`/`service_status`.
 
-Audit (admin-triggered only): `paid_pipeline_crm_stage_mismatch_detected`, `paid_pipeline_crm_stage_mismatch_repaired`, `paid_onboarding_visibility_repaired`, `paid_onboarding_card_created_from_source`.
+### Intake tab
+- Header: "Import" button (opens `OperationsImportModal`), "Add manually" button.
+- Cards: client name, source badge, process template chip, readiness % bar, owner avatar, next-action label, Open button.
 
-## 3. Drawer "Linked Records" panel + simplified header (Parts 5, 12)
+### OperationsImportModal (new)
+Three tabs:
+1. **CSV upload** — file picker, parse with PapaParse (already used elsewhere if present, otherwise add).
+2. **Google Sheet link** — paste public CSV export URL, fetch via edge function `ops-fetch-sheet-csv` (to avoid CORS).
+3. **Manual add** — single record form.
 
-`src/components/LeadDrawer.tsx`:
+Column auto-detect via fuzzy header match (`name|full_name`, `email`, `phone|mobile`, `brand|business`, `product|program`, `batch|source`, `notes`). Preview table → confirm → insert. Dedup: email exact (lowercased), else phone last-10. If duplicate active ops lead exists, update only NULL fields; never overwrite. Show `imported/skipped/updated` summary and write `operations_intake_imports` row.
 
-- New component `src/components/crm/LinkedRecordsPanel.tsx` rendered directly under name/phone/email + status chips, **above** the existing payment / tags / stage / CoC / follow-up sections (no removal — keep everything in the existing order, just collapse the noisy top buttons into a single "Primary actions" row).
-- Resolves siblings using the same identity-bundle logic as universal search (extracted into a shared `src/lib/leadLinks.ts`):
-  - **Source Sales Lead** card if `lead_type=unpaid` for this lead OR if `paid_pipeline_leads.source_unpaid_lead_id` points here from a sibling.
-  - **Paid Onboarding Lead** card if a `leads` row exists in Paid — Onboarding pipeline for the same identity / via `paid_pipeline_leads.crm_lead_id`.
-  - **Paid Pipeline Buyer** card via `leads.paid_pipeline_lead_id` or reverse lookup.
-  - Each card: pipeline + stage + status chip + Open + Jump button.
-- Missing-record states render a single "Create / Repair Paid Onboarding CRM Link" button that calls `ensurePaidPipelineCrmLead` (admin / authorized roles only).
-- Top buttons consolidated into one row: `Linked Records ▼` (anchors panel), `Move / Copy to Pipeline`, `Add Payment`, `Send to Operations`. Existing edit / archive / convert buttons move into an overflow `⋯` menu — no behavior change.
+### Settings tab (admin-only)
+- **Process Templates** list → edit drawer: name, description, default owner rule, default duration, checklist items (drag to reorder, required toggle), custom fields editor, default communication templates picker.
+- **Communication Templates** list → edit modal with subject/body and variable hint chips.
 
-## 4. Cross-pipeline Move / Copy / Link modal (Parts 6, 7, 11)
+Seed once on first load (idempotent): "IPC Diamond Member Operations" template with the IPC checklist + 3 sample comm templates, all marked editable. No hardcoded behavior keyed off this name.
 
-`src/components/crm/MoveCopyLinkPipelineModal.tsx` — 5-step wizard:
+### OperationsLeadDrawer.tsx — additions
+Reorder body to:
+1. Client profile (existing)
+2. Process template selector (dropdown of active templates; changing it resets checklist state with confirm)
+3. Readiness checklist (from template; check/uncheck writes `operations_lead_checklist_state`; shows checker + timestamp + note)
+4. Custom fields (from template; renders per `field_type`; writes `operations_lead_custom_values`)
+5. Quick notes (existing LeadNotesSection)
+6. **Start Operations Process** button (disabled unless all required checked OR admin override w/ reason) → opens StartProcessModal
+7. **Send Client Instructions** button → opens CommTemplatePickerModal (pick template, variables interpolated, copy to clipboard; if `send-email` edge function exists, also show "Send Email")
+8. Service controls (existing)
+9. Timeline (existing)
 
-1. **Intent**: Move / Copy / Link to existing.
-2. **Destination**: pipeline + stage select (uses existing `pipelines` + `stages` data; same picker logic as `CrmStagePicker`).
-3. **Existing-link scan**: runs `runUniversalSearch({ scope: "all" })` for this lead's identity; renders each existing sibling so the user can choose **Link existing** instead of duplicating. Defaults to Link when any match found.
-4. **Behavior preview** based on intent:
-   - Move → `update leads set pipeline_id, stage_id`; preserve payments / CoC / follow-ups (these are FK-linked, no copy needed); update activity log.
-   - Copy → insert new lead row in destination pipeline; set `linked_source_lead_id` on the new row pointing back to original; **no** copy of payments / invoices / CoC.
-   - Link → no insert, write linkage column(s): `paid_pipeline_lead_id` / `converted_to_crm_lead_id` / `converted_to_paid_pipeline_lead_id` as applicable; never overwrites an existing non-null link without admin confirm.
-5. **Review** sentence summarizing the action.
+### StartProcessModal
+Fields: template (prefilled), assigned owner (eligible list), start date, service duration (prefilled), first call date/time (optional), note, "Send welcome email" checkbox (only if template has email comm), "Create follow-up" checkbox.
 
-**Send to Paid Onboarding** quick-action on unpaid-source drawers calls the same modal pre-filled with destination = Paid — Onboarding, intent = Link if a paid-onboarding sibling exists, else Copy (with the source-lead choice: keep as history / move / copy).
+On confirm: set `intake_status='active'`, set `service_status='active'`, insert `operations_service_events` row (`event_type='service_started'`), write activity log, optionally insert follow-up reminder, optionally call send-email edge function.
 
-Duplicate guard: before creating any new lead, identity check by email + phone + linked IDs. If a match exists, modal forces the Link path unless an admin explicitly toggles "Create anyway".
+## Assignment
+Reuse existing eligibility query. Round-robin = pick eligible user with fewest active ops leads at confirm time. No change to existing handoff rules.
 
-Audit: `crm_cross_pipeline_move_started`, `crm_cross_pipeline_move_completed`, `crm_cross_pipeline_copy_created`, `crm_records_linked` with full metadata (source_lead_id, destination_lead_id, paid_pipeline_lead_id, old/new pipeline+stage, action_type, performed_by).
+## Edge functions
+- `ops-fetch-sheet-csv` (new): validates URL is a docs.google.com export link, fetches CSV server-side, returns text. JWT-validated.
 
-## 5. Files
+## Files I'll add
+- `supabase/functions/ops-fetch-sheet-csv/index.ts`
+- `src/lib/operationsTemplates.ts` — fetch templates, checklist, fields, comm templates.
+- `src/lib/operationsIntake.ts` — CSV parse, dedup, import.
+- `src/components/operations/OperationsIntakeTab.tsx`
+- `src/components/operations/OperationsImportModal.tsx`
+- `src/components/operations/OperationsSettingsTab.tsx`
+- `src/components/operations/ProcessTemplateEditor.tsx`
+- `src/components/operations/CommunicationTemplateEditor.tsx`
+- `src/components/operations/StartProcessModal.tsx`
+- `src/components/operations/CommTemplatePickerModal.tsx`
+- `src/components/operations/ReadinessChecklist.tsx`
+- `src/components/operations/CustomFieldsPanel.tsx`
 
-- **New**
-  - `src/lib/leadLinks.ts` — shared identity-bundle resolver (used by universal search, drawer, modal).
-  - `src/lib/paidPipelineVisibility.ts` — `auditPaidPipelineVisibility` helper.
-  - `src/components/crm/LinkedRecordsPanel.tsx`
-  - `src/components/crm/MoveCopyLinkPipelineModal.tsx`
-- **Edited**
-  - `src/lib/universalSearch.ts` (link-expansion pass + missing-record warnings)
-  - `src/components/crm/UniversalSearchPanel.tsx` (render warnings + sibling actions)
-  - `src/components/LeadDrawer.tsx` (consolidate header, mount LinkedRecordsPanel + modal)
-  - `src/pages/PaidPipeline.tsx` (or the paid drawer component) — admin Visibility Debug disclosure
-  - `src/pages/Crm.tsx` — Paid Onboarding Kanban query: drop `hide_from_sales_workload` filter for that pipeline; mount Move/Copy modal from drawer event.
+## Files I'll edit
+- `src/pages/OperationsCrm.tsx` — add tabs.
+- `src/components/operations/OperationsLeadDrawer.tsx` — drawer reorder + new sections.
+- `supabase/config.toml` — register new edge function (default verify_jwt).
 
-No DB migrations required. No changes to RLS, invoices, payments, CoC, follow-ups, or report data. Hard-delete prohibited throughout.
+## Scope confirmation
+This is roughly: 1 migration (7 tables + alter), 1 edge function, ~10 new components, 2 edited components. Estimated 2–3 review cycles.
 
-## 6. QA — Dayanand scenario
-
-Verify with `vu3ge@gmail.com` / `8652436666`:
-
-1. Universal search returns 3 cards: Sales/Conversion Successful, Paid Onboarding/Give Access, Paid Pipeline/Payment Confirmed.
-2. Paid Pipeline drawer admin debug shows `status: "included"` after repair runs (or specific reason if not).
-3. Paid Onboarding Kanban → Give Access column contains the card; Jump-to-Card focuses + pulses.
-4. Source unpaid drawer shows Linked Records with all 3 siblings + working Open/Jump buttons.
-5. Move/Copy modal blocks duplicate creation when an identity match exists.
-6. Build passes; no hook-order errors; no blank screen.
+**Reply "go" to proceed, or tell me what to cut.** Suggested optional cuts if you want a smaller V1:
+- Skip Google Sheet link (CSV upload + manual only)
+- Skip Communication Templates (defer to V2)
+- Skip Custom Fields (defer to V2)
