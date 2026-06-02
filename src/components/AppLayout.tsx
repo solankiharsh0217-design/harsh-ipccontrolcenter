@@ -27,6 +27,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/crm/paid-pipeline": "Paid Pipeline",
   "/paid-pipeline/access-readiness": "Access Readiness",
   "/follow-up-command-center": "Follow-Up Command Center",
+  "/follow-up-board": "Follow-up Board",
   "/payment-recovery": "Payment Recovery",
   "/operations-crm": "Operations CRM",
   "/webinar-performance": "Webinar Performance",
@@ -154,6 +155,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <NavItem to="/paid-pipeline/access-readiness" show={isAdmin || hasModule("paid-pipeline") || hasModule("paid_pipeline")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M5 8l2 2 4-5"/></></Icon>
             Access Readiness
+          </NavItem>
+          <NavItem to="/follow-up-board" show={isAdmin || hasModule("follow_up_command_center") || hasModule("crm") || hasModule("calling_crm")}>
+            <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
+            Follow-up Board
           </NavItem>
           <NavItem to="/follow-up-command-center" show={!isAdmin && hasModule("follow_up_command_center")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
