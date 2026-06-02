@@ -25,6 +25,7 @@ import ConversionHistoryDrawer from "@/components/crm/ConversionHistoryDrawer";
 import { loadActiveConversionRules, isConvertedStage, DEFAULT_TRIGGER_STAGES, type ConversionRule } from "@/lib/conversionRules";
 import SessionAttendanceTimeline from "@/components/crm/SessionAttendanceTimeline";
 import LinkedRecordsPanel from "@/components/crm/LinkedRecordsPanel";
+import LeadNotesSection from "@/components/crm/LeadNotesSection";
 import MoveCopyLinkPipelineModal from "@/components/crm/MoveCopyLinkPipelineModal";
 import SendToPaidOnboardingModal from "@/components/crm/SendToPaidOnboardingModal";
 
@@ -457,6 +458,12 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
               </button>
             </div>
           )}
+          <div className="mt-3">
+            <LeadNotesSection
+              leadId={lead.id}
+              paidPipelineLeadId={(lead as any).paid_pipeline_lead_id || null}
+            />
+          </div>
           <div className="mt-3">
             <LinkedRecordsPanel
               crmLeadId={lead.id}
