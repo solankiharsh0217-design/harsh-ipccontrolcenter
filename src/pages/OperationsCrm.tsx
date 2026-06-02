@@ -263,6 +263,12 @@ export default function OperationsCrm() {
         ))}
       </div>
 
+      {hasTemplates === false && (
+        <div className="mb-3">
+          <NoTemplateBanner isAdmin={isAdmin} onCreated={checkTemplates} />
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-line mb-3">
         {([
