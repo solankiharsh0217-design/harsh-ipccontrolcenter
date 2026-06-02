@@ -459,6 +459,12 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             </div>
           )}
           <div className="mt-3">
+            <LeadNotesSection
+              leadId={lead.id}
+              paidPipelineLeadId={(lead as any).paid_pipeline_lead_id || null}
+            />
+          </div>
+          <div className="mt-3">
             <LinkedRecordsPanel
               crmLeadId={lead.id}
               paidPipelineLeadId={(lead as any).paid_pipeline_lead_id || null}
