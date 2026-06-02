@@ -85,6 +85,19 @@ export default function OperationsLeadDrawer({
   const [events, setEvents] = useState<ServiceEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [action, setAction] = useState<ActionType | null>(null);
+  const [showCommModal, setShowCommModal] = useState(false);
+  const [showStartProcess, setShowStartProcess] = useState(false);
+  const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
+  const [readinessSummary, setReadinessSummary] = useState<{ pct: number; blocked: boolean } | null>(null);
+
+  const templateName = useMemo(
+    () => templates.find((t) => t.id === lead.process_template_id)?.name ?? null,
+    [templates, lead.process_template_id]
+  );
+
+  useEffect(() => {
+    listProcessTemplates(true).then(setTemplates).catch(() => {});
+  }, []);
 
   const calc = useMemo(() => computeServiceCalc(lead), [lead]);
 
