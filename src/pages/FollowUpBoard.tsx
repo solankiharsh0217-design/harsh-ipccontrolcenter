@@ -183,8 +183,11 @@ export default function FollowUpBoard() {
     return fus.filter((f) => {
       // tab
       if (tab === "mine" && user) {
-        if (ownerOf(f) !== user.id) return false;
+        const owner = ownerOf(f);
+        const mine = owner === user.id || f.created_by === user.id || f.assigned_to === user.id;
+        if (!mine) return false;
       }
+      // tab "team" and "all" show everything visible to admin (admin-only buttons)
       // bucket
       const b = bucketOf(f);
       if (bucketFilter === "default") {
