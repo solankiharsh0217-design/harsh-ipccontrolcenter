@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { parseCsvText, importRows, fetchSheetCsv, type ParsedRow, type ImportPreview } from "@/lib/operationsIntake";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
+import NoTemplateBanner from "@/components/operations/NoTemplateBanner";
 import { useEffect } from "react";
 
 type Mode = "csv" | "sheet" | "manual";
