@@ -13,6 +13,12 @@ import {
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
 import ConversionsSection from "@/components/operations/ConversionsSection";
+import ReadinessChecklist from "@/components/operations/ReadinessChecklist";
+import CustomFieldsPanel from "@/components/operations/CustomFieldsPanel";
+import CommTemplatePickerModal from "@/components/operations/CommTemplatePickerModal";
+import StartProcessModal from "@/components/operations/StartProcessModal";
+import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
+import { Mail, Rocket } from "lucide-react";
 
 export interface OpsLeadFull {
   id: string;
@@ -37,6 +43,14 @@ export interface OpsLeadFull {
   notes: string | null;
   crm_lead_id: string | null;
   paid_pipeline_lead_id: string | null;
+  process_template_id?: string | null;
+  intake_status?: string | null;
+  intake_source?: string | null;
+  brand_name?: string | null;
+  program_name?: string | null;
+  readiness_override_reason?: string | null;
+  readiness_override_by?: string | null;
+  readiness_override_at?: string | null;
 }
 
 interface ServiceEvent {
@@ -71,6 +85,19 @@ export default function OperationsLeadDrawer({
   const [events, setEvents] = useState<ServiceEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [action, setAction] = useState<ActionType | null>(null);
+  const [showCommModal, setShowCommModal] = useState(false);
+  const [showStartProcess, setShowStartProcess] = useState(false);
+  const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
+  const [readinessSummary, setReadinessSummary] = useState<{ pct: number; blocked: boolean } | null>(null);
+
+  const templateName = useMemo(
+    () => templates.find((t) => t.id === lead.process_template_id)?.name ?? null,
+    [templates, lead.process_template_id]
+  );
+
+  useEffect(() => {
+    listProcessTemplates(true).then(setTemplates).catch(() => {});
+  }, []);
 
   const calc = useMemo(() => computeServiceCalc(lead), [lead]);
 
@@ -147,6 +174,52 @@ export default function OperationsLeadDrawer({
               )}
             </div>
           </Section>
+
+          {/* Process / Intake summary */}
+          <Section title="Process / Intake">
+            <div className="grid grid-cols-2 gap-2">
+              <Card label="Process template" value={templateName || "—"} />
+              <Card label="Intake status" value={lead.intake_status || "—"} />
+              <Card label="Readiness" value={readinessSummary ? `${readinessSummary.pct}%${readinessSummary.blocked ? " · blocked" : ""}` : "—"} />
+              <Card label="Source" value={lead.intake_source || "—"} />
+              <Card label="Owner" value={lead.assigned_media_buyer_name || "Unassigned"} />
+              {lead.readiness_override_reason && (
+                <Card label="Override" value={lead.readiness_override_reason} />
+              )}
+            </div>
+          </Section>
+
+          {/* Readiness Checklist */}
+          <Section title="Readiness checklist">
+            <ReadinessChecklist
+              leadId={lead.id}
+              templateId={lead.process_template_id ?? null}
+              onChange={(pct, blocked) => setReadinessSummary({ pct, blocked })}
+            />
+          </Section>
+
+          {/* Custom Fields */}
+          {lead.process_template_id && (
+            <Section title="Custom fields">
+              <CustomFieldsPanel leadId={lead.id} templateId={lead.process_template_id ?? null} />
+            </Section>
+          )}
+
+          {/* Communication Templates */}
+          <Section title="Communication">
+            <button onClick={() => setShowCommModal(true)} className="ipc-btn ipc-btn-ghost !text-xs">
+              <Mail className="w-3.5 h-3.5" /> Send / Copy Client Instructions
+            </button>
+          </Section>
+
+          {/* Start Operations Process */}
+          {lead.intake_status !== "active" && lead.service_status === "not_started" && (
+            <Section title="Operations process">
+              <button onClick={() => setShowStartProcess(true)} className="ipc-btn ipc-btn-black !text-xs">
+                <Rocket className="w-3.5 h-3.5" /> Start Operations Process
+              </button>
+            </Section>
+          )}
 
           {/* Service Summary */}
           <Section title="Service summary">
@@ -229,6 +302,36 @@ export default function OperationsLeadDrawer({
           actorName={profile?.full_name ?? null}
           onClose={() => setAction(null)}
           onDone={() => { setAction(null); loadEvents(); onSaved(); }}
+        />
+      )}
+
+      {showCommModal && (
+        <CommTemplatePickerModal
+          lead={{
+            name: lead.name,
+            email: lead.email,
+            brand_name: lead.brand_name ?? null,
+            program_name: lead.program_name ?? null,
+            product_name: lead.product_name,
+            assigned_media_buyer_name: lead.assigned_media_buyer_name,
+          }}
+          onClose={() => setShowCommModal(false)}
+        />
+      )}
+
+      {showStartProcess && (
+        <StartProcessModal
+          lead={{
+            id: lead.id,
+            name: lead.name,
+            process_template_id: lead.process_template_id ?? null,
+            service_days_committed: lead.service_days_committed,
+            service_months: lead.service_months,
+            assigned_media_buyer_id: lead.assigned_media_buyer_id,
+            readiness_override_reason: lead.readiness_override_reason ?? null,
+          }}
+          onClose={() => setShowStartProcess(false)}
+          onDone={() => { setShowStartProcess(false); loadEvents(); onSaved(); }}
         />
       )}
     </div>
