@@ -57,6 +57,45 @@ function bucketOf(f: FU): "overdue" | "today" | "tomorrow" | "thisWeek" | "futur
   return "future";
 }
 
+// Date range helpers
+function endOfWeek(d = new Date()) {
+  const x = startOfDay(d);
+  const day = x.getDay();
+  x.setDate(x.getDate() + (6 - day));
+  return x;
+}
+function endOfMonth(d = new Date()) {
+  const x = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function fmtNiceShort(iso: string) {
+  if (!iso) return "";
+  return format(parseISO(iso + "T00:00:00"), "d MMM yyyy");
+}
+const PRESETS: { key: string; label: string }[] = [
+  { key: "today", label: "Today" },
+  { key: "tomorrow", label: "Tomorrow" },
+  { key: "thisWeek", label: "This Week" },
+  { key: "next7", label: "Next 7 Days" },
+  { key: "thisMonth", label: "This Month" },
+];
+function applyPreset(key: string) {
+  const today = startOfDay();
+  if (key === "today") return { from: ymd(today), to: ymd(today) };
+  if (key === "tomorrow") {
+    const t = new Date(today); t.setDate(t.getDate() + 1);
+    return { from: ymd(t), to: ymd(t) };
+  }
+  if (key === "thisWeek") return { from: ymd(today), to: ymd(endOfWeek()) };
+  if (key === "next7") {
+    const t = new Date(today); t.setDate(t.getDate() + 6);
+    return { from: ymd(today), to: ymd(t) };
+  }
+  if (key === "thisMonth") return { from: ymd(new Date(today.getFullYear(), today.getMonth(), 1)), to: ymd(endOfMonth()) };
+  return { from: "", to: "" };
+}
+
 const BUCKET_LABELS: Record<string, string> = {
   overdue: "Overdue", today: "Today", tomorrow: "Tomorrow", thisWeek: "This Week", future: "Future", completed: "Completed",
 };
