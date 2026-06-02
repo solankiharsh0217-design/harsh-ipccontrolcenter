@@ -2606,6 +2606,54 @@ export type Database = {
           },
         ]
       }
+      lead_notes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          lead_id: string
+          note_text: string
+          note_type: string
+          paid_pipeline_lead_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id: string
+          note_text: string
+          note_type?: string
+          paid_pipeline_lead_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string
+          note_text?: string
+          note_type?: string
+          paid_pipeline_lead_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_notes_paid_pipeline_lead_id_fkey"
+            columns: ["paid_pipeline_lead_id"]
+            isOneToOne: false
+            referencedRelation: "paid_pipeline_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_qualifier_sessions: {
         Row: {
           created_at: string
