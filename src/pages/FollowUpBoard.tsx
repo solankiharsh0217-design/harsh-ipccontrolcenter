@@ -86,14 +86,15 @@ export default function FollowUpBoard() {
   const [loading, setLoading] = useState(true);
 
   // filters
-  const [tab, setTab] = useState<"mine" | "team">("mine");
-  const [bucketFilter, setBucketFilter] = useState<string>("default"); // default = today+overdue
+  const [tab, setTab] = useState<"mine" | "team" | "all">("mine");
+  const [bucketFilter, setBucketFilter] = useState<string>("all"); // show everything by default
   const [search, setSearch] = useState("");
   const [priorityF, setPriorityF] = useState("all");
   const [statusF, setStatusF] = useState("Pending");
   const [ownerF, setOwnerF] = useState("all");
   const [gradeF, setGradeF] = useState("all");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
 
   // reminder
   const [reminderMin, setReminderMin] = useState<number>(() => {
