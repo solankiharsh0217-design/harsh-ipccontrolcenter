@@ -8,7 +8,8 @@ import {
   Pencil, Trash2,
 } from "lucide-react";
 import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, computeServiceCalc } from "@/lib/operationsCrm";
-import { ensureSeedTemplate } from "@/lib/operationsTemplates";
+import { ensureSeedTemplate, listProcessTemplates } from "@/lib/operationsTemplates";
+import NoTemplateBanner from "@/components/operations/NoTemplateBanner";
 import AddCrmStageModal from "@/components/AddCrmStageModal";
 import OperationsLeadDrawer, { type OpsLeadFull } from "@/components/OperationsLeadDrawer";
 import RewardWidget from "@/components/operations/RewardWidget";
