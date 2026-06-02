@@ -24,9 +24,12 @@ export default function OperationsImportModal({
     name: "", email: null, phone: null, brand_name: null, product_name: null, batch_name: null, notes: null, raw: {},
   });
 
-  useEffect(() => {
+  const reloadTemplates = () => {
     listProcessTemplates(true).then(setTemplates).catch(() => {});
-  }, []);
+  };
+
+  useEffect(() => { reloadTemplates(); }, []);
+  const noTemplates = templates.length === 0;
 
   const onFile = async (f: File) => {
     setFileName(f.name);
