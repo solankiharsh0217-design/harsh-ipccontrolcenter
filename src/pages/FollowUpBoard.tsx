@@ -633,17 +633,17 @@ export default function FollowUpBoard() {
   );
 }
 
-function SummaryCard({ label, value, tone, onClick }: { label: string; value: number; tone: "red" | "blue" | "amber" | "green"; onClick: () => void }) {
+function StatPill({ label, value, tone, onClick }: { label: string; value: number; tone: "red" | "blue" | "amber" | "green"; onClick: () => void }) {
   const map: Record<string, string> = {
-    red: "border-red-200 bg-red-50/50",
-    blue: "border-blue-200 bg-blue-50/50",
-    amber: "border-amber-200 bg-amber-50/50",
-    green: "border-emerald-200 bg-emerald-50/50",
+    red: "border-red-200 bg-red-50 text-red-700",
+    blue: "border-blue-200 bg-blue-50 text-blue-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-800",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
   };
   return (
-    <button onClick={onClick} className={`text-left border ${map[tone]} rounded-lg p-3 hover:shadow-sm transition`}>
-      <div className="text-[11px] text-muted-foreground uppercase tracking-wide">{label}</div>
-      <div className="text-[26px] font-serif text-black mt-1">{value}</div>
+    <button onClick={onClick} className={`inline-flex items-center gap-1.5 border ${map[tone]} rounded-full px-2.5 py-0.5 hover:shadow-sm transition`}>
+      <span className="text-[10px] uppercase tracking-wide opacity-80">{label}</span>
+      <span className="text-[13px] font-semibold leading-none">{value}</span>
     </button>
   );
 }
