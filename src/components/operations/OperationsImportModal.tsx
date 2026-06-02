@@ -12,7 +12,7 @@ type Mode = "csv" | "sheet" | "manual";
 export default function OperationsImportModal({
   onClose, onDone,
 }: { onClose: () => void; onDone: () => void }) {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [mode, setMode] = useState<Mode>("csv");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
