@@ -22,6 +22,7 @@ import CrmOverview from "./pages/CrmOverview";
 import PaidPipeline from "./pages/PaidPipeline";
 import PaidPipelineAccessReadiness from "./pages/PaidPipelineAccessReadiness";
 import FollowUpCommandCenter from "./pages/FollowUpCommandCenter";
+import FollowUpBoard from "./pages/FollowUpBoard";
 import PaymentRecovery from "./pages/PaymentRecovery";
 import WebinarPerformance from "./pages/WebinarPerformance";
 import MasterSettings from "./pages/MasterSettings";
