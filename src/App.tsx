@@ -96,7 +96,11 @@ const App = () => (
             <Route path="/crm/paid-pipeline" element={<Shell moduleKey="paid-pipeline"><PaidPipeline /></Shell>} />
             <Route path="/paid-pipeline/access-readiness" element={<Shell moduleKey="paid-pipeline"><PaidPipelineAccessReadiness /></Shell>} />
             <Route path="/follow-up-command-center" element={<Shell moduleKey="follow_up_command_center"><FollowUpCommandCenter /></Shell>} />
-            <Route path="/follow-up-board" element={<Shell moduleKey="follow_up_command_center"><FollowUpBoard /></Shell>} />
+            {/* Follow-up Board: route is open to any authenticated user; the page itself
+                gates by isAdmin || follow_up_command_center || crm || calling_crm. This
+                ensures sales/calling executives (who only have calling_crm) are not blocked
+                by the Shell's strict moduleKey check. */}
+            <Route path="/follow-up-board" element={<Shell><FollowUpBoard /></Shell>} />
             <Route path="/payment-recovery" element={<Shell moduleKey="payment_recovery"><PaymentRecovery /></Shell>} />
             <Route path="/webinar-performance" element={<Shell moduleKey="webinar_performance"><WebinarPerformance /></Shell>} />
             <Route path="/team" element={<Shell moduleKey="team"><Team /></Shell>} />
