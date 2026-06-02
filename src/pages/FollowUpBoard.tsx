@@ -234,6 +234,9 @@ export default function FollowUpBoard() {
         if (!mine) return false;
       }
       // tab "team" and "all" show everything visible to admin (admin-only buttons)
+      // date range
+      if (dateFrom && f.follow_up_date < dateFrom) return false;
+      if (dateTo && f.follow_up_date > dateTo) return false;
       // bucket
       const b = bucketOf(f);
       if (bucketFilter === "default") {
@@ -259,7 +262,7 @@ export default function FollowUpBoard() {
       }
       return true;
     });
-  }, [fus, tab, bucketFilter, statusF, priorityF, ownerF, gradeF, search, crmMap, paidMap, user]);
+  }, [fus, tab, bucketFilter, statusF, priorityF, ownerF, gradeF, search, crmMap, paidMap, user, dateFrom, dateTo]);
 
   // group by bucket
   const grouped = useMemo(() => {
