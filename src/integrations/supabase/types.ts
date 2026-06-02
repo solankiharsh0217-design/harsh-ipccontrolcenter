@@ -3712,6 +3712,45 @@ export type Database = {
         }
         Relationships: []
       }
+      operations_communication_templates: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          is_seed: boolean
+          name: string
+          subject: string | null
+          template_type: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_seed?: boolean
+          name: string
+          subject?: string | null
+          template_type: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_seed?: boolean
+          name?: string
+          subject?: string | null
+          template_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       operations_conversion_reports: {
         Row: {
           campaign_name: string | null
@@ -3853,12 +3892,157 @@ export type Database = {
           },
         ]
       }
+      operations_intake_imports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_name: string | null
+          id: string
+          imported_count: number
+          raw_summary: Json | null
+          sheet_url: string | null
+          skipped_count: number
+          source: string
+          total_rows: number
+          updated_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          imported_count?: number
+          raw_summary?: Json | null
+          sheet_url?: string | null
+          skipped_count?: number
+          source: string
+          total_rows?: number
+          updated_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string | null
+          id?: string
+          imported_count?: number
+          raw_summary?: Json | null
+          sheet_url?: string | null
+          skipped_count?: number
+          source?: string
+          total_rows?: number
+          updated_count?: number
+        }
+        Relationships: []
+      }
+      operations_lead_checklist_state: {
+        Row: {
+          checked_at: string | null
+          checked_by: string | null
+          checklist_item_id: string
+          created_at: string
+          id: string
+          is_checked: boolean
+          note: string | null
+          operations_lead_id: string
+          updated_at: string
+        }
+        Insert: {
+          checked_at?: string | null
+          checked_by?: string | null
+          checklist_item_id: string
+          created_at?: string
+          id?: string
+          is_checked?: boolean
+          note?: string | null
+          operations_lead_id: string
+          updated_at?: string
+        }
+        Update: {
+          checked_at?: string | null
+          checked_by?: string | null
+          checklist_item_id?: string
+          created_at?: string
+          id?: string
+          is_checked?: boolean
+          note?: string | null
+          operations_lead_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_lead_checklist_state_checklist_item_id_fkey"
+            columns: ["checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "operations_template_checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_lead_checklist_state_operations_lead_id_fkey"
+            columns: ["operations_lead_id"]
+            isOneToOne: false
+            referencedRelation: "operations_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operations_lead_custom_values: {
+        Row: {
+          field_id: string
+          id: string
+          operations_lead_id: string
+          updated_at: string
+          updated_by: string | null
+          value_bool: boolean | null
+          value_date: string | null
+          value_number: number | null
+          value_text: string | null
+        }
+        Insert: {
+          field_id: string
+          id?: string
+          operations_lead_id: string
+          updated_at?: string
+          updated_by?: string | null
+          value_bool?: boolean | null
+          value_date?: string | null
+          value_number?: number | null
+          value_text?: string | null
+        }
+        Update: {
+          field_id?: string
+          id?: string
+          operations_lead_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          value_bool?: boolean | null
+          value_date?: string | null
+          value_number?: number | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_lead_custom_values_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "operations_template_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_lead_custom_values_operations_lead_id_fkey"
+            columns: ["operations_lead_id"]
+            isOneToOne: false
+            referencedRelation: "operations_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operations_leads: {
         Row: {
           ad_launch_date: string | null
           assigned_media_buyer_id: string | null
           assigned_media_buyer_name: string | null
           batch_name: string | null
+          brand_name: string | null
           created_at: string
           created_by: string | null
           crm_lead_id: string | null
@@ -3867,6 +4051,8 @@ export type Database = {
           deal_value: number | null
           email: string | null
           id: string
+          intake_source: string | null
+          intake_status: string
           last_paused_at: string | null
           last_resumed_at: string | null
           name: string
@@ -3876,7 +4062,12 @@ export type Database = {
           phone: string | null
           pipeline_id: string | null
           priority: string | null
+          process_template_id: string | null
           product_name: string | null
+          program_name: string | null
+          readiness_override_at: string | null
+          readiness_override_by: string | null
+          readiness_override_reason: string | null
           service_days_committed: number | null
           service_end_target_date: string | null
           service_months: number | null
@@ -3896,6 +4087,7 @@ export type Database = {
           assigned_media_buyer_id?: string | null
           assigned_media_buyer_name?: string | null
           batch_name?: string | null
+          brand_name?: string | null
           created_at?: string
           created_by?: string | null
           crm_lead_id?: string | null
@@ -3904,6 +4096,8 @@ export type Database = {
           deal_value?: number | null
           email?: string | null
           id?: string
+          intake_source?: string | null
+          intake_status?: string
           last_paused_at?: string | null
           last_resumed_at?: string | null
           name: string
@@ -3913,7 +4107,12 @@ export type Database = {
           phone?: string | null
           pipeline_id?: string | null
           priority?: string | null
+          process_template_id?: string | null
           product_name?: string | null
+          program_name?: string | null
+          readiness_override_at?: string | null
+          readiness_override_by?: string | null
+          readiness_override_reason?: string | null
           service_days_committed?: number | null
           service_end_target_date?: string | null
           service_months?: number | null
@@ -3933,6 +4132,7 @@ export type Database = {
           assigned_media_buyer_id?: string | null
           assigned_media_buyer_name?: string | null
           batch_name?: string | null
+          brand_name?: string | null
           created_at?: string
           created_by?: string | null
           crm_lead_id?: string | null
@@ -3941,6 +4141,8 @@ export type Database = {
           deal_value?: number | null
           email?: string | null
           id?: string
+          intake_source?: string | null
+          intake_status?: string
           last_paused_at?: string | null
           last_resumed_at?: string | null
           name?: string
@@ -3950,7 +4152,12 @@ export type Database = {
           phone?: string | null
           pipeline_id?: string | null
           priority?: string | null
+          process_template_id?: string | null
           product_name?: string | null
+          program_name?: string | null
+          readiness_override_at?: string | null
+          readiness_override_by?: string | null
+          readiness_override_reason?: string | null
           service_days_committed?: number | null
           service_end_target_date?: string | null
           service_months?: number | null
@@ -3995,6 +4202,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "operations_leads_process_template_id_fkey"
+            columns: ["process_template_id"]
+            isOneToOne: false
+            referencedRelation: "operations_process_templates"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "operations_leads_stage_id_fkey"
             columns: ["stage_id"]
             isOneToOne: false
@@ -4002,6 +4216,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      operations_process_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_owner_id: string | null
+          default_owner_rule: string
+          default_service_duration_days: number | null
+          description: string | null
+          id: string
+          is_active: boolean
+          is_seed: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_owner_id?: string | null
+          default_owner_rule?: string
+          default_service_duration_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_seed?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_owner_id?: string | null
+          default_owner_rule?: string
+          default_service_duration_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_seed?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       operations_reward_progress: {
         Row: {
@@ -4155,6 +4411,94 @@ export type Database = {
             columns: ["operations_lead_id"]
             isOneToOne: false
             referencedRelation: "operations_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operations_template_checklist_items: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_required: boolean
+          label: string
+          note: string | null
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          label: string
+          note?: string | null
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          label?: string
+          note?: string | null
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_template_checklist_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "operations_process_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operations_template_fields: {
+        Row: {
+          created_at: string
+          field_key: string
+          field_type: string
+          id: string
+          is_active: boolean
+          is_required: boolean
+          label: string
+          options: Json | null
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          field_key: string
+          field_type: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          label: string
+          options?: Json | null
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          field_key?: string
+          field_type?: string
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          label?: string
+          options?: Json | null
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_template_fields_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "operations_process_templates"
             referencedColumns: ["id"]
           },
         ]
