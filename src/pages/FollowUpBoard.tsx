@@ -86,14 +86,15 @@ export default function FollowUpBoard() {
   const [loading, setLoading] = useState(true);
 
   // filters
-  const [tab, setTab] = useState<"mine" | "team">("mine");
-  const [bucketFilter, setBucketFilter] = useState<string>("default"); // default = today+overdue
+  const [tab, setTab] = useState<"mine" | "team" | "all">("mine");
+  const [bucketFilter, setBucketFilter] = useState<string>("all"); // show everything by default
   const [search, setSearch] = useState("");
   const [priorityF, setPriorityF] = useState("all");
   const [statusF, setStatusF] = useState("Pending");
   const [ownerF, setOwnerF] = useState("all");
   const [gradeF, setGradeF] = useState("all");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
 
   // reminder
   const [reminderMin, setReminderMin] = useState<number>(() => {
@@ -144,6 +145,20 @@ export default function FollowUpBoard() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [allowed]);
 
+  // Realtime + focus refetch
+  useEffect(() => {
+    if (!allowed) return;
+    const ch = (supabase as any)
+      .channel("followup-board-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "paid_pipeline_followups" }, () => load())
+      .subscribe();
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => { try { (supabase as any).removeChannel(ch); } catch {} window.removeEventListener("focus", onFocus); };
+    // eslint-disable-next-line
+  }, [allowed]);
+
+
   // owner resolution for "mine" filter
   const ownerOf = (f: FU): string | null => {
     if (f.assigned_to && /^[0-9a-f-]{36}$/i.test(f.assigned_to)) return f.assigned_to;
@@ -168,8 +183,11 @@ export default function FollowUpBoard() {
     return fus.filter((f) => {
       // tab
       if (tab === "mine" && user) {
-        if (ownerOf(f) !== user.id) return false;
+        const owner = ownerOf(f);
+        const mine = owner === user.id || f.created_by === user.id || f.assigned_to === user.id;
+        if (!mine) return false;
       }
+      // tab "team" and "all" show everything visible to admin (admin-only buttons)
       // bucket
       const b = bucketOf(f);
       if (bucketFilter === "default") {
@@ -292,6 +310,7 @@ export default function FollowUpBoard() {
           <p className="text-[12px] text-muted-foreground mt-1">Your daily call list — what to call now, today, and this week.</p>
         </div>
         <div className="flex items-center gap-2 text-[12px]">
+          <button onClick={() => load()} className="px-2.5 py-1 rounded border border-line bg-white hover:bg-off">↻ Refresh</button>
           <span className="text-muted-foreground">Reminder:</span>
           <select className="qsi-input !h-8 !w-auto" value={reminderMin} onChange={(e) => setReminderMin(Number(e.target.value))}>
             {REMINDER_OFFSETS.map((m) => <option key={m} value={m}>{m} min before</option>)}
@@ -312,8 +331,9 @@ export default function FollowUpBoard() {
         <div className="flex bg-white border border-line rounded-md overflow-hidden text-[12px]">
           <button onClick={() => setTab("mine")} className={`px-3 py-1.5 ${tab === "mine" ? "bg-black text-white" : ""}`}>My Follow-ups</button>
           {isAdmin && <button onClick={() => setTab("team")} className={`px-3 py-1.5 ${tab === "team" ? "bg-black text-white" : ""}`}>Team Follow-ups</button>}
+          {isAdmin && <button onClick={() => { setTab("all"); setBucketFilter("all"); setOwnerF("all"); setStatusF("all"); }} className={`px-3 py-1.5 ${tab === "all" ? "bg-black text-white" : ""}`}>All Follow-ups</button>}
         </div>
-        <div className="flex gap-1 text-[12px]">
+        <div className="flex gap-1 text-[12px] flex-wrap">
           {(["default", "overdue", "today", "tomorrow", "thisWeek", "future", "completed", "all"] as const).map((b) => (
             <button key={b} onClick={() => setBucketFilter(b)} className={`px-2.5 py-1 rounded border ${bucketFilter === b ? "bg-black text-white border-black" : "bg-white border-line"}`}>
               {b === "default" ? "Today + Overdue" : b === "all" ? "All" : BUCKET_LABELS[b]}
@@ -323,6 +343,17 @@ export default function FollowUpBoard() {
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name / phone / note" className="qsi-input !h-8 !w-[220px] ml-auto" />
         <button onClick={() => setMoreOpen((v) => !v)} className="text-[12px] px-2.5 py-1 rounded border border-line bg-white">More filters</button>
       </div>
+      {isAdmin && (
+        <div className="mb-3">
+          <button onClick={() => setDebugOpen((v) => !v)} className="text-[11px] text-muted-foreground underline">{debugOpen ? "Hide" : "Show"} debug</button>
+          {debugOpen && (
+            <div className="mt-1 p-2 bg-slate-50 border border-line rounded text-[11px] font-mono text-slate-700">
+              fetched: {fus.length} · visible: {filtered.length} · tab: {tab} · bucket: {bucketFilter} · status: {statusF} · owner: {ownerF} · user: {user?.id?.slice(0,8)} · admin: {String(isAdmin)}
+            </div>
+          )}
+        </div>
+      )}
+
       {moreOpen && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 mb-3 border border-line rounded-lg bg-white text-[12px]">
           <div>
