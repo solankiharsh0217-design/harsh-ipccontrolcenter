@@ -52,6 +52,7 @@ import InvoiceItemCatalogPage from "./pages/admin/InvoiceItemCatalog";
 import TaxCodeMasterPage from "./pages/admin/TaxCodeMaster";
 import ConversionRulesAdmin from "./pages/admin/ConversionRules";
 import LeadRescueSearch from "./pages/admin/LeadRescueSearch";
+import Tasks from "./pages/Tasks";
 
 import type { ModuleKey } from "@/lib/modules";
 
@@ -130,6 +131,7 @@ const App = () => (
             <Route path="/media-buyer-operations" element={<Shell moduleKey="media_buyer_operations"><MediaBuyerOperations /></Shell>} />
             <Route path="/operations-crm" element={<Shell moduleKey="operations_crm"><OperationsCrm /></Shell>} />
             <Route path="/system-refinement-checklist" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
+            <Route path="/tasks" element={<Shell><Tasks /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
