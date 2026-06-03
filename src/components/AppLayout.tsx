@@ -19,6 +19,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/roas-calculator": "ROAS Calculator",
   "/search": "Student Search",
   "/daily-lead-reporting": "Daily Lead Reporting",
+  "/tasks": "Task Manager",
   "/reports": "Reports & History",
   "/lead-qualifier": "Lead Qualifier",
   "/crm": "Calling CRM",
@@ -45,7 +46,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin-center/tax-codes": "SAC / HSN Master",
 };
 
-const NavItem = ({ to, children, badge, show = true }: { to: string; children: ReactNode; badge?: boolean; show?: boolean }) => {
+const NavItem = ({ to, children, badge, count, show = true }: { to: string; children: ReactNode; badge?: boolean; count?: number; show?: boolean }) => {
   const loc = useLocation();
   if (!show) return null;
   const active = loc.pathname === to;
@@ -53,6 +54,11 @@ const NavItem = ({ to, children, badge, show = true }: { to: string; children: R
     <NavLink to={to} data-active={active} className="nav-item">
       {children}
       {badge && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-gold flex-shrink-0" />}
+      {!badge && count !== undefined && count > 0 && (
+        <span className="ml-auto min-w-[16px] h-[16px] px-1 rounded-full bg-[#DC2626] text-white text-[9px] font-medium flex items-center justify-center flex-shrink-0">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
     </NavLink>
   );
 };
@@ -63,6 +69,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const title = PAGE_TITLES[loc.pathname] ?? "";
   const [unread, setUnread] = useState(0);
+  const [overdueTasks, setOverdueTasks] = useState(0);
 
   const canSeeNotifications = isAdmin || hasModule("notifications");
 
