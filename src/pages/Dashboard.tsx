@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { greeting, formatDateShort } from "@/lib/format";
 import { PageHead, SectionLabel, Tag } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
+import MyTasksWidget from "@/components/tasks/MyTasksWidget";
 
 interface ModuleCard {
   to: string; tag: string; name: string; desc: string; featured?: boolean; icon: JSX.Element;
@@ -107,6 +108,8 @@ export default function Dashboard() {
           </button>
         ))}
       </div>
+
+      <MyTasksWidget />
 
       <SectionLabel>Announcements</SectionLabel>
       <div className="border border-line rounded-xl bg-white mb-3.5 overflow-hidden">
