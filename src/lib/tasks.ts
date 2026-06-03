@@ -1,0 +1,232 @@
+import { supabase } from "@/integrations/supabase/client";
+
+export type TaskStatus = "todo" | "inprogress" | "review" | "blocked" | "done";
+export type TaskPriority = "high" | "medium" | "low";
+
+export interface Task {
+  id: string;
+  title: string;
+  note: string | null;
+  assigned_to: string | null;
+  assigned_name: string | null;
+  assigned_initials: string | null;
+  created_by: string | null;
+  created_by_name: string | null;
+  priority: TaskPriority;
+  status: TaskStatus;
+  tag: string;
+  due_date: string | null;
+  sort_order: number;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskActivity {
+  id: string;
+  task_id: string;
+  user_id: string | null;
+  user_name: string | null;
+  action: string;
+  created_at: string;
+}
+
+export const STATUSES: { key: TaskStatus; label: string; barClass: string; pillClass: string }[] = [
+  { key: "todo",       label: "To Do",       barClass: "bg-[#E5E7EB]", pillClass: "bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]" },
+  { key: "inprogress", label: "In Progress", barClass: "bg-[#2563EB]", pillClass: "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]" },
+  { key: "review",     label: "Review",      barClass: "bg-[#C8A84B]", pillClass: "bg-[#FBF6E9] text-[#7A5E10] border-[#E8D49A]" },
+  { key: "blocked",    label: "Blocked",     barClass: "bg-[#EA580C]", pillClass: "bg-[#FFF7ED] text-[#EA580C] border-[#FED7AA]" },
+  { key: "done",       label: "Done",        barClass: "bg-[#16A34A]", pillClass: "bg-[#F0FDF4] text-[#16A34A] border-[#BBF7D0]" },
+];
+
+export const TAGS = ["Operations","Sales","Media Buying","Content","Marketing","Design","HR","Finance","Other"];
+
+export const PRIORITY_PILL: Record<TaskPriority, string> = {
+  high:   "bg-[#FEF2F2] text-[#DC2626] border-[#FECACA]",
+  medium: "bg-[#FFFBEB] text-[#CA8A04] border-[#FDE68A]",
+  low:    "bg-[#F7F6F3] text-[#888]    border-[#E8E5DE]",
+};
+
+export function initialsOf(name: string | null | undefined): string {
+  if (!name) return "—";
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || (parts[0]?.[0] ?? "").toUpperCase();
+}
+
+export function todayISO(): string {
+  const d = new Date(); d.setHours(0,0,0,0);
+  const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,"0"); const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
+export function dueLabel(due: string | null): { label: string; tone: "muted" | "today" | "overdue" } {
+  if (!due) return { label: "—", tone: "muted" };
+  const t = todayISO();
+  if (due === t) return { label: "Today", tone: "today" };
+  if (due < t) {
+    const d = new Date(due);
+    return { label: `Overdue · ${d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`, tone: "overdue" };
+  }
+  const d = new Date(due);
+  return { label: d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }), tone: "muted" };
+}
+
+export function isOverdue(t: Task): boolean {
+  return !!t.due_date && t.status !== "done" && t.due_date < todayISO();
+}
+export function isDueToday(t: Task): boolean {
+  return !!t.due_date && t.status !== "done" && t.due_date === todayISO();
+}
+
+export async function fetchTasks(): Promise<Task[]> {
+  const { data, error } = await (supabase as any)
+    .from("tasks").select("*").eq("is_archived", false)
+    .order("sort_order", { ascending: true }).order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Task[];
+}
+
+export async function fetchActivity(taskId: string): Promise<TaskActivity[]> {
+  const { data, error } = await (supabase as any)
+    .from("task_activity").select("*").eq("task_id", taskId)
+    .order("created_at", { ascending: false }).limit(50);
+  if (error) throw error;
+  return (data ?? []) as TaskActivity[];
+}
+
+async function logActivity(taskId: string, userId: string, userName: string, action: string) {
+  await (supabase as any).from("task_activity").insert({
+    task_id: taskId, user_id: userId, user_name: userName, action,
+  });
+}
+
+export async function createTask(
+  input: Partial<Task>,
+  me: { id: string; name: string; isAdmin: boolean }
+): Promise<Task> {
+  const assigned_to = me.isAdmin ? (input.assigned_to ?? me.id) : me.id;
+  const assigned_name = me.isAdmin ? (input.assigned_name ?? me.name) : me.name;
+  const payload = {
+    title: (input.title ?? "").trim(),
+    note: input.note ?? null,
+    assigned_to,
+    assigned_name,
+    assigned_initials: initialsOf(assigned_name),
+    created_by: me.id,
+    created_by_name: me.name,
+    priority: input.priority ?? "medium",
+    status: input.status ?? "todo",
+    tag: input.tag ?? "Operations",
+    due_date: input.due_date ?? todayISO(),
+    sort_order: input.sort_order ?? 0,
+  };
+  const { data, error } = await (supabase as any).from("tasks").insert(payload).select().single();
+  if (error) throw error;
+  await logActivity(data.id, me.id, me.name, "created this task");
+  if (assigned_to && assigned_to !== me.id) {
+    await notifyAssignment(assigned_to, payload.title, payload.due_date, me.id, me.name, data.id);
+  }
+  return data as Task;
+}
+
+export async function updateTask(
+  prev: Task, patch: Partial<Task>, me: { id: string; name: string }
+): Promise<Task> {
+  const upd: any = { ...patch };
+  if (patch.assigned_name !== undefined) upd.assigned_initials = initialsOf(patch.assigned_name);
+  const { data, error } = await (supabase as any).from("tasks").update(upd).eq("id", prev.id).select().single();
+  if (error) throw error;
+
+  const changes: string[] = [];
+  if (patch.status && patch.status !== prev.status) changes.push(`changed status to ${labelOfStatus(patch.status)}`);
+  if (patch.priority && patch.priority !== prev.priority) changes.push(`changed priority to ${cap(patch.priority)}`);
+  if (patch.due_date !== undefined && patch.due_date !== prev.due_date)
+    changes.push(`changed due date to ${patch.due_date ?? "—"}`);
+  if (patch.assigned_to !== undefined && patch.assigned_to !== prev.assigned_to)
+    changes.push(`reassigned to ${patch.assigned_name ?? "—"}`);
+  if (patch.title && patch.title !== prev.title) changes.push("updated the title");
+  if (patch.note !== undefined && patch.note !== prev.note) changes.push("updated the note");
+  if (changes.length === 0) changes.push("updated this task");
+  for (const a of changes) await logActivity(prev.id, me.id, me.name, a);
+
+  if (patch.status && patch.status !== prev.status && prev.assigned_to && prev.assigned_to !== me.id) {
+    await notifyStatus(prev.assigned_to, prev.title, labelOfStatus(patch.status), me.id, me.name, prev.id);
+  }
+  if (patch.assigned_to && patch.assigned_to !== prev.assigned_to && patch.assigned_to !== me.id) {
+    await notifyAssignment(patch.assigned_to, prev.title, patch.due_date ?? prev.due_date, me.id, me.name, prev.id);
+  }
+  return data as Task;
+}
+
+export async function archiveTask(t: Task, me: { id: string; name: string }) {
+  const { error } = await (supabase as any).from("tasks").update({ is_archived: true }).eq("id", t.id);
+  if (error) throw error;
+  await logActivity(t.id, me.id, me.name, "archived this task");
+}
+
+export async function archiveOldDone(): Promise<number> {
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
+  const iso = cutoff.toISOString();
+  const { data, error } = await (supabase as any)
+    .from("tasks").update({ is_archived: true })
+    .eq("is_archived", false).eq("status", "done").lt("updated_at", iso).select("id");
+  if (error) throw error;
+  return (data ?? []).length;
+}
+
+async function notifyAssignment(recipient: string, title: string, due: string | null, byId: string, byName: string, taskId: string) {
+  try {
+    await (supabase as any).from("notifications").insert({
+      recipient_user_id: recipient,
+      module_key: "tasks",
+      notification_type: "task_assigned",
+      title: `${byName} assigned you a new task`,
+      message: `${title}${due ? ` — due ${due}` : ""}`,
+      entity_type: "task", entity_id: taskId, entity_label: title,
+      action_url: `/tasks?open=${taskId}`, action_label: "Open task",
+      triggered_by_user_id: byId, triggered_by_name: byName,
+    });
+  } catch (e) { /* ignore */ }
+}
+async function notifyStatus(recipient: string, title: string, statusLabel: string, byId: string, byName: string, taskId: string) {
+  try {
+    await (supabase as any).from("notifications").insert({
+      recipient_user_id: recipient,
+      module_key: "tasks",
+      notification_type: "task_status_changed",
+      title: `${byName} marked your task as ${statusLabel}`,
+      message: title,
+      entity_type: "task", entity_id: taskId, entity_label: title,
+      action_url: `/tasks?open=${taskId}`, action_label: "Open task",
+      triggered_by_user_id: byId, triggered_by_name: byName,
+    });
+  } catch (e) { /* ignore */ }
+}
+
+export function labelOfStatus(s: TaskStatus): string {
+  return STATUSES.find((x) => x.key === s)?.label ?? s;
+}
+function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+export function timeAgo(iso: string): string {
+  const d = new Date(iso); const now = Date.now(); const diff = (now - d.getTime()) / 1000;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  if (diff < 172800) return "Yesterday";
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+export function whatsappText(t: Task): string {
+  const dueLabelFull = t.due_date ? new Date(t.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—";
+  const lines = [
+    `📌 *${t.title}*`,
+    `👤 Assigned to: ${t.assigned_name ?? "—"}`,
+    `🎯 Priority: ${cap(t.priority)}`,
+    `📅 Due: ${dueLabelFull}`,
+    `📂 ${t.tag}`,
+  ];
+  if (t.note) lines.push(`📝 ${t.note}`);
+  lines.push("—", "_IPC Control Center_");
+  return lines.join("\n");
+}

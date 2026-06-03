@@ -6973,6 +6973,98 @@ export type Database = {
         }
         Relationships: []
       }
+      task_activity: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          task_id: string
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          task_id: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_activity_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assigned_initials: string | null
+          assigned_name: string | null
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          due_date: string | null
+          id: string
+          is_archived: boolean
+          note: string | null
+          priority: string
+          sort_order: number
+          status: string
+          tag: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_initials?: string | null
+          assigned_name?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          due_date?: string | null
+          id?: string
+          is_archived?: boolean
+          note?: string | null
+          priority?: string
+          sort_order?: number
+          status?: string
+          tag?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_initials?: string | null
+          assigned_name?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          due_date?: string | null
+          id?: string
+          is_archived?: boolean
+          note?: string | null
+          priority?: string
+          sort_order?: number
+          status?: string
+          tag?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tax_code_master: {
         Row: {
           category: string | null
