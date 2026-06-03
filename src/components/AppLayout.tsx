@@ -92,6 +92,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return () => { active = false; clearInterval(t); };
   }, [user, canSeeNotifications, loc.pathname]);
 
+  useEffect(() => {
+    if (!user) { setOverdueTasks(0); return; }
+    let active = true;
+    const load = async () => {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        let q = (supabase as any).from("tasks").select("id", { count: "exact", head: true })
+          .eq("is_archived", false).neq("status", "done").lt("due_date", today);
+        if (!isAdmin) q = q.eq("assigned_to", user.id);
+        const { count } = await q;
+        if (active) setOverdueTasks(count ?? 0);
+      } catch { /* noop */ }
+    };
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { active = false; clearInterval(t); };
+  }, [user, isAdmin, loc.pathname]);
+
   const handleSignOut = async () => {
     await signOut();
     nav("/login");
@@ -140,6 +158,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <NavItem to="/daily-lead-reporting" show={hasModule("daily-reporting")}>
             <Icon d="M2 12l4-4 3 3 5-6" />
             Daily Reporting
+          </NavItem>
+          <NavItem to="/tasks" count={overdueTasks}>
+            <Icon><><path d="M3 3h10v10H3z"/><path d="M5.5 8l1.5 1.5L11 5.5"/></></Icon>
+            Task Manager
           </NavItem>
           <NavItem to="/reports" show={hasModule("reports")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></></Icon>
