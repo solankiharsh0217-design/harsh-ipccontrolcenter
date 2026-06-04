@@ -114,13 +114,29 @@ export default function OperationsImportModal({
             <NoTemplateBanner isAdmin={isAdmin} onCreated={reloadTemplates} compact />
           ) : (
             <div>
-              <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Apply process template (optional)</label>
-              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="ipc-input !h-9 !text-xs w-full max-w-sm">
-                <option value="">— No template —</option>
-                {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+              <label className="block text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                Process / Service Type {mode !== "manual" && "(applies to all imported clients)"}
+              </label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="ipc-input !h-9 !text-xs w-full max-w-sm">
+                  <option value="">— No template (assign later) —</option>
+                  {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <a
+                  href="/operations-crm?tab=settings"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] underline text-muted-foreground hover:text-black whitespace-nowrap"
+                >
+                  + Create Custom
+                </a>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                Controls the readiness checklist, custom fields, and communication templates for each client.
+              </div>
             </div>
           )}
+
 
           {mode === "csv" && (
             <div>
