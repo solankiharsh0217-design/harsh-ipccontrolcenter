@@ -7,6 +7,7 @@ import {
   Task, TaskActivity, TaskPriority, TaskStatus, STATUSES, TAGS, PRIORITY_PILL,
   createTask, updateTask, archiveTask, fetchActivity, todayISO, timeAgo, initialsOf, whatsappText, labelOfStatus,
 } from "@/lib/tasks";
+import AssigneePicker from "./AssigneePicker";
 
 interface Member { id: string; full_name: string; role: string | null }
 
@@ -136,19 +137,11 @@ export default function TaskDrawer({
 
           {isAdmin && (
             <Field label="Assign to">
-              <select
+              <AssigneePicker
                 value={assignedTo}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setAssignedTo(id);
-                  setAssignedName(members.find((m) => m.id === id)?.full_name ?? "");
-                }}
-                className="ipc-input !h-10 !text-[13px] w-full"
-              >
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name}{m.role ? ` — ${m.role}` : ""}</option>
-                ))}
-              </select>
+                valueName={assignedName}
+                onChange={(id, name) => { setAssignedTo(id); setAssignedName(name); }}
+              />
             </Field>
           )}
 

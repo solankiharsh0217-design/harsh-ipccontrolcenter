@@ -7008,6 +7008,30 @@ export type Database = {
           },
         ]
       }
+      task_assignee_visibility: {
+        Row: {
+          created_at: string
+          hidden_by: string
+          id: string
+          is_hidden: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hidden_by: string
+          id?: string
+          is_hidden?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hidden_by?: string
+          id?: string
+          is_hidden?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_initials: string | null
