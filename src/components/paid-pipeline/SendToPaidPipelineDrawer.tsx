@@ -126,7 +126,7 @@ export default function SendToPaidPipelineDrawer({
   }, [open, sessionMeta, payload.webinarName, payload.webinarDate, payload.webinarType]);
 
   useEffect(() => {
-    if (step !== 3) return;
+    if (step !== STEP_REVIEW) return;
     const product = products.find(p => p.id === existingProductId);
     const dealValue = productMode === "new" ? Number(newProductPrice || 0) : Number(product?.product_price_including_gst || 0);
     const defaultToken = productMode === "new" ? Number(newProductDefaultToken || 0) : Number(product?.default_token_amount || 0);
