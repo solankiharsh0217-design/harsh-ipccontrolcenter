@@ -21,6 +21,7 @@ import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
 import TagPicker from "@/components/TagPicker";
+import PromisedOffersPanel from "@/components/offers/PromisedOffersPanel";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
