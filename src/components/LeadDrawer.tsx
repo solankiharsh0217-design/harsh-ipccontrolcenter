@@ -603,7 +603,15 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             onApplied={() => { load(); onChanged(); }}
             onOpenTokenPayment={openTokenPayment}
           />
+          <div className="mt-4">
+            <PromisedOffersPanel
+              crmLeadId={lead.id}
+              paidPipelineLeadId={(lead as any).paid_pipeline_lead_id || null}
+              title="Services / Commitments"
+            />
+          </div>
         </div>
+
 
 
         {/* CRM Stage — single prominent card with popover picker */}
