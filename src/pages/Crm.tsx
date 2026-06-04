@@ -419,56 +419,67 @@ export default function Crm() {
     }
     return map;
   }, [leads]);
-  const pipelineLeads = useMemo(() => {
+  // Base list: pipeline + archive + converted (used as the universe for ALL secondary filters
+  // and dropdown counts so counts/results stay consistent).
+  const baseScopeLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
-    // "Converted" / "hide from sales" filter only makes sense for the Sales (unpaid) pipeline.
-    // On Paid — Onboarding and Operations CRM, every lead has a paid link by definition, so this
-    // filter would incorrectly hide every card (the Kanban visibility bug for Paid Onboarding).
     if (convertedFilter !== "show" && activePipelineType === "unpaid") {
       list = list.filter((l: any) => {
         const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
         return convertedFilter === "only" ? isConv : !isConv;
       });
     }
+    return list;
+  }, [leads, activePipeline, activePipelineType, showArchived, convertedFilter]);
 
-    if (gradeFilter.length > 0) {
+  // Helpers shared between the main filter and the dropdown count derivations.
+  const legacyGradeToHotness = (g: any): Hotness => {
+    const s = String(g || "").toLowerCase().replace(/-/g, "_");
+    if (s === "super_hot") return "super_hot";
+    if (s === "hot") return "hot";
+    if (s === "warm") return "warm";
+    if (s === "cold") return "cold";
+    if (s === "true_absentee" || s === "absent" || s === "non_attendee" || s === "inactive") return "inactive";
+    return "inactive";
+  };
+  const leadAttMinutes = (l: any) => {
+    const phase1 = hotnessMap[l.id]?.total_attended_minutes || 0;
+    const legacy = Number(l.total_minutes || 0);
+    return Math.max(phase1, legacy);
+  };
+  const leadAttHasData = (l: any) => {
+    const h = hotnessMap[l.id];
+    if (h && (h.total_sessions_attended || 0) > 0) return true;
+    if (Number(l.total_minutes || 0) > 0) return true;
+    if (Number(l.webinar_count || 0) > 0 && Number(l.attendance_pct || 0) > 0) return true;
+    return false;
+  };
+
+  /**
+   * Apply every secondary filter except the one named in `except`.
+   * Used by pipelineLeads (`except = "none"`) AND by each dropdown's option
+   * counter so that the dropdown count matches the board result you'd get
+   * after selecting that option.
+   */
+  type FilterKey = "none" | "grade" | "batch" | "tag" | "stage" | "attendance" | "min" | "attendanceData" | "date" | "search";
+  const applyFiltersExcept = (except: FilterKey): Lead[] => {
+    let list = baseScopeLeads;
+    if (except !== "grade" && gradeFilter.length > 0) {
       const set = new Set(gradeFilter);
-      list = list.filter((l: any) => {
-        if (set.has("super-hot") && l.is_super_hot) return true;
-        const g = normalizeGradeValue(l.grade);
-        return g && set.has(g);
-      });
+      list = list.filter((l: any) => leadMatchesGrades(l, set));
     }
-    if (batchFilter.length > 0) list = list.filter((l) => batchFilter.includes(l.webinar_source || "—"));
-    if (tagFilter.length > 0) {
+    if (except !== "batch" && batchFilter.length > 0) {
+      list = list.filter((l) => batchFilter.includes(l.webinar_source || "—"));
+    }
+    if (except !== "tag" && tagFilter.length > 0) {
       const tagSet = new Set(tagFilter);
       list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => tagSet.has(t.id)));
     }
-    if (stageFilter.length > 0) list = list.filter((l) => l.stage_id && stageFilter.includes(l.stage_id));
-    // Map legacy lead.grade (hyphenated) to Phase 1 attendance grade vocabulary
-    const legacyGradeToHotness = (g: any): Hotness => {
-      const s = String(g || "").toLowerCase().replace(/-/g, "_");
-      if (s === "super_hot") return "super_hot";
-      if (s === "hot") return "hot";
-      if (s === "warm") return "warm";
-      if (s === "cold") return "cold";
-      if (s === "true_absentee" || s === "absent" || s === "non_attendee" || s === "inactive") return "inactive";
-      return "inactive";
-    };
-    const leadAttMinutes = (l: any) => {
-      const phase1 = hotnessMap[l.id]?.total_attended_minutes || 0;
-      const legacy = Number(l.total_minutes || 0);
-      return Math.max(phase1, legacy);
-    };
-    const leadAttHasData = (l: any) => {
-      const h = hotnessMap[l.id];
-      if (h && (h.total_sessions_attended || 0) > 0) return true;
-      if (Number(l.total_minutes || 0) > 0) return true;
-      if (Number(l.webinar_count || 0) > 0 && Number(l.attendance_pct || 0) > 0) return true;
-      return false;
-    };
-    if (attendanceGradeFilter.length > 0) {
+    if (except !== "stage" && stageFilter.length > 0) {
+      list = list.filter((l) => l.stage_id && stageFilter.includes(l.stage_id));
+    }
+    if (except !== "attendance" && attendanceGradeFilter.length > 0) {
       const aset = new Set(attendanceGradeFilter);
       list = list.filter((l: any) => {
         const h = hotnessMap[l.id];
@@ -478,43 +489,49 @@ export default function Crm() {
         return aset.has(grade);
       });
     }
-    if (minAttendedMinutes > 0) {
+    if (except !== "min" && minAttendedMinutes > 0) {
       list = list.filter((l) => leadAttMinutes(l) >= minAttendedMinutes);
     }
-    if (attendanceDataFilter !== "any") {
+    if (except !== "attendanceData" && attendanceDataFilter !== "any") {
       list = list.filter((l) => {
         const has = leadAttHasData(l);
         return attendanceDataFilter === "has" ? has : !has;
       });
     }
-
-    if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
-    if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
-      // Build extra tokens for fuzzy email matching so a typo like
-      // "vu3ge@gmail.com" still surfaces "vu3geq@gmail.com" (same logic as Universal Search).
-      const tokens: string[] = [q];
-      if (q.includes("@")) {
-        const local = q.split("@")[0];
-        if (local && local.length >= 3) tokens.push(local);
-      }
-      const digitsOnly = q.replace(/\D/g, "");
-      if (digitsOnly.length >= 5) tokens.push(digitsOnly);
-      list = list.filter((l: any) => {
-        const hay = [leadIdentityText(l), ...(linkedIdentityByLeadId.get(l.id) || [])].join(" ");
-        if (tokens.some((t) => hay.includes(t))) return true;
-        // Local-part prefix: actual email begins with the searched local part
-        if (q.includes("@") && l.email) {
-          const localQ = q.split("@")[0];
-          const localL = String(l.email).toLowerCase().split("@")[0];
-          if (localQ && localL && (localL.startsWith(localQ) || localQ.startsWith(localL))) return true;
-        }
-        return false;
-      });
+    if (except !== "date") {
+      if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
+      if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     }
-    return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, activePipelineType, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter, linkedIdentityByLeadId]);
+    if (except !== "search") {
+      const q = searchQuery.trim().toLowerCase();
+      if (q) {
+        const tokens: string[] = [q];
+        if (q.includes("@")) {
+          const local = q.split("@")[0];
+          if (local && local.length >= 3) tokens.push(local);
+        }
+        const digitsOnly = q.replace(/\D/g, "");
+        if (digitsOnly.length >= 5) tokens.push(digitsOnly);
+        list = list.filter((l: any) => {
+          const hay = [leadIdentityText(l), ...(linkedIdentityByLeadId.get(l.id) || [])].join(" ");
+          if (tokens.some((t) => hay.includes(t))) return true;
+          if (q.includes("@") && l.email) {
+            const localQ = q.split("@")[0];
+            const localL = String(l.email).toLowerCase().split("@")[0];
+            if (localQ && localL && (localL.startsWith(localQ) || localQ.startsWith(localL))) return true;
+          }
+          return false;
+        });
+      }
+    }
+    return list;
+  };
+
+  const pipelineLeads = useMemo(() => {
+    return applyFiltersExcept("none").slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId]);
+
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
