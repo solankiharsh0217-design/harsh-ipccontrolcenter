@@ -892,38 +892,33 @@ export default function Crm() {
     finally { setAssignBusy(false); }
   };
 
-  // Base scope for option counts: leads in the current pipeline, archived/converted filters honored,
-  // but BEFORE multi-select filters apply — so users always see the universe of options.
-  const filterScopeLeads = useMemo(() => {
-    let list = leads.filter((l) => l.pipeline_id === activePipeline);
-    list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
-    if (convertedFilter !== "show" && activePipelineType === "unpaid") {
-      list = list.filter((l: any) => {
-        const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
-        return convertedFilter === "only" ? isConv : !isConv;
-      });
-    }
-    return list;
-  }, [leads, activePipeline, activePipelineType, showArchived, convertedFilter]);
+  // Dropdown option counts: derived from the SAME visible universe the board would show
+  // after selecting that option. Each dropdown excludes its OWN filter so the user can see
+  // how many leads would match if they toggled values within that filter.
+  const allFiltersDeps = [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId];
 
   const batchOptions = useMemo(() => {
+    const scope = applyFiltersExcept("batch");
     const counts = new Map<string, number>();
-    for (const l of filterScopeLeads) {
+    for (const l of scope) {
       const b = l.webinar_source || "—";
       counts.set(b, (counts.get(b) || 0) + 1);
     }
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([value, count]) => ({ value, label: value, count }));
-  }, [filterScopeLeads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, allFiltersDeps);
 
   const gradeOptions = useMemo(() => {
+    const scope = applyFiltersExcept("grade") as any[];
     const counts = new Map<string, number>();
     let superHotCount = 0;
-    for (const l of filterScopeLeads as any[]) {
+    for (const l of scope) {
       if (l.is_super_hot) superHotCount++;
       const g = normalizeGradeValue(l.grade);
-      if (g) counts.set(g, (counts.get(g) || 0) + 1);
+      if (g && g !== "super-hot") counts.set(g, (counts.get(g) || 0) + 1);
+      if (g === "super-hot" && !l.is_super_hot) superHotCount++;
     }
     const seen = new Set<string>();
     const out: { value: string; label: string; count: number }[] = [];
@@ -932,40 +927,46 @@ export default function Crm() {
       seen.add(c.value);
       out.push({ value: c.value, label: c.label, count });
     }
-    // Surface any grades present in data that aren't in the canonical list.
     for (const [value, count] of counts.entries()) {
       if (!seen.has(value)) out.push({ value, label: gradeLabel(value), count });
     }
     return out;
-  }, [filterScopeLeads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, allFiltersDeps);
 
   const tagOptions = useMemo(() => {
+    const scope = applyFiltersExcept("tag");
     const counts = new Map<string, number>();
-    for (const l of filterScopeLeads) {
+    for (const l of scope) {
       for (const t of leadTagsMap[l.id] || []) counts.set(t.id, (counts.get(t.id) || 0) + 1);
     }
     return allTags
       .map((t) => ({ value: t.id, label: t.name, count: counts.get(t.id) || 0, color: t.color || undefined }))
       .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label));
-  }, [allTags, leadTagsMap, filterScopeLeads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTags, ...allFiltersDeps]);
 
   const stageOptions = useMemo(() => {
+    const scope = applyFiltersExcept("stage");
     const counts = new Map<string, number>();
-    for (const l of filterScopeLeads) {
+    for (const l of scope) {
       if (l.stage_id) counts.set(l.stage_id, (counts.get(l.stage_id) || 0) + 1);
     }
     return pipelineStages.map((s) => ({ value: s.id, label: s.name, count: counts.get(s.id) || 0 }));
-  }, [pipelineStages, filterScopeLeads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pipelineStages, ...allFiltersDeps]);
 
   const attendanceGradeOptions = useMemo(() => {
+    const scope = applyFiltersExcept("attendance") as any[];
     const counts = new Map<string, number>();
-    for (const l of filterScopeLeads as any[]) {
+    for (const l of scope) {
       const h = hotnessMap[l.id];
       const grade: Hotness = h ? (h.manual_override && h.manual_grade ? h.manual_grade : h.current_hotness) : "inactive";
       counts.set(grade, (counts.get(grade) || 0) + 1);
     }
     return ATTENDANCE_GRADE_OPTIONS.map((o) => ({ value: o.value, label: o.label, count: counts.get(o.value) || 0 }));
-  }, [filterScopeLeads, hotnessMap]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, allFiltersDeps);
 
   const tagNameLookup = useMemo(() => Object.fromEntries(allTags.map((t) => [t.id, t.name])), [allTags]);
   const stageNameLookupLocal = useMemo(() => Object.fromEntries(pipelineStages.map((s) => [s.id, s.name])), [pipelineStages]);
