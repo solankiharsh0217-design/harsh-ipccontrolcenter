@@ -99,6 +99,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Offer / Service Catalog",
+      desc: "Configure the services and offer presets your team can promise paid buyers during import (ad support, bonus sessions, portfolio review, etc.).",
+      cta: "Open Offer Catalog",
+      to: "/admin-center/offer-catalog",
+      show: isAdmin,
+    },
+    {
       title: "SAC / HSN Master",
       desc: "Curate the SAC/HSN code list used by the invoice editor's tax-code finder.",
       cta: "Open SAC/HSN Master",
