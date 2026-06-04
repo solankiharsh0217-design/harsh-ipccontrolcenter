@@ -6,6 +6,8 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import type { SaleDetail, AttributionPayload } from "@/lib/roasExport";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
+import OffersStep from "@/components/offers/OffersStep";
+import { attachOffersToPaidLead, createPreset, type DraftOffer } from "@/lib/offers";
 
 const inr = (n: number) => "₹" + (Math.round(n || 0)).toLocaleString("en-IN");
 
@@ -43,7 +45,9 @@ type RowEdit = {
   assigned: string;
 };
 
-const STEPS = ["Batch", "Product", "Payment Model", "Review", "Confirm"] as const;
+const STEPS = ["Batch", "Product", "Payment Model", "Offers", "Review", "Confirm"] as const;
+const STEP_REVIEW = 4;
+const STEP_CONFIRM = 5;
 
 export default function SendToPaidPipelineDrawer({
   open, onOpenChange, sessionId, payload, selectedSales, sessionMeta, onDone,
@@ -85,6 +89,12 @@ export default function SendToPaidPipelineDrawer({
   const [result, setResult] = useState<{ created: number; skipped: number } | null>(null);
   const [duplicateMode, setDuplicateMode] = useState<"skip" | "create_anyway">("skip");
 
+  // Offers / Entitlements V1
+  const [offerDrafts, setOfferDrafts] = useState<DraftOffer[]>([]);
+  const [offerPresetId, setOfferPresetId] = useState<string | null>(null);
+  const [saveAsPreset, setSaveAsPreset] = useState(false);
+  const [newPresetName, setNewPresetName] = useState("");
+
   useEffect(() => {
     if (!open) return;
     setStep(0);
@@ -116,7 +126,7 @@ export default function SendToPaidPipelineDrawer({
   }, [open, sessionMeta, payload.webinarName, payload.webinarDate, payload.webinarType]);
 
   useEffect(() => {
-    if (step !== 3) return;
+    if (step !== STEP_REVIEW) return;
     const product = products.find(p => p.id === existingProductId);
     const dealValue = productMode === "new" ? Number(newProductPrice || 0) : Number(product?.product_price_including_gst || 0);
     const defaultToken = productMode === "new" ? Number(newProductDefaultToken || 0) : Number(product?.default_token_amount || 0);
@@ -173,7 +183,8 @@ export default function SendToPaidPipelineDrawer({
       return !!(newProductName && newProductPrice > 0);
     }
     if (step === 2) return !!defaultPaymentModel;
-    if (step === 3) return rows.some(r => r.selected);
+    if (step === 3) return true; // Offers — always allow (warning shown on confirm)
+    if (step === STEP_REVIEW) return rows.some(r => r.selected);
     return true;
   };
 
@@ -313,7 +324,24 @@ export default function SendToPaidPipelineDrawer({
           summary: `Lead ${r.sale.name || r.sale.email || "(unnamed)"} created from ${payload.webinarName}.`,
         });
 
+        // Attach promised offers / services
+        if (offerDrafts.length > 0) {
+          await attachOffersToPaidLead({
+            paidPipelineLeadId: leadRow!.id,
+            offers: offerDrafts,
+            sourceContext: `paid_import:${sessionId}`,
+            createdBy: user?.id || null,
+          });
+        }
+
         created++;
+      }
+
+      // Save selection as new preset if requested
+      if (saveAsPreset && newPresetName.trim() && offerDrafts.length > 0) {
+        try {
+          await createPreset(newPresetName.trim(), null, offerDrafts);
+        } catch (e) { /* non-fatal */ }
       }
 
       setResult({ created, skipped });
@@ -455,6 +483,19 @@ export default function SendToPaidPipelineDrawer({
           )}
 
           {step === 3 && (
+            <OffersStep
+              value={offerDrafts}
+              onChange={setOfferDrafts}
+              presetId={offerPresetId}
+              onPresetChange={setOfferPresetId}
+              saveAsPreset={saveAsPreset}
+              onSaveAsPresetChange={setSaveAsPreset}
+              newPresetName={newPresetName}
+              onNewPresetNameChange={setNewPresetName}
+            />
+          )}
+
+          {step === STEP_REVIEW && (
             <div>
               <div className="flex gap-2 mb-3 text-[12px]">
                 <button onClick={() => setRows(rs => rs.map(r => ({ ...r, selected: true })))} className={ghostBtn + " h-8 px-3"}>Select all</button>
@@ -516,7 +557,7 @@ export default function SendToPaidPipelineDrawer({
             </div>
           )}
 
-          {step === 4 && (
+          {step === STEP_CONFIRM && (
             <div className="space-y-4">
               {!result ? (
                 <>
@@ -546,8 +587,13 @@ export default function SendToPaidPipelineDrawer({
           <button className={ghostBtn} onClick={() => (step === 0 ? onOpenChange(false) : setStep(s => s - 1))} disabled={busy}>
             {step === 0 ? "Cancel" : "Back"}
           </button>
-          {step < 4 ? (
-            <button className={goldBtn} onClick={() => setStep(s => s + 1)} disabled={!canNext()}>Continue</button>
+          {step < STEP_CONFIRM ? (
+            <button className={goldBtn} onClick={() => {
+              if (step === 3 && offerDrafts.length === 0) {
+                if (!confirm("No offer/services selected. Continue?")) return;
+              }
+              setStep(s => s + 1);
+            }} disabled={!canNext()}>Continue</button>
           ) : !result ? (
             <button className={goldBtn} onClick={submit} disabled={busy}>{busy ? "Sending…" : "Send to Paid Pipeline"}</button>
           ) : (

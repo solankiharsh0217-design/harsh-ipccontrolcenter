@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import PromisedOffersPanel from "@/components/offers/PromisedOffersPanel";
 import {
   X as XIcon, ExternalLink, Play, Pause, Square, CheckCircle2, RotateCcw,
   ClipboardCopy,
@@ -320,6 +321,14 @@ export default function OperationsLeadDrawer({
               </div>
             )}
           </Section>
+
+          {/* Promised offers / services */}
+          <PromisedOffersPanel
+            operationsLeadId={lead.id}
+            paidPipelineLeadId={lead.paid_pipeline_lead_id}
+            crmLeadId={lead.crm_lead_id}
+            title="Services / Commitments"
+          />
 
           {/* Notes */}
           {lead.notes && (

@@ -49,6 +49,7 @@ import InvoiceEditor from "./pages/InvoiceEditor";
 import PaidLeadInvoicesPage from "./pages/PaidLeadInvoices";
 import InvoicesPage from "./pages/Invoices";
 import InvoiceItemCatalogPage from "./pages/admin/InvoiceItemCatalog";
+import OfferCatalogPage from "./pages/admin/OfferCatalog";
 import TaxCodeMasterPage from "./pages/admin/TaxCodeMaster";
 import ConversionRulesAdmin from "./pages/admin/ConversionRules";
 import LeadRescueSearch from "./pages/admin/LeadRescueSearch";
@@ -122,6 +123,7 @@ const App = () => (
             <Route path="/invoices/:id" element={<Shell><InvoiceEditor /></Shell>} />
             <Route path="/paid-pipeline/:paidLeadId/invoices" element={<Shell moduleKey="paid-pipeline"><PaidLeadInvoicesPage /></Shell>} />
             <Route path="/admin-center/item-catalog" element={<Shell admin><InvoiceItemCatalogPage /></Shell>} />
+            <Route path="/admin-center/offer-catalog" element={<Shell admin><OfferCatalogPage /></Shell>} />
             <Route path="/admin-center/tax-codes" element={<Shell admin><TaxCodeMasterPage /></Shell>} />
             <Route path="/admin-center/system-refinement" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="/admin-center/eligibility" element={<Shell admin><BulkEligibility /></Shell>} />
