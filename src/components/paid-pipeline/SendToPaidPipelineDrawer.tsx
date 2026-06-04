@@ -587,8 +587,13 @@ export default function SendToPaidPipelineDrawer({
           <button className={ghostBtn} onClick={() => (step === 0 ? onOpenChange(false) : setStep(s => s - 1))} disabled={busy}>
             {step === 0 ? "Cancel" : "Back"}
           </button>
-          {step < 4 ? (
-            <button className={goldBtn} onClick={() => setStep(s => s + 1)} disabled={!canNext()}>Continue</button>
+          {step < STEP_CONFIRM ? (
+            <button className={goldBtn} onClick={() => {
+              if (step === 3 && offerDrafts.length === 0) {
+                if (!confirm("No offer/services selected. Continue?")) return;
+              }
+              setStep(s => s + 1);
+            }} disabled={!canNext()}>Continue</button>
           ) : !result ? (
             <button className={goldBtn} onClick={submit} disabled={busy}>{busy ? "Sending…" : "Send to Paid Pipeline"}</button>
           ) : (
