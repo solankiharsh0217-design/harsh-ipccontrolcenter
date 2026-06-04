@@ -123,6 +123,7 @@ const App = () => (
             <Route path="/invoices/:id" element={<Shell><InvoiceEditor /></Shell>} />
             <Route path="/paid-pipeline/:paidLeadId/invoices" element={<Shell moduleKey="paid-pipeline"><PaidLeadInvoicesPage /></Shell>} />
             <Route path="/admin-center/item-catalog" element={<Shell admin><InvoiceItemCatalogPage /></Shell>} />
+            <Route path="/admin-center/offer-catalog" element={<Shell admin><OfferCatalogPage /></Shell>} />
             <Route path="/admin-center/tax-codes" element={<Shell admin><TaxCodeMasterPage /></Shell>} />
             <Route path="/admin-center/system-refinement" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="/admin-center/eligibility" element={<Shell admin><BulkEligibility /></Shell>} />
