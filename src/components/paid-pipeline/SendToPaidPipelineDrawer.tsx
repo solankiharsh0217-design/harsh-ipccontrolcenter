@@ -557,7 +557,7 @@ export default function SendToPaidPipelineDrawer({
             </div>
           )}
 
-          {step === 4 && (
+          {step === STEP_CONFIRM && (
             <div className="space-y-4">
               {!result ? (
                 <>
