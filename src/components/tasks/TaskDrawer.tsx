@@ -7,6 +7,7 @@ import {
   Task, TaskActivity, TaskPriority, TaskStatus, STATUSES, TAGS, PRIORITY_PILL,
   createTask, updateTask, archiveTask, fetchActivity, todayISO, timeAgo, initialsOf, whatsappText, labelOfStatus,
 } from "@/lib/tasks";
+import AssigneePicker from "./AssigneePicker";
 
 interface Member { id: string; full_name: string; role: string | null }
 
