@@ -43,7 +43,9 @@ type RowEdit = {
   assigned: string;
 };
 
-const STEPS = ["Batch", "Product", "Payment Model", "Review", "Confirm"] as const;
+const STEPS = ["Batch", "Product", "Payment Model", "Offers", "Review", "Confirm"] as const;
+const STEP_REVIEW = 4;
+const STEP_CONFIRM = 5;
 
 export default function SendToPaidPipelineDrawer({
   open, onOpenChange, sessionId, payload, selectedSales, sessionMeta, onDone,
