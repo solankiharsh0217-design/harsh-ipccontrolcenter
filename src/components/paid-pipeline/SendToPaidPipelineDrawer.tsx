@@ -483,6 +483,19 @@ export default function SendToPaidPipelineDrawer({
           )}
 
           {step === 3 && (
+            <OffersStep
+              value={offerDrafts}
+              onChange={setOfferDrafts}
+              presetId={offerPresetId}
+              onPresetChange={setOfferPresetId}
+              saveAsPreset={saveAsPreset}
+              onSaveAsPresetChange={setSaveAsPreset}
+              newPresetName={newPresetName}
+              onNewPresetNameChange={setNewPresetName}
+            />
+          )}
+
+          {step === STEP_REVIEW && (
             <div>
               <div className="flex gap-2 mb-3 text-[12px]">
                 <button onClick={() => setRows(rs => rs.map(r => ({ ...r, selected: true })))} className={ghostBtn + " h-8 px-3"}>Select all</button>
