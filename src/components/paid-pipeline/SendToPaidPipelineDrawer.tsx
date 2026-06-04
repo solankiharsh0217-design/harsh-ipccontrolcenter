@@ -183,7 +183,8 @@ export default function SendToPaidPipelineDrawer({
       return !!(newProductName && newProductPrice > 0);
     }
     if (step === 2) return !!defaultPaymentModel;
-    if (step === 3) return rows.some(r => r.selected);
+    if (step === 3) return true; // Offers — always allow (warning shown on confirm)
+    if (step === STEP_REVIEW) return rows.some(r => r.selected);
     return true;
   };
 
