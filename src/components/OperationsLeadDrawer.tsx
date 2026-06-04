@@ -321,6 +321,14 @@ export default function OperationsLeadDrawer({
             )}
           </Section>
 
+          {/* Promised offers / services */}
+          <PromisedOffersPanel
+            operationsLeadId={lead.id}
+            paidPipelineLeadId={lead.paid_pipeline_lead_id}
+            crmLeadId={lead.crm_lead_id}
+            title="Services / Commitments"
+          />
+
           {/* Notes */}
           {lead.notes && (
             <Section title="Notes">
