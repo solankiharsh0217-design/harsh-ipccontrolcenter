@@ -394,6 +394,43 @@ export default function SendToOperationsCrmModal({
             </div>
           </div>
 
+          {/* Process / Service Type template */}
+          <div>
+            <label className="form-label">Process / Service Type</label>
+            {processTemplates.length === 0 ? (
+              <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+                No process template exists yet.{" "}
+                <Link to="/operations-crm?tab=settings" className="underline font-medium" onClick={onClose}>
+                  Create one in Operations CRM → Settings
+                </Link>.
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <select
+                  value={processTemplateId}
+                  onChange={(e) => setProcessTemplateId(e.target.value)}
+                  className="ipc-input !text-xs max-w-sm"
+                >
+                  <option value="">— No template (assign later) —</option>
+                  {processTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                <Link
+                  to="/operations-crm?tab=settings"
+                  onClick={onClose}
+                  className="text-[11px] underline text-muted-foreground hover:text-black whitespace-nowrap"
+                >
+                  + Create Custom
+                </Link>
+              </div>
+            )}
+            <div className="text-[10px] text-muted-foreground mt-1">
+              Selected template controls the checklist, custom fields, and communication templates for each client.
+            </div>
+          </div>
+
+
           {/* Package */}
           <div>
             <label className="form-label">Service package</label>
