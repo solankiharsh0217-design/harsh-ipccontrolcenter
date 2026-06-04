@@ -3565,6 +3565,129 @@ export type Database = {
         }
         Relationships: []
       }
+      offer_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          default_duration_unit: string | null
+          default_duration_value: number | null
+          default_quantity: number | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_duration_unit?: string | null
+          default_duration_value?: number | null
+          default_quantity?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_duration_unit?: string | null
+          default_duration_value?: number | null
+          default_quantity?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      offer_preset_items: {
+        Row: {
+          created_at: string
+          duration_unit: string | null
+          duration_value: number | null
+          id: string
+          notes: string | null
+          offer_item_id: string | null
+          preset_id: string
+          quantity: number | null
+          title: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_unit?: string | null
+          duration_value?: number | null
+          id?: string
+          notes?: string | null
+          offer_item_id?: string | null
+          preset_id: string
+          quantity?: number | null
+          title?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_unit?: string | null
+          duration_value?: number | null
+          id?: string
+          notes?: string | null
+          offer_item_id?: string | null
+          preset_id?: string
+          quantity?: number | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_preset_items_offer_item_id_fkey"
+            columns: ["offer_item_id"]
+            isOneToOne: false
+            referencedRelation: "offer_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_preset_items_preset_id_fkey"
+            columns: ["preset_id"]
+            isOneToOne: false
+            referencedRelation: "offer_presets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offer_presets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       offline_seminar_reports: {
         Row: {
           break_even_sales_required: number | null
@@ -4499,6 +4622,93 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "operations_process_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paid_lead_offer_items: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          crm_lead_id: string | null
+          duration_unit: string | null
+          duration_value: number | null
+          id: string
+          notes: string | null
+          offer_item_id: string | null
+          operations_lead_id: string | null
+          paid_pipeline_lead_id: string | null
+          quantity: number | null
+          source_context: string | null
+          source_preset_id: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          duration_unit?: string | null
+          duration_value?: number | null
+          id?: string
+          notes?: string | null
+          offer_item_id?: string | null
+          operations_lead_id?: string | null
+          paid_pipeline_lead_id?: string | null
+          quantity?: number | null
+          source_context?: string | null
+          source_preset_id?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          duration_unit?: string | null
+          duration_value?: number | null
+          id?: string
+          notes?: string | null
+          offer_item_id?: string | null
+          operations_lead_id?: string | null
+          paid_pipeline_lead_id?: string | null
+          quantity?: number | null
+          source_context?: string | null
+          source_preset_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paid_lead_offer_items_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paid_lead_offer_items_offer_item_id_fkey"
+            columns: ["offer_item_id"]
+            isOneToOne: false
+            referencedRelation: "offer_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paid_lead_offer_items_operations_lead_id_fkey"
+            columns: ["operations_lead_id"]
+            isOneToOne: false
+            referencedRelation: "operations_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paid_lead_offer_items_paid_pipeline_lead_id_fkey"
+            columns: ["paid_pipeline_lead_id"]
+            isOneToOne: false
+            referencedRelation: "paid_pipeline_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paid_lead_offer_items_source_preset_id_fkey"
+            columns: ["source_preset_id"]
+            isOneToOne: false
+            referencedRelation: "offer_presets"
             referencedColumns: ["id"]
           },
         ]
@@ -7440,6 +7650,7 @@ export type Database = {
         Returns: string
       }
       assign_next_invoice_number: { Args: never; Returns: string }
+      can_delete_offer_item: { Args: { _id: string }; Returns: boolean }
       can_manage_invoice_settings: {
         Args: { user_uuid: string }
         Returns: boolean
