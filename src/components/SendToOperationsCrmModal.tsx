@@ -8,6 +8,8 @@ import { getEligibleAssignees, getOperationsEligibilityDiagnostics, type OpsElig
 import { ensureOperationsPipeline, findExistingActiveOpsLead } from "@/lib/operationsCrm";
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
+import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
+
 
 
 interface SourceLead {
