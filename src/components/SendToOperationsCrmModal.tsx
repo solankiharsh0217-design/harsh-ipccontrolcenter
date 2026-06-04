@@ -76,17 +76,22 @@ export default function SendToOperationsCrmModal({
   const [duplicateMode, setDuplicateMode] = useState<"skip" | "update">(prefill?.duplicateBehavior ?? "skip");
 
   const [diagnostics, setDiagnostics] = useState<OpsEligibilityDiagnostics | null>(null);
+  const [processTemplates, setProcessTemplates] = useState<ProcessTemplate[]>([]);
+  const [processTemplateId, setProcessTemplateId] = useState<string>("");
 
   useEffect(() => {
     (async () => {
-      const [rows, diag] = await Promise.all([
+      const [rows, diag, tpls] = await Promise.all([
         getEligibleAssignees("operations_crm").catch(() => []),
         getOperationsEligibilityDiagnostics().catch(() => null),
+        listProcessTemplates(true).catch(() => [] as ProcessTemplate[]),
       ]);
       setAssignees(rows.map((r) => ({ id: r.id, full_name: r.full_name })));
       setDiagnostics(diag);
+      setProcessTemplates(tpls);
     })();
   }, []);
+
 
 
   const selectedLeads: SourceLead[] = useMemo(() => {
