@@ -21,6 +21,7 @@ import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity, logPaidLeadDiff, logBulkPaidLeadDiff } from "@/lib/auditLog";
 import AssignModal from "@/components/AssignModal";
 import TagPicker from "@/components/TagPicker";
+import PromisedOffersPanel from "@/components/offers/PromisedOffersPanel";
 import FastFollowUpComposer from "@/components/FastFollowUpComposer";
 import SuggestedNextActions from "@/components/SuggestedNextActions";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
@@ -1331,7 +1332,15 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             onOpenFollowUp={() => setOpenFu(true)}
             onOpenTokenPayment={openTokenPayment}
           />
+          <div className="mt-4">
+            <PromisedOffersPanel
+              paidPipelineLeadId={lead.id}
+              crmLeadId={lead.crm_lead_id || null}
+              title="Services / Commitments"
+            />
+          </div>
         </div>
+
 
         <div className="p-6 space-y-5">
 
