@@ -89,6 +89,12 @@ export default function SendToPaidPipelineDrawer({
   const [result, setResult] = useState<{ created: number; skipped: number } | null>(null);
   const [duplicateMode, setDuplicateMode] = useState<"skip" | "create_anyway">("skip");
 
+  // Offers / Entitlements V1
+  const [offerDrafts, setOfferDrafts] = useState<DraftOffer[]>([]);
+  const [offerPresetId, setOfferPresetId] = useState<string | null>(null);
+  const [saveAsPreset, setSaveAsPreset] = useState(false);
+  const [newPresetName, setNewPresetName] = useState("");
+
   useEffect(() => {
     if (!open) return;
     setStep(0);
