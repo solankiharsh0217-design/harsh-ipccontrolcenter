@@ -199,6 +199,7 @@ export default function SendToOperationsCrmModal({
               assigned_media_buyer_id: buyerId,
               assigned_media_buyer_name: buyerName,
               notes: notes || null,
+              ...(processTemplateId ? { process_template_id: processTemplateId } : {}),
             },
           });
           if (buyerId) buyerCounts[buyerId] = (buyerCounts[buyerId] ?? 0) + 1;
@@ -225,7 +226,9 @@ export default function SendToOperationsCrmModal({
           assigned_media_buyer_name: buyerName,
           notes: notes || null,
           created_by: profile?.id ?? null,
+          process_template_id: processTemplateId || null,
         });
+
         if (buyerId) buyerCounts[buyerId] = (buyerCounts[buyerId] ?? 0) + 1;
       }
 
