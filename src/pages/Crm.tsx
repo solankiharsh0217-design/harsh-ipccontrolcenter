@@ -1065,16 +1065,14 @@ export default function Crm() {
                 placeholder="All batches"
                 panelWidth={300}
               />
-              <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-line bg-white h-9">
-                <select className="!text-[11px] bg-transparent border-0 outline-none px-1" value={dateField} onChange={(e) => setDateField(e.target.value as any)} title="Date field">
-                  <option value="webinar_date">Webinar</option>
-                  <option value="created_at">Imported</option>
-                </select>
-                <input type="date" className="!text-[11px] border-0 outline-none px-0.5 w-[110px]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="From" />
-                <span className="text-muted-foreground text-[10px]">–</span>
-                <input type="date" className="!text-[11px] border-0 outline-none px-0.5 w-[110px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To" />
-                {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-muted-foreground hover:text-black px-1" title="Clear"><XIcon className="w-3 h-3" /></button>}
-              </div>
+              <CrmDateRangeControl
+                dateField={dateField}
+                onDateFieldChange={(v) => setDateField(v as any)}
+                dateFrom={dateFrom}
+                dateTo={dateTo}
+                onChange={(f, t) => { setDateFrom(f); setDateTo(t); }}
+              />
+
 
               <Popover>
                 <PopoverTrigger asChild>
