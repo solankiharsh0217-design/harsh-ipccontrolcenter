@@ -179,7 +179,7 @@ export default function OperationsLeadDrawer({
           {/* Process / Intake summary */}
           <Section title="Process / Intake">
             <div className="grid grid-cols-2 gap-2">
-              <Card label="Process template" value={templateName || "—"} />
+              <Card label="Process / Service Type" value={templateName || "Not assigned"} />
               <Card label="Intake status" value={lead.intake_status || "—"} />
               <Card label="Readiness" value={readinessSummary ? `${readinessSummary.pct}%${readinessSummary.blocked ? " · blocked" : ""}` : "—"} />
               <Card label="Source" value={lead.intake_source || "—"} />
@@ -188,44 +188,72 @@ export default function OperationsLeadDrawer({
                 <Card label="Override" value={lead.readiness_override_reason} />
               )}
             </div>
-            {!lead.process_template_id && (
-              <div className="mt-3 border border-[#FDE68A] bg-[#FFFBEB] rounded-md p-2.5">
-                <div className="text-[11px] text-[#92400E] font-medium">No process template assigned</div>
-                {isAdmin ? (
-                  templates.length === 0 ? (
-                    <div className="text-[10px] text-[#92400E]/80 mt-1">
-                      No templates exist yet. Create one from Operations CRM → Settings.
-                    </div>
-                  ) : (
-                    <div className="mt-2 flex items-center gap-2">
-                      <select
-                        defaultValue=""
-                        onChange={async (e) => {
-                          const v = e.target.value;
-                          if (!v) return;
-                          const { error } = await supabase
-                            .from("operations_leads" as any)
-                            .update({ process_template_id: v } as any)
-                            .eq("id", lead.id);
-                          if (error) { toast.error(error.message); return; }
-                          toast.success("Process template assigned");
-                          onSaved();
-                        }}
-                        className="ipc-input !h-8 !text-xs"
-                      >
-                        <option value="">Assign Process Template…</option>
-                        {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                      </select>
-                    </div>
-                  )
+
+            {/* Template assignment / change */}
+            {isAdmin && (
+              <div className="mt-3 border border-line rounded-md p-2.5 bg-off/30">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                  {lead.process_template_id ? "Change process / service type" : "Assign process / service type"}
+                </div>
+                {templates.length === 0 ? (
+                  <div className="text-[11px] text-[#92400E]">
+                    No process template exists.{" "}
+                    <a href="/operations-crm?tab=settings" className="underline font-medium">
+                      Create one in Operations CRM → Settings
+                    </a>.
+                  </div>
                 ) : (
-                  <div className="text-[10px] text-[#92400E]/80 mt-1">
-                    Please contact admin to assign a process template.
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={lead.process_template_id ?? ""}
+                      onChange={async (e) => {
+                        const v = e.target.value || null;
+                        if (v === (lead.process_template_id ?? null)) return;
+                        const isActive = lead.service_status === "active" || lead.service_status === "paused";
+                        if (isActive) {
+                          const ok = window.confirm(
+                            "Changing process template may change the checklist and custom fields for this client. Existing filled values will remain but may not apply to the new template. Continue?"
+                          );
+                          if (!ok) return;
+                        }
+                        const { error } = await supabase
+                          .from("operations_leads" as any)
+                          .update({ process_template_id: v } as any)
+                          .eq("id", lead.id);
+                        if (error) { toast.error(error.message); return; }
+                        toast.success(v ? "Process template updated" : "Process template removed");
+                        onSaved();
+                      }}
+                      className="ipc-input !h-8 !text-xs max-w-xs"
+                    >
+                      <option value="">— Not assigned —</option>
+                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    <a
+                      href="/operations-crm?tab=settings"
+                      className="text-[11px] underline text-muted-foreground hover:text-black"
+                    >
+                      + Create Custom
+                    </a>
+                  </div>
+                )}
+                {!lead.process_template_id && (
+                  <div className="text-[10px] text-muted-foreground mt-1">
+                    The selected process controls the checklist, custom fields, and communication templates.
                   </div>
                 )}
               </div>
             )}
+            {!isAdmin && !lead.process_template_id && (
+              <div className="mt-3 border border-[#FDE68A] bg-[#FFFBEB] rounded-md p-2.5">
+                <div className="text-[11px] text-[#92400E] font-medium">No process / service type assigned</div>
+                <div className="text-[10px] text-[#92400E]/80 mt-1">
+                  Please contact admin to assign a process template.
+                </div>
+              </div>
+            )}
           </Section>
+
 
           {/* Readiness Checklist */}
           <Section title="Readiness checklist">
