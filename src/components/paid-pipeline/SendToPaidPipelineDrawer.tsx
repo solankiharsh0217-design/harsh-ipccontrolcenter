@@ -324,7 +324,24 @@ export default function SendToPaidPipelineDrawer({
           summary: `Lead ${r.sale.name || r.sale.email || "(unnamed)"} created from ${payload.webinarName}.`,
         });
 
+        // Attach promised offers / services
+        if (offerDrafts.length > 0) {
+          await attachOffersToPaidLead({
+            paidPipelineLeadId: leadRow!.id,
+            offers: offerDrafts,
+            sourceContext: `paid_import:${sessionId}`,
+            createdBy: user?.id || null,
+          });
+        }
+
         created++;
+      }
+
+      // Save selection as new preset if requested
+      if (saveAsPreset && newPresetName.trim() && offerDrafts.length > 0) {
+        try {
+          await createPreset(newPresetName.trim(), null, offerDrafts);
+        } catch (e) { /* non-fatal */ }
       }
 
       setResult({ created, skipped });
