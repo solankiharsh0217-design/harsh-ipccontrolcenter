@@ -1229,7 +1229,10 @@ export default function Crm() {
           attendanceGradeFilter.forEach((g) => chips.push(<FilterChip key={`ag-${g}`} label={`Attendance: ${HOTNESS_LABEL[g as Hotness] || g}`} onClear={() => setAttendanceGradeFilter(attendanceGradeFilter.filter((x) => x !== g))} />));
           if (minAttendedMinutes > 0) chips.push(<FilterChip key="min" label={`Attended: ${minAttendedMinutes}+ min`} onClear={() => setMinAttendedMinutes(0)} />);
           if (attendanceDataFilter !== "any") chips.push(<FilterChip key="ad" label={attendanceDataFilter === "has" ? "Has attendance data" : "No attendance data"} onClear={() => setAttendanceDataFilter("any")} />);
-          if (dateFrom || dateTo) chips.push(<FilterChip key="d" label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${dateFrom || "…"} → ${dateTo || "…"}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />);
+          if (dateFrom || dateTo) {
+            const fmtChip = (d: string) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "…";
+            chips.push(<FilterChip key="d" label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${fmtChip(dateFrom)} → ${fmtChip(dateTo)}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />);
+          }
           tagFilter.forEach((tid) => chips.push(<FilterChip key={`t-${tid}`} label={`Tag: ${tagNameLookup[tid] || tid}`} onClear={() => setTagFilter(tagFilter.filter((x) => x !== tid))} />));
           stageFilter.forEach((sid) => chips.push(<FilterChip key={`s-${sid}`} label={`Stage: ${stageNameLookupLocal[sid] || sid}`} onClear={() => setStageFilter(stageFilter.filter((x) => x !== sid))} />));
           const MAX = 6;
