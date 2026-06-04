@@ -6,6 +6,8 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import type { SaleDetail, AttributionPayload } from "@/lib/roasExport";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
+import OffersStep from "@/components/offers/OffersStep";
+import { attachOffersToPaidLead, createPreset, type DraftOffer } from "@/lib/offers";
 
 const inr = (n: number) => "₹" + (Math.round(n || 0)).toLocaleString("en-IN");
 
