@@ -20,7 +20,8 @@ import {
   type HandoffRule, type AutoHandoffLeadInput,
 } from "@/lib/operationsCrm";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
-import MultiSelectFilter, { CANONICAL_GRADES, normalizeGradeValue, gradeLabel } from "@/components/crm/MultiSelectFilter";
+import MultiSelectFilter, { CANONICAL_GRADES, normalizeGradeValue, gradeLabel, leadMatchesGrades } from "@/components/crm/MultiSelectFilter";
+import CrmDateRangeControl from "@/components/crm/CrmDateRangeControl";
 import { Tag as TagIcon, Layers, Flame, FolderOpen } from "lucide-react";
 import AttendanceBadge, { ATTENDANCE_GRADE_OPTIONS, ATTENDANCE_MIN_MINUTES_OPTIONS, ATTENDANCE_DATA_OPTIONS } from "@/components/crm/AttendanceBadge";
 import { getHotnessForLeads, HOTNESS_LABEL, type HotnessScore, type Hotness } from "@/lib/leadAttendance";
@@ -419,56 +420,67 @@ export default function Crm() {
     }
     return map;
   }, [leads]);
-  const pipelineLeads = useMemo(() => {
+  // Base list: pipeline + archive + converted (used as the universe for ALL secondary filters
+  // and dropdown counts so counts/results stay consistent).
+  const baseScopeLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
-    // "Converted" / "hide from sales" filter only makes sense for the Sales (unpaid) pipeline.
-    // On Paid — Onboarding and Operations CRM, every lead has a paid link by definition, so this
-    // filter would incorrectly hide every card (the Kanban visibility bug for Paid Onboarding).
     if (convertedFilter !== "show" && activePipelineType === "unpaid") {
       list = list.filter((l: any) => {
         const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
         return convertedFilter === "only" ? isConv : !isConv;
       });
     }
+    return list;
+  }, [leads, activePipeline, activePipelineType, showArchived, convertedFilter]);
 
-    if (gradeFilter.length > 0) {
+  // Helpers shared between the main filter and the dropdown count derivations.
+  const legacyGradeToHotness = (g: any): Hotness => {
+    const s = String(g || "").toLowerCase().replace(/-/g, "_");
+    if (s === "super_hot") return "super_hot";
+    if (s === "hot") return "hot";
+    if (s === "warm") return "warm";
+    if (s === "cold") return "cold";
+    if (s === "true_absentee" || s === "absent" || s === "non_attendee" || s === "inactive") return "inactive";
+    return "inactive";
+  };
+  const leadAttMinutes = (l: any) => {
+    const phase1 = hotnessMap[l.id]?.total_attended_minutes || 0;
+    const legacy = Number(l.total_minutes || 0);
+    return Math.max(phase1, legacy);
+  };
+  const leadAttHasData = (l: any) => {
+    const h = hotnessMap[l.id];
+    if (h && (h.total_sessions_attended || 0) > 0) return true;
+    if (Number(l.total_minutes || 0) > 0) return true;
+    if (Number(l.webinar_count || 0) > 0 && Number(l.attendance_pct || 0) > 0) return true;
+    return false;
+  };
+
+  /**
+   * Apply every secondary filter except the one named in `except`.
+   * Used by pipelineLeads (`except = "none"`) AND by each dropdown's option
+   * counter so that the dropdown count matches the board result you'd get
+   * after selecting that option.
+   */
+  type FilterKey = "none" | "grade" | "batch" | "tag" | "stage" | "attendance" | "min" | "attendanceData" | "date" | "search";
+  const applyFiltersExcept = (except: FilterKey): Lead[] => {
+    let list = baseScopeLeads;
+    if (except !== "grade" && gradeFilter.length > 0) {
       const set = new Set(gradeFilter);
-      list = list.filter((l: any) => {
-        if (set.has("super-hot") && l.is_super_hot) return true;
-        const g = normalizeGradeValue(l.grade);
-        return g && set.has(g);
-      });
+      list = list.filter((l: any) => leadMatchesGrades(l, set));
     }
-    if (batchFilter.length > 0) list = list.filter((l) => batchFilter.includes(l.webinar_source || "—"));
-    if (tagFilter.length > 0) {
+    if (except !== "batch" && batchFilter.length > 0) {
+      list = list.filter((l) => batchFilter.includes(l.webinar_source || "—"));
+    }
+    if (except !== "tag" && tagFilter.length > 0) {
       const tagSet = new Set(tagFilter);
       list = list.filter((l) => (leadTagsMap[l.id] || []).some((t) => tagSet.has(t.id)));
     }
-    if (stageFilter.length > 0) list = list.filter((l) => l.stage_id && stageFilter.includes(l.stage_id));
-    // Map legacy lead.grade (hyphenated) to Phase 1 attendance grade vocabulary
-    const legacyGradeToHotness = (g: any): Hotness => {
-      const s = String(g || "").toLowerCase().replace(/-/g, "_");
-      if (s === "super_hot") return "super_hot";
-      if (s === "hot") return "hot";
-      if (s === "warm") return "warm";
-      if (s === "cold") return "cold";
-      if (s === "true_absentee" || s === "absent" || s === "non_attendee" || s === "inactive") return "inactive";
-      return "inactive";
-    };
-    const leadAttMinutes = (l: any) => {
-      const phase1 = hotnessMap[l.id]?.total_attended_minutes || 0;
-      const legacy = Number(l.total_minutes || 0);
-      return Math.max(phase1, legacy);
-    };
-    const leadAttHasData = (l: any) => {
-      const h = hotnessMap[l.id];
-      if (h && (h.total_sessions_attended || 0) > 0) return true;
-      if (Number(l.total_minutes || 0) > 0) return true;
-      if (Number(l.webinar_count || 0) > 0 && Number(l.attendance_pct || 0) > 0) return true;
-      return false;
-    };
-    if (attendanceGradeFilter.length > 0) {
+    if (except !== "stage" && stageFilter.length > 0) {
+      list = list.filter((l) => l.stage_id && stageFilter.includes(l.stage_id));
+    }
+    if (except !== "attendance" && attendanceGradeFilter.length > 0) {
       const aset = new Set(attendanceGradeFilter);
       list = list.filter((l: any) => {
         const h = hotnessMap[l.id];
@@ -478,43 +490,49 @@ export default function Crm() {
         return aset.has(grade);
       });
     }
-    if (minAttendedMinutes > 0) {
+    if (except !== "min" && minAttendedMinutes > 0) {
       list = list.filter((l) => leadAttMinutes(l) >= minAttendedMinutes);
     }
-    if (attendanceDataFilter !== "any") {
+    if (except !== "attendanceData" && attendanceDataFilter !== "any") {
       list = list.filter((l) => {
         const has = leadAttHasData(l);
         return attendanceDataFilter === "has" ? has : !has;
       });
     }
-
-    if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
-    if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
-      // Build extra tokens for fuzzy email matching so a typo like
-      // "vu3ge@gmail.com" still surfaces "vu3geq@gmail.com" (same logic as Universal Search).
-      const tokens: string[] = [q];
-      if (q.includes("@")) {
-        const local = q.split("@")[0];
-        if (local && local.length >= 3) tokens.push(local);
-      }
-      const digitsOnly = q.replace(/\D/g, "");
-      if (digitsOnly.length >= 5) tokens.push(digitsOnly);
-      list = list.filter((l: any) => {
-        const hay = [leadIdentityText(l), ...(linkedIdentityByLeadId.get(l.id) || [])].join(" ");
-        if (tokens.some((t) => hay.includes(t))) return true;
-        // Local-part prefix: actual email begins with the searched local part
-        if (q.includes("@") && l.email) {
-          const localQ = q.split("@")[0];
-          const localL = String(l.email).toLowerCase().split("@")[0];
-          if (localQ && localL && (localL.startsWith(localQ) || localQ.startsWith(localL))) return true;
-        }
-        return false;
-      });
+    if (except !== "date") {
+      if (dateFrom) list = list.filter((l: any) => (l[dateField] || "") >= dateFrom);
+      if (dateTo) list = list.filter((l: any) => (l[dateField] || "") <= dateTo + (dateField === "created_at" ? "T23:59:59" : ""));
     }
-    return list.slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [leads, activePipeline, activePipelineType, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, showArchived, convertedFilter, linkedIdentityByLeadId]);
+    if (except !== "search") {
+      const q = searchQuery.trim().toLowerCase();
+      if (q) {
+        const tokens: string[] = [q];
+        if (q.includes("@")) {
+          const local = q.split("@")[0];
+          if (local && local.length >= 3) tokens.push(local);
+        }
+        const digitsOnly = q.replace(/\D/g, "");
+        if (digitsOnly.length >= 5) tokens.push(digitsOnly);
+        list = list.filter((l: any) => {
+          const hay = [leadIdentityText(l), ...(linkedIdentityByLeadId.get(l.id) || [])].join(" ");
+          if (tokens.some((t) => hay.includes(t))) return true;
+          if (q.includes("@") && l.email) {
+            const localQ = q.split("@")[0];
+            const localL = String(l.email).toLowerCase().split("@")[0];
+            if (localQ && localL && (localL.startsWith(localQ) || localQ.startsWith(localL))) return true;
+          }
+          return false;
+        });
+      }
+    }
+    return list;
+  };
+
+  const pipelineLeads = useMemo(() => {
+    return applyFiltersExcept("none").slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId]);
+
 
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
@@ -875,38 +893,33 @@ export default function Crm() {
     finally { setAssignBusy(false); }
   };
 
-  // Base scope for option counts: leads in the current pipeline, archived/converted filters honored,
-  // but BEFORE multi-select filters apply — so users always see the universe of options.
-  const filterScopeLeads = useMemo(() => {
-    let list = leads.filter((l) => l.pipeline_id === activePipeline);
-    list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
-    if (convertedFilter !== "show" && activePipelineType === "unpaid") {
-      list = list.filter((l: any) => {
-        const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
-        return convertedFilter === "only" ? isConv : !isConv;
-      });
-    }
-    return list;
-  }, [leads, activePipeline, activePipelineType, showArchived, convertedFilter]);
+  // Dropdown option counts: derived from the SAME visible universe the board would show
+  // after selecting that option. Each dropdown excludes its OWN filter so the user can see
+  // how many leads would match if they toggled values within that filter.
+  const allFiltersDeps = [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId];
 
   const batchOptions = useMemo(() => {
+    const scope = applyFiltersExcept("batch");
     const counts = new Map<string, number>();
-    for (const l of filterScopeLeads) {
+    for (const l of scope) {
       const b = l.webinar_source || "—";
       counts.set(b, (counts.get(b) || 0) + 1);
     }
     return Array.from(counts.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([value, count]) => ({ value, label: value, count }));
-  }, [filterScopeLeads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, allFiltersDeps);
 
   const gradeOptions = useMemo(() => {
+    const scope = applyFiltersExcept("grade") as any[];
     const counts = new Map<string, number>();
     let superHotCount = 0;
-    for (const l of filterScopeLeads as any[]) {
+    for (const l of scope) {
       if (l.is_super_hot) superHotCount++;
       const g = normalizeGradeValue(l.grade);
-      if (g) counts.set(g, (counts.get(g) || 0) + 1);
+      if (g && g !== "super-hot") counts.set(g, (counts.get(g) || 0) + 1);
+      if (g === "super-hot" && !l.is_super_hot) superHotCount++;
     }
     const seen = new Set<string>();
     const out: { value: string; label: string; count: number }[] = [];
@@ -915,40 +928,46 @@ export default function Crm() {
       seen.add(c.value);
       out.push({ value: c.value, label: c.label, count });
     }
-    // Surface any grades present in data that aren't in the canonical list.
     for (const [value, count] of counts.entries()) {
       if (!seen.has(value)) out.push({ value, label: gradeLabel(value), count });
     }
     return out;
-  }, [filterScopeLeads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, allFiltersDeps);
 
   const tagOptions = useMemo(() => {
+    const scope = applyFiltersExcept("tag");
     const counts = new Map<string, number>();
-    for (const l of filterScopeLeads) {
+    for (const l of scope) {
       for (const t of leadTagsMap[l.id] || []) counts.set(t.id, (counts.get(t.id) || 0) + 1);
     }
     return allTags
       .map((t) => ({ value: t.id, label: t.name, count: counts.get(t.id) || 0, color: t.color || undefined }))
       .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label));
-  }, [allTags, leadTagsMap, filterScopeLeads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTags, ...allFiltersDeps]);
 
   const stageOptions = useMemo(() => {
+    const scope = applyFiltersExcept("stage");
     const counts = new Map<string, number>();
-    for (const l of filterScopeLeads) {
+    for (const l of scope) {
       if (l.stage_id) counts.set(l.stage_id, (counts.get(l.stage_id) || 0) + 1);
     }
     return pipelineStages.map((s) => ({ value: s.id, label: s.name, count: counts.get(s.id) || 0 }));
-  }, [pipelineStages, filterScopeLeads]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pipelineStages, ...allFiltersDeps]);
 
   const attendanceGradeOptions = useMemo(() => {
+    const scope = applyFiltersExcept("attendance") as any[];
     const counts = new Map<string, number>();
-    for (const l of filterScopeLeads as any[]) {
+    for (const l of scope) {
       const h = hotnessMap[l.id];
       const grade: Hotness = h ? (h.manual_override && h.manual_grade ? h.manual_grade : h.current_hotness) : "inactive";
       counts.set(grade, (counts.get(grade) || 0) + 1);
     }
     return ATTENDANCE_GRADE_OPTIONS.map((o) => ({ value: o.value, label: o.label, count: counts.get(o.value) || 0 }));
-  }, [filterScopeLeads, hotnessMap]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, allFiltersDeps);
 
   const tagNameLookup = useMemo(() => Object.fromEntries(allTags.map((t) => [t.id, t.name])), [allTags]);
   const stageNameLookupLocal = useMemo(() => Object.fromEntries(pipelineStages.map((s) => [s.id, s.name])), [pipelineStages]);
@@ -1047,16 +1066,14 @@ export default function Crm() {
                 placeholder="All batches"
                 panelWidth={300}
               />
-              <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-line bg-white h-9">
-                <select className="!text-[11px] bg-transparent border-0 outline-none px-1" value={dateField} onChange={(e) => setDateField(e.target.value as any)} title="Date field">
-                  <option value="webinar_date">Webinar</option>
-                  <option value="created_at">Imported</option>
-                </select>
-                <input type="date" className="!text-[11px] border-0 outline-none px-0.5 w-[110px]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="From" />
-                <span className="text-muted-foreground text-[10px]">–</span>
-                <input type="date" className="!text-[11px] border-0 outline-none px-0.5 w-[110px]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="To" />
-                {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-muted-foreground hover:text-black px-1" title="Clear"><XIcon className="w-3 h-3" /></button>}
-              </div>
+              <CrmDateRangeControl
+                dateField={dateField}
+                onDateFieldChange={(v) => setDateField(v as any)}
+                dateFrom={dateFrom}
+                dateTo={dateTo}
+                onChange={(f, t) => { setDateFrom(f); setDateTo(t); }}
+              />
+
 
               <Popover>
                 <PopoverTrigger asChild>
@@ -1212,7 +1229,10 @@ export default function Crm() {
           attendanceGradeFilter.forEach((g) => chips.push(<FilterChip key={`ag-${g}`} label={`Attendance: ${HOTNESS_LABEL[g as Hotness] || g}`} onClear={() => setAttendanceGradeFilter(attendanceGradeFilter.filter((x) => x !== g))} />));
           if (minAttendedMinutes > 0) chips.push(<FilterChip key="min" label={`Attended: ${minAttendedMinutes}+ min`} onClear={() => setMinAttendedMinutes(0)} />);
           if (attendanceDataFilter !== "any") chips.push(<FilterChip key="ad" label={attendanceDataFilter === "has" ? "Has attendance data" : "No attendance data"} onClear={() => setAttendanceDataFilter("any")} />);
-          if (dateFrom || dateTo) chips.push(<FilterChip key="d" label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${dateFrom || "…"} → ${dateTo || "…"}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />);
+          if (dateFrom || dateTo) {
+            const fmtChip = (d: string) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "…";
+            chips.push(<FilterChip key="d" label={`${dateField === "webinar_date" ? "Webinar" : "Imported"}: ${fmtChip(dateFrom)} → ${fmtChip(dateTo)}`} onClear={() => { setDateFrom(""); setDateTo(""); }} />);
+          }
           tagFilter.forEach((tid) => chips.push(<FilterChip key={`t-${tid}`} label={`Tag: ${tagNameLookup[tid] || tid}`} onClear={() => setTagFilter(tagFilter.filter((x) => x !== tid))} />));
           stageFilter.forEach((sid) => chips.push(<FilterChip key={`s-${sid}`} label={`Stage: ${stageNameLookupLocal[sid] || sid}`} onClear={() => setStageFilter(stageFilter.filter((x) => x !== sid))} />));
           const MAX = 6;

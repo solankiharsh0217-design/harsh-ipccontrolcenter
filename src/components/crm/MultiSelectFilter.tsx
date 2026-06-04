@@ -174,9 +174,27 @@ export const CANONICAL_GRADES: { value: string; label: string }[] = [
 export function normalizeGradeValue(raw: string | null | undefined): string {
   if (!raw) return "";
   const s = String(raw).toLowerCase().trim().replace(/_/g, "-").replace(/\s+/g, "-");
-  if (s === "true-absent" || s === "absentee" || s === "true-absentees") return "true-absentee";
-  if (s === "superhot") return "super-hot";
+  if (s === "true-absent" || s === "absentee" || s === "true-absentees" || s === "true-absentee") return "true-absentee";
+  if (s === "superhot" || s === "super-hot") return "super-hot";
+  if (s === "noshow" || s === "no-show" || s === "non-attendee") return "non-attendee";
+  if (s === "verycold" || s === "very-cold") return "very-cold";
   return s;
+}
+
+/**
+ * Returns true if a lead matches any of the selected canonical grade values.
+ * Handles Super Hot via the is_super_hot flag as well as the grade column,
+ * and tolerates legacy/whitespace/underscore variants via normalizeGradeValue.
+ */
+export function leadMatchesGrades(
+  lead: { grade?: string | null; is_super_hot?: boolean | null },
+  selected: string[] | Set<string>,
+): boolean {
+  const set = selected instanceof Set ? selected : new Set(selected);
+  if (set.size === 0) return true;
+  if (set.has("super-hot") && lead.is_super_hot) return true;
+  const g = normalizeGradeValue(lead.grade);
+  return !!g && set.has(g);
 }
 
 export function gradeLabel(value: string): string {
