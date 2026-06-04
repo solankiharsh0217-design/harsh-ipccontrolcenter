@@ -28,6 +28,7 @@ import LinkedRecordsPanel from "@/components/crm/LinkedRecordsPanel";
 import LeadNotesSection from "@/components/crm/LeadNotesSection";
 import MoveCopyLinkPipelineModal from "@/components/crm/MoveCopyLinkPipelineModal";
 import SendToPaidOnboardingModal from "@/components/crm/SendToPaidOnboardingModal";
+import PromisedOffersPanel from "@/components/offers/PromisedOffersPanel";
 
 
 
