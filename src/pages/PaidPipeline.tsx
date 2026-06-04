@@ -1331,7 +1331,15 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             onOpenFollowUp={() => setOpenFu(true)}
             onOpenTokenPayment={openTokenPayment}
           />
+          <div className="mt-4">
+            <PromisedOffersPanel
+              paidPipelineLeadId={lead.id}
+              crmLeadId={lead.crm_lead_id || null}
+              title="Services / Commitments"
+            />
+          </div>
         </div>
+
 
         <div className="p-6 space-y-5">
 
