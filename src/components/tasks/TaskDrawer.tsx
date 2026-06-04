@@ -137,19 +137,11 @@ export default function TaskDrawer({
 
           {isAdmin && (
             <Field label="Assign to">
-              <select
+              <AssigneePicker
                 value={assignedTo}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  setAssignedTo(id);
-                  setAssignedName(members.find((m) => m.id === id)?.full_name ?? "");
-                }}
-                className="ipc-input !h-10 !text-[13px] w-full"
-              >
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.full_name}{m.role ? ` — ${m.role}` : ""}</option>
-                ))}
-              </select>
+                valueName={assignedName}
+                onChange={(id, name) => { setAssignedTo(id); setAssignedName(name); }}
+              />
             </Field>
           )}
 
