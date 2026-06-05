@@ -7,6 +7,9 @@ import { X, Plus, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, Link2, L
 import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type LeadGrade } from "@/lib/crmTypes";
 import { logActivity } from "@/lib/auditLog";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
+import { listServicePackages, buildSnapshot, type ServicePackage } from "@/lib/servicePackages";
+import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
+import { Link } from "react-router-dom";
 
 export type DuplicatePolicy = "skip" | "update" | "move" | "new_only";
 export type AssignmentMode = "unassigned" | "assign_to_me" | "assign_to_member" | "round_robin" | "hot_to_top";
@@ -115,6 +118,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [defaultGrade, setDefaultGrade] = useState<LeadGrade>("warm");
   const [productName, setProductName] = useState("IPC Diamond Program");
   const [dealValue, setDealValue] = useState<number>(118000);
+  const [servicePackages, setServicePackages] = useState<ServicePackage[]>([]);
+  const [servicePackageId, setServicePackageId] = useState<string>("");
+  const [processTemplates, setProcessTemplates] = useState<ProcessTemplate[]>([]);
+  const [processTemplateId, setProcessTemplateId] = useState<string>("");
+  const [sendToOperations, setSendToOperations] = useState<boolean>(false);
+  const [overwriteServicePackage, setOverwriteServicePackage] = useState<boolean>(false);
 
   // Step 4
   const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
@@ -277,14 +286,18 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const goToStep3 = async () => {
     setLoading(true);
     try {
-      const [{ data: pl }, { data: st }, elig] = await Promise.all([
+      const [{ data: pl }, { data: st }, elig, pkgs, tmpls] = await Promise.all([
         supabase.from("pipelines").select("*").order("position"),
         supabase.from("stages").select("*").order("position"),
         getEligibleAssignees("calling_crm"),
+        listServicePackages(false).catch(() => [] as ServicePackage[]),
+        listProcessTemplates(true).catch(() => [] as ProcessTemplate[]),
       ]);
       setPipelines(pl || []);
       setStages(st || []);
       setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name, role: a.role })));
+      setServicePackages(pkgs);
+      setProcessTemplates(tmpls);
       const list = pl || [];
       const def = resolveDefaultPipelineId(leadType, list);
       setTargetPipelineId(def);
@@ -713,6 +726,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
 
       // --- Insert new rows in chunks ---
+      const selectedPackage = servicePackages.find((p) => p.id === servicePackageId) || null;
+      const packageSnapshot = selectedPackage ? buildSnapshot(selectedPackage) : null;
+      const resolvedProcessTemplateId =
+        processTemplateId || selectedPackage?.default_process_template_id || null;
+
       const newPayloads = newRows.map((r) => {
         const grade = defaultGrade;
         const agentId = assign(grade, false);
@@ -737,7 +755,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           sessions_count: 0,
           is_super_hot: false,
           lead_source_type: "direct_import",
-        };
+          service_package_id: servicePackageId || null,
+          service_package_snapshot: packageSnapshot,
+        } as any;
       });
 
       for (let i = 0; i < newPayloads.length; i += 200) {
@@ -813,12 +833,18 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               pipeline_stage: "Payment Confirmed",
               payment_status: "No Payment",
               crm_lead_id: lead.id,
+              service_package_id: servicePackageId || null,
+              service_package_snapshot: packageSnapshot,
             };
 
             if (existing) {
-              await supabase.from("paid_pipeline_leads").update({
-                crm_lead_id: lead.id,
-              } as any).eq("id", existing.id);
+              const updatePatch: any = { crm_lead_id: lead.id };
+              // Only overwrite service package on existing buyer when admin opted in
+              if (overwriteServicePackage && servicePackageId) {
+                updatePatch.service_package_id = servicePackageId;
+                updatePatch.service_package_snapshot = packageSnapshot;
+              }
+              await supabase.from("paid_pipeline_leads").update(updatePatch).eq("id", existing.id);
               if (lead.paid_pipeline_lead_id !== existing.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: existing.id } as any).eq("id", lead.id);
               }
@@ -830,6 +856,28 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               if (!insErr && ins?.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: ins.id } as any).eq("id", lead.id);
                 paidSynced++;
+                // Optionally seed Operations Intake immediately
+                if (sendToOperations) {
+                  try {
+                    await supabase.from("operations_leads" as any).insert({
+                      crm_lead_id: lead.id,
+                      paid_pipeline_lead_id: ins.id,
+                      full_name: lead.full_name,
+                      email: lead.email,
+                      phone: lead.phone,
+                      program_name: lead.program_name || productName || null,
+                      deal_value: Number(lead.deal_value || dealValue || 0),
+                      process_template_id: resolvedProcessTemplateId,
+                      service_package_id: servicePackageId || null,
+                      service_package_snapshot: packageSnapshot,
+                      source_type: "crm_import",
+                      source_batch_name: segmentName,
+                      created_by: profile?.id,
+                    } as any);
+                  } catch (opsErr: any) {
+                    console.error("[ImportLeadsModal] operations_leads insert failed", opsErr);
+                  }
+                }
               } else if (insErr) {
                 console.error("[ImportLeadsModal] paid_pipeline_leads insert failed", insErr);
                 paidUnlinked++;
@@ -955,13 +1003,37 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={onClose}>
       <div className="bg-white rounded-xl border border-line w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-line flex items-center justify-between">
-          <div>
+        <div className="px-6 pt-4 pb-3 border-b border-line">
+          <div className="flex items-center justify-between">
             <div className="font-serif text-xl">Import Leads</div>
-            <div className="font-sans text-xs text-muted-foreground mt-0.5">{step === 5 ? "Import complete" : `Step ${step} of 4`}</div>
+            <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
+          {step !== 5 ? (
+            <div className="mt-3 flex items-center gap-1.5 text-[11px]">
+              {["Upload", "Webinar / Segment", "Lead Type & Service", "Review & Import"].map((label, idx) => {
+                const n = idx + 1;
+                const active = step === n;
+                const done = step > n;
+                return (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-medium ${
+                        active ? "bg-black text-white" : done ? "bg-emerald-100 text-emerald-700" : "bg-off text-muted-foreground"
+                      }`}
+                    >
+                      {n}
+                    </span>
+                    <span className={active ? "font-medium text-foreground" : "text-muted-foreground"}>{label}</span>
+                    {idx < 3 && <span className="text-muted-foreground/40">›</span>}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-1 font-sans text-xs text-muted-foreground">Import complete</div>
+          )}
         </div>
+
 
         {step === 1 && (
           <div className="p-6 space-y-4">
@@ -1202,12 +1274,72 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label flex items-center justify-between">
+                  <span>Service Package / Tier</span>
+                  <Link to="/admin-center/service-packages" target="_blank" className="text-[10px] text-muted-foreground hover:text-foreground underline">+ Manage</Link>
+                </label>
+                <select
+                  className="ipc-input"
+                  value={servicePackageId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setServicePackageId(id);
+                    const pkg = servicePackages.find((p) => p.id === id);
+                    if (pkg?.default_process_template_id && !processTemplateId) {
+                      setProcessTemplateId(pkg.default_process_template_id);
+                    }
+                  }}
+                >
+                  <option value="">— None —</option>
+                  {servicePackages.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}{p.code ? ` · ${p.code}` : ""}</option>
+                  ))}
+                </select>
+                {servicePackages.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-1">No service packages defined yet. Use Manage to add.</p>
+                )}
+              </div>
+              <div>
+                <label className="form-label flex items-center justify-between">
+                  <span>Operations Process Template</span>
+                  <Link to="/operations-crm?tab=settings" target="_blank" className="text-[10px] text-muted-foreground hover:text-foreground underline">+ Manage</Link>
+                </label>
+                <select className="ipc-input" value={processTemplateId} onChange={(e) => setProcessTemplateId(e.target.value)}>
+                  <option value="">— None / Decide later —</option>
+                  {processTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {leadType === "paid" && (
+              <div className="space-y-2">
+                <label className="flex items-start gap-2 text-xs cursor-pointer p-3 rounded-md border border-line bg-off">
+                  <input type="checkbox" className="mt-0.5" checked={sendToOperations} onChange={(e) => setSendToOperations(e.target.checked)} />
+                  <span>
+                    <b>Also send to Operations Intake</b> — creates Operations CRM records using the selected Process Template and Service Package.
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-xs cursor-pointer p-3 rounded-md border border-line">
+                  <input type="checkbox" className="mt-0.5" checked={overwriteServicePackage} onChange={(e) => setOverwriteServicePackage(e.target.checked)} />
+                  <span>
+                    <b>Update service package on existing paid buyers</b> — by default, an existing buyer's package is preserved.
+                  </span>
+                </label>
+              </div>
+            )}
+
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(2)} className="ipc-btn ipc-btn-ghost">Back</button>
               <button onClick={() => setStep(4)} disabled={creatingPipeline && !newPipeName.trim()} className="ipc-btn ipc-btn-black disabled:opacity-50">Continue</button>
             </div>
           </div>
         )}
+
+
 
         {step === 4 && (
           <div className="p-6 space-y-4">
@@ -1224,6 +1356,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 </b>
               </div>
               <div><span className="text-muted-foreground">Lead type:</span> <b>{leadType}</b> · default grade <b style={{ color: GRADE_STYLES[defaultGrade].fg }}>{GRADE_STYLES[defaultGrade].label}</b></div>
+              <div><span className="text-muted-foreground">Product / Program:</span> <b>{productName || "—"}</b> · ₹{dealValue.toLocaleString("en-IN")}</div>
+              <div><span className="text-muted-foreground">Service Package / Tier:</span> <b>{servicePackages.find((p) => p.id === servicePackageId)?.name || "— None —"}</b></div>
+              <div><span className="text-muted-foreground">Operations Process Template:</span> <b>{processTemplates.find((t) => t.id === processTemplateId)?.name || servicePackages.find((p) => p.id === servicePackageId)?.default_process_template_id && processTemplates.find((t) => t.id === servicePackages.find((p) => p.id === servicePackageId)?.default_process_template_id)?.name || "— None —"}</b></div>
+              {leadType === "paid" && <div><span className="text-muted-foreground">Send to Operations Intake:</span> <b>{sendToOperations ? "Yes" : "No"}</b></div>}
             </div>
 
             {targetMismatch && (

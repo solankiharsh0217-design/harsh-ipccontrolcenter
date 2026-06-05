@@ -106,6 +106,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Service Packages / Tiers",
+      desc: "Define the service tiers (Normal, Specialized, Premium…) you can attach during paid lead import. Carries from Calling CRM → Paid Pipeline → Operations.",
+      cta: "Open Service Packages",
+      to: "/admin-center/service-packages",
+      show: isAdmin,
+    },
+    {
       title: "SAC / HSN Master",
       desc: "Curate the SAC/HSN code list used by the invoice editor's tax-code finder.",
       cta: "Open SAC/HSN Master",

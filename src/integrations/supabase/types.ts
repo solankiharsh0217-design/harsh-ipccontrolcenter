@@ -2858,6 +2858,8 @@ export type Database = {
           pipeline_id: string | null
           program_name: string
           score: number
+          service_package_id: string | null
+          service_package_snapshot: Json | null
           sessions_count: number
           sort_order: number
           stage_id: string | null
@@ -2902,6 +2904,8 @@ export type Database = {
           pipeline_id?: string | null
           program_name?: string
           score?: number
+          service_package_id?: string | null
+          service_package_snapshot?: Json | null
           sessions_count?: number
           sort_order?: number
           stage_id?: string | null
@@ -2946,6 +2950,8 @@ export type Database = {
           pipeline_id?: string | null
           program_name?: string
           score?: number
+          service_package_id?: string | null
+          service_package_snapshot?: Json | null
           sessions_count?: number
           sort_order?: number
           stage_id?: string | null
@@ -2969,6 +2975,13 @@ export type Database = {
             columns: ["pipeline_id"]
             isOneToOne: false
             referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_service_package_id_fkey"
+            columns: ["service_package_id"]
+            isOneToOne: false
+            referencedRelation: "service_packages"
             referencedColumns: ["id"]
           },
           {
@@ -4196,6 +4209,7 @@ export type Database = {
           service_months: number | null
           service_package_id: string | null
           service_package_name: string | null
+          service_package_snapshot: Json | null
           service_status: string
           sort_order: number
           source_stage: string | null
@@ -4241,6 +4255,7 @@ export type Database = {
           service_months?: number | null
           service_package_id?: string | null
           service_package_name?: string | null
+          service_package_snapshot?: Json | null
           service_status?: string
           sort_order?: number
           source_stage?: string | null
@@ -4286,6 +4301,7 @@ export type Database = {
           service_months?: number | null
           service_package_id?: string | null
           service_package_name?: string | null
+          service_package_snapshot?: Json | null
           service_status?: string
           sort_order?: number
           source_stage?: string | null
@@ -4766,6 +4782,8 @@ export type Database = {
           is_deleted: boolean
           product_id: string | null
           product_name_snapshot: string | null
+          service_package_id: string | null
+          service_package_snapshot: Json | null
           source_webinar_batch_id: string | null
           source_webinar_date: string | null
           source_webinar_name: string | null
@@ -4782,6 +4800,8 @@ export type Database = {
           is_deleted?: boolean
           product_id?: string | null
           product_name_snapshot?: string | null
+          service_package_id?: string | null
+          service_package_snapshot?: Json | null
           source_webinar_batch_id?: string | null
           source_webinar_date?: string | null
           source_webinar_name?: string | null
@@ -4798,12 +4818,22 @@ export type Database = {
           is_deleted?: boolean
           product_id?: string | null
           product_name_snapshot?: string | null
+          service_package_id?: string | null
+          service_package_snapshot?: Json | null
           source_webinar_batch_id?: string | null
           source_webinar_date?: string | null
           source_webinar_name?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "paid_pipeline_batches_service_package_id_fkey"
+            columns: ["service_package_id"]
+            isOneToOne: false
+            referencedRelation: "service_packages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       paid_pipeline_finance_details: {
         Row: {
@@ -5004,6 +5034,8 @@ export type Database = {
           revenue_to_be_realized: number | null
           sent_to_crm: boolean | null
           sent_to_crm_at: string | null
+          service_package_id: string | null
+          service_package_snapshot: Json | null
           source_report_date: string | null
           source_unpaid_lead_id: string | null
           source_webinar: string | null
@@ -5089,6 +5121,8 @@ export type Database = {
           revenue_to_be_realized?: number | null
           sent_to_crm?: boolean | null
           sent_to_crm_at?: string | null
+          service_package_id?: string | null
+          service_package_snapshot?: Json | null
           source_report_date?: string | null
           source_unpaid_lead_id?: string | null
           source_webinar?: string | null
@@ -5174,6 +5208,8 @@ export type Database = {
           revenue_to_be_realized?: number | null
           sent_to_crm?: boolean | null
           sent_to_crm_at?: string | null
+          service_package_id?: string | null
+          service_package_snapshot?: Json | null
           source_report_date?: string | null
           source_unpaid_lead_id?: string | null
           source_webinar?: string | null
@@ -5189,6 +5225,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "program_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paid_pipeline_leads_service_package_id_fkey"
+            columns: ["service_package_id"]
+            isOneToOne: false
+            referencedRelation: "service_packages"
             referencedColumns: ["id"]
           },
           {
@@ -6943,6 +6986,63 @@ export type Database = {
           whatsapp_summary_text?: string | null
         }
         Relationships: []
+      }
+      service_packages: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string | null
+          default_process_template_id: string | null
+          default_service_duration_days: number | null
+          description: string | null
+          id: string
+          included_services: Json | null
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_process_template_id?: string | null
+          default_service_duration_days?: number | null
+          description?: string | null
+          id?: string
+          included_services?: Json | null
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_process_template_id?: string | null
+          default_service_duration_days?: number | null
+          description?: string | null
+          id?: string
+          included_services?: Json | null
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_packages_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_packages_default_process_template_id_fkey"
+            columns: ["default_process_template_id"]
+            isOneToOne: false
+            referencedRelation: "operations_process_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stage_sync_rules: {
         Row: {
