@@ -567,10 +567,29 @@ export default function Crm() {
     pipelines.forEach((p) => m.set(p.id, p.type as any));
     return m;
   }, [pipelines]);
+  const batchMetaByName = useMemo(() => {
+    const m = new Map<string, typeof batchMeta[number]>();
+    batchMeta.forEach((wb) => {
+      const key = (wb.batch_name || wb.webinar_name || "").toLowerCase();
+      if (key && !m.has(key)) m.set(key, wb);
+    });
+    return m;
+  }, [batchMeta]);
   const batchesWithType = useMemo(
-    () => batches.map((b) => ({ ...b, pipelineType: (b.pipelineId && pipelineTypeById.get(b.pipelineId)) || "custom" as const })),
-    [batches, pipelineTypeById]
-  );
+    () => batches.map((b) => {
+      const meta = batchMetaByName.get((b.name || "").toLowerCase());
+      const snapshot = b.servicePackageSnapshot || meta?.service_package_snapshot || null;
+      const packageName = b.servicePackageName || (meta?.service_package_snapshot as any)?.name || null;
+      return {
+        ...b,
+        pipelineType: (b.pipelineId && pipelineTypeById.get(b.pipelineId)) || "custom" as const,
+        servicePackageSnapshot: snapshot,
+        servicePackageName: packageName,
+        productName: meta?.product_name || null,
+        dealValue: meta?.deal_value || null,
+      };
+    }),
+    [batches, pipelineTypeById, batchMetaByName]
   const batchCounts = useMemo(() => {
     let unpaid = 0, paid = 0, custom = 0;
     for (const b of batchesWithType) {
