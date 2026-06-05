@@ -1071,6 +1071,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         newImported,
         updated,
         moved,
+        promoted,
         restored,
         phoneOnlyImported,
         skippedDuplicates,
