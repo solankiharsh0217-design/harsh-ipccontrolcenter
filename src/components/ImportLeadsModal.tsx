@@ -926,12 +926,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           is_deleted: false,
         };
         // Try matching an existing active batch row by (batch_name, webinar_date)
-        const { data: existingBatch } = await supabase
+        const { data: existingBatchRaw } = await supabase
           .from("webinar_batches" as any)
           .select("id, imported_lead_count")
           .ilike("batch_name", segmentName)
           .eq("is_deleted", false)
           .maybeSingle();
+        const existingBatch = existingBatchRaw as any;
         if (existingBatch?.id) {
           const patch: any = { ...batchPayload };
           delete patch.created_by;
