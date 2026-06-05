@@ -2060,6 +2060,9 @@ export default function Crm() {
                     <td className="px-4 py-3">
                       <div className="font-serif text-sm">{l.full_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">{l.email}</div>
+                      {((l as any).service_package_snapshot?.name) && (
+                        <div className="mt-1"><ServicePackageChip snapshot={(l as any).service_package_snapshot} /></div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs">{l.phone || "—"}</td>
                     <td className="px-4 py-3 text-xs">{l.score}</td>
