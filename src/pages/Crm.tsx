@@ -1961,6 +1961,9 @@ export default function Crm() {
                   </div>
                   <div className="font-serif text-lg mt-2 line-clamp-2">{b.name}</div>
                   <div className="text-[11px] text-muted-foreground mt-1">{pipe?.name || "—"}</div>
+                  {((b as any).servicePackageName || (b as any).servicePackageSnapshot?.name) && (
+                    <div className="mt-2"><ServicePackageChip snapshot={(b as any).servicePackageSnapshot} fallbackName={(b as any).servicePackageName} /></div>
+                  )}
                   <div className="flex items-center justify-between mt-4">
                     <div className="font-serif text-3xl">{b.total}</div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">leads</div>
