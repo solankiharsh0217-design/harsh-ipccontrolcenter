@@ -864,11 +864,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         try {
           // Sync only CRM leads created in this import. Existing matches are intentionally skipped so
           // their paid-pipeline status/stage/source tracking cannot be rewritten by an import.
-          const { data: crmRows } = createdCrmLeadIds.size > 0
+          const syncIds = new Set<string>([...createdCrmLeadIds, ...promotedCrmLeadIds]);
+          const { data: crmRows } = syncIds.size > 0
             ? await supabase
               .from("leads")
               .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id")
-              .in("id", Array.from(createdCrmLeadIds))
+              .in("id", Array.from(syncIds))
             : { data: [] as any[] };
 
           for (const lead of (crmRows || []) as any[]) {
