@@ -52,6 +52,7 @@ export default function Crm() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
+  const [batchMeta, setBatchMeta] = useState<Array<{ id: string; batch_name: string | null; webinar_name: string | null; webinar_date: string | null; service_package_id: string | null; service_package_snapshot: any | null; process_template_id: string | null; product_name: string | null; deal_value: number | null; pipeline_id: string | null }>>([]);
   const [activePipeline, setActivePipeline] = useState<string | null>(null);
   const [view, setView] = useState<View>("kanban");
   const [openLead, setOpenLead] = useState<string | null>(null);
