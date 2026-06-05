@@ -590,6 +590,7 @@ export default function Crm() {
       };
     }),
     [batches, pipelineTypeById, batchMetaByName]
+  );
   const batchCounts = useMemo(() => {
     let unpaid = 0, paid = 0, custom = 0;
     for (const b of batchesWithType) {
