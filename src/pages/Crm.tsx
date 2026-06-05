@@ -257,10 +257,25 @@ export default function Crm() {
     setImportOpen(false);
     await load();
     if (!result) return;
+    // Switch to the pipeline we imported into and clear any secondary filters
+    // that could hide the freshly imported leads. Keep only the batch filter so
+    // the user immediately sees the new batch's leads on the Kanban board.
     setActivePipeline(result.pipelineId);
     setBatchFilter([result.batchName]);
     setBatchPipelineFilter(result.leadType);
-    setView("batches");
+    setGradeFilter([]);
+    setAttendanceGradeFilter([]);
+    setAttendanceDataFilter("any");
+    setMinAttendedMinutes(0);
+    setTagFilter([]);
+    setStageFilter([]);
+    setSearchQuery("");
+    setDateFrom("");
+    setDateTo("");
+    setShowArchived(false);
+    setConvertedFilter("hide");
+
+    setView("kanban");
     const pipelineLabel = result.leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)";
     const parts: string[] = [];
     if (result.newImported) parts.push(`${result.newImported} new`);
@@ -274,6 +289,7 @@ export default function Crm() {
       { duration: 7000 }
     );
   };
+
 
   const load = async () => {
     let { data: p } = await supabase.from("pipelines").select("*").order("position");
@@ -299,7 +315,7 @@ export default function Crm() {
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
     if (!activePipeline && p && p.length) {
       const want = new URLSearchParams(window.location.search).get("pipeline");
-      const paid = (p as any[]).find((x) => x.pipeline_type === "paid");
+      const paid = (p as any[]).find((x) => x.type === "paid");
       if (want === "paid_onboarding" && paid) setActivePipeline(paid.id);
       else setActivePipeline(p[0].id);
     }
