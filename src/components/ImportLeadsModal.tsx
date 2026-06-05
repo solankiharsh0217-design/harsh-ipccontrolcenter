@@ -1606,12 +1606,16 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
             <div>
               <label className="form-label">If a row matches an existing CRM lead</label>
-              <select className="ipc-input" value={duplicatePolicy} onChange={(e) => setDuplicatePolicy(e.target.value as DuplicatePolicy)}>
-                <option value="skip">Skip existing CRM matches — safest</option>
+              <select className="ipc-input" value={duplicatePolicy} onChange={(e) => { setDuplicatePolicy(e.target.value as DuplicatePolicy); setDuplicatePolicyTouched(true); }}>
+                {leadType === "paid" && (
+                  <option value="promote">Promote existing unpaid leads to Paid Onboarding — recommended</option>
+                )}
+                <option value="skip">Skip existing CRM matches{leadType !== "paid" ? " — safest" : ""}</option>
                 <option value="update">Only fill missing name/email/phone</option>
                 <option value="new_only">Import new only (report existing matches as skipped)</option>
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
+                {duplicatePolicy === "promote" && "Existing CRM matches will be moved into the selected Paid Onboarding pipeline, marked converted, hidden from the unpaid sales workload, and tagged with the chosen Service Package + Process Template. Notes, tags, attendance and activity history are preserved; active unpaid follow-ups are closed with reason \"Promoted to paid\"."}
                 {duplicatePolicy === "update" && "Existing CRM matches will keep their current pipeline, stage, status, owner, product, deal value and batch. Only blank contact fields are filled."}
                 {duplicatePolicy === "skip" && "Existing CRM matches will be skipped — no changes made. Only brand-new rows will be inserted."}
                 {duplicatePolicy === "new_only" && "Only rows with no email/phone match in CRM will be imported. Existing matches will be reported as skipped."}
