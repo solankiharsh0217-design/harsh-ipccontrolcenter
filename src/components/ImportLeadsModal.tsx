@@ -726,6 +726,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
 
       // --- Insert new rows in chunks ---
+      const selectedPackage = servicePackages.find((p) => p.id === servicePackageId) || null;
+      const packageSnapshot = selectedPackage ? buildSnapshot(selectedPackage) : null;
+      const resolvedProcessTemplateId =
+        processTemplateId || selectedPackage?.default_process_template_id || null;
+
       const newPayloads = newRows.map((r) => {
         const grade = defaultGrade;
         const agentId = assign(grade, false);
@@ -750,7 +755,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           sessions_count: 0,
           is_super_hot: false,
           lead_source_type: "direct_import",
-        };
+          service_package_id: servicePackageId || null,
+          service_package_snapshot: packageSnapshot,
+        } as any;
       });
 
       for (let i = 0; i < newPayloads.length; i += 200) {
