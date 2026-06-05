@@ -427,8 +427,8 @@ export default function OperationsCrm() {
                         <div className="text-[10px] text-muted-foreground truncate">
                           {l.assigned_media_buyer_name || "Unassigned"}
                         </div>
-                        {l.service_package_name && (
-                          <div className="text-[10px] text-muted-foreground flex-shrink-0 truncate max-w-[120px]" title={l.service_package_name}>{l.service_package_name}</div>
+                        {((l as any).service_package_snapshot?.name || l.service_package_name) && (
+                          <ServicePackageChip snapshot={(l as any).service_package_snapshot} fallbackName={l.service_package_name} />
                         )}
                       </div>
                       <div className="text-[10px] text-foreground/80 truncate mt-1">{progressLine}</div>
