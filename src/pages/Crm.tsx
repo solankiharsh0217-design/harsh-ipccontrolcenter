@@ -538,10 +538,10 @@ export default function Crm() {
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
     const filteredForBatches = leads.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at);
-    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null }>();
+    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null; servicePackageSnapshot: any | null; servicePackageName: string | null }>();
     for (const l of filteredForBatches) {
       const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
-      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at };
+      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at, servicePackageSnapshot: null, servicePackageName: null };
       cur.total++;
       if (l.is_super_hot) cur.superHot++;
       if (l.grade === "hot") cur.hot++;
@@ -549,6 +549,10 @@ export default function Crm() {
       else if (l.grade === "cold") cur.cold++;
       else if (l.grade === "non-attendee" || l.grade === "true-absentee" || l.grade === "very-cold") cur.absentees++;
       if (!cur.created || (l.created_at && l.created_at > cur.created)) cur.created = l.created_at;
+      if (!cur.servicePackageSnapshot && (l as any).service_package_snapshot) {
+        cur.servicePackageSnapshot = (l as any).service_package_snapshot;
+        cur.servicePackageName = (l as any).service_package_snapshot?.name || null;
+      }
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
