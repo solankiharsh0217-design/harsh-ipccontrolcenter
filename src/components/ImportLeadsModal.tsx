@@ -1274,12 +1274,72 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label flex items-center justify-between">
+                  <span>Service Package / Tier</span>
+                  <Link to="/admin-center/service-packages" target="_blank" className="text-[10px] text-muted-foreground hover:text-foreground underline">+ Manage</Link>
+                </label>
+                <select
+                  className="ipc-input"
+                  value={servicePackageId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setServicePackageId(id);
+                    const pkg = servicePackages.find((p) => p.id === id);
+                    if (pkg?.default_process_template_id && !processTemplateId) {
+                      setProcessTemplateId(pkg.default_process_template_id);
+                    }
+                  }}
+                >
+                  <option value="">— None —</option>
+                  {servicePackages.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}{p.code ? ` · ${p.code}` : ""}</option>
+                  ))}
+                </select>
+                {servicePackages.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-1">No service packages defined yet. Use Manage to add.</p>
+                )}
+              </div>
+              <div>
+                <label className="form-label flex items-center justify-between">
+                  <span>Operations Process Template</span>
+                  <Link to="/operations-crm?tab=settings" target="_blank" className="text-[10px] text-muted-foreground hover:text-foreground underline">+ Manage</Link>
+                </label>
+                <select className="ipc-input" value={processTemplateId} onChange={(e) => setProcessTemplateId(e.target.value)}>
+                  <option value="">— None / Decide later —</option>
+                  {processTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {leadType === "paid" && (
+              <div className="space-y-2">
+                <label className="flex items-start gap-2 text-xs cursor-pointer p-3 rounded-md border border-line bg-off">
+                  <input type="checkbox" className="mt-0.5" checked={sendToOperations} onChange={(e) => setSendToOperations(e.target.checked)} />
+                  <span>
+                    <b>Also send to Operations Intake</b> — creates Operations CRM records using the selected Process Template and Service Package.
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-xs cursor-pointer p-3 rounded-md border border-line">
+                  <input type="checkbox" className="mt-0.5" checked={overwriteServicePackage} onChange={(e) => setOverwriteServicePackage(e.target.checked)} />
+                  <span>
+                    <b>Update service package on existing paid buyers</b> — by default, an existing buyer's package is preserved.
+                  </span>
+                </label>
+              </div>
+            )}
+
             <div className="flex justify-between pt-2">
               <button onClick={() => setStep(2)} className="ipc-btn ipc-btn-ghost">Back</button>
               <button onClick={() => setStep(4)} disabled={creatingPipeline && !newPipeName.trim()} className="ipc-btn ipc-btn-black disabled:opacity-50">Continue</button>
             </div>
           </div>
         )}
+
+
 
         {step === 4 && (
           <div className="p-6 space-y-4">
