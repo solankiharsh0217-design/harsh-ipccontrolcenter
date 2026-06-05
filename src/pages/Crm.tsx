@@ -36,6 +36,7 @@ import { Archive, RotateCcw } from "lucide-react";
 import UniversalSearchPanel from "@/components/crm/UniversalSearchPanel";
 import { useFocusKanbanCard } from "@/hooks/useFocusKanbanCard";
 import type { UniversalSearchResult } from "@/lib/universalSearch";
+import ServicePackageChip from "@/components/ServicePackageChip";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
