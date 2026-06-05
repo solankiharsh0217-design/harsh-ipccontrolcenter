@@ -1003,13 +1003,37 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" onClick={onClose}>
       <div className="bg-white rounded-xl border border-line w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-line flex items-center justify-between">
-          <div>
+        <div className="px-6 pt-4 pb-3 border-b border-line">
+          <div className="flex items-center justify-between">
             <div className="font-serif text-xl">Import Leads</div>
-            <div className="font-sans text-xs text-muted-foreground mt-0.5">{step === 5 ? "Import complete" : `Step ${step} of 4`}</div>
+            <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
+          {step !== 5 ? (
+            <div className="mt-3 flex items-center gap-1.5 text-[11px]">
+              {["Upload", "Webinar / Segment", "Lead Type & Service", "Review & Import"].map((label, idx) => {
+                const n = idx + 1;
+                const active = step === n;
+                const done = step > n;
+                return (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-medium ${
+                        active ? "bg-black text-white" : done ? "bg-emerald-100 text-emerald-700" : "bg-off text-muted-foreground"
+                      }`}
+                    >
+                      {n}
+                    </span>
+                    <span className={active ? "font-medium text-foreground" : "text-muted-foreground"}>{label}</span>
+                    {idx < 3 && <span className="text-muted-foreground/40">›</span>}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-1 font-sans text-xs text-muted-foreground">Import complete</div>
+          )}
         </div>
+
 
         {step === 1 && (
           <div className="p-6 space-y-4">
