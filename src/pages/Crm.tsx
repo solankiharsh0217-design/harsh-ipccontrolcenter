@@ -1739,6 +1739,9 @@ export default function Crm() {
                                 {l.webinar_source && <div className="uppercase-label !text-[8px] mb-1">{l.webinar_source}</div>}
                                 <div className="font-serif text-sm truncate">{l.full_name || "Unnamed"}</div>
                                 <div className="text-[11px] text-muted-foreground truncate">{l.program_name}</div>
+                                {((l as any).service_package_snapshot?.name) && (
+                                  <div className="mt-1"><ServicePackageChip snapshot={(l as any).service_package_snapshot} /></div>
+                                )}
                                 <div className="text-[11px] mt-0.5">{l.phone || "—"}</div>
                                 <div className="text-[11px] mt-1">₹{Number(l.deal_value).toLocaleString("en-IN")}</div>
                                 {(leadTagsMap[l.id] || []).length > 0 && (
