@@ -11,7 +11,7 @@ import { listServicePackages, buildSnapshot, type ServicePackage } from "@/lib/s
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
 import { Link } from "react-router-dom";
 
-export type DuplicatePolicy = "skip" | "update" | "move" | "new_only";
+export type DuplicatePolicy = "skip" | "update" | "move" | "new_only" | "promote";
 export type AssignmentMode = "unassigned" | "assign_to_me" | "assign_to_member" | "round_robin" | "hot_to_top";
 
 export interface ImportResult {
@@ -20,10 +20,11 @@ export interface ImportResult {
   pipelineType: "unpaid" | "paid" | "custom";
   leadType: "unpaid" | "paid";
   batchName: string;
-  imported: number;          // total successful (new + updated + moved) — back-compat
+  imported: number;          // total successful (new + updated + moved + promoted) — back-compat
   newImported: number;
   updated: number;
   moved: number;
+  promoted: number;
   restored: number;
   phoneOnlyImported: number;
   skippedDuplicates: number;
