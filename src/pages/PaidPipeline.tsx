@@ -35,6 +35,7 @@ import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import CompactPaidRow from "@/components/paid-pipeline/CompactPaidRow";
 import { getPaymentStatus, type PayStatusKey } from "@/lib/paidPaymentStatus";
+import ServicePackageChip from "@/components/ServicePackageChip";
 
 type Lead = {
   id: string;
