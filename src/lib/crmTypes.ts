@@ -20,6 +20,8 @@ export interface Lead {
   code_of_conduct_request_id?: string | null;
   code_of_conduct_sent_at?: string | null;
   code_of_conduct_signed_at?: string | null;
+  service_package_id?: string | null;
+  service_package_snapshot?: { id?: string; name?: string; code?: string | null } | null;
 }
 export interface ActivityLog {
   id: string; lead_id: string; agent_id: string | null; agent_name: string | null;
