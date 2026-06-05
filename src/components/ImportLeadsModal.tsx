@@ -502,13 +502,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             const conflict = !!(phoneMatch && phoneMatch.id !== emailMatch.id);
             if (conflict) matchConflictCount++;
             if (emailMatch.archived_at) archivedMatchCount++;
-            if (duplicatePolicy === "update") willImport++; else willSkip++;
+            if (duplicatePolicy === "update" || duplicatePolicy === "promote") willImport++; else willSkip++;
             return { ...base, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
           }
           if (phoneMatch) {
             existingByPhoneCount++;
             if (phoneMatch.archived_at) archivedMatchCount++;
-            if (duplicatePolicy === "update") willImport++; else willSkip++;
+            if (duplicatePolicy === "update" || duplicatePolicy === "promote") willImport++; else willSkip++;
             return { ...base, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
           }
           // No email
