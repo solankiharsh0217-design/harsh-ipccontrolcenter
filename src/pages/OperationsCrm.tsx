@@ -21,6 +21,7 @@ import OperationsIntakeTab from "@/components/operations/OperationsIntakeTab";
 import OperationsSettingsTab from "@/components/operations/OperationsSettingsTab";
 import { getMonthlyCountsByBuyer, currentMonthStr } from "@/lib/operationsConversions";
 import type { Pipeline, Stage } from "@/lib/crmTypes";
+import ServicePackageChip from "@/components/ServicePackageChip";
 
 interface OpsLead {
   id: string;
