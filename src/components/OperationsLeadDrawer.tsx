@@ -290,7 +290,7 @@ export default function OperationsLeadDrawer({
           {/* Service Summary */}
           <Section title="Service summary">
             <div className="grid grid-cols-2 gap-2">
-              <Card label="Package" value={lead.service_package_name || "—"} />
+              <Card label="Package" value={(lead as any).service_package_snapshot?.name || lead.service_package_name || "—"} />
               <Card label="Committed" value={`${calc.committedDays} days${lead.service_months ? ` · ${lead.service_months}m` : ""}`} />
               <Card label="Status" value={SERVICE_STATUS_LABELS[status] || status} />
               <Card label="Ads launch date" value={lead.ad_launch_date || "—"} />
