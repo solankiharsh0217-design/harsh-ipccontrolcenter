@@ -833,12 +833,18 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               pipeline_stage: "Payment Confirmed",
               payment_status: "No Payment",
               crm_lead_id: lead.id,
+              service_package_id: servicePackageId || null,
+              service_package_snapshot: packageSnapshot,
             };
 
             if (existing) {
-              await supabase.from("paid_pipeline_leads").update({
-                crm_lead_id: lead.id,
-              } as any).eq("id", existing.id);
+              const updatePatch: any = { crm_lead_id: lead.id };
+              // Only overwrite service package on existing buyer when admin opted in
+              if (overwriteServicePackage && servicePackageId) {
+                updatePatch.service_package_id = servicePackageId;
+                updatePatch.service_package_snapshot = packageSnapshot;
+              }
+              await supabase.from("paid_pipeline_leads").update(updatePatch).eq("id", existing.id);
               if (lead.paid_pipeline_lead_id !== existing.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: existing.id } as any).eq("id", lead.id);
               }
@@ -850,6 +856,28 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               if (!insErr && ins?.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: ins.id } as any).eq("id", lead.id);
                 paidSynced++;
+                // Optionally seed Operations Intake immediately
+                if (sendToOperations) {
+                  try {
+                    await supabase.from("operations_leads" as any).insert({
+                      crm_lead_id: lead.id,
+                      paid_pipeline_lead_id: ins.id,
+                      full_name: lead.full_name,
+                      email: lead.email,
+                      phone: lead.phone,
+                      program_name: lead.program_name || productName || null,
+                      deal_value: Number(lead.deal_value || dealValue || 0),
+                      process_template_id: resolvedProcessTemplateId,
+                      service_package_id: servicePackageId || null,
+                      service_package_snapshot: packageSnapshot,
+                      source_type: "crm_import",
+                      source_batch_name: segmentName,
+                      created_by: profile?.id,
+                    } as any);
+                  } catch (opsErr: any) {
+                    console.error("[ImportLeadsModal] operations_leads insert failed", opsErr);
+                  }
+                }
               } else if (insErr) {
                 console.error("[ImportLeadsModal] paid_pipeline_leads insert failed", insErr);
                 paidUnlinked++;
