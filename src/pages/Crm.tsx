@@ -285,14 +285,16 @@ export default function Crm() {
       const reload = await supabase.from("pipelines").select("*").order("position");
       p = reload.data || [];
     }
-    const [{ data: s }, { data: l }, elig] = await Promise.all([
+    const [{ data: s }, { data: l }, elig, { data: wb }] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
       supabase.from("leads").select("*").order("created_at", { ascending: false }),
       getEligibleAssignees("calling_crm"),
+      supabase.from("webinar_batches" as any).select("id, batch_name, webinar_name, webinar_date, service_package_id, service_package_snapshot, process_template_id, product_name, deal_value, pipeline_id").eq("is_deleted", false),
     ]);
     setPipelines((p || []) as any);
     setStages((s || []) as any);
     setLeads((l || []) as any);
+    setBatchMeta(((wb as any) || []) as any);
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
     if (!activePipeline && p && p.length) {
       const want = new URLSearchParams(window.location.search).get("pipeline");
