@@ -1010,7 +1010,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         console.error("[ImportLeadsModal] webinar_batches upsert failed", batchErr);
       }
 
-      const totalSuccess = newImported + updated + moved;
+      const totalSuccess = newImported + updated + moved + promoted;
       if (totalSuccess === 0 && failed === 0 && skippedDuplicates === 0) {
         toast.error("No leads were imported.");
         setImporting(false);
