@@ -909,6 +909,43 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         }
       }
 
+      // ── Persist batch-level metadata (Service Package, Process Template, etc.) ──
+      try {
+        const batchPayload: any = {
+          batch_name: segmentName,
+          webinar_name: webinarName || segmentName,
+          webinar_date: webinarDate || null,
+          pipeline_id: pipelineId,
+          product_name: productName || null,
+          deal_value: dealValue || null,
+          service_package_id: servicePackageId || null,
+          service_package_snapshot: packageSnapshot,
+          process_template_id: resolvedProcessTemplateId,
+          imported_lead_count: newImported,
+          created_by: profile?.id,
+          is_deleted: false,
+        };
+        // Try matching an existing active batch row by (batch_name, webinar_date)
+        const { data: existingBatchRaw } = await supabase
+          .from("webinar_batches" as any)
+          .select("id, imported_lead_count")
+          .ilike("batch_name", segmentName)
+          .eq("is_deleted", false)
+          .maybeSingle();
+        const existingBatch = existingBatchRaw as any;
+        if (existingBatch?.id) {
+          const patch: any = { ...batchPayload };
+          delete patch.created_by;
+          // Accumulate count instead of overwriting
+          patch.imported_lead_count = (existingBatch.imported_lead_count || 0) + newImported;
+          await supabase.from("webinar_batches" as any).update(patch).eq("id", existingBatch.id);
+        } else {
+          await supabase.from("webinar_batches" as any).insert(batchPayload);
+        }
+      } catch (batchErr: any) {
+        console.error("[ImportLeadsModal] webinar_batches upsert failed", batchErr);
+      }
+
       const totalSuccess = newImported + updated + moved;
       if (totalSuccess === 0 && failed === 0 && skippedDuplicates === 0) {
         toast.error("No leads were imported.");

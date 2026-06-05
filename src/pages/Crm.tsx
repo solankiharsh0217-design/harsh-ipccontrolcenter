@@ -52,6 +52,7 @@ export default function Crm() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [agents, setAgents] = useState<{ id: string; full_name: string }[]>([]);
+  const [batchMeta, setBatchMeta] = useState<Array<{ id: string; batch_name: string | null; webinar_name: string | null; webinar_date: string | null; service_package_id: string | null; service_package_snapshot: any | null; process_template_id: string | null; product_name: string | null; deal_value: number | null; pipeline_id: string | null }>>([]);
   const [activePipeline, setActivePipeline] = useState<string | null>(null);
   const [view, setView] = useState<View>("kanban");
   const [openLead, setOpenLead] = useState<string | null>(null);
@@ -285,14 +286,16 @@ export default function Crm() {
       const reload = await supabase.from("pipelines").select("*").order("position");
       p = reload.data || [];
     }
-    const [{ data: s }, { data: l }, elig] = await Promise.all([
+    const [{ data: s }, { data: l }, elig, { data: wb }] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
       supabase.from("leads").select("*").order("created_at", { ascending: false }),
       getEligibleAssignees("calling_crm"),
+      supabase.from("webinar_batches" as any).select("id, batch_name, webinar_name, webinar_date, service_package_id, service_package_snapshot, process_template_id, product_name, deal_value, pipeline_id").eq("is_deleted", false),
     ]);
     setPipelines((p || []) as any);
     setStages((s || []) as any);
     setLeads((l || []) as any);
+    setBatchMeta(((wb as any) || []) as any);
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
     if (!activePipeline && p && p.length) {
       const want = new URLSearchParams(window.location.search).get("pipeline");
@@ -538,10 +541,10 @@ export default function Crm() {
   // Group leads into webinar batches (cards on the Batches view)
   const batches = useMemo(() => {
     const filteredForBatches = leads.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at);
-    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null }>();
+    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null; servicePackageSnapshot: any | null; servicePackageName: string | null }>();
     for (const l of filteredForBatches) {
       const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
-      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at };
+      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at, servicePackageSnapshot: null, servicePackageName: null };
       cur.total++;
       if (l.is_super_hot) cur.superHot++;
       if (l.grade === "hot") cur.hot++;
@@ -549,6 +552,10 @@ export default function Crm() {
       else if (l.grade === "cold") cur.cold++;
       else if (l.grade === "non-attendee" || l.grade === "true-absentee" || l.grade === "very-cold") cur.absentees++;
       if (!cur.created || (l.created_at && l.created_at > cur.created)) cur.created = l.created_at;
+      if (!cur.servicePackageSnapshot && (l as any).service_package_snapshot) {
+        cur.servicePackageSnapshot = (l as any).service_package_snapshot;
+        cur.servicePackageName = (l as any).service_package_snapshot?.name || null;
+      }
       map.set(key, cur);
     }
     return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
@@ -560,9 +567,29 @@ export default function Crm() {
     pipelines.forEach((p) => m.set(p.id, p.type as any));
     return m;
   }, [pipelines]);
+  const batchMetaByName = useMemo(() => {
+    const m = new Map<string, typeof batchMeta[number]>();
+    batchMeta.forEach((wb) => {
+      const key = (wb.batch_name || wb.webinar_name || "").toLowerCase();
+      if (key && !m.has(key)) m.set(key, wb);
+    });
+    return m;
+  }, [batchMeta]);
   const batchesWithType = useMemo(
-    () => batches.map((b) => ({ ...b, pipelineType: (b.pipelineId && pipelineTypeById.get(b.pipelineId)) || "custom" as const })),
-    [batches, pipelineTypeById]
+    () => batches.map((b) => {
+      const meta = batchMetaByName.get((b.name || "").toLowerCase());
+      const snapshot = b.servicePackageSnapshot || meta?.service_package_snapshot || null;
+      const packageName = b.servicePackageName || (meta?.service_package_snapshot as any)?.name || null;
+      return {
+        ...b,
+        pipelineType: (b.pipelineId && pipelineTypeById.get(b.pipelineId)) || "custom" as const,
+        servicePackageSnapshot: snapshot,
+        servicePackageName: packageName,
+        productName: meta?.product_name || null,
+        dealValue: meta?.deal_value || null,
+      };
+    }),
+    [batches, pipelineTypeById, batchMetaByName]
   );
   const batchCounts = useMemo(() => {
     let unpaid = 0, paid = 0, custom = 0;
@@ -1934,6 +1961,9 @@ export default function Crm() {
                   </div>
                   <div className="font-serif text-lg mt-2 line-clamp-2">{b.name}</div>
                   <div className="text-[11px] text-muted-foreground mt-1">{pipe?.name || "—"}</div>
+                  {((b as any).servicePackageName || (b as any).servicePackageSnapshot?.name) && (
+                    <div className="mt-2"><ServicePackageChip snapshot={(b as any).servicePackageSnapshot} fallbackName={(b as any).servicePackageName} /></div>
+                  )}
                   <div className="flex items-center justify-between mt-4">
                     <div className="font-serif text-3xl">{b.total}</div>
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">leads</div>

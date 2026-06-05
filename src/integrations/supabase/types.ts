@@ -7621,10 +7621,17 @@ export type Database = {
           business_unit: string
           created_at: string
           created_by: string | null
+          deal_value: number | null
           id: string
+          imported_lead_count: number | null
           is_deleted: boolean
           notes: string | null
           offer_name: string | null
+          pipeline_id: string | null
+          process_template_id: string | null
+          product_name: string | null
+          service_package_id: string | null
+          service_package_snapshot: Json | null
           source_attribution_report_id: string | null
           source_attribution_session_id: string | null
           source_created_from: string | null
@@ -7639,10 +7646,17 @@ export type Database = {
           business_unit?: string
           created_at?: string
           created_by?: string | null
+          deal_value?: number | null
           id?: string
+          imported_lead_count?: number | null
           is_deleted?: boolean
           notes?: string | null
           offer_name?: string | null
+          pipeline_id?: string | null
+          process_template_id?: string | null
+          product_name?: string | null
+          service_package_id?: string | null
+          service_package_snapshot?: Json | null
           source_attribution_report_id?: string | null
           source_attribution_session_id?: string | null
           source_created_from?: string | null
@@ -7657,10 +7671,17 @@ export type Database = {
           business_unit?: string
           created_at?: string
           created_by?: string | null
+          deal_value?: number | null
           id?: string
+          imported_lead_count?: number | null
           is_deleted?: boolean
           notes?: string | null
           offer_name?: string | null
+          pipeline_id?: string | null
+          process_template_id?: string | null
+          product_name?: string | null
+          service_package_id?: string | null
+          service_package_snapshot?: Json | null
           source_attribution_report_id?: string | null
           source_attribution_session_id?: string | null
           source_created_from?: string | null
@@ -7670,7 +7691,29 @@ export type Database = {
           webinar_name?: string
           webinar_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "webinar_batches_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webinar_batches_process_template_id_fkey"
+            columns: ["process_template_id"]
+            isOneToOne: false
+            referencedRelation: "operations_process_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webinar_batches_service_package_id_fkey"
+            columns: ["service_package_id"]
+            isOneToOne: false
+            referencedRelation: "service_packages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webinar_templates: {
         Row: {
