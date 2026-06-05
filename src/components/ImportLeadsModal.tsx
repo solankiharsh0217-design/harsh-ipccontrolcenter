@@ -682,18 +682,79 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let newImported = 0;
       let updated = 0;
       let moved = 0;
+      let promoted = 0;
       let restored = 0;
       let phoneOnlyImported = 0;
       let skippedDuplicates = 0;
       let failed = failedNoKey;
       const createdCrmLeadIds = new Set<string>();
+      const promotedCrmLeadIds = new Set<string>();
       const errors: string[] = [];
       const reasonCounts = new Map<string, number>();
       if (failedNoKey > 0) reasonCounts.set("Row has neither email nor phone", failedNoKey);
 
+      // --- Build promotion payload (only used when policy === "promote" on paid import) ---
+      const selectedPackageForDup = servicePackages.find((p) => p.id === servicePackageId) || null;
+      const packageSnapshotForDup = selectedPackageForDup ? buildSnapshot(selectedPackageForDup) : null;
+
       // --- Handle duplicates per policy ---
       const addReason = (msg: string) => reasonCounts.set(msg, (reasonCounts.get(msg) || 0) + 1);
-      if (duplicatePolicy !== "update") {
+      if (duplicatePolicy === "promote" && pipelineType === "paid") {
+        // Promote each existing unpaid (or stale) lead into the chosen paid pipeline + stage,
+        // hide from unpaid sales workload, mark converted, and propagate paid metadata.
+        // History (notes/tags/attendance/activity/follow-ups) is preserved by design — we
+        // update the lead in place rather than deleting and re-creating it.
+        for (const { row, existing, matchedBy } of dupRows) {
+          const wasArchived = !!existing.archived_at;
+          const wasSoftDeleted = !!(existing as any).deleted_at;
+          const base: any = {
+            pipeline_id: pipelineId,
+            stage_id: firstStageId,
+            lead_type: "paid",
+            lead_source_type: "direct_import",
+            webinar_source: segmentName,
+            webinar_date: webinarDate,
+            webinar_name: webinarName || segmentName,
+            program_name: productName || existing.full_name ? productName : null,
+            deal_value: dealValue,
+            service_package_id: servicePackageId || null,
+            service_package_snapshot: packageSnapshotForDup,
+            hide_from_sales_workload: true,
+            conversion_status: "converted",
+            converted_at: new Date().toISOString(),
+            converted_by: profile?.id ?? null,
+            assigned_agent_id: null, // remove from unpaid sales executive workload
+            ...(wasArchived ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
+            ...(wasSoftDeleted ? { deleted_at: null, deleted_by: null, delete_reason: null } : {}),
+          };
+          // Fill missing contact fields only; keep existing ones.
+          if (!existing.full_name && row.full_name) base.full_name = row.full_name;
+          if (!existing.phone && row.phone) base.phone = row.phone;
+          if (!existing.email && row.email) base.email = row.email;
+
+          const { error } = await supabase.from("leads").update(base).eq("id", existing.id);
+          if (error) {
+            console.error("[ImportLeadsModal] promote existing failed", error, existing.id);
+            failed++;
+            addReason(`Promote existing failed: ${error.message}`);
+            if (!errors.includes(error.message)) errors.push(error.message);
+            continue;
+          }
+          promoted++;
+          if (wasArchived) restored++;
+          if (matchedBy === "phone" && !row.email) phoneOnlyImported++;
+          promotedCrmLeadIds.add(existing.id);
+
+          // Cancel active unpaid follow-ups so sales executives don't call them as unpaid.
+          // History is preserved (rows kept, just marked completed with a reason).
+          try {
+            await (supabase.from("follow_up_reminders") as any)
+              .update({ status: "completed", completed_at: new Date().toISOString(), completed_reason: "Promoted to paid" })
+              .eq("lead_id", existing.id)
+              .in("status", ["pending", "scheduled", "active"]);
+          } catch { /* schema-tolerant — ignore if columns differ */ }
+        }
+      } else if (duplicatePolicy !== "update") {
         skippedDuplicates += dupRows.length;
       } else {
         // Safe update: never moves an existing lead or overwrites status/stage/pipeline tracking.
