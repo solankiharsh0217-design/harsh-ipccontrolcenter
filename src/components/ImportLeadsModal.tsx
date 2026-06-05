@@ -723,7 +723,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             webinar_source: segmentName,
             webinar_date: webinarDate,
             webinar_name: webinarName || segmentName,
-            program_name: productName || existing.full_name ? productName : null,
+            program_name: productName || null,
             deal_value: dealValue,
             service_package_id: servicePackageId || null,
             service_package_snapshot: packageSnapshotForDup,
