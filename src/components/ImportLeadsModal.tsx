@@ -11,7 +11,7 @@ import { listServicePackages, buildSnapshot, type ServicePackage } from "@/lib/s
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
 import { Link } from "react-router-dom";
 
-export type DuplicatePolicy = "skip" | "update" | "move" | "new_only";
+export type DuplicatePolicy = "skip" | "update" | "move" | "new_only" | "promote";
 export type AssignmentMode = "unassigned" | "assign_to_me" | "assign_to_member" | "round_robin" | "hot_to_top";
 
 export interface ImportResult {
@@ -20,10 +20,11 @@ export interface ImportResult {
   pipelineType: "unpaid" | "paid" | "custom";
   leadType: "unpaid" | "paid";
   batchName: string;
-  imported: number;          // total successful (new + updated + moved) — back-compat
+  imported: number;          // total successful (new + updated + moved + promoted) — back-compat
   newImported: number;
   updated: number;
   moved: number;
+  promoted: number;
   restored: number;
   phoneOnlyImported: number;
   skippedDuplicates: number;
@@ -130,6 +131,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [assignment, setAssignment] = useState<AssignmentMode>("unassigned");
   const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>("");
   const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>("skip");
+  const [duplicatePolicyTouched, setDuplicatePolicyTouched] = useState(false);
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -355,6 +357,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadType, pipelines, step]);
 
+  // Default duplicate policy: paid → "promote" (recommended); unpaid → "skip".
+  // Respect the user's explicit choice once they've changed it.
+  useEffect(() => {
+    if (duplicatePolicyTouched) return;
+    setDuplicatePolicy(leadType === "paid" ? "promote" : "skip");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadType]);
+
   // Resolved target pipeline (used by Step 4 review + guard).
   const resolvedTarget = useMemo(() => {
     if (creatingPipeline || targetPipelineId === "__new__") {
@@ -492,13 +502,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             const conflict = !!(phoneMatch && phoneMatch.id !== emailMatch.id);
             if (conflict) matchConflictCount++;
             if (emailMatch.archived_at) archivedMatchCount++;
-            if (duplicatePolicy === "update") willImport++; else willSkip++;
+            if (duplicatePolicy === "update" || duplicatePolicy === "promote") willImport++; else willSkip++;
             return { ...base, status: "existing_by_email" as const, conflict, existing: formatExisting(emailMatch) };
           }
           if (phoneMatch) {
             existingByPhoneCount++;
             if (phoneMatch.archived_at) archivedMatchCount++;
-            if (duplicatePolicy === "update") willImport++; else willSkip++;
+            if (duplicatePolicy === "update" || duplicatePolicy === "promote") willImport++; else willSkip++;
             return { ...base, status: "existing_by_phone" as const, conflict: false, existing: formatExisting(phoneMatch) };
           }
           // No email
@@ -680,18 +690,79 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let newImported = 0;
       let updated = 0;
       let moved = 0;
+      let promoted = 0;
       let restored = 0;
       let phoneOnlyImported = 0;
       let skippedDuplicates = 0;
       let failed = failedNoKey;
       const createdCrmLeadIds = new Set<string>();
+      const promotedCrmLeadIds = new Set<string>();
       const errors: string[] = [];
       const reasonCounts = new Map<string, number>();
       if (failedNoKey > 0) reasonCounts.set("Row has neither email nor phone", failedNoKey);
 
+      // --- Build promotion payload (only used when policy === "promote" on paid import) ---
+      const selectedPackageForDup = servicePackages.find((p) => p.id === servicePackageId) || null;
+      const packageSnapshotForDup = selectedPackageForDup ? buildSnapshot(selectedPackageForDup) : null;
+
       // --- Handle duplicates per policy ---
       const addReason = (msg: string) => reasonCounts.set(msg, (reasonCounts.get(msg) || 0) + 1);
-      if (duplicatePolicy !== "update") {
+      if (duplicatePolicy === "promote" && pipelineType === "paid") {
+        // Promote each existing unpaid (or stale) lead into the chosen paid pipeline + stage,
+        // hide from unpaid sales workload, mark converted, and propagate paid metadata.
+        // History (notes/tags/attendance/activity/follow-ups) is preserved by design — we
+        // update the lead in place rather than deleting and re-creating it.
+        for (const { row, existing, matchedBy } of dupRows) {
+          const wasArchived = !!existing.archived_at;
+          const wasSoftDeleted = !!(existing as any).deleted_at;
+          const base: any = {
+            pipeline_id: pipelineId,
+            stage_id: firstStageId,
+            lead_type: "paid",
+            lead_source_type: "direct_import",
+            webinar_source: segmentName,
+            webinar_date: webinarDate,
+            webinar_name: webinarName || segmentName,
+            program_name: productName || null,
+            deal_value: dealValue,
+            service_package_id: servicePackageId || null,
+            service_package_snapshot: packageSnapshotForDup,
+            hide_from_sales_workload: true,
+            conversion_status: "converted",
+            converted_at: new Date().toISOString(),
+            converted_by: profile?.id ?? null,
+            assigned_agent_id: null, // remove from unpaid sales executive workload
+            ...(wasArchived ? { archived_at: null, archived_by: null, archive_reason: null } : {}),
+            ...(wasSoftDeleted ? { deleted_at: null, deleted_by: null, delete_reason: null } : {}),
+          };
+          // Fill missing contact fields only; keep existing ones.
+          if (!existing.full_name && row.full_name) base.full_name = row.full_name;
+          if (!existing.phone && row.phone) base.phone = row.phone;
+          if (!existing.email && row.email) base.email = row.email;
+
+          const { error } = await supabase.from("leads").update(base).eq("id", existing.id);
+          if (error) {
+            console.error("[ImportLeadsModal] promote existing failed", error, existing.id);
+            failed++;
+            addReason(`Promote existing failed: ${error.message}`);
+            if (!errors.includes(error.message)) errors.push(error.message);
+            continue;
+          }
+          promoted++;
+          if (wasArchived) restored++;
+          if (matchedBy === "phone" && !row.email) phoneOnlyImported++;
+          promotedCrmLeadIds.add(existing.id);
+
+          // Cancel active unpaid follow-ups so sales executives don't call them as unpaid.
+          // History is preserved (rows kept, just marked completed with a reason).
+          try {
+            await (supabase.from("follow_up_reminders") as any)
+              .update({ status: "completed", completed_at: new Date().toISOString(), completed_reason: "Promoted to paid" })
+              .eq("lead_id", existing.id)
+              .in("status", ["pending", "scheduled", "active"]);
+          } catch { /* schema-tolerant — ignore if columns differ */ }
+        }
+      } else if (duplicatePolicy !== "update") {
         skippedDuplicates += dupRows.length;
       } else {
         // Safe update: never moves an existing lead or overwrites status/stage/pipeline tracking.
@@ -801,11 +872,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         try {
           // Sync only CRM leads created in this import. Existing matches are intentionally skipped so
           // their paid-pipeline status/stage/source tracking cannot be rewritten by an import.
-          const { data: crmRows } = createdCrmLeadIds.size > 0
+          const syncIds = new Set<string>([...createdCrmLeadIds, ...promotedCrmLeadIds]);
+          const { data: crmRows } = syncIds.size > 0
             ? await supabase
               .from("leads")
               .select("id, full_name, email, phone, deal_value, program_name, paid_pipeline_lead_id")
-              .in("id", Array.from(createdCrmLeadIds))
+              .in("id", Array.from(syncIds))
             : { data: [] as any[] };
 
           for (const lead of (crmRows || []) as any[]) {
@@ -946,7 +1018,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         console.error("[ImportLeadsModal] webinar_batches upsert failed", batchErr);
       }
 
-      const totalSuccess = newImported + updated + moved;
+      const totalSuccess = newImported + updated + moved + promoted;
       if (totalSuccess === 0 && failed === 0 && skippedDuplicates === 0) {
         toast.error("No leads were imported.");
         setImporting(false);
@@ -978,6 +1050,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           new_imported_count: newImported,
           updated_existing_count: updated,
           moved_existing_count: moved,
+          promoted_existing_count: promoted,
           restored_count: restored,
           skipped_duplicate_count: skippedDuplicates,
           failed_count: failed,
@@ -993,7 +1066,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           webinar_name: webinarName || segmentName,
           webinar_date: webinarDate,
         },
-        summary: `Imported ${newImported} new · ${moved} moved · ${updated} updated · ${restored} restored · ${skippedDuplicates} skipped · ${failed} failed → "${pipelineName}" — batch "${segmentName}".`,
+        summary: `Imported ${newImported} new · ${promoted} promoted · ${moved} moved · ${updated} updated · ${restored} restored · ${skippedDuplicates} skipped · ${failed} failed → "${pipelineName}" — batch "${segmentName}".`,
       });
 
       const finalResult: ImportResult = {
@@ -1006,6 +1079,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         newImported,
         updated,
         moved,
+        promoted,
         restored,
         phoneOnlyImported,
         skippedDuplicates,
@@ -1035,6 +1109,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     update: "Fill missing contact info only",
     move: "Skip existing matches",
     new_only: "Import new only",
+    promote: "Promote existing unpaid leads to Paid Onboarding",
   };
 
   return (
@@ -1531,12 +1606,16 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
             <div>
               <label className="form-label">If a row matches an existing CRM lead</label>
-              <select className="ipc-input" value={duplicatePolicy} onChange={(e) => setDuplicatePolicy(e.target.value as DuplicatePolicy)}>
-                <option value="skip">Skip existing CRM matches — safest</option>
+              <select className="ipc-input" value={duplicatePolicy} onChange={(e) => { setDuplicatePolicy(e.target.value as DuplicatePolicy); setDuplicatePolicyTouched(true); }}>
+                {leadType === "paid" && (
+                  <option value="promote">Promote existing unpaid leads to Paid Onboarding — recommended</option>
+                )}
+                <option value="skip">Skip existing CRM matches{leadType !== "paid" ? " — safest" : ""}</option>
                 <option value="update">Only fill missing name/email/phone</option>
                 <option value="new_only">Import new only (report existing matches as skipped)</option>
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
+                {duplicatePolicy === "promote" && "Existing CRM matches will be moved into the selected Paid Onboarding pipeline, marked converted, hidden from the unpaid sales workload, and tagged with the chosen Service Package + Process Template. Notes, tags, attendance and activity history are preserved; active unpaid follow-ups are closed with reason \"Promoted to paid\"."}
                 {duplicatePolicy === "update" && "Existing CRM matches will keep their current pipeline, stage, status, owner, product, deal value and batch. Only blank contact fields are filled."}
                 {duplicatePolicy === "skip" && "Existing CRM matches will be skipped — no changes made. Only brand-new rows will be inserted."}
                 {duplicatePolicy === "new_only" && "Only rows with no email/phone match in CRM will be imported. Existing matches will be reported as skipped."}
@@ -1615,8 +1694,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm p-4 rounded-lg border border-line">
               <div className="uppercase-label col-span-2 mb-1">Calling CRM</div>
-              <div><span className="text-muted-foreground">Total rows processed:</span> <b>{result.newImported + result.updated + result.moved + result.skippedDuplicates + result.failed}</b></div>
+              <div><span className="text-muted-foreground">Total rows processed:</span> <b>{result.newImported + result.updated + result.moved + result.promoted + result.skippedDuplicates + result.failed}</b></div>
               <div><span className="text-muted-foreground">Created (new):</span> <b className="text-emerald-700">{result.newImported}</b></div>
+              <div><span className="text-muted-foreground">Promoted unpaid → paid:</span> <b className={result.promoted > 0 ? "text-emerald-700" : ""}>{result.promoted}</b></div>
               <div><span className="text-muted-foreground">Moved:</span> <b>{result.moved}</b></div>
               <div><span className="text-muted-foreground">Updated:</span> <b>{result.updated}</b></div>
               <div><span className="text-muted-foreground">Restored from archive:</span> <b className={result.restored > 0 ? "text-emerald-700" : ""}>{result.restored}</b></div>
