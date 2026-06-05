@@ -97,6 +97,9 @@ function CompactPaidRow({
             </span>
           </div>
         )}
+        {(lead.service_package_snapshot?.name || lead.service_package?.name) && (
+          <div className="mt-0.5"><ServicePackageChip snapshot={lead.service_package_snapshot} fallbackName={lead.service_package?.name} /></div>
+        )}
       </div>
 
       {/* Money: Deal / Token / Coll / Bal — tight 2-col grid */}
