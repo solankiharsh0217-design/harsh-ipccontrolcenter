@@ -357,6 +357,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadType, pipelines, step]);
 
+  // Default duplicate policy: paid → "promote" (recommended); unpaid → "skip".
+  // Respect the user's explicit choice once they've changed it.
+  useEffect(() => {
+    if (duplicatePolicyTouched) return;
+    setDuplicatePolicy(leadType === "paid" ? "promote" : "skip");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadType]);
+
   // Resolved target pipeline (used by Step 4 review + guard).
   const resolvedTarget = useMemo(() => {
     if (creatingPipeline || targetPipelineId === "__new__") {
