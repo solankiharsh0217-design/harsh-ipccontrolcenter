@@ -1101,6 +1101,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     update: "Fill missing contact info only",
     move: "Skip existing matches",
     new_only: "Import new only",
+    promote: "Promote existing unpaid leads to Paid Onboarding",
   };
 
   return (
