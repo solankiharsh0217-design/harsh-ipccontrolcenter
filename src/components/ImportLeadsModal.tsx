@@ -740,12 +740,21 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           if (!existing.phone && row.phone) base.phone = row.phone;
           if (!existing.email && row.email) base.email = row.email;
 
-          const { error } = await supabase.from("leads").update(base).eq("id", existing.id);
+          const { data: updRows, error } = await supabase
+            .from("leads").update(base).eq("id", existing.id).select("id");
           if (error) {
             console.error("[ImportLeadsModal] promote existing failed", error, existing.id);
             failed++;
             addReason(`Promote existing failed: ${error.message}`);
             if (!errors.includes(error.message)) errors.push(error.message);
+            continue;
+          }
+          if (!updRows || updRows.length === 0) {
+            // RLS silently filtered the update — typically because the existing
+            // lead is assigned to another agent and the importer is not an admin.
+            console.warn("[ImportLeadsModal] promote produced 0 row updates (RLS blocked)", existing.id);
+            failed++;
+            addReason("Promote blocked by access policy — existing lead is assigned to another agent. Re-import as an admin (or the assigned owner) to promote.");
             continue;
           }
           promoted++;
