@@ -1356,6 +1356,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 </b>
               </div>
               <div><span className="text-muted-foreground">Lead type:</span> <b>{leadType}</b> · default grade <b style={{ color: GRADE_STYLES[defaultGrade].fg }}>{GRADE_STYLES[defaultGrade].label}</b></div>
+              <div><span className="text-muted-foreground">Product / Program:</span> <b>{productName || "—"}</b> · ₹{dealValue.toLocaleString("en-IN")}</div>
+              <div><span className="text-muted-foreground">Service Package / Tier:</span> <b>{servicePackages.find((p) => p.id === servicePackageId)?.name || "— None —"}</b></div>
+              <div><span className="text-muted-foreground">Operations Process Template:</span> <b>{processTemplates.find((t) => t.id === processTemplateId)?.name || servicePackages.find((p) => p.id === servicePackageId)?.default_process_template_id && processTemplates.find((t) => t.id === servicePackages.find((p) => p.id === servicePackageId)?.default_process_template_id)?.name || "— None —"}</b></div>
+              {leadType === "paid" && <div><span className="text-muted-foreground">Send to Operations Intake:</span> <b>{sendToOperations ? "Yes" : "No"}</b></div>}
             </div>
 
             {targetMismatch && (
