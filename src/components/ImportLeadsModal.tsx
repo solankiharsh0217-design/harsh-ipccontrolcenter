@@ -1058,7 +1058,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           webinar_name: webinarName || segmentName,
           webinar_date: webinarDate,
         },
-        summary: `Imported ${newImported} new · ${moved} moved · ${updated} updated · ${restored} restored · ${skippedDuplicates} skipped · ${failed} failed → "${pipelineName}" — batch "${segmentName}".`,
+        summary: `Imported ${newImported} new · ${promoted} promoted · ${moved} moved · ${updated} updated · ${restored} restored · ${skippedDuplicates} skipped · ${failed} failed → "${pipelineName}" — batch "${segmentName}".`,
       });
 
       const finalResult: ImportResult = {
