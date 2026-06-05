@@ -411,6 +411,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                     <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-off border border-line text-muted-foreground">{lead.program_name}</span>
                     {lead.webinar_source && <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-off border border-line text-muted-foreground">{lead.webinar_source}</span>}
                     <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider bg-off border border-line text-muted-foreground">{lead.lead_type}</span>
+                    <ServicePackageChip snapshot={(lead as any).service_package_snapshot} />
                   </div>
                 </>
               )}
