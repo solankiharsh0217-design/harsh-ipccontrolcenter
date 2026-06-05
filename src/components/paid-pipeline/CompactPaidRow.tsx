@@ -2,6 +2,7 @@ import { memo } from "react";
 import { inr, fmtDate } from "@/lib/paidPipeline";
 import { getPaymentStatus } from "@/lib/paidPaymentStatus";
 import { pickTagColor, type Tag } from "@/lib/leadTags";
+import ServicePackageChip from "@/components/ServicePackageChip";
 
 type Lead = any;
 
