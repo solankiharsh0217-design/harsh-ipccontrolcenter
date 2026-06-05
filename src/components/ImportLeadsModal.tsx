@@ -7,6 +7,9 @@ import { X, Plus, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, Link2, L
 import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type LeadGrade } from "@/lib/crmTypes";
 import { logActivity } from "@/lib/auditLog";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
+import { listServicePackages, buildSnapshot, type ServicePackage } from "@/lib/servicePackages";
+import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
+import { Link } from "react-router-dom";
 
 export type DuplicatePolicy = "skip" | "update" | "move" | "new_only";
 export type AssignmentMode = "unassigned" | "assign_to_me" | "assign_to_member" | "round_robin" | "hot_to_top";
@@ -115,6 +118,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [defaultGrade, setDefaultGrade] = useState<LeadGrade>("warm");
   const [productName, setProductName] = useState("IPC Diamond Program");
   const [dealValue, setDealValue] = useState<number>(118000);
+  const [servicePackages, setServicePackages] = useState<ServicePackage[]>([]);
+  const [servicePackageId, setServicePackageId] = useState<string>("");
+  const [processTemplates, setProcessTemplates] = useState<ProcessTemplate[]>([]);
+  const [processTemplateId, setProcessTemplateId] = useState<string>("");
+  const [sendToOperations, setSendToOperations] = useState<boolean>(false);
+  const [overwriteServicePackage, setOverwriteServicePackage] = useState<boolean>(false);
 
   // Step 4
   const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
