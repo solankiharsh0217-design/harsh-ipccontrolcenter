@@ -1042,6 +1042,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           new_imported_count: newImported,
           updated_existing_count: updated,
           moved_existing_count: moved,
+          promoted_existing_count: promoted,
           restored_count: restored,
           skipped_duplicate_count: skippedDuplicates,
           failed_count: failed,
