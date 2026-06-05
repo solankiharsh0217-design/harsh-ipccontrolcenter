@@ -273,6 +273,8 @@ export default function Crm() {
     setDateFrom("");
     setDateTo("");
     setShowArchived(false);
+    setConvertedFilter("hide");
+
     setView("kanban");
     const pipelineLabel = result.leadType === "paid" ? "Paid — Onboarding" : "Sales Pipeline (Unpaid)";
     const parts: string[] = [];
