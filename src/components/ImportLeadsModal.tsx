@@ -131,6 +131,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [assignment, setAssignment] = useState<AssignmentMode>("unassigned");
   const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>("");
   const [duplicatePolicy, setDuplicatePolicy] = useState<DuplicatePolicy>("skip");
+  const [duplicatePolicyTouched, setDuplicatePolicyTouched] = useState(false);
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
 
