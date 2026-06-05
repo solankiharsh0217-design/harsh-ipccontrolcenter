@@ -36,6 +36,7 @@ import { Archive, RotateCcw } from "lucide-react";
 import UniversalSearchPanel from "@/components/crm/UniversalSearchPanel";
 import { useFocusKanbanCard } from "@/hooks/useFocusKanbanCard";
 import type { UniversalSearchResult } from "@/lib/universalSearch";
+import ServicePackageChip from "@/components/ServicePackageChip";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
@@ -1739,6 +1740,9 @@ export default function Crm() {
                                 {l.webinar_source && <div className="uppercase-label !text-[8px] mb-1">{l.webinar_source}</div>}
                                 <div className="font-serif text-sm truncate">{l.full_name || "Unnamed"}</div>
                                 <div className="text-[11px] text-muted-foreground truncate">{l.program_name}</div>
+                                {((l as any).service_package_snapshot?.name) && (
+                                  <div className="mt-1"><ServicePackageChip snapshot={(l as any).service_package_snapshot} /></div>
+                                )}
                                 <div className="text-[11px] mt-0.5">{l.phone || "—"}</div>
                                 <div className="text-[11px] mt-1">₹{Number(l.deal_value).toLocaleString("en-IN")}</div>
                                 {(leadTagsMap[l.id] || []).length > 0 && (
@@ -2056,6 +2060,9 @@ export default function Crm() {
                     <td className="px-4 py-3">
                       <div className="font-serif text-sm">{l.full_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">{l.email}</div>
+                      {((l as any).service_package_snapshot?.name) && (
+                        <div className="mt-1"><ServicePackageChip snapshot={(l as any).service_package_snapshot} /></div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs">{l.phone || "—"}</td>
                     <td className="px-4 py-3 text-xs">{l.score}</td>

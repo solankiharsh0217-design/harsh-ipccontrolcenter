@@ -35,6 +35,7 @@ import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import CompactPaidRow from "@/components/paid-pipeline/CompactPaidRow";
 import { getPaymentStatus, type PayStatusKey } from "@/lib/paidPaymentStatus";
+import ServicePackageChip from "@/components/ServicePackageChip";
 
 type Lead = {
   id: string;
@@ -1293,6 +1294,9 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
           <div>
             <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
             <div className="text-[12px] text-muted-foreground">{lead.email || "—"} · {lead.phone || "—"}</div>
+            {((lead as any).service_package_snapshot?.name || (lead as any).service_package?.name) && (
+              <div className="mt-1.5"><ServicePackageChip snapshot={(lead as any).service_package_snapshot} fallbackName={(lead as any).service_package?.name} compact={false} /></div>
+            )}
             <div className="flex flex-wrap items-center gap-2 mt-2">
               {lead.crm_lead_id && (
                 <Link to={`/crm?lead=${lead.crm_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
