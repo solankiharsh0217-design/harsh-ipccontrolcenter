@@ -315,7 +315,7 @@ export default function Crm() {
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
     if (!activePipeline && p && p.length) {
       const want = new URLSearchParams(window.location.search).get("pipeline");
-      const paid = (p as any[]).find((x) => x.pipeline_type === "paid");
+      const paid = (p as any[]).find((x) => x.type === "paid");
       if (want === "paid_onboarding" && paid) setActivePipeline(paid.id);
       else setActivePipeline(p[0].id);
     }
