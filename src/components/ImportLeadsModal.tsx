@@ -1694,8 +1694,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm p-4 rounded-lg border border-line">
               <div className="uppercase-label col-span-2 mb-1">Calling CRM</div>
-              <div><span className="text-muted-foreground">Total rows processed:</span> <b>{result.newImported + result.updated + result.moved + result.skippedDuplicates + result.failed}</b></div>
+              <div><span className="text-muted-foreground">Total rows processed:</span> <b>{result.newImported + result.updated + result.moved + result.promoted + result.skippedDuplicates + result.failed}</b></div>
               <div><span className="text-muted-foreground">Created (new):</span> <b className="text-emerald-700">{result.newImported}</b></div>
+              <div><span className="text-muted-foreground">Promoted unpaid → paid:</span> <b className={result.promoted > 0 ? "text-emerald-700" : ""}>{result.promoted}</b></div>
               <div><span className="text-muted-foreground">Moved:</span> <b>{result.moved}</b></div>
               <div><span className="text-muted-foreground">Updated:</span> <b>{result.updated}</b></div>
               <div><span className="text-muted-foreground">Restored from archive:</span> <b className={result.restored > 0 ? "text-emerald-700" : ""}>{result.restored}</b></div>
