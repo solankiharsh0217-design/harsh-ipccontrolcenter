@@ -28,7 +28,11 @@ export default function TaskCard({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={() => onOpen(task)}
-      className={`group bg-white border border-line rounded-[10px] px-[14px] py-[13px] cursor-grab hover:bg-off hover:border-[#BBB] transition-colors ${isDone ? "opacity-65" : ""}`}
+      className={`group border rounded-[10px] px-[14px] py-[13px] cursor-grab transition-colors ${
+        isDone
+          ? "bg-[#F0FDF4] border-[#BBF7D0] hover:bg-[#E7FBEC] hover:border-[#86EFAC]"
+          : "bg-white border-line hover:bg-off hover:border-[#BBB]"
+      }`}
     >
       <div className={`font-serif text-[15px] font-medium leading-snug ${isDone ? "line-through" : ""}`}>{task.title}</div>
       <div className="flex items-center justify-between mt-2">
