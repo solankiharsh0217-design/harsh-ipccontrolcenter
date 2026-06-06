@@ -470,74 +470,72 @@ function MenuBtn({ children, onClick, danger }: any) {
 
 /* ---------- People ---------- */
 
-function PeopleView({ tasks, members, isAdmin, me, myName, onOpen, onQuickStatus }: any) {
+function PeopleView({ tasks, members, isAdmin, me, myName, onOpen, onQuickStatus, onDragStart, onDropToPerson, draggedTask }: any) {
+  const [dragOverId, setDragOverId] = useState<string | "__unassigned__" | null>(null);
+
   const groups = useMemo(() => {
-    if (!isAdmin) return [{ id: me, name: myName, role: null, tasks: tasks.filter((t: Task) => t.assigned_to === me) }];
     const byId = new Map<string, { id: string; name: string; role: string | null; tasks: Task[] }>();
-    members.forEach((m: Member) => byId.set(m.id, { id: m.id, name: m.full_name, role: m.role, tasks: [] }));
+    if (isAdmin) {
+      members.forEach((m: Member) => byId.set(m.id, { id: m.id, name: m.full_name, role: m.role, tasks: [] }));
+    } else if (me) {
+      byId.set(me, { id: me, name: myName, role: null, tasks: [] });
+    }
+    const unassigned: Task[] = [];
     tasks.forEach((t: Task) => {
-      if (!t.assigned_to) return;
-      if (!byId.has(t.assigned_to)) byId.set(t.assigned_to, { id: t.assigned_to, name: t.assigned_name ?? "—", role: null, tasks: [] });
+      if (!t.assigned_to) { unassigned.push(t); return; }
+      if (!byId.has(t.assigned_to)) {
+        if (!isAdmin) return;
+        byId.set(t.assigned_to, { id: t.assigned_to, name: t.assigned_name ?? "—", role: null, tasks: [] });
+      }
       byId.get(t.assigned_to)!.tasks.push(t);
     });
-    return Array.from(byId.values()).filter((g) => g.tasks.length > 0 || isAdmin);
+    const arr = Array.from(byId.values());
+    arr.sort((a, b) => b.tasks.length - a.tasks.length || a.name.localeCompare(b.name));
+    return { people: arr, unassigned };
   }, [tasks, members, isAdmin, me, myName]);
 
-  const sortRows = (arr: Task[]) => arr.slice().sort((a, b) => {
-    const score = (t: Task) => isOverdue(t) ? 0 : isDueToday(t) ? 1 : t.status === "done" ? 9 : 2;
-    const s = score(a) - score(b); if (s !== 0) return s;
-    return (a.due_date ?? "9999-12-31").localeCompare(b.due_date ?? "9999-12-31");
-  });
+  const renderColumn = (key: string, title: string, role: string | null, list: Task[], onDrop: () => void) => {
+    const overdue = list.filter(isOverdue).length;
+    const isOver = dragOverId === key;
+    const canDrop = !!draggedTask;
+    return (
+      <div key={key} className="flex-shrink-0 w-[280px]"
+        onDragOver={(e) => { if (canDrop) { e.preventDefault(); setDragOverId(key); } }}
+        onDragLeave={() => setDragOverId((c) => c === key ? null : c)}
+        onDrop={() => { setDragOverId(null); onDrop(); }}>
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center font-serif text-[9px] text-gold flex-shrink-0">{key === "__unassigned__" ? "—" : initialsOf(title)}</div>
+            <div className="min-w-0">
+              <div className="text-[12px] font-medium truncate leading-tight">{title}</div>
+              {role && <div className="text-[9px] text-muted-foreground truncate leading-tight">{role}</div>}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="font-serif text-[16px] text-muted-foreground leading-none">{list.length}</span>
+            {overdue > 0 && <span className="text-[9px] text-[#DC2626]">⚠{overdue}</span>}
+          </div>
+        </div>
+        <div className="h-[2px] bg-line mb-3" />
+        <div className={`flex flex-col gap-2 min-h-[80px] p-1 rounded-md transition-colors ${isOver ? "border border-dashed border-gold bg-gold-pale/40" : "border border-transparent"}`}>
+          {list.length === 0 ? (
+            <div className="border border-dashed border-line rounded-md py-6 text-center text-[12px] text-muted-foreground">No tasks assigned</div>
+          ) : list.map((t) => (
+            <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart} />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="space-y-8">
-      {groups.map((g) => {
-        const overdue = g.tasks.filter(isOverdue).length;
-        const counts: Record<TaskStatus, number> = { todo: 0, inprogress: 0, review: 0, blocked: 0, done: 0 };
-        g.tasks.forEach((t) => counts[t.status]++);
-        return (
-          <div key={g.id}>
-            <div className="flex items-center justify-between border-b border-line pb-3 mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center font-serif text-[11px] text-gold">{initialsOf(g.name)}</div>
-                <div>
-                  <div className="font-serif text-[18px] leading-none">{g.name}</div>
-                  {g.role && <div className="text-[10px] text-muted-foreground mt-1">{g.role}</div>}
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {STATUSES.filter((s) => counts[s.key] > 0).map((s) => (
-                  <span key={s.key} className={`px-2 h-[20px] text-[10px] rounded-full border leading-[18px] ${s.pillClass}`}>{counts[s.key]} {s.label}</span>
-                ))}
-                {overdue > 0 && <span className="text-[10px] text-[#DC2626] ml-2">⚠ {overdue} overdue</span>}
-              </div>
-            </div>
-            {g.tasks.length === 0 ? (
-              <div className="text-[12px] text-muted-foreground italic px-1 py-2">All clear — no tasks assigned</div>
-            ) : (
-              <div className="space-y-1.5">
-                {sortRows(g.tasks).map((t) => {
-                  const status = STATUSES.find((s) => s.key === t.status)!;
-                  const due = dueLabel(t.due_date);
-                  const dueColor = due.tone === "overdue" ? "text-[#DC2626]" : due.tone === "today" ? "text-[#CA8A04]" : "text-muted-foreground";
-                  return (
-                    <button key={t.id} onClick={() => onOpen(t)} className="w-full text-left bg-white border border-line rounded-[9px] px-[14px] py-2.5 flex items-center gap-3 hover:bg-off transition-colors">
-                      <button onClick={(e) => { e.stopPropagation(); onQuickStatus(t, t.status === "done" ? "todo" : "done"); }}
-                        className={`w-4 h-4 rounded-[4px] border-[1.5px] flex items-center justify-center flex-shrink-0 ${t.status === "done" ? "bg-[#16A34A] border-[#16A34A] text-white" : "border-line"}`}>
-                        {t.status === "done" && <span className="text-[10px] leading-none">✓</span>}
-                      </button>
-                      <span className={`font-serif text-[14px] flex-1 truncate ${t.status === "done" ? "line-through opacity-65" : ""}`}>{t.title}</span>
-                      <span className={`px-2 h-[20px] text-[10px] rounded-full border leading-[18px] ${PRIORITY_PILL[t.priority]} capitalize`}>{t.priority}</span>
-                      <span className={`px-2 h-[20px] text-[10px] rounded-full border leading-[18px] ${status.pillClass}`}>{status.label}</span>
-                      <span className={`text-[11px] flex-shrink-0 w-[80px] text-right ${dueColor}`}>{due.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+    <div className="flex gap-3 overflow-x-auto pb-4">
+      {groups.unassigned.length > 0 && renderColumn("__unassigned__", "Unassigned", null, groups.unassigned, () => onDropToPerson(null, null))}
+      {groups.people.map((g) => renderColumn(g.id, g.name, g.role, g.tasks, () => onDropToPerson(g.id, g.name)))}
+      {groups.people.length === 0 && groups.unassigned.length === 0 && (
+        <div className="text-[13px] text-muted-foreground py-10">No team members</div>
+      )}
     </div>
   );
 }
+
