@@ -275,7 +275,9 @@ export default function Tasks() {
           }} />
       ) : (
         <PeopleView tasks={filtered} members={members} isAdmin={isAdmin} me={user?.id ?? null} myName={profile?.full_name ?? "Me"}
-          onOpen={(t) => openDrawer(t)} onQuickStatus={quickStatus} />
+          onOpen={(t) => openDrawer(t)} onQuickStatus={quickStatus}
+          onDragStart={setDraggedTask} onDropToPerson={onDropToPerson} draggedTask={draggedTask} />
+
       )}
 
       {drawerOpen && (
