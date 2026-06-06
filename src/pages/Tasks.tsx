@@ -161,6 +161,25 @@ export default function Tasks() {
     catch (e: any) { toast.error(e?.message || "Failed"); setTasks((prev) => prev.map((x) => x.id === t.id ? t : x)); }
   };
 
+  const onDropToPerson = async (assigneeId: string | null, assigneeName: string | null) => {
+    if (!draggedTask || !user || !profile) { setDraggedTask(null); return; }
+    const t = draggedTask; setDraggedTask(null);
+    if ((t.assigned_to ?? null) === assigneeId) return;
+    if (!isAdmin && t.assigned_to !== user.id) {
+      toast.error("Only admins can reassign others' tasks");
+      return;
+    }
+    const initials = assigneeName ? initialsOf(assigneeName) : null;
+    setTasks((prev) => prev.map((x) => x.id === t.id ? { ...x, assigned_to: assigneeId, assigned_name: assigneeName, assigned_initials: initials } : x));
+    try {
+      await updateTask(t, { assigned_to: assigneeId, assigned_name: assigneeName } as any, { id: user.id, name: profile.full_name });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to reassign");
+      setTasks((prev) => prev.map((x) => x.id === t.id ? t : x));
+    }
+  };
+
+
   const archiveDone = async () => {
     try { const n = await archiveOldDone(); toast.success(`Archived ${n} done tasks older than 7 days`); }
     catch (e: any) { toast.error(e?.message || "Failed"); }
