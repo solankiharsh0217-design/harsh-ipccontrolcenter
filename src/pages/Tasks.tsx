@@ -198,26 +198,36 @@ export default function Tasks() {
 
   const resetFilters = () => { setPriorityFilter("all"); setDueFilter("all"); setMemberFilter("all"); setSearchText(""); };
 
+  const [hideStats, setHideStats] = useState<boolean>(() => {
+    try { return localStorage.getItem("tasks:hideStats") === "1"; } catch { return false; }
+  });
+  useEffect(() => { try { localStorage.setItem("tasks:hideStats", hideStats ? "1" : "0"); } catch {} }, [hideStats]);
+
   return (
-    <div className="max-w-[1400px]">
-      {/* Action bar */}
-      <div className="flex items-center justify-between mb-5">
+    <div className="max-w-[1600px]">
+      {/* Compact header + stats strip */}
+      <div className="flex items-center gap-3 flex-wrap mb-2">
         <div className="font-sans text-[11px] text-muted-foreground">{filtered.length} task{filtered.length===1?"":"s"}</div>
-        <button onClick={() => openDrawer(null)} className="ipc-btn ipc-btn-black !text-xs flex items-center gap-1.5">
-          <Plus className="w-3.5 h-3.5" /> New task
-        </button>
+        {!hideStats && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <StatPill label="High priority" value={stats.high} tone={stats.high > 0 ? "gold" : "muted"} />
+            <StatPill label="In progress" value={stats.inProgress} />
+            <StatPill label="Due today" value={stats.dueToday} tone={stats.dueToday > 0 ? "amber" : "muted"} />
+            <StatPill label="Completed" value={stats.doneWeek} />
+          </div>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={() => setHideStats(v => !v)} className="text-[10px] text-muted-foreground hover:text-black underline-offset-2 hover:underline">
+            {hideStats ? "Show stats" : "Hide stats"}
+          </button>
+          <button onClick={() => openDrawer(null)} className="ipc-btn ipc-btn-black !h-8 !px-3 !text-[11px] flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> New task
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-3.5 mb-5">
-        <StatCard label="High priority" value={stats.high} highlight />
-        <StatCard label="In progress" value={stats.inProgress} />
-        <StatCard label="Due today" value={stats.dueToday} amber={stats.dueToday > 0} />
-        <StatCard label="Completed this week" value={stats.doneWeek} />
-      </div>
-
-      {/* Controls bar */}
-      <div className="flex items-center gap-3 flex-wrap mb-5 pb-4 border-b border-line">
+      {/* Controls bar — compact, sticky */}
+      <div className="sticky top-0 z-10 bg-background flex items-center gap-2 flex-wrap mb-2 py-2 border-b border-line">
         <PillGroup options={[
           { v: "kanban", label: "Kanban" }, { v: "list", label: "List" }, { v: "people", label: "People" },
         ]} value={view} onChange={(v) => setView(v as View)} />
@@ -226,18 +236,17 @@ export default function Tasks() {
           { v: "my", label: "My Tasks" },
           { v: "all", label: "All Tasks", disabled: !isAdmin },
         ]} value={scope} onChange={(v) => setScope(v as Scope)} />
-        {(isAdmin || priorityFilter !== "all" || dueFilter !== "all") && <Sep />}
         {isAdmin && (
-          <select value={memberFilter} onChange={(e) => setMemberFilter(e.target.value)} className="ipc-input !h-8 !text-[11px] !w-auto">
+          <select value={memberFilter} onChange={(e) => setMemberFilter(e.target.value)} className="ipc-input !h-7 !text-[11px] !w-auto !px-2">
             <option value="all">All members</option>
             {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
           </select>
         )}
-        <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="ipc-input !h-8 !text-[11px] !w-auto">
+        <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="ipc-input !h-7 !text-[11px] !w-auto !px-2">
           <option value="all">All priorities</option>
           <option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
         </select>
-        <select value={dueFilter} onChange={(e) => setDueFilter(e.target.value)} className="ipc-input !h-8 !text-[11px] !w-auto">
+        <select value={dueFilter} onChange={(e) => setDueFilter(e.target.value)} className="ipc-input !h-7 !text-[11px] !w-auto !px-2">
           <option value="all">All due dates</option>
           <option value="overdue">Overdue</option>
           <option value="today">Today</option>
@@ -247,7 +256,7 @@ export default function Tasks() {
         <div className="relative ml-auto">
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search tasks…"
-            className="ipc-input !h-[30px] !text-[11px] !pl-8 !pr-7 !w-[200px]" />
+            className="ipc-input !h-7 !text-[11px] !pl-8 !pr-7 !w-[200px]" />
           {searchText && (
             <button onClick={() => setSearchText("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black">
               <X className="w-3 h-3" />
@@ -256,6 +265,7 @@ export default function Tasks() {
         </div>
       </div>
 
+      <div className="min-h-[calc(100vh-160px)]">
       {loading ? (
         <div className="py-20 text-center text-muted-foreground text-[13px]">Loading tasks…</div>
       ) : tasks.length === 0 ? (
@@ -279,6 +289,7 @@ export default function Tasks() {
           onDragStart={setDraggedTask} onDropToPerson={onDropToPerson} draggedTask={draggedTask} />
 
       )}
+      </div>
 
       {drawerOpen && (
         <TaskDrawer task={drawerTask} defaultStatus={drawerDefaultStatus}
@@ -288,6 +299,7 @@ export default function Tasks() {
     </div>
   );
 }
+
 
 /* ---------- Subcomponents ---------- */
 
