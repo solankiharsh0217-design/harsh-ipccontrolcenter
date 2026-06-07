@@ -312,6 +312,18 @@ function StatCard({ label, value, highlight, amber }: { label: string; value: nu
   );
 }
 
+function StatPill({ label, value, tone }: { label: string; value: number; tone?: "gold" | "amber" | "muted" }) {
+  const valueColor = tone === "gold" ? "text-gold" : tone === "amber" ? "text-[#CA8A04]" : "text-black";
+  const bg = tone === "gold" ? "bg-gold-pale border-gold-mid" : "bg-off border-line";
+  return (
+    <div className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border ${bg}`}>
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className={`text-[12px] font-semibold leading-none ${valueColor}`}>{value}</span>
+    </div>
+  );
+}
+
+
 function PillGroup<T extends string>({ options, value, onChange }: { options: { v: T; label: string; disabled?: boolean }[]; value: T; onChange: (v: T) => void }) {
   return (
     <div className="inline-flex border border-line rounded-md overflow-hidden">
