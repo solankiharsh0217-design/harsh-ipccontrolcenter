@@ -520,7 +520,13 @@ function ListRow({ t, onOpen, onQuickStatus, menuOpen, setMenuOpen, onCopy, onAr
       </div>
       <div className="px-3 py-3">
         <div className={`font-serif text-[15px] font-medium ${t.status === "done" ? "line-through opacity-65" : ""}`}>{t.title}</div>
-        <div className="text-[10px] text-muted-foreground">{t.tag}</div>
+        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+          <span>{t.tag}</span>
+          {submission && (
+            <a href={submission.submission_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+              className="text-[#16A34A] hover:underline">· Open submission ↗</a>
+          )}
+        </div>
       </div>
       <div className="px-3 py-3 flex items-center gap-2 min-w-0">
         <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center font-serif text-[8px] text-gold flex-shrink-0">{t.assigned_initials ?? "—"}</div>
