@@ -5,11 +5,13 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import {
-  Task, TaskStatus, STATUSES, PRIORITY_PILL, fetchTasks, updateTask, archiveOldDone,
+  Task, TaskStatus, TaskSubmission, STATUSES, PRIORITY_PILL, fetchTasks, updateTask, archiveOldDone,
   dueLabel, todayISO, isOverdue, isDueToday, whatsappText, initialsOf,
+  fetchSubmissionsForTasks, extractUrls,
 } from "@/lib/tasks";
 import TaskCard from "@/components/tasks/TaskCard";
 import TaskDrawer from "@/components/tasks/TaskDrawer";
+import SubmitTaskModal from "@/components/tasks/SubmitTaskModal";
 
 type View = "kanban" | "list" | "people";
 type Scope = "my" | "all";
