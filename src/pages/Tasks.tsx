@@ -325,18 +325,21 @@ export default function Tasks() {
       ) : view === "kanban" ? (
         <KanbanView tasks={filtered} onOpen={(t) => openDrawer(t)} onQuickStatus={quickStatus}
           onDragStart={setDraggedTask} onDropTo={onDropTo} dragOverCol={dragOverCol} setDragOverCol={setDragOverCol}
-          onAddTask={(s) => openDrawer(null, s)} isAdmin={isAdmin} onArchiveDone={archiveDone} />
+          onAddTask={(s) => openDrawer(null, s)} isAdmin={isAdmin} onArchiveDone={archiveDone}
+          latestSubmission={latestSubmission} canSubmitFor={canSubmitFor} onSubmit={setSubmitFor} />
       ) : view === "list" ? (
         <ListView tasks={filtered} onOpen={(t) => openDrawer(t)} onQuickStatus={quickStatus}
           sortBy={sortBy} sortDir={sortDir} onSort={(s) => { if (sortBy === s) setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortBy(s); setSortDir("asc"); } }}
           menuOpenFor={menuOpenFor} setMenuOpenFor={setMenuOpenFor} onCopy={copyWhatsapp} isAdmin={isAdmin}
+          latestSubmission={latestSubmission}
           onArchive={async (t) => { if (!user || !profile) return; if (!confirm("Archive this task?")) return;
             try { const { archiveTask } = await import("@/lib/tasks"); await archiveTask(t, { id: user.id, name: profile.full_name }); onArchived(t); } catch(e:any){ toast.error(e?.message); }
           }} />
       ) : (
         <PeopleView tasks={filtered} members={members} isAdmin={isAdmin} me={user?.id ?? null} myName={profile?.full_name ?? "Me"}
           onOpen={(t) => openDrawer(t)} onQuickStatus={quickStatus}
-          onDragStart={setDraggedTask} onDropToPerson={onDropToPerson} draggedTask={draggedTask} />
+          onDragStart={setDraggedTask} onDropToPerson={onDropToPerson} draggedTask={draggedTask}
+          latestSubmission={latestSubmission} canSubmitFor={canSubmitFor} onSubmit={setSubmitFor} />
 
       )}
       </div>
