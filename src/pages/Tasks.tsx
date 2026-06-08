@@ -555,7 +555,7 @@ function MenuBtn({ children, onClick, danger }: any) {
 
 /* ---------- People ---------- */
 
-function PeopleView({ tasks, members, isAdmin, me, myName, onOpen, onQuickStatus, onDragStart, onDropToPerson, draggedTask }: any) {
+function PeopleView({ tasks, members, isAdmin, me, myName, onOpen, onQuickStatus, onDragStart, onDropToPerson, draggedTask, latestSubmission, canSubmitFor, onSubmit }: any) {
   const [dragOverId, setDragOverId] = useState<string | "__unassigned__" | null>(null);
 
   const groups = useMemo(() => {
