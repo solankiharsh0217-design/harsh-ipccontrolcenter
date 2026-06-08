@@ -421,7 +421,7 @@ function CenteredEmpty({ msg, onReset }: { msg: string; onReset: () => void }) {
 
 function KanbanView({
   tasks, onOpen, onQuickStatus, onDragStart, onDropTo, dragOverCol, setDragOverCol,
-  onAddTask, isAdmin, onArchiveDone,
+  onAddTask, isAdmin, onArchiveDone, latestSubmission, canSubmitFor, onSubmit,
 }: any) {
   return (
     <div className="flex gap-3 overflow-x-auto pb-4">
