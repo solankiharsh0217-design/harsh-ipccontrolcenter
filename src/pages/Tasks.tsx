@@ -347,7 +347,14 @@ export default function Tasks() {
       {drawerOpen && (
         <TaskDrawer task={drawerTask} defaultStatus={drawerDefaultStatus}
           onClose={() => { setDrawerOpen(false); setDrawerTask(null); setDrawerDefaultStatus(undefined); }}
-          onSaved={onSaved} onArchived={onArchived} />
+          onSaved={onSaved} onArchived={onArchived}
+          onOpenSubmit={(t) => setSubmitFor(t)}
+          submissions={drawerTask ? (submissionsByTask.get(drawerTask.id) ?? []) : []} />
+      )}
+      {submitFor && (
+        <SubmitTaskModal task={submitFor}
+          onClose={() => setSubmitFor(null)}
+          onSubmitted={onSubmissionCreated} />
       )}
     </div>
   );
