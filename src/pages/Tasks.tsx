@@ -504,7 +504,7 @@ function ListView({ tasks, onOpen, onQuickStatus, sortBy, sortDir, onSort, menuO
   );
 }
 
-function ListRow({ t, onOpen, onQuickStatus, menuOpen, setMenuOpen, onCopy, onArchive, isAdmin }: any) {
+function ListRow({ t, onOpen, onQuickStatus, menuOpen, setMenuOpen, onCopy, onArchive, isAdmin, submission }: any) {
   const status = STATUSES.find((s) => s.key === t.status)!;
   const due = dueLabel(t.due_date);
   const dueColor = due.tone === "overdue" ? "text-[#DC2626]" : due.tone === "today" ? "text-[#CA8A04]" : "text-muted-foreground";
