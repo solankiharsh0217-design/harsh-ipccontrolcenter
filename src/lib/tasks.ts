@@ -31,6 +31,63 @@ export interface TaskActivity {
   created_at: string;
 }
 
+export interface TaskSubmission {
+  id: string;
+  task_id: string;
+  submitted_by: string;
+  submitted_by_name: string | null;
+  submission_url: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const URL_RE = /https?:\/\/[^\s<>"')]+/gi;
+export function extractUrls(text: string | null | undefined): string[] {
+  if (!text) return [];
+  const m = text.match(URL_RE);
+  if (!m) return [];
+  return Array.from(new Set(m.map((s) => s.replace(/[.,;:!?)\]]+$/, ""))));
+}
+
+export function isValidUrl(s: string): boolean {
+  try { const u = new URL(s.trim()); return u.protocol === "http:" || u.protocol === "https:"; } catch { return false; }
+}
+
+export async function fetchSubmissionsForTasks(taskIds: string[]): Promise<Map<string, TaskSubmission[]>> {
+  const map = new Map<string, TaskSubmission[]>();
+  if (!taskIds.length) return map;
+  const { data, error } = await (supabase as any)
+    .from("task_submissions").select("*").in("task_id", taskIds)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  for (const r of (data ?? []) as TaskSubmission[]) {
+    const arr = map.get(r.task_id) ?? [];
+    arr.push(r); map.set(r.task_id, arr);
+  }
+  return map;
+}
+
+export async function fetchSubmissions(taskId: string): Promise<TaskSubmission[]> {
+  const { data, error } = await (supabase as any)
+    .from("task_submissions").select("*").eq("task_id", taskId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as TaskSubmission[];
+}
+
+export async function createSubmission(
+  taskId: string, url: string, note: string | null, me: { id: string; name: string }
+): Promise<TaskSubmission> {
+  const { data, error } = await (supabase as any).from("task_submissions").insert({
+    task_id: taskId, submitted_by: me.id, submitted_by_name: me.name,
+    submission_url: url.trim(), note: note?.trim() || null,
+  }).select().single();
+  if (error) throw error;
+  try { await logActivity(taskId, me.id, me.name, "submitted work"); } catch {}
+  return data as TaskSubmission;
+}
+
 export const STATUSES: { key: TaskStatus; label: string; barClass: string; pillClass: string }[] = [
   { key: "todo",       label: "To Do",       barClass: "bg-[#E5E7EB]", pillClass: "bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]" },
   { key: "inprogress", label: "In Progress", barClass: "bg-[#2563EB]", pillClass: "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]" },
