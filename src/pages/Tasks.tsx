@@ -5,11 +5,13 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import {
-  Task, TaskStatus, STATUSES, PRIORITY_PILL, fetchTasks, updateTask, archiveOldDone,
+  Task, TaskStatus, TaskSubmission, STATUSES, PRIORITY_PILL, fetchTasks, updateTask, archiveOldDone,
   dueLabel, todayISO, isOverdue, isDueToday, whatsappText, initialsOf,
+  fetchSubmissionsForTasks, extractUrls,
 } from "@/lib/tasks";
 import TaskCard from "@/components/tasks/TaskCard";
 import TaskDrawer from "@/components/tasks/TaskDrawer";
+import SubmitTaskModal from "@/components/tasks/SubmitTaskModal";
 
 type View = "kanban" | "list" | "people";
 type Scope = "my" | "all";
@@ -39,6 +41,8 @@ export default function Tasks() {
   const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"due_date" | "title" | "priority" | "status">("due_date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [submitFor, setSubmitFor] = useState<Task | null>(null);
+  const [submissionsByTask, setSubmissionsByTask] = useState<Map<string, TaskSubmission[]>>(new Map());
 
   useEffect(() => { setScope(isAdmin ? "all" : "my"); }, [isAdmin]);
 
@@ -78,6 +82,38 @@ export default function Tasks() {
             const id = (payload.old as any).id; return prev.filter((t) => t.id !== id);
           }
           return prev;
+        });
+      }).subscribe();
+    return () => { (supabase as any).removeChannel(ch); };
+  }, []);
+
+  // Fetch submissions for current task list
+  useEffect(() => {
+    if (!tasks.length) { setSubmissionsByTask(new Map()); return; }
+    let cancelled = false;
+    fetchSubmissionsForTasks(tasks.map(t => t.id))
+      .then((m) => { if (!cancelled) setSubmissionsByTask(m); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [tasks]);
+
+  // Realtime for submissions
+  useEffect(() => {
+    const ch = (supabase as any).channel("task-sub-rt").on("postgres_changes",
+      { event: "*", schema: "public", table: "task_submissions" },
+      (payload: any) => {
+        setSubmissionsByTask((prev) => {
+          const next = new Map(prev);
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as TaskSubmission;
+            const arr = [row, ...(next.get(row.task_id) ?? [])];
+            next.set(row.task_id, arr);
+          } else if (payload.eventType === "DELETE") {
+            const row = payload.old as TaskSubmission;
+            const arr = (next.get(row.task_id) ?? []).filter(s => s.id !== row.id);
+            next.set(row.task_id, arr);
+          }
+          return next;
         });
       }).subscribe();
     return () => { (supabase as any).removeChannel(ch); };
@@ -196,6 +232,20 @@ export default function Tasks() {
   };
   const onArchived = (t: Task) => setTasks((prev) => prev.filter((x) => x.id !== t.id));
 
+  const latestSubmission = (taskId: string): TaskSubmission | null => {
+    const arr = submissionsByTask.get(taskId);
+    return arr && arr.length ? arr[0] : null;
+  };
+  const canSubmitFor = (t: Task) => !!user && (isAdmin || t.assigned_to === user.id || t.created_by === user.id);
+  const onSubmissionCreated = (s: TaskSubmission, updated?: Task) => {
+    setSubmissionsByTask((prev) => {
+      const next = new Map(prev);
+      next.set(s.task_id, [s, ...(next.get(s.task_id) ?? [])]);
+      return next;
+    });
+    if (updated) onSaved(updated);
+  };
+
   const resetFilters = () => { setPriorityFilter("all"); setDueFilter("all"); setMemberFilter("all"); setSearchText(""); };
 
   const [hideStats, setHideStats] = useState<boolean>(() => {
@@ -275,18 +325,21 @@ export default function Tasks() {
       ) : view === "kanban" ? (
         <KanbanView tasks={filtered} onOpen={(t) => openDrawer(t)} onQuickStatus={quickStatus}
           onDragStart={setDraggedTask} onDropTo={onDropTo} dragOverCol={dragOverCol} setDragOverCol={setDragOverCol}
-          onAddTask={(s) => openDrawer(null, s)} isAdmin={isAdmin} onArchiveDone={archiveDone} />
+          onAddTask={(s) => openDrawer(null, s)} isAdmin={isAdmin} onArchiveDone={archiveDone}
+          latestSubmission={latestSubmission} canSubmitFor={canSubmitFor} onSubmit={setSubmitFor} />
       ) : view === "list" ? (
         <ListView tasks={filtered} onOpen={(t) => openDrawer(t)} onQuickStatus={quickStatus}
           sortBy={sortBy} sortDir={sortDir} onSort={(s) => { if (sortBy === s) setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortBy(s); setSortDir("asc"); } }}
           menuOpenFor={menuOpenFor} setMenuOpenFor={setMenuOpenFor} onCopy={copyWhatsapp} isAdmin={isAdmin}
+          latestSubmission={latestSubmission}
           onArchive={async (t) => { if (!user || !profile) return; if (!confirm("Archive this task?")) return;
             try { const { archiveTask } = await import("@/lib/tasks"); await archiveTask(t, { id: user.id, name: profile.full_name }); onArchived(t); } catch(e:any){ toast.error(e?.message); }
           }} />
       ) : (
         <PeopleView tasks={filtered} members={members} isAdmin={isAdmin} me={user?.id ?? null} myName={profile?.full_name ?? "Me"}
           onOpen={(t) => openDrawer(t)} onQuickStatus={quickStatus}
-          onDragStart={setDraggedTask} onDropToPerson={onDropToPerson} draggedTask={draggedTask} />
+          onDragStart={setDraggedTask} onDropToPerson={onDropToPerson} draggedTask={draggedTask}
+          latestSubmission={latestSubmission} canSubmitFor={canSubmitFor} onSubmit={setSubmitFor} />
 
       )}
       </div>
@@ -294,7 +347,14 @@ export default function Tasks() {
       {drawerOpen && (
         <TaskDrawer task={drawerTask} defaultStatus={drawerDefaultStatus}
           onClose={() => { setDrawerOpen(false); setDrawerTask(null); setDrawerDefaultStatus(undefined); }}
-          onSaved={onSaved} onArchived={onArchived} />
+          onSaved={onSaved} onArchived={onArchived}
+          onOpenSubmit={(t) => setSubmitFor(t)}
+          submissions={drawerTask ? (submissionsByTask.get(drawerTask.id) ?? []) : []} />
+      )}
+      {submitFor && (
+        <SubmitTaskModal task={submitFor}
+          onClose={() => setSubmitFor(null)}
+          onSubmitted={onSubmissionCreated} />
       )}
     </div>
   );
@@ -361,7 +421,7 @@ function CenteredEmpty({ msg, onReset }: { msg: string; onReset: () => void }) {
 
 function KanbanView({
   tasks, onOpen, onQuickStatus, onDragStart, onDropTo, dragOverCol, setDragOverCol,
-  onAddTask, isAdmin, onArchiveDone,
+  onAddTask, isAdmin, onArchiveDone, latestSubmission, canSubmitFor, onSubmit,
 }: any) {
   return (
     <div className="flex gap-3 overflow-x-auto pb-4">
@@ -387,7 +447,8 @@ function KanbanView({
                 <div className="border border-dashed border-line rounded-md py-6 text-center text-[12px] text-muted-foreground">No tasks here</div>
               )}
               {cols.map((t: Task) => (
-                <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart} />
+                <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart}
+                  submission={latestSubmission?.(t.id)} canSubmit={canSubmitFor?.(t)} onSubmit={onSubmit} />
               ))}
               <button onClick={() => onAddTask(s.key)}
                 className="h-11 border border-dashed border-line rounded-md text-[12px] text-muted-foreground hover:bg-gold-pale hover:border-gold transition-colors">
@@ -403,7 +464,7 @@ function KanbanView({
 
 /* ---------- List ---------- */
 
-function ListView({ tasks, onOpen, onQuickStatus, sortBy, sortDir, onSort, menuOpenFor, setMenuOpenFor, onCopy, onArchive, isAdmin }: any) {
+function ListView({ tasks, onOpen, onQuickStatus, sortBy, sortDir, onSort, menuOpenFor, setMenuOpenFor, onCopy, onArchive, isAdmin, latestSubmission }: any) {
   const sorted = useMemo(() => {
     const arr = tasks.slice();
     const prioRank: any = { high: 0, medium: 1, low: 2 };
@@ -438,12 +499,12 @@ function ListView({ tasks, onOpen, onQuickStatus, sortBy, sortDir, onSort, menuO
       </div>
       {sorted.map((t: Task) => <ListRow key={t.id} t={t} onOpen={onOpen} onQuickStatus={onQuickStatus}
         menuOpen={menuOpenFor === t.id} setMenuOpen={(v: boolean) => setMenuOpenFor(v ? t.id : null)}
-        onCopy={onCopy} onArchive={onArchive} isAdmin={isAdmin} />)}
+        onCopy={onCopy} onArchive={onArchive} isAdmin={isAdmin} submission={latestSubmission?.(t.id)} />)}
     </div>
   );
 }
 
-function ListRow({ t, onOpen, onQuickStatus, menuOpen, setMenuOpen, onCopy, onArchive, isAdmin }: any) {
+function ListRow({ t, onOpen, onQuickStatus, menuOpen, setMenuOpen, onCopy, onArchive, isAdmin, submission }: any) {
   const status = STATUSES.find((s) => s.key === t.status)!;
   const due = dueLabel(t.due_date);
   const dueColor = due.tone === "overdue" ? "text-[#DC2626]" : due.tone === "today" ? "text-[#CA8A04]" : "text-muted-foreground";
@@ -459,7 +520,13 @@ function ListRow({ t, onOpen, onQuickStatus, menuOpen, setMenuOpen, onCopy, onAr
       </div>
       <div className="px-3 py-3">
         <div className={`font-serif text-[15px] font-medium ${t.status === "done" ? "line-through opacity-65" : ""}`}>{t.title}</div>
-        <div className="text-[10px] text-muted-foreground">{t.tag}</div>
+        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+          <span>{t.tag}</span>
+          {submission && (
+            <a href={submission.submission_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+              className="text-[#16A34A] hover:underline">· Open submission ↗</a>
+          )}
+        </div>
       </div>
       <div className="px-3 py-3 flex items-center gap-2 min-w-0">
         <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center font-serif text-[8px] text-gold flex-shrink-0">{t.assigned_initials ?? "—"}</div>
@@ -494,7 +561,7 @@ function MenuBtn({ children, onClick, danger }: any) {
 
 /* ---------- People ---------- */
 
-function PeopleView({ tasks, members, isAdmin, me, myName, onOpen, onQuickStatus, onDragStart, onDropToPerson, draggedTask }: any) {
+function PeopleView({ tasks, members, isAdmin, me, myName, onOpen, onQuickStatus, onDragStart, onDropToPerson, draggedTask, latestSubmission, canSubmitFor, onSubmit }: any) {
   const [dragOverId, setDragOverId] = useState<string | "__unassigned__" | null>(null);
 
   const groups = useMemo(() => {
@@ -545,7 +612,8 @@ function PeopleView({ tasks, members, isAdmin, me, myName, onOpen, onQuickStatus
           {list.length === 0 ? (
             <div className="border border-dashed border-line rounded-md py-6 text-center text-[12px] text-muted-foreground">No tasks assigned</div>
           ) : list.map((t) => (
-            <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart} />
+            <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart}
+              submission={latestSubmission?.(t.id)} canSubmit={canSubmitFor?.(t)} onSubmit={onSubmit} />
           ))}
         </div>
       </div>

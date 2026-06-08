@@ -7342,6 +7342,47 @@ export type Database = {
         }
         Relationships: []
       }
+      task_submissions: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          submission_url: string
+          submitted_by: string
+          submitted_by_name: string | null
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          submission_url: string
+          submitted_by: string
+          submitted_by_name?: string | null
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          submission_url?: string
+          submitted_by?: string
+          submitted_by_name?: string | null
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_submissions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_initials: string | null
