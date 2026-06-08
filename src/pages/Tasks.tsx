@@ -606,7 +606,8 @@ function PeopleView({ tasks, members, isAdmin, me, myName, onOpen, onQuickStatus
           {list.length === 0 ? (
             <div className="border border-dashed border-line rounded-md py-6 text-center text-[12px] text-muted-foreground">No tasks assigned</div>
           ) : list.map((t) => (
-            <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart} />
+            <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart}
+              submission={latestSubmission?.(t.id)} canSubmit={canSubmitFor?.(t)} onSubmit={onSubmit} />
           ))}
         </div>
       </div>
