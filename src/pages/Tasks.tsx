@@ -499,7 +499,7 @@ function ListView({ tasks, onOpen, onQuickStatus, sortBy, sortDir, onSort, menuO
       </div>
       {sorted.map((t: Task) => <ListRow key={t.id} t={t} onOpen={onOpen} onQuickStatus={onQuickStatus}
         menuOpen={menuOpenFor === t.id} setMenuOpen={(v: boolean) => setMenuOpenFor(v ? t.id : null)}
-        onCopy={onCopy} onArchive={onArchive} isAdmin={isAdmin} />)}
+        onCopy={onCopy} onArchive={onArchive} isAdmin={isAdmin} submission={latestSubmission?.(t.id)} />)}
     </div>
   );
 }
