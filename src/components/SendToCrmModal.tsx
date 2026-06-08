@@ -216,11 +216,28 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
           is_super_hot: isSH, lead_source_type: sourceType,
         };
         if (existing) {
-          toUpdate.push({
-            id: existing.id,
-            patch: { ...payload, webinar_count: existing.webinar_count + 1 },
-            activity: { lead_id: existing.id, agent_id: profile?.id, agent_name: profile?.full_name, channel: "system", note: `Auto-upgraded to Super Hot — attended ${name}` },
-          });
+          const isPaid = existing.lead_type === "paid" || !!existing.paid_pipeline_lead_id;
+          if (isPaid) {
+            // PROTECTED: never overwrite a paid lead's pipeline/stage/source/owner from a qualifier push.
+            // Only bump attendance signals and webinar_count, and log the attendance.
+            toUpdate.push({
+              id: existing.id,
+              patch: {
+                webinar_count: existing.webinar_count + 1,
+                total_minutes: l.totalMinutes,
+                attendance_pct: l.attendancePct,
+                sessions_count: l.sessions,
+                is_super_hot: true,
+              },
+              activity: { lead_id: existing.id, agent_id: profile?.id, agent_name: profile?.full_name, channel: "system", note: `Attended ${batchLabel} — paid lead protected from overwrite` },
+            });
+          } else {
+            toUpdate.push({
+              id: existing.id,
+              patch: { ...payload, webinar_count: existing.webinar_count + 1 },
+              activity: { lead_id: existing.id, agent_id: profile?.id, agent_name: profile?.full_name, channel: "system", note: `Auto-upgraded to Super Hot — attended ${name}` },
+            });
+          }
         } else {
           toInsert.push(payload);
         }
