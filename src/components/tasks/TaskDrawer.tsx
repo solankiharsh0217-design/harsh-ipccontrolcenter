@@ -216,6 +216,38 @@ export default function TaskDrawer({
               )}
             </div>
           )}
+
+          {isEdit && task && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground border-b border-line pb-1.5 mb-2.5 flex items-center justify-between">
+                <span>Submissions {submissions.length > 0 && <span className="text-muted-foreground/70 normal-case">({submissions.length})</span>}</span>
+                {onOpenSubmit && (task.assigned_to === user?.id || task.created_by === user?.id || isAdmin) && (
+                  <button onClick={() => onOpenSubmit(task)} className="inline-flex items-center gap-1 text-[10px] text-black hover:text-gold normal-case">
+                    <Upload className="w-3 h-3" /> Submit work
+                  </button>
+                )}
+              </div>
+              {submissions.length === 0 ? (
+                <div className="text-[12px] text-muted-foreground italic">No submissions yet</div>
+              ) : (
+                <div className="space-y-2">
+                  {submissions.map((s) => (
+                    <div key={s.id} className="border border-line rounded-md p-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <a href={s.submission_url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[12px] text-[#2563EB] hover:underline truncate">
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{s.submission_url}</span>
+                        </a>
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">{timeAgo(s.created_at)}</span>
+                      </div>
+                      {s.note && <div className="text-[11px] text-muted-foreground mt-1">{s.note}</div>}
+                      <div className="text-[10px] text-muted-foreground mt-1">by {s.submitted_by_name ?? "—"}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="px-5 py-3 border-t border-line flex items-center justify-between flex-shrink-0 bg-off/40">
