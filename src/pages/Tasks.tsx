@@ -41,6 +41,8 @@ export default function Tasks() {
   const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"due_date" | "title" | "priority" | "status">("due_date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [submitFor, setSubmitFor] = useState<Task | null>(null);
+  const [submissionsByTask, setSubmissionsByTask] = useState<Map<string, TaskSubmission[]>>(new Map());
 
   useEffect(() => { setScope(isAdmin ? "all" : "my"); }, [isAdmin]);
 
