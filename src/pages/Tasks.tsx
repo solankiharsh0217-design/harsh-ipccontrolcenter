@@ -232,6 +232,20 @@ export default function Tasks() {
   };
   const onArchived = (t: Task) => setTasks((prev) => prev.filter((x) => x.id !== t.id));
 
+  const latestSubmission = (taskId: string): TaskSubmission | null => {
+    const arr = submissionsByTask.get(taskId);
+    return arr && arr.length ? arr[0] : null;
+  };
+  const canSubmitFor = (t: Task) => !!user && (isAdmin || t.assigned_to === user.id || t.created_by === user.id);
+  const onSubmissionCreated = (s: TaskSubmission, updated?: Task) => {
+    setSubmissionsByTask((prev) => {
+      const next = new Map(prev);
+      next.set(s.task_id, [s, ...(next.get(s.task_id) ?? [])]);
+      return next;
+    });
+    if (updated) onSaved(updated);
+  };
+
   const resetFilters = () => { setPriorityFilter("all"); setDueFilter("all"); setMemberFilter("all"); setSearchText(""); };
 
   const [hideStats, setHideStats] = useState<boolean>(() => {
