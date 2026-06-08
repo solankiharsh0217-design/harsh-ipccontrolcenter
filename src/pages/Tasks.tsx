@@ -464,7 +464,7 @@ function KanbanView({
 
 /* ---------- List ---------- */
 
-function ListView({ tasks, onOpen, onQuickStatus, sortBy, sortDir, onSort, menuOpenFor, setMenuOpenFor, onCopy, onArchive, isAdmin }: any) {
+function ListView({ tasks, onOpen, onQuickStatus, sortBy, sortDir, onSort, menuOpenFor, setMenuOpenFor, onCopy, onArchive, isAdmin, latestSubmission }: any) {
   const sorted = useMemo(() => {
     const arr = tasks.slice();
     const prioRank: any = { high: 0, medium: 1, low: 2 };
