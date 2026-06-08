@@ -87,6 +87,38 @@ export default function Tasks() {
     return () => { (supabase as any).removeChannel(ch); };
   }, []);
 
+  // Fetch submissions for current task list
+  useEffect(() => {
+    if (!tasks.length) { setSubmissionsByTask(new Map()); return; }
+    let cancelled = false;
+    fetchSubmissionsForTasks(tasks.map(t => t.id))
+      .then((m) => { if (!cancelled) setSubmissionsByTask(m); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [tasks]);
+
+  // Realtime for submissions
+  useEffect(() => {
+    const ch = (supabase as any).channel("task-sub-rt").on("postgres_changes",
+      { event: "*", schema: "public", table: "task_submissions" },
+      (payload: any) => {
+        setSubmissionsByTask((prev) => {
+          const next = new Map(prev);
+          if (payload.eventType === "INSERT") {
+            const row = payload.new as TaskSubmission;
+            const arr = [row, ...(next.get(row.task_id) ?? [])];
+            next.set(row.task_id, arr);
+          } else if (payload.eventType === "DELETE") {
+            const row = payload.old as TaskSubmission;
+            const arr = (next.get(row.task_id) ?? []).filter(s => s.id !== row.id);
+            next.set(row.task_id, arr);
+          }
+          return next;
+        });
+      }).subscribe();
+    return () => { (supabase as any).removeChannel(ch); };
+  }, []);
+
   // open drawer from query param
   useEffect(() => {
     const openId = search.get("open");
