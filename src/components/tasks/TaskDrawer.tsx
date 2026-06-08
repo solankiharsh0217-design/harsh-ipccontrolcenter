@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, ExternalLink, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import {
-  Task, TaskActivity, TaskPriority, TaskStatus, STATUSES, TAGS, PRIORITY_PILL,
+  Task, TaskActivity, TaskPriority, TaskStatus, TaskSubmission, STATUSES, TAGS, PRIORITY_PILL,
   createTask, updateTask, archiveTask, fetchActivity, todayISO, timeAgo, initialsOf, whatsappText, labelOfStatus,
 } from "@/lib/tasks";
 import AssigneePicker from "./AssigneePicker";
@@ -12,13 +12,15 @@ import AssigneePicker from "./AssigneePicker";
 interface Member { id: string; full_name: string; role: string | null }
 
 export default function TaskDrawer({
-  task, defaultStatus, onClose, onSaved, onArchived,
+  task, defaultStatus, onClose, onSaved, onArchived, onOpenSubmit, submissions = [],
 }: {
   task: Task | null;
   defaultStatus?: TaskStatus;
   onClose: () => void;
   onSaved: (t: Task) => void;
   onArchived?: (t: Task) => void;
+  onOpenSubmit?: (t: Task) => void;
+  submissions?: TaskSubmission[];
 }) {
   const { user, profile, isAdmin } = useAuth();
   const isEdit = !!task;
