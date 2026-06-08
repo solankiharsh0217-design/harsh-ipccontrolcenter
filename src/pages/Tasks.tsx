@@ -447,7 +447,8 @@ function KanbanView({
                 <div className="border border-dashed border-line rounded-md py-6 text-center text-[12px] text-muted-foreground">No tasks here</div>
               )}
               {cols.map((t: Task) => (
-                <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart} />
+                <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart}
+                  submission={latestSubmission?.(t.id)} canSubmit={canSubmitFor?.(t)} onSubmit={onSubmit} />
               ))}
               <button onClick={() => onAddTask(s.key)}
                 className="h-11 border border-dashed border-line rounded-md text-[12px] text-muted-foreground hover:bg-gold-pale hover:border-gold transition-colors">
