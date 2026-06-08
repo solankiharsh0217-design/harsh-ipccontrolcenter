@@ -148,20 +148,26 @@ export default function SendToCrmModal({ result, onClose, onDone }: Props) {
       // 1) Find all existing leads in one query by normalized email AND normalized phone
       const normEmails = Array.from(new Set(result.leads.map((l) => normalizeEmail(l.email)).filter(Boolean))) as string[];
       const normPhones = Array.from(new Set(result.leads.map((l) => normalizePhone(l.phone)).filter(Boolean))) as string[];
-      const existingByEmail = new Map<string, { id: string; webinar_count: number }>();
-      const existingByPhone = new Map<string, { id: string; webinar_count: number }>();
+      type ExMeta = { id: string; webinar_count: number; lead_type: string | null; paid_pipeline_lead_id: string | null };
+      const existingByEmail = new Map<string, ExMeta>();
+      const existingByPhone = new Map<string, ExMeta>();
       const chunkSize = 500;
       for (let i = 0; i < normEmails.length; i += chunkSize) {
         const chunk = normEmails.slice(i, i + chunkSize);
-        const { data: ex } = await supabase.from("leads").select("id, email, webinar_count").in("email", chunk);
-        (ex || []).forEach((r: any) => existingByEmail.set(normalizeEmail(r.email), { id: r.id, webinar_count: r.webinar_count || 1 }));
+        const { data: ex } = await supabase.from("leads").select("id, email, phone, webinar_count, lead_type, paid_pipeline_lead_id").in("email", chunk);
+        (ex || []).forEach((r: any) => {
+          const meta: ExMeta = { id: r.id, webinar_count: r.webinar_count || 1, lead_type: r.lead_type, paid_pipeline_lead_id: r.paid_pipeline_lead_id };
+          const e = normalizeEmail(r.email); if (e) existingByEmail.set(e, meta);
+          const p = normalizePhone(r.phone); if (p) existingByPhone.set(p, meta);
+        });
       }
       for (let i = 0; i < normPhones.length; i += chunkSize) {
         const chunk = normPhones.slice(i, i + chunkSize);
-        const { data: ex } = await supabase.from("leads").select("id, phone, webinar_count").in("phone", chunk);
+        const { data: ex } = await supabase.from("leads").select("id, email, phone, webinar_count, lead_type, paid_pipeline_lead_id").in("phone", chunk);
         (ex || []).forEach((r: any) => {
-          const p = normalizePhone(r.phone);
-          if (p) existingByPhone.set(p, { id: r.id, webinar_count: r.webinar_count || 1 });
+          const meta: ExMeta = { id: r.id, webinar_count: r.webinar_count || 1, lead_type: r.lead_type, paid_pipeline_lead_id: r.paid_pipeline_lead_id };
+          const p = normalizePhone(r.phone); if (p) existingByPhone.set(p, meta);
+          const e = normalizeEmail(r.email); if (e) existingByEmail.set(e, meta);
         });
       }
 
