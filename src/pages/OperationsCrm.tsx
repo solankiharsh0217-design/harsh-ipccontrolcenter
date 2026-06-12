@@ -307,13 +307,8 @@ export default function OperationsCrm() {
 
       {tab !== "kanban" ? null : (
       <>
-      {/* Phase C panels — kanban view */}
-      {!isAdmin && profile?.id && (
-        <div className="mb-3"><RewardWidget buyerId={profile.id} /></div>
-      )}
-      {isAdmin && (
-        <div className="mb-4"><MediaBuyerPerformancePanel leads={leads} /></div>
-      )}
+      {/* Rewards & media buyer performance moved to Rewards/Reports tabs.
+          Active board stays focused on client cards + stages. */}
 
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap mb-3">
