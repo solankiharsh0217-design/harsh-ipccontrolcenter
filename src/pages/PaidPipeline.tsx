@@ -1314,6 +1314,11 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
                 Set Follow-up
               </button>
+              {(hasToken || isAdmin) && (
+                <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#1D4ED8] text-white hover:opacity-90" title="Hand off this paid client to the Operations CRM service-delivery board">
+                  Send to Operations CRM
+                </button>
+              )}
             </div>
           </div>
           <button onClick={onClose} className="text-[20px] leading-none">×</button>
