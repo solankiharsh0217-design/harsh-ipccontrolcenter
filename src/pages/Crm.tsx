@@ -20,7 +20,7 @@ import {
   type HandoffRule, type AutoHandoffLeadInput,
 } from "@/lib/operationsCrm";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
-import MultiSelectFilter, { CANONICAL_GRADES, normalizeGradeValue, gradeLabel, leadMatchesGrades } from "@/components/crm/MultiSelectFilter";
+import MultiSelectFilter, { CANONICAL_GRADES, normalizeGradeValue, gradeLabel } from "@/components/crm/MultiSelectFilter";
 import CrmDateRangeControl from "@/components/crm/CrmDateRangeControl";
 import { Tag as TagIcon, Layers, Flame, FolderOpen } from "lucide-react";
 import AttendanceBadge, { ATTENDANCE_GRADE_OPTIONS, ATTENDANCE_MIN_MINUTES_OPTIONS, ATTENDANCE_DATA_OPTIONS } from "@/components/crm/AttendanceBadge";
@@ -478,6 +478,26 @@ export default function Crm() {
   };
 
   /**
+   * Single source of truth for a lead's canonical grade used by BOTH the grade
+   * filter and the grade dropdown counts. Prefers the live hotness score
+   * (manual override → current_hotness) and falls back to the legacy
+   * `l.grade` column. Always honours `is_super_hot` first.
+   */
+  const effectiveCanonicalGrade = (l: any): string => {
+    if (l.is_super_hot) return "super-hot";
+    const h = hotnessMap[l.id];
+    if (h) {
+      const g = h.manual_override && h.manual_grade ? h.manual_grade : h.current_hotness;
+      if (g === "super_hot") return "super-hot";
+      if (g === "hot") return "hot";
+      if (g === "warm") return "warm";
+      if (g === "cold") return "cold";
+      if (g === "inactive") return "true-absentee";
+    }
+    return normalizeGradeValue(l.grade);
+  };
+
+  /**
    * Apply every secondary filter except the one named in `except`.
    * Used by pipelineLeads (`except = "none"`) AND by each dropdown's option
    * counter so that the dropdown count matches the board result you'd get
@@ -488,8 +508,9 @@ export default function Crm() {
     let list = baseScopeLeads;
     if (except !== "grade" && gradeFilter.length > 0) {
       const set = new Set(gradeFilter);
-      list = list.filter((l: any) => leadMatchesGrades(l, set));
+      list = list.filter((l: any) => set.has(effectiveCanonicalGrade(l)));
     }
+
     if (except !== "batch" && batchFilter.length > 0) {
       list = list.filter((l) => batchFilter.includes(l.webinar_source || "—"));
     }
@@ -978,19 +999,16 @@ export default function Crm() {
   const gradeOptions = useMemo(() => {
     const scope = applyFiltersExcept("grade") as any[];
     const counts = new Map<string, number>();
-    let superHotCount = 0;
     for (const l of scope) {
-      if (l.is_super_hot) superHotCount++;
-      const g = normalizeGradeValue(l.grade);
-      if (g && g !== "super-hot") counts.set(g, (counts.get(g) || 0) + 1);
-      if (g === "super-hot" && !l.is_super_hot) superHotCount++;
+      const g = effectiveCanonicalGrade(l);
+      if (!g) continue;
+      counts.set(g, (counts.get(g) || 0) + 1);
     }
     const seen = new Set<string>();
     const out: { value: string; label: string; count: number }[] = [];
     for (const c of CANONICAL_GRADES) {
-      const count = c.value === "super-hot" ? superHotCount : (counts.get(c.value) || 0);
       seen.add(c.value);
-      out.push({ value: c.value, label: c.label, count });
+      out.push({ value: c.value, label: c.label, count: counts.get(c.value) || 0 });
     }
     for (const [value, count] of counts.entries()) {
       if (!seen.has(value)) out.push({ value, label: gradeLabel(value), count });
@@ -998,6 +1016,7 @@ export default function Crm() {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, allFiltersDeps);
+
 
   const tagOptions = useMemo(() => {
     const scope = applyFiltersExcept("tag");
