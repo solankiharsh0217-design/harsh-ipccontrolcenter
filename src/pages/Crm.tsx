@@ -555,12 +555,26 @@ export default function Crm() {
 
 
   // Group leads into webinar batches (cards on the Batches view)
+  // Counts breakdown is computed across ALL leads (irrespective of showArchived) so the
+  // three-dot menu can explain why card total may differ from cleanup-modal total.
   const batches = useMemo(() => {
-    const filteredForBatches = leads.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at);
-    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null; servicePackageSnapshot: any | null; servicePackageName: string | null }>();
+    // Breakdown across the full lead universe, keyed identically to the visible cards.
+    const breakdown = new Map<string, { active: number; archived: number; hidden: number; paidLinked: number; total: number }>();
+    for (const l of leads as any[]) {
+      const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
+      const cur = breakdown.get(key) || { active: 0, archived: 0, hidden: 0, paidLinked: 0, total: 0 };
+      cur.total++;
+      if (l.archived_at) cur.archived++;
+      else cur.active++;
+      if (l.hide_from_sales_workload) cur.hidden++;
+      if (l.paid_pipeline_lead_id) cur.paidLinked++;
+      breakdown.set(key, cur);
+    }
+    const filteredForBatches = (leads as any[]).filter((l) => showArchived ? !!l.archived_at : !l.archived_at);
+    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null; servicePackageSnapshot: any | null; servicePackageName: string | null; breakdown: { active: number; archived: number; hidden: number; paidLinked: number; total: number } }>();
     for (const l of filteredForBatches) {
       const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
-      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at, servicePackageSnapshot: null, servicePackageName: null };
+      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at, servicePackageSnapshot: null, servicePackageName: null, breakdown: breakdown.get(key) || { active: 0, archived: 0, hidden: 0, paidLinked: 0, total: 0 } };
       cur.total++;
       if (l.is_super_hot) cur.superHot++;
       if (l.grade === "hot") cur.hot++;
@@ -574,7 +588,13 @@ export default function Crm() {
       }
       map.set(key, cur);
     }
-    return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
+    // Sort by webinar date desc (latest first); batches with no date go to the bottom,
+    // with created_at as a tiebreaker so freshly-imported no-date batches surface first.
+    return Array.from(map.values()).sort((a, b) => {
+      if (!!a.date !== !!b.date) return a.date ? -1 : 1;
+      if (a.date && b.date && a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.created || "").localeCompare(a.created || "");
+    });
   }, [leads, showArchived]);
 
   // Tag each batch with the pipeline type for the Batches view tabs and apply the active tab filter.
