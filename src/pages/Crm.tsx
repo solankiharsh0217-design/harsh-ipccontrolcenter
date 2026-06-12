@@ -2082,10 +2082,10 @@ export default function Crm() {
         <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/40" onClick={() => setRepairPickerOpen(false)}>
           <div className="bg-white rounded-xl border border-line w-full max-w-md p-6 max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <div className="font-serif text-lg">Repair Wrong Batch</div>
+              <div className="font-serif text-lg">Batch Cleanup</div>
               <button onClick={() => setRepairPickerOpen(false)} className="p-1 rounded hover:bg-off"><XIcon className="w-4 h-4" /></button>
             </div>
-            <div className="text-[12px] text-muted-foreground mb-3">Pick the batch you want to move into the correct pipeline.</div>
+            <div className="text-[12px] text-muted-foreground mb-3">Use this to inspect or clean wrong/empty batches. Pick the batch you want to move into the correct pipeline.</div>
             <div className="space-y-1.5">
               {batchesWithType.length === 0 && <div className="text-sm text-muted-foreground">No batches available.</div>}
               {batchesWithType.map(b => {
