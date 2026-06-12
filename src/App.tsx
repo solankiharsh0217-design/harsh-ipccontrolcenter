@@ -119,9 +119,10 @@ const App = () => (
             <Route path="/admin-center" element={<Shell><AdminCenter /></Shell>} />
             <Route path="/admin-center/company-settings" element={<Shell admin><CompanySettingsPage /></Shell>} />
             <Route path="/admin-center/invoice-settings" element={<Shell admin><InvoiceSettingsPage /></Shell>} />
-            <Route path="/invoices" element={<Shell><InvoicesPage /></Shell>} />
-            <Route path="/invoices/new" element={<Shell><InvoiceEditor /></Shell>} />
-            <Route path="/invoices/:id" element={<Shell><InvoiceEditor /></Shell>} />
+            <Route path="/invoices" element={<Shell admin><InvoicesPage /></Shell>} />
+            <Route path="/invoices/new" element={<Shell admin><InvoiceEditor /></Shell>} />
+            <Route path="/invoices/:id" element={<Shell admin><InvoiceEditor /></Shell>} />
+
             <Route path="/paid-pipeline/:paidLeadId/invoices" element={<Shell moduleKey="paid-pipeline"><PaidLeadInvoicesPage /></Shell>} />
             <Route path="/admin-center/item-catalog" element={<Shell admin><InvoiceItemCatalogPage /></Shell>} />
             <Route path="/admin-center/offer-catalog" element={<Shell admin><OfferCatalogPage /></Shell>} />
