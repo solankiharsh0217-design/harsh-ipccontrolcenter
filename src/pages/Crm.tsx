@@ -1911,8 +1911,8 @@ export default function Crm() {
               <button
                 onClick={() => setRepairPickerOpen(true)}
                 className="ml-2 px-3 py-1.5 rounded-md text-xs border border-[#1D4ED8] text-[#1D4ED8] hover:bg-[#EFF6FF]"
-                title="Move a wrongly uploaded batch into the correct pipeline"
-              >Repair Wrong Batch</button>
+                title="Inspect or clean wrong/empty batches — move leads into the correct pipeline"
+              >Batch Cleanup</button>
             )}
           </div>
           {visibleBatches.length === 0 && (
