@@ -999,19 +999,16 @@ export default function Crm() {
   const gradeOptions = useMemo(() => {
     const scope = applyFiltersExcept("grade") as any[];
     const counts = new Map<string, number>();
-    let superHotCount = 0;
     for (const l of scope) {
-      if (l.is_super_hot) superHotCount++;
-      const g = normalizeGradeValue(l.grade);
-      if (g && g !== "super-hot") counts.set(g, (counts.get(g) || 0) + 1);
-      if (g === "super-hot" && !l.is_super_hot) superHotCount++;
+      const g = effectiveCanonicalGrade(l);
+      if (!g) continue;
+      counts.set(g, (counts.get(g) || 0) + 1);
     }
     const seen = new Set<string>();
     const out: { value: string; label: string; count: number }[] = [];
     for (const c of CANONICAL_GRADES) {
-      const count = c.value === "super-hot" ? superHotCount : (counts.get(c.value) || 0);
       seen.add(c.value);
-      out.push({ value: c.value, label: c.label, count });
+      out.push({ value: c.value, label: c.label, count: counts.get(c.value) || 0 });
     }
     for (const [value, count] of counts.entries()) {
       if (!seen.has(value)) out.push({ value, label: gradeLabel(value), count });
@@ -1019,6 +1016,7 @@ export default function Crm() {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, allFiltersDeps);
+
 
   const tagOptions = useMemo(() => {
     const scope = applyFiltersExcept("tag");
