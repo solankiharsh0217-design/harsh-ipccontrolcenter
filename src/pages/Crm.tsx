@@ -1937,6 +1937,7 @@ export default function Crm() {
                   }}
                 >
                   <BatchActionsMenu
+                    breakdown={(b as any).breakdown}
                     isAdmin={isAdmin}
                     archived={isArchivedView}
                     onView={() => {
