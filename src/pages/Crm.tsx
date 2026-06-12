@@ -20,7 +20,7 @@ import {
   type HandoffRule, type AutoHandoffLeadInput,
 } from "@/lib/operationsCrm";
 import { listAllTags, getTagsForLeads, pickTagColor, type Tag } from "@/lib/leadTags";
-import MultiSelectFilter, { CANONICAL_GRADES, normalizeGradeValue, gradeLabel, leadMatchesGrades } from "@/components/crm/MultiSelectFilter";
+import MultiSelectFilter, { CANONICAL_GRADES, normalizeGradeValue, gradeLabel } from "@/components/crm/MultiSelectFilter";
 import CrmDateRangeControl from "@/components/crm/CrmDateRangeControl";
 import { Tag as TagIcon, Layers, Flame, FolderOpen } from "lucide-react";
 import AttendanceBadge, { ATTENDANCE_GRADE_OPTIONS, ATTENDANCE_MIN_MINUTES_OPTIONS, ATTENDANCE_DATA_OPTIONS } from "@/components/crm/AttendanceBadge";
