@@ -62,7 +62,7 @@ export default function OperationsCrm() {
   const [leads, setLeads] = useState<OpsLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [buyerFilter, setBuyerFilter] = useState<string>(params.get("assigned_to") === "me" ? "me" : "all");
+  const [buyerFilter, setBuyerFilter] = useState<string>(params.get("assigned_to") === "me" ? "me" : (isAdmin ? "all" : "me"));
   const [statusFilter, setStatusFilter] = useState<string>(params.get("filter") || "all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [buyers, setBuyers] = useState<{ id: string; full_name: string }[]>([]);
@@ -234,11 +234,12 @@ export default function OperationsCrm() {
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={load} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
-          <button onClick={addStage} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> Add Stage</button>
+          {isAdmin && <button onClick={addStage} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> Add Stage</button>}
         </div>
       </div>
 
-      {/* Metric strip */}
+      {/* Metric strip — only on Reports & Rewards tabs (keeps Active tab clean) */}
+      {(tab === "reports" || tab === "rewards") && (
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-3">
         {(isAdmin ? [
           { label: "Total clients", value: metrics.total },
@@ -263,6 +264,7 @@ export default function OperationsCrm() {
           </div>
         ))}
       </div>
+      )}
 
       {hasTemplates === false && (
         <div className="mb-3">
@@ -305,13 +307,8 @@ export default function OperationsCrm() {
 
       {tab !== "kanban" ? null : (
       <>
-      {/* Phase C panels — kanban view */}
-      {!isAdmin && profile?.id && (
-        <div className="mb-3"><RewardWidget buyerId={profile.id} /></div>
-      )}
-      {isAdmin && (
-        <div className="mb-4"><MediaBuyerPerformancePanel leads={leads} /></div>
-      )}
+      {/* Rewards & media buyer performance moved to Rewards/Reports tabs.
+          Active board stays focused on client cards + stages. */}
 
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap mb-3">
@@ -331,9 +328,9 @@ export default function OperationsCrm() {
           )}
         </div>
         <select className="ipc-input !h-9 !text-xs" value={buyerFilter} onChange={(e) => { setBuyerFilter(e.target.value); const p = new URLSearchParams(params); if (e.target.value === "me") p.set("assigned_to", "me"); else p.delete("assigned_to"); setParams(p, { replace: true }); }}>
-          <option value="all">All media buyers</option>
+          {isAdmin && <option value="all">All media buyers</option>}
           {profile?.id && <option value="me">Assigned to me</option>}
-          {buyers.map((b) => <option key={b.id} value={b.id}>{b.full_name}</option>)}
+          {isAdmin && buyers.map((b) => <option key={b.id} value={b.id}>{b.full_name}</option>)}
         </select>
         <select className="ipc-input !h-9 !text-xs" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All statuses</option>

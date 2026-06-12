@@ -36,6 +36,7 @@ import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import CompactPaidRow from "@/components/paid-pipeline/CompactPaidRow";
 import { getPaymentStatus, type PayStatusKey } from "@/lib/paidPaymentStatus";
 import ServicePackageChip from "@/components/ServicePackageChip";
+import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 
 type Lead = {
   id: string;
@@ -946,6 +947,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
   const [linkingCrm, setLinkingCrm] = useState(false);
   const [newCrmStageName, setNewCrmStageName] = useState("");
   const [addingStage, setAddingStage] = useState(false);
+  const [sendOpsOpen, setSendOpsOpen] = useState(false);
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
@@ -1312,6 +1314,11 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
                 Set Follow-up
               </button>
+              {(hasToken || isAdmin) && (
+                <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#1D4ED8] text-white hover:opacity-90" title="Hand off this paid client to the Operations CRM service-delivery board">
+                  Send to Operations CRM
+                </button>
+              )}
             </div>
           </div>
           <button onClick={onClose} className="text-[20px] leading-none">×</button>
@@ -1739,6 +1746,7 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
       {openPay && <QuickAddPaymentModal leadId={lead.id} leadName={lead.name || undefined} prefill={payPrefill || undefined} headerNote={payHeaderNote} onClose={() => { setOpenPay(false); setPostPayAction(null); }} onSaved={handlePaymentSaved} />}
       {openFu && <QuickFollowUpModal leadId={lead.id} leadName={lead.name || undefined} crmLeadId={lead.crm_lead_id || null} defaults={{ priority: temperature || "Normal" }} onClose={() => setOpenFu(false)} onSaved={() => { loadInner(); onChanged(); }} />}
       {openFin && <QuickFinanceModal lead={lead as any} onClose={() => setOpenFin(false)} onSaved={() => { loadInner(); onChanged(); }} />}
+      {sendOpsOpen && <SendPaidToOpsModal lead={lead as any} onClose={() => setSendOpsOpen(false)} onDone={() => onChanged()} />}
     </div>
   );
 }

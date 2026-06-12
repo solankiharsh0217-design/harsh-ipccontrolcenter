@@ -2283,7 +2283,7 @@ export default function Crm() {
               title={isAdmin ? "Drag to reorder. First tab becomes the default pipeline for everyone." : undefined}
               className={`group flex items-center rounded-lg border ${isActive ? "bg-black text-white border-black" : "bg-white border-line hover:bg-off"} ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isHover ? "ring-2 ring-blue-400" : ""} ${pipeDragId === p.id ? "opacity-60" : ""}`}
             >
-              <button onClick={() => setActivePipeline(p.id)} className="px-3 py-1.5 text-xs flex items-center gap-1.5">
+              <button onClick={() => { if ((p.type as string) === "operations") { navigate("/operations-crm"); return; } setActivePipeline(p.id); }} className="px-3 py-1.5 text-xs flex items-center gap-1.5" title={(p.type as string) === "operations" ? "Open standalone Operations CRM" : undefined}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
                 {p.name}
                 <span className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leadCount}</span>
