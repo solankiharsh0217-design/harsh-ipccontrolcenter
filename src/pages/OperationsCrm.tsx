@@ -328,9 +328,9 @@ export default function OperationsCrm() {
           )}
         </div>
         <select className="ipc-input !h-9 !text-xs" value={buyerFilter} onChange={(e) => { setBuyerFilter(e.target.value); const p = new URLSearchParams(params); if (e.target.value === "me") p.set("assigned_to", "me"); else p.delete("assigned_to"); setParams(p, { replace: true }); }}>
-          <option value="all">All media buyers</option>
+          {isAdmin && <option value="all">All media buyers</option>}
           {profile?.id && <option value="me">Assigned to me</option>}
-          {buyers.map((b) => <option key={b.id} value={b.id}>{b.full_name}</option>)}
+          {isAdmin && buyers.map((b) => <option key={b.id} value={b.id}>{b.full_name}</option>)}
         </select>
         <select className="ipc-input !h-9 !text-xs" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All statuses</option>
