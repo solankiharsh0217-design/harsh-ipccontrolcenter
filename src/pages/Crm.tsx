@@ -2489,7 +2489,24 @@ function BatchActionsMenu({ isAdmin, archived, breakdown, onView, onRename, onMo
         title="Batch actions" aria-label="Batch actions"
       >⋯</button>
       {open && (
-        <div className="absolute right-0 mt-1 w-60 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
+        <div className="absolute right-0 mt-1 w-64 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
+          {breakdown && (
+            <div className="px-3 py-2 mb-1 border-b border-line bg-off/50">
+              <div className="uppercase-label !text-[9px] mb-1">Count breakdown</div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+                <span className="text-muted-foreground">Active</span><span className="text-right font-medium">{breakdown.active}</span>
+                <span className="text-muted-foreground">Archived</span><span className="text-right font-medium">{breakdown.archived}</span>
+                <span className="text-muted-foreground">Hidden</span><span className="text-right font-medium">{breakdown.hidden}</span>
+                <span className="text-muted-foreground">Paid-linked</span><span className="text-right font-medium">{breakdown.paidLinked}</span>
+                <span className="text-foreground">Total</span><span className="text-right font-semibold">{breakdown.total}</span>
+              </div>
+              {breakdown.total !== breakdown.active && (
+                <div className="text-[10px] text-muted-foreground mt-1.5 leading-snug">
+                  Card shows <b>active</b>. Cleanup modal shows <b>total</b>, including archived/hidden rows.
+                </div>
+              )}
+            </div>
+          )}
           {item(<><ExternalLink className="w-3 h-3" /> View leads</>, onView)}
           {!archived && item(<><Pencil className="w-3 h-3" /> Rename batch</>, onRename)}
           {isAdmin && !archived && item(<><ArrowUp className="w-3 h-3 rotate-45" /> Move / Correct Batch</>, onMove, "text-[#1D4ED8]")}
