@@ -36,6 +36,7 @@ import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import CompactPaidRow from "@/components/paid-pipeline/CompactPaidRow";
 import { getPaymentStatus, type PayStatusKey } from "@/lib/paidPaymentStatus";
 import ServicePackageChip from "@/components/ServicePackageChip";
+import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 
 type Lead = {
   id: string;
