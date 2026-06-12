@@ -555,12 +555,26 @@ export default function Crm() {
 
 
   // Group leads into webinar batches (cards on the Batches view)
+  // Counts breakdown is computed across ALL leads (irrespective of showArchived) so the
+  // three-dot menu can explain why card total may differ from cleanup-modal total.
   const batches = useMemo(() => {
-    const filteredForBatches = leads.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at);
-    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null; servicePackageSnapshot: any | null; servicePackageName: string | null }>();
+    // Breakdown across the full lead universe, keyed identically to the visible cards.
+    const breakdown = new Map<string, { active: number; archived: number; hidden: number; paidLinked: number; total: number }>();
+    for (const l of leads as any[]) {
+      const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
+      const cur = breakdown.get(key) || { active: 0, archived: 0, hidden: 0, paidLinked: 0, total: 0 };
+      cur.total++;
+      if (l.archived_at) cur.archived++;
+      else cur.active++;
+      if (l.hide_from_sales_workload) cur.hidden++;
+      if (l.paid_pipeline_lead_id) cur.paidLinked++;
+      breakdown.set(key, cur);
+    }
+    const filteredForBatches = (leads as any[]).filter((l) => showArchived ? !!l.archived_at : !l.archived_at);
+    const map = new Map<string, { key: string; name: string; date: string | null; pipelineId: string | null; total: number; hot: number; warm: number; cold: number; superHot: number; absentees: number; created: string | null; servicePackageSnapshot: any | null; servicePackageName: string | null; breakdown: { active: number; archived: number; hidden: number; paidLinked: number; total: number } }>();
     for (const l of filteredForBatches) {
       const key = `${l.webinar_source || "—"}__${l.webinar_date || ""}`;
-      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at, servicePackageSnapshot: null, servicePackageName: null };
+      const cur = map.get(key) || { key, name: l.webinar_source || "Unsourced", date: l.webinar_date, pipelineId: l.pipeline_id, total: 0, hot: 0, warm: 0, cold: 0, superHot: 0, absentees: 0, created: l.created_at, servicePackageSnapshot: null, servicePackageName: null, breakdown: breakdown.get(key) || { active: 0, archived: 0, hidden: 0, paidLinked: 0, total: 0 } };
       cur.total++;
       if (l.is_super_hot) cur.superHot++;
       if (l.grade === "hot") cur.hot++;
@@ -574,7 +588,13 @@ export default function Crm() {
       }
       map.set(key, cur);
     }
-    return Array.from(map.values()).sort((a, b) => (b.created || "").localeCompare(a.created || ""));
+    // Sort by webinar date desc (latest first); batches with no date go to the bottom,
+    // with created_at as a tiebreaker so freshly-imported no-date batches surface first.
+    return Array.from(map.values()).sort((a, b) => {
+      if (!!a.date !== !!b.date) return a.date ? -1 : 1;
+      if (a.date && b.date && a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.created || "").localeCompare(a.created || "");
+    });
   }, [leads, showArchived]);
 
   // Tag each batch with the pipeline type for the Batches view tabs and apply the active tab filter.
@@ -1891,8 +1911,8 @@ export default function Crm() {
               <button
                 onClick={() => setRepairPickerOpen(true)}
                 className="ml-2 px-3 py-1.5 rounded-md text-xs border border-[#1D4ED8] text-[#1D4ED8] hover:bg-[#EFF6FF]"
-                title="Move a wrongly uploaded batch into the correct pipeline"
-              >Repair Wrong Batch</button>
+                title="Inspect or clean wrong/empty batches — move leads into the correct pipeline"
+              >Batch Cleanup</button>
             )}
           </div>
           {visibleBatches.length === 0 && (
@@ -1917,6 +1937,7 @@ export default function Crm() {
                   }}
                 >
                   <BatchActionsMenu
+                    breakdown={(b as any).breakdown}
                     isAdmin={isAdmin}
                     archived={isArchivedView}
                     onView={() => {
@@ -2061,10 +2082,10 @@ export default function Crm() {
         <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/40" onClick={() => setRepairPickerOpen(false)}>
           <div className="bg-white rounded-xl border border-line w-full max-w-md p-6 max-h-[80vh] overflow-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <div className="font-serif text-lg">Repair Wrong Batch</div>
+              <div className="font-serif text-lg">Batch Cleanup</div>
               <button onClick={() => setRepairPickerOpen(false)} className="p-1 rounded hover:bg-off"><XIcon className="w-4 h-4" /></button>
             </div>
-            <div className="text-[12px] text-muted-foreground mb-3">Pick the batch you want to move into the correct pipeline.</div>
+            <div className="text-[12px] text-muted-foreground mb-3">Use this to inspect or clean wrong/empty batches. Pick the batch you want to move into the correct pipeline.</div>
             <div className="space-y-1.5">
               {batchesWithType.length === 0 && <div className="text-sm text-muted-foreground">No batches available.</div>}
               {batchesWithType.map(b => {
@@ -2443,8 +2464,9 @@ function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight,
   );
 }
 
-function BatchActionsMenu({ isAdmin, archived, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete, onRepair }: {
+function BatchActionsMenu({ isAdmin, archived, breakdown, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete, onRepair }: {
   isAdmin: boolean; archived: boolean;
+  breakdown?: { active: number; archived: number; hidden: number; paidLinked: number; total: number };
   onView: () => void; onRename: () => void; onMove: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
   onRepair?: () => void;
 }) {
@@ -2467,7 +2489,24 @@ function BatchActionsMenu({ isAdmin, archived, onView, onRename, onMove, onArchi
         title="Batch actions" aria-label="Batch actions"
       >⋯</button>
       {open && (
-        <div className="absolute right-0 mt-1 w-60 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
+        <div className="absolute right-0 mt-1 w-64 bg-white border border-line rounded-md shadow-xl z-[1050] py-1">
+          {breakdown && (
+            <div className="px-3 py-2 mb-1 border-b border-line bg-off/50">
+              <div className="uppercase-label !text-[9px] mb-1">Count breakdown</div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+                <span className="text-muted-foreground">Active</span><span className="text-right font-medium">{breakdown.active}</span>
+                <span className="text-muted-foreground">Archived</span><span className="text-right font-medium">{breakdown.archived}</span>
+                <span className="text-muted-foreground">Hidden</span><span className="text-right font-medium">{breakdown.hidden}</span>
+                <span className="text-muted-foreground">Paid-linked</span><span className="text-right font-medium">{breakdown.paidLinked}</span>
+                <span className="text-foreground">Total</span><span className="text-right font-semibold">{breakdown.total}</span>
+              </div>
+              {breakdown.total !== breakdown.active && (
+                <div className="text-[10px] text-muted-foreground mt-1.5 leading-snug">
+                  Card shows <b>active</b>. Cleanup modal shows <b>total</b>, including archived/hidden rows.
+                </div>
+              )}
+            </div>
+          )}
           {item(<><ExternalLink className="w-3 h-3" /> View leads</>, onView)}
           {!archived && item(<><Pencil className="w-3 h-3" /> Rename batch</>, onRename)}
           {isAdmin && !archived && item(<><ArrowUp className="w-3 h-3 rotate-45" /> Move / Correct Batch</>, onMove, "text-[#1D4ED8]")}

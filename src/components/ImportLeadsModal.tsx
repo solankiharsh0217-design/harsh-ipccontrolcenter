@@ -1006,13 +1006,20 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           created_by: profile?.id,
           is_deleted: false,
         };
-        // Try matching an existing active batch row by (batch_name, webinar_date)
-        const { data: existingBatchRaw } = await supabase
+        // Reuse an existing active batch row when name + webinar_date + pipeline_id all
+        // match (case-insensitive name). Prevents duplicate batch rows when the same
+        // sheet is re-imported, while still letting two different dates coexist as
+        // separate batches under the same name.
+        let existingBatchQuery = supabase
           .from("webinar_batches" as any)
           .select("id, imported_lead_count")
           .ilike("batch_name", segmentName)
-          .eq("is_deleted", false)
-          .maybeSingle();
+          .eq("is_deleted", false);
+        existingBatchQuery = webinarDate
+          ? existingBatchQuery.eq("webinar_date", webinarDate)
+          : existingBatchQuery.is("webinar_date", null);
+        if (pipelineId) existingBatchQuery = existingBatchQuery.eq("pipeline_id", pipelineId);
+        const { data: existingBatchRaw } = await existingBatchQuery.maybeSingle();
         const existingBatch = existingBatchRaw as any;
         if (existingBatch?.id) {
           const patch: any = { ...batchPayload };
