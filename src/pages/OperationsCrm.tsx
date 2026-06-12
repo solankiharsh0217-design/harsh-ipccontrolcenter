@@ -234,11 +234,12 @@ export default function OperationsCrm() {
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={load} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
-          <button onClick={addStage} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> Add Stage</button>
+          {isAdmin && <button onClick={addStage} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> Add Stage</button>}
         </div>
       </div>
 
-      {/* Metric strip */}
+      {/* Metric strip — only on Reports & Rewards tabs (keeps Active tab clean) */}
+      {(tab === "reports" || tab === "rewards") && (
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-3">
         {(isAdmin ? [
           { label: "Total clients", value: metrics.total },
@@ -263,6 +264,7 @@ export default function OperationsCrm() {
           </div>
         ))}
       </div>
+      )}
 
       {hasTemplates === false && (
         <div className="mb-3">
