@@ -395,14 +395,45 @@ export default function Team() {
           </button>
         ))}
       </div>
+      {isAdmin && selected.size > 0 && (
+        <div className="mb-3 flex items-center justify-between gap-3 px-3 py-2 rounded-md border border-line bg-off">
+          <div className="font-sans text-[12px] text-black">{selected.size} selected</div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSelected(new Set())} className="h-7 px-2 rounded-md border border-line bg-white text-[11px] font-sans hover:bg-off">Clear</button>
+            <button onClick={bulkReset} disabled={bulkBusy} className="h-7 px-3 rounded-md bg-black text-white text-[11px] font-sans disabled:opacity-50">
+              {bulkBusy ? "Sending…" : "Send Password Reset"}
+            </button>
+          </div>
+        </div>
+      )}
       {visible.length === 0 && <div className="font-sans text-sm text-muted-foreground">No members in this view.</div>}
       <div className="grid grid-cols-2 gap-3">
         {visible.map((m, i) => {
           const alt = i % 2 === 1;
           const today = m.last_login && new Date(m.last_login).toDateString() === new Date().toDateString();
           const isDeact = !!m.deactivated_at;
+          const auth = getAuthFor(m);
+          const stateMeta: Record<AuthState, { label: string; cls: string }> = {
+            active: { label: "Active", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+            confirmed: { label: "Confirmed", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+            invited: { label: "Invite Sent", cls: "bg-amber-50 text-amber-800 border-amber-200" },
+            unconfirmed: { label: "Unconfirmed", cls: "bg-orange-50 text-orange-700 border-orange-200" },
+            no_auth: { label: "Not Invited", cls: "bg-muted text-muted-foreground border-line" },
+            unknown: { label: "—", cls: "bg-muted text-muted-foreground border-line" },
+          };
+          const sm = stateMeta[auth.state];
+          const busy = authBusy === m.id;
           return (
-            <div key={m.id} className={`border border-line rounded-xl py-5 px-[22px] flex items-center gap-3.5 transition-colors relative ${isDeact ? "bg-off/60 opacity-75" : "hover:bg-off"}`}>
+            <div key={m.id} className={`border border-line rounded-xl py-5 px-[22px] flex items-start gap-3.5 transition-colors relative ${isDeact ? "bg-off/60 opacity-75" : "hover:bg-off"}`}>
+              {isAdmin && !isDeact && m.email && (
+                <input
+                  type="checkbox"
+                  className="mt-1.5 w-4 h-4"
+                  checked={selected.has(m.id)}
+                  onChange={() => toggleSelected(m.id)}
+                  title="Select for bulk action"
+                />
+              )}
               <div className={`w-11 h-11 rounded-full flex items-center justify-center font-serif text-sm font-medium flex-shrink-0
                 ${isDeact ? "bg-muted text-muted-foreground" : alt ? "bg-gold-pale border border-gold-mid text-gold-deep" : "bg-black text-gold"}`}>
                 {initials(m.full_name)}
@@ -419,6 +450,23 @@ export default function Team() {
                     <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-red-50 text-red-700 border border-red-200">Duplicate email</span>
                   )}
                 </div>
+                {isAdmin && m.email && !isDeact && (
+                  <div className="mt-1.5 flex items-center flex-wrap gap-1.5">
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium border ${sm.cls}`} title={auth.last_sign_in_at ? `Last sign-in: ${formatDateShort(auth.last_sign_in_at)}` : undefined}>
+                      Login: {sm.label}
+                    </span>
+                    {(auth.state === "no_auth" || auth.state === "invited" || auth.state === "unconfirmed") && (
+                      <button onClick={() => sendInvite(m)} disabled={busy} className="h-6 px-2 rounded-md border border-line bg-white hover:bg-off font-sans text-[10px] disabled:opacity-50">
+                        {auth.state === "invited" ? "Resend Invite" : "Send Invite"}
+                      </button>
+                    )}
+                    {(auth.state === "active" || auth.state === "confirmed") && (
+                      <button onClick={() => sendReset(m)} disabled={busy} className="h-6 px-2 rounded-md border border-line bg-white hover:bg-off font-sans text-[10px] disabled:opacity-50">
+                        Send Reset
+                      </button>
+                    )}
+                  </div>
+                )}
                 {isDeact && (
                   <div className="font-sans text-[10px] text-amber-700 mt-1">
                     Deactivated {m.deactivated_at ? formatDateShort(m.deactivated_at) : ""}{m.deactivation_reason ? ` · ${m.deactivation_reason}` : ""}
