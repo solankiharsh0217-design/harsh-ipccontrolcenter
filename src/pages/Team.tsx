@@ -65,16 +65,132 @@ export default function Team() {
   const [actionModal, setActionModal] = useState<{ action: "deactivate" | "remove_access" | "restore" | "delete"; member: Member } | null>(null);
   const [assignedLeadsMember, setAssignedLeadsMember] = useState<Member | null>(null);
 
+  // ─── Login Access (admin only) ───
+  type AuthState = "active" | "confirmed" | "invited" | "unconfirmed" | "no_auth" | "unknown";
+  interface AuthRow { state: AuthState; last_sign_in_at: string | null; user_id: string | null }
+  const [authStatus, setAuthStatus] = useState<Record<string, AuthRow>>({});
+  const [authBusy, setAuthBusy] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const loadAuthStatus = async (rows: Member[]) => {
+    if (!isAdmin) return;
+    const emails = Array.from(new Set(rows.map((r) => (r.email || "").toLowerCase()).filter(Boolean)));
+    if (!emails.length) { setAuthStatus({}); return; }
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-team-auth", { body: { op: "status", emails } });
+      if (error) throw error;
+      setAuthStatus(((data as any)?.statuses ?? {}) as Record<string, AuthRow>);
+    } catch (e) {
+      console.warn("[team] auth status fetch failed", e);
+    }
+  };
+
   const load = async () => {
     const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department, email, deactivated_at, deactivation_reason").neq("status","pending").order("full_name");
     const { data: logs } = await supabase.from("attendance_logs").select("user_id, login_time").order("login_time", { ascending: false });
     const lastByUser = new Map<string, string>();
     logs?.forEach(l => { if (!lastByUser.has(l.user_id)) lastByUser.set(l.user_id, l.login_time); });
-    setMembers((profiles ?? []).map((p: any) => ({ ...p, last_login: lastByUser.get(p.id) ?? null })));
+    const next = (profiles ?? []).map((p: any) => ({ ...p, last_login: lastByUser.get(p.id) ?? null }));
+    setMembers(next);
+    loadAuthStatus(next);
   };
 
 
   useEffect(() => { load(); }, []);
+
+  const getAuthFor = (m: Member): AuthRow => {
+    const em = (m.email || "").toLowerCase();
+    if (!em) return { state: "unknown", last_sign_in_at: null, user_id: null };
+    return authStatus[em] ?? { state: "unknown", last_sign_in_at: null, user_id: null };
+  };
+
+  const sendInvite = async (m: Member) => {
+    if (!m.email) { toast.error("Member has no email"); return; }
+    if (!confirm(`Send invite email to ${m.email}?`)) return;
+    setAuthBusy(m.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-team-auth", {
+        body: { op: "invite", email: m.email, redirectTo: `${window.location.origin}/login` },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(`Invite sent to ${m.email}`);
+      logActivity({
+        module_key: "team_directory", action_type: "invite_sent",
+        entity_type: "team_member", entity_id: m.id, entity_label: m.full_name,
+        target_user_id: m.id, target_name: m.full_name,
+        summary: `Invite email sent to ${m.email}.`, severity: "info",
+      });
+      loadAuthStatus(members);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to send invite");
+    } finally { setAuthBusy(null); }
+  };
+
+  const sendReset = async (m: Member) => {
+    if (!m.email) { toast.error("Member has no email"); return; }
+    if (!confirm(`Send password reset email to ${m.email}?`)) return;
+    setAuthBusy(m.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-team-auth", {
+        body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/login` },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(`Password reset sent to ${m.email}`);
+      logActivity({
+        module_key: "team_directory", action_type: "password_reset_sent",
+        entity_type: "team_member", entity_id: m.id, entity_label: m.full_name,
+        target_user_id: m.id, target_name: m.full_name,
+        summary: `Password reset email sent to ${m.email}.`, severity: "warning",
+      });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to send reset");
+    } finally { setAuthBusy(null); }
+  };
+
+  const toggleSelected = (id: string) => setSelected((s) => {
+    const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n;
+  });
+
+  const bulkReset = async () => {
+    const targets = members.filter((m) => selected.has(m.id));
+    const eligible = targets.filter((m) => {
+      if (!m.email) return false;
+      const st = getAuthFor(m).state;
+      return st === "active" || st === "confirmed";
+    });
+    const skipped = targets.length - eligible.length;
+    if (!eligible.length) {
+      toast.error(`No eligible members${skipped ? ` (${skipped} skipped — no active auth)` : ""}`);
+      return;
+    }
+    if (!confirm(`Send password reset to ${eligible.length} member(s)?${skipped ? ` ${skipped} will be skipped.` : ""}`)) return;
+    setBulkBusy(true);
+    let ok = 0, fail = 0;
+    for (const m of eligible) {
+      try {
+        const { data, error } = await supabase.functions.invoke("admin-team-auth", {
+          body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/login` },
+        });
+        if (error || (data as any)?.error) throw new Error(error?.message || (data as any)?.error);
+        ok++;
+        logActivity({
+          module_key: "team_directory", action_type: "password_reset_sent",
+          entity_type: "team_member", entity_id: m.id, entity_label: m.full_name,
+          target_user_id: m.id, target_name: m.full_name,
+          summary: `Password reset email sent to ${m.email} (bulk).`, severity: "warning",
+        });
+      } catch (e) {
+        console.warn("[bulk reset] failed for", m.email, e);
+        fail++;
+      }
+    }
+    setBulkBusy(false);
+    setSelected(new Set());
+    toast.success(`Reset: ${ok} sent, ${fail} failed${skipped ? `, ${skipped} skipped` : ""}`);
+  };
 
   const [accessError, setAccessError] = useState<string | null>(null);
   const [accessLoading, setAccessLoading] = useState(false);
