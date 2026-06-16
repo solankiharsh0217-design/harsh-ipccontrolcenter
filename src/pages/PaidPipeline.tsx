@@ -37,6 +37,8 @@ import CompactPaidRow from "@/components/paid-pipeline/CompactPaidRow";
 import { getPaymentStatus, type PayStatusKey } from "@/lib/paidPaymentStatus";
 import ServicePackageChip from "@/components/ServicePackageChip";
 import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
+import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
+import PaymentDateRangeFilter from "@/components/paid-pipeline/PaymentDateRangeFilter";
 
 type Lead = {
   id: string;
@@ -106,15 +108,18 @@ export default function PaidPipeline() {
   const [tagFilter, setTagFilter] = useState("all");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
-  const [batchFilter, setBatchFilter] = useState("all"); // source webinar batch
-  const [paidBatchFilter, setPaidBatchFilter] = useState("all");
-  const [onboardingBatchFilter, setOnboardingBatchFilter] = useState("all");
+  const [batchFilter, setBatchFilter] = useState<string[]>([]); // source webinar batches (multi)
+  const [paidBatchFilter, setPaidBatchFilter] = useState<string[]>([]);
+  const [onboardingBatchFilter, setOnboardingBatchFilter] = useState<string[]>([]);
   const [stageFilter, setStageFilter] = useState("all");
   const [tempFilter, setTempFilter] = useState("all");
   const [financePartnerFilter, setFinancePartnerFilter] = useState("all");
   const [financeStatusFilter, setFinanceStatusFilter] = useState("all");
   const [followUpFilter, setFollowUpFilter] = useState("all");
-  const [revenueStatusFilter, setRevenueStatusFilter] = useState("all");
+  const [revenueStatusFilter, setRevenueStatusFilter] = useState<string[]>([]);
+  const [payDateFrom, setPayDateFrom] = useState("");
+  const [payDateTo, setPayDateTo] = useState("");
+  const [latestPayDateMap, setLatestPayDateMap] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -187,14 +192,19 @@ export default function PaidPipeline() {
 
   const resetFilters = () => {
     setSearch(""); setSearchInput("");
-    setBatchFilter("all"); setPaidBatchFilter("all"); setOnboardingBatchFilter("all");
+    setBatchFilter([]); setPaidBatchFilter([]); setOnboardingBatchFilter([]);
     setStageFilter("all"); setTempFilter("all");
     setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
-    setFollowUpFilter("all"); setRevenueStatusFilter("all");
+    setFollowUpFilter("all"); setRevenueStatusFilter([]);
     setTagFilter("all"); setOwnerFilter("all"); setInsightFilter(null);
     setPayStatusFilter("all");
+    setPayDateFrom(""); setPayDateTo("");
   };
-  const anyFilterActive = !!search || !!insightFilter || payStatusFilter !== "all" || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter, ownerFilter].some(v => v !== "all");
+  const anyFilterActive = !!search || !!insightFilter || payStatusFilter !== "all"
+    || !!payDateFrom || !!payDateTo
+    || batchFilter.length > 0 || paidBatchFilter.length > 0 || onboardingBatchFilter.length > 0
+    || revenueStatusFilter.length > 0
+    || [stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, tagFilter, ownerFilter].some(v => v !== "all");
 
   const financePartnerOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_FINANCE_PARTNERS);
@@ -202,12 +212,56 @@ export default function PaidPipeline() {
     return Array.from(set);
   }, [leads]);
 
+  // Normalize batch labels for forgiving cross-source matching.
+  const normalizeName = (s: string | null | undefined): string =>
+    String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+  // Build the set of normalized batch names for the currently selected webinar batch ids,
+  // so a row whose batch chip falls back to paid_batch_name / onboarding_batch_name /
+  // source_webinar still matches when its label equals the selected webinar batch.
+  const selectedBatchNames = useMemo(() => {
+    if (batchFilter.length === 0) return new Set<string>();
+    const names = new Set<string>();
+    batchFilter.forEach((id) => {
+      const b = batches.find((x) => x.id === id);
+      if (b?.batch_name) names.add(normalizeName(b.batch_name));
+    });
+    return names;
+  }, [batchFilter, batches]);
+
+  // Bulk-fetch the latest payment_date per lead so the Payment Date range can filter.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("paid_pipeline_payments")
+        .select("paid_pipeline_lead_id, payment_date")
+        .eq("is_deleted", false)
+        .order("payment_date", { ascending: false });
+      const map: Record<string, string> = {};
+      ((data as any[]) || []).forEach((r) => {
+        if (r.paid_pipeline_lead_id && r.payment_date && !map[r.paid_pipeline_lead_id]) {
+          map[r.paid_pipeline_lead_id] = String(r.payment_date).slice(0, 10);
+        }
+      });
+      setLatestPayDateMap(map);
+    })();
+  }, [leads.length]);
+
   const filtered = useMemo(() => {
     const td = today();
     return leads.filter(l => {
-      if (batchFilter !== "all" && l.webinar_batch_id !== batchFilter && l.source_webinar_batch_id !== batchFilter) return false;
-      if (paidBatchFilter !== "all" && l.paid_batch_id !== paidBatchFilter) return false;
-      if (onboardingBatchFilter !== "all" && (l.onboarding_batch_name || "") !== onboardingBatchFilter) return false;
+      // Webinar batch multi (OR): id match OR normalized-name fallback match
+      if (batchFilter.length > 0) {
+        const idHit =
+          (l.webinar_batch_id && batchFilter.includes(l.webinar_batch_id)) ||
+          (l.source_webinar_batch_id && batchFilter.includes(l.source_webinar_batch_id));
+        const nameHit = selectedBatchNames.size > 0 && [
+          l.paid_batch_name, l.onboarding_batch_name, l.source_webinar,
+        ].some((n) => n && selectedBatchNames.has(normalizeName(n)));
+        if (!idHit && !nameHit) return false;
+      }
+      if (paidBatchFilter.length > 0 && !(l.paid_batch_id && paidBatchFilter.includes(l.paid_batch_id))) return false;
+      if (onboardingBatchFilter.length > 0 && !onboardingBatchFilter.includes(l.onboarding_batch_name || "")) return false;
       if (stageFilter !== "all" && l.pipeline_stage !== stageFilter) return false;
       if (tempFilter !== "all" && (l.lead_temperature || "") !== tempFilter) return false;
       if (financePartnerFilter !== "all" && (l.finance_partner || "") !== financePartnerFilter) return false;
@@ -221,7 +275,7 @@ export default function PaidPipeline() {
       if (followUpFilter === "upcoming" && !(fu && fu > td)) return false;
       if (followUpFilter === "none" && fu) return false;
       if (followUpFilter === "urgent" && !(["Hot","Urgent"].includes(l.lead_temperature || "") || ["Hot","Urgent"].includes(l.follow_up_priority || ""))) return false;
-      if (revenueStatusFilter !== "all") {
+      if (revenueStatusFilter.length > 0) {
         const total = Number(l.total_collected || 0);
         const deal = Number(l.deal_value_including_gst || 0);
         const map: Record<string, boolean> = {
@@ -233,7 +287,13 @@ export default function PaidPipeline() {
           "balance_pending": Number(l.balance_pending || 0) > 0,
           "dropped": l.is_dropped,
         };
-        if (!map[revenueStatusFilter]) return false;
+        if (!revenueStatusFilter.some((k) => map[k])) return false;
+      }
+      if (payDateFrom || payDateTo) {
+        const d = latestPayDateMap[l.id] || (l.created_at ? String(l.created_at).slice(0, 10) : "");
+        if (!d) return false;
+        if (payDateFrom && d < payDateFrom) return false;
+        if (payDateTo && d > payDateTo) return false;
       }
       if (insightFilter) {
         const bal = Number(l.balance_pending || 0);
@@ -258,7 +318,7 @@ export default function PaidPipeline() {
       }
       return true;
     });
-  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter]);
+  }, [leads, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, latestPayDateMap]);
 
   const insights = useMemo(() => {
     let highBalCount = 0, highBalAmt = 0;
@@ -405,7 +465,7 @@ export default function PaidPipeline() {
             <button onClick={() => setShowBatches(false)} className="text-[11px] text-muted-foreground hover:text-black">Close</button>
           </div>
           <PaidBatchesView
-            onOpenBatch={(id) => { setPaidBatchFilter(id); setShowBatches(false); }}
+            onOpenBatch={(id) => { setPaidBatchFilter([id]); setShowBatches(false); }}
             onBulkSend={(ids) => { setBulkSendIdsOverride(ids); setBulkSend(true); }}
           />
         </div>
@@ -496,6 +556,11 @@ export default function PaidPipeline() {
         <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
           { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
         ]} />
+        <PaymentDateRangeFilter
+          dateFrom={payDateFrom}
+          dateTo={payDateTo}
+          onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }}
+        />
         <button
           onClick={() => setShowMoreFilters(v => !v)}
           className="h-9 border border-line rounded-md px-3 text-[12.5px] hover:bg-off text-left"
@@ -503,15 +568,39 @@ export default function PaidPipeline() {
       </div>
       {showMoreFilters && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2 p-2 border border-line rounded-md bg-off/30">
-          <FilterSelect value={batchFilter} onChange={setBatchFilter} label="All webinar batches" options={batches.map(b => ({ v: b.id, l: b.batch_name }))} />
-          <FilterSelect value={paidBatchFilter} onChange={setPaidBatchFilter} label="All paid batches" options={paidBatches.map(b => ({ v: b.id, l: b.batch_name }))} />
-          <FilterSelect value={onboardingBatchFilter} onChange={setOnboardingBatchFilter} label="All onboarding batches" options={onboardingBatches.map(o => ({ v: o, l: o }))} />
+          <MultiSelectFilter
+            label="Webinar batches"
+            selectedValues={batchFilter}
+            onChange={setBatchFilter}
+            options={batches.map(b => ({ value: b.id, label: b.batch_name }))}
+          />
+          <MultiSelectFilter
+            label="Paid batches"
+            selectedValues={paidBatchFilter}
+            onChange={setPaidBatchFilter}
+            options={paidBatches.map(b => ({ value: b.id, label: b.batch_name }))}
+          />
+          <MultiSelectFilter
+            label="Onboarding batches"
+            selectedValues={onboardingBatchFilter}
+            onChange={setOnboardingBatchFilter}
+            options={onboardingBatches.map(o => ({ value: o, label: o }))}
+          />
           <FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} />
-          <FilterSelect value={revenueStatusFilter} onChange={setRevenueStatusFilter} label="All revenue status" options={[
-            { v: "token", l: "Token only" }, { v: "partial", l: "Partially collected" }, { v: "full", l: "Fully collected" },
-            { v: "finance_pending", l: "Finance pending" }, { v: "finance_disbursed", l: "Finance disbursed" },
-            { v: "balance_pending", l: "Balance pending" }, { v: "dropped", l: "Dropped" },
-          ]} />
+          <MultiSelectFilter
+            label="Revenue status"
+            selectedValues={revenueStatusFilter}
+            onChange={setRevenueStatusFilter}
+            options={[
+              { value: "token", label: "Token only" },
+              { value: "partial", label: "Partially collected" },
+              { value: "full", label: "Fully collected" },
+              { value: "finance_pending", label: "Finance pending" },
+              { value: "finance_disbursed", label: "Finance disbursed" },
+              { value: "balance_pending", label: "Balance pending" },
+              { value: "dropped", label: "Dropped" },
+            ]}
+          />
         </div>
       )}
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
@@ -1366,6 +1455,42 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
               <Field label="To be realized" value={inr(lead.revenue_to_be_realized ?? lead.balance_pending)} />
             </div>
           </Section>
+
+          {/* 1a. Payment Timeline — quick clarity near top */}
+          {(() => {
+            const tokenPay = payments.find((p: any) => p.is_token || /token/i.test(p.payment_type || "") || /token/i.test(p.payment_category || ""));
+            const latest = payments[0];
+            const recent = payments.slice(0, 3);
+            return (
+              <Section title="Payment Timeline">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
+                  <Field label="Token paid date" value={tokenPay?.payment_date ? fmtDate(tokenPay.payment_date) : "—"} tone={tokenPay ? "green" : undefined} />
+                  <Field label="Token amount" value={tokenPay ? inr(tokenPay.amount || 0) : inr(lead.token_amount_collected || 0)} tone={tokenPay || Number(lead.token_amount_collected) > 0 ? "green" : undefined} />
+                  <Field label="Latest payment date" value={latest?.payment_date ? fmtDate(latest.payment_date) : "—"} />
+                  <Field label="Latest payment amount" value={latest ? inr(latest.amount || 0) : "—"} />
+                  <Field label="Total collected" value={inr(lead.total_collected || 0)} tone="green" />
+                  <Field label="Balance pending" value={inr(lead.balance_pending || 0)} tone={Number(lead.balance_pending) > 0 ? "amber" : "green"} />
+                </div>
+                {recent.length === 0 ? (
+                  <div className="text-[11.5px] text-muted-foreground">No payments recorded yet.</div>
+                ) : (
+                  <div className="border border-line rounded-md overflow-hidden">
+                    <div className="grid grid-cols-[100px_110px_120px_1fr] gap-2 px-2.5 py-1.5 bg-off/60 text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <div>Date</div><div>Amount</div><div>Mode / Type</div><div>Note</div>
+                    </div>
+                    {recent.map((p: any) => (
+                      <div key={p.id} className="grid grid-cols-[100px_110px_120px_1fr] gap-2 px-2.5 py-1.5 text-[11.5px] border-t border-line">
+                        <div>{fmtDate(p.payment_date)}</div>
+                        <div className="tabular-nums">{inr(p.amount || 0)}</div>
+                        <div className="truncate" title={`${p.payment_mode || ""} · ${p.payment_type || ""}`}>{p.payment_mode || p.payment_type || "—"}</div>
+                        <div className="truncate text-muted-foreground" title={p.notes || p.payment_description || ""}>{p.notes || p.payment_description || "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+            );
+          })()}
 
           {/* 1b. Token / Payment Recording */}
           <Section title="Token / Payment Recording">
