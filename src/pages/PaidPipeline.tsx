@@ -566,14 +566,17 @@ export default function PaidPipeline() {
         <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
           { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
         ]} />
-        <PaymentDateRangeFilter
-          dateFrom={payDateFrom}
-          dateTo={payDateTo}
-          onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }}
-        />
+        <div className="col-span-2 min-w-0">
+          <PaymentDateRangeFilter
+            dateFrom={payDateFrom}
+            dateTo={payDateTo}
+            onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }}
+            label="Webinar Date"
+          />
+        </div>
         <button
           onClick={() => setShowMoreFilters(v => !v)}
-          className="h-9 border border-line rounded-md px-3 text-[12.5px] hover:bg-off text-left"
+          className="h-9 border border-line rounded-md px-3 text-[12.5px] hover:bg-off text-left whitespace-nowrap"
         >{showMoreFilters ? "▾" : "▸"} More filters</button>
       </div>
       {showMoreFilters && (
