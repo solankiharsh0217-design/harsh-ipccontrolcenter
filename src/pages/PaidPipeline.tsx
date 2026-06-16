@@ -119,7 +119,7 @@ export default function PaidPipeline() {
   const [revenueStatusFilter, setRevenueStatusFilter] = useState<string[]>([]);
   const [payDateFrom, setPayDateFrom] = useState("");
   const [payDateTo, setPayDateTo] = useState("");
-  const [latestPayDateMap, setLatestPayDateMap] = useState<Record<string, string>>({});
+  
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
