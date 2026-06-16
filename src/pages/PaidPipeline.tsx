@@ -328,7 +328,7 @@ export default function PaidPipeline() {
       }
       return true;
     });
-  }, [leads, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, latestPayDateMap]);
+  }, [leads, batches, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, batchDateById, batchDateByName]);
 
   const insights = useMemo(() => {
     let highBalCount = 0, highBalAmt = 0;
