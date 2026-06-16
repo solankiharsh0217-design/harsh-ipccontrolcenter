@@ -229,23 +229,33 @@ export default function PaidPipeline() {
     return names;
   }, [batchFilter, batches]);
 
-  // Bulk-fetch the latest payment_date per lead so the Payment Date range can filter.
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("paid_pipeline_payments")
-        .select("paid_pipeline_lead_id, payment_date")
-        .eq("is_deleted", false)
-        .order("payment_date", { ascending: false });
-      const map: Record<string, string> = {};
-      ((data as any[]) || []).forEach((r) => {
-        if (r.paid_pipeline_lead_id && r.payment_date && !map[r.paid_pipeline_lead_id]) {
-          map[r.paid_pipeline_lead_id] = String(r.payment_date).slice(0, 10);
-        }
-      });
-      setLatestPayDateMap(map);
-    })();
-  }, [leads.length]);
+  // Resolve a "webinar date" per lead from the linked source webinar batch.
+  // Priority: webinar_batch_id → source_webinar_batch_id → fallback by normalized batch name
+  // (source_webinar / paid_batch_name / onboarding_batch_name). Never uses payment dates.
+  const batchDateById = useMemo(() => {
+    const m: Record<string, string> = {};
+    batches.forEach((b) => { if (b.id && b.webinar_date) m[b.id] = String(b.webinar_date).slice(0, 10); });
+    return m;
+  }, [batches]);
+  const batchDateByName = useMemo(() => {
+    const m: Record<string, string> = {};
+    batches.forEach((b) => {
+      if (b.batch_name && b.webinar_date) m[normalizeName(b.batch_name)] = String(b.webinar_date).slice(0, 10);
+    });
+    return m;
+  }, [batches]);
+  const webinarDateForLead = (l: Lead): string => {
+    if (l.webinar_batch_id && batchDateById[l.webinar_batch_id]) return batchDateById[l.webinar_batch_id];
+    if (l.source_webinar_batch_id && batchDateById[l.source_webinar_batch_id]) return batchDateById[l.source_webinar_batch_id];
+    for (const n of [l.source_webinar, l.paid_batch_name, l.onboarding_batch_name]) {
+      if (n) {
+        const hit = batchDateByName[normalizeName(n)];
+        if (hit) return hit;
+      }
+    }
+    return "";
+  };
+
 
   const filtered = useMemo(() => {
     const td = today();
