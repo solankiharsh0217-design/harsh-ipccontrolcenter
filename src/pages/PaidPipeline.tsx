@@ -465,7 +465,7 @@ export default function PaidPipeline() {
             <button onClick={() => setShowBatches(false)} className="text-[11px] text-muted-foreground hover:text-black">Close</button>
           </div>
           <PaidBatchesView
-            onOpenBatch={(id) => { setPaidBatchFilter(id); setShowBatches(false); }}
+            onOpenBatch={(id) => { setPaidBatchFilter([id]); setShowBatches(false); }}
             onBulkSend={(ids) => { setBulkSendIdsOverride(ids); setBulkSend(true); }}
           />
         </div>
