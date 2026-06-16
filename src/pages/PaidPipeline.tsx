@@ -556,6 +556,11 @@ export default function PaidPipeline() {
         <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
           { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
         ]} />
+        <PaymentDateRangeFilter
+          dateFrom={payDateFrom}
+          dateTo={payDateTo}
+          onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }}
+        />
         <button
           onClick={() => setShowMoreFilters(v => !v)}
           className="h-9 border border-line rounded-md px-3 text-[12.5px] hover:bg-off text-left"
@@ -563,15 +568,39 @@ export default function PaidPipeline() {
       </div>
       {showMoreFilters && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2 p-2 border border-line rounded-md bg-off/30">
-          <FilterSelect value={batchFilter} onChange={setBatchFilter} label="All webinar batches" options={batches.map(b => ({ v: b.id, l: b.batch_name }))} />
-          <FilterSelect value={paidBatchFilter} onChange={setPaidBatchFilter} label="All paid batches" options={paidBatches.map(b => ({ v: b.id, l: b.batch_name }))} />
-          <FilterSelect value={onboardingBatchFilter} onChange={setOnboardingBatchFilter} label="All onboarding batches" options={onboardingBatches.map(o => ({ v: o, l: o }))} />
+          <MultiSelectFilter
+            label="Webinar batches"
+            selectedValues={batchFilter}
+            onChange={setBatchFilter}
+            options={batches.map(b => ({ value: b.id, label: b.batch_name }))}
+          />
+          <MultiSelectFilter
+            label="Paid batches"
+            selectedValues={paidBatchFilter}
+            onChange={setPaidBatchFilter}
+            options={paidBatches.map(b => ({ value: b.id, label: b.batch_name }))}
+          />
+          <MultiSelectFilter
+            label="Onboarding batches"
+            selectedValues={onboardingBatchFilter}
+            onChange={setOnboardingBatchFilter}
+            options={onboardingBatches.map(o => ({ value: o, label: o }))}
+          />
           <FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} />
-          <FilterSelect value={revenueStatusFilter} onChange={setRevenueStatusFilter} label="All revenue status" options={[
-            { v: "token", l: "Token only" }, { v: "partial", l: "Partially collected" }, { v: "full", l: "Fully collected" },
-            { v: "finance_pending", l: "Finance pending" }, { v: "finance_disbursed", l: "Finance disbursed" },
-            { v: "balance_pending", l: "Balance pending" }, { v: "dropped", l: "Dropped" },
-          ]} />
+          <MultiSelectFilter
+            label="Revenue status"
+            selectedValues={revenueStatusFilter}
+            onChange={setRevenueStatusFilter}
+            options={[
+              { value: "token", label: "Token only" },
+              { value: "partial", label: "Partially collected" },
+              { value: "full", label: "Fully collected" },
+              { value: "finance_pending", label: "Finance pending" },
+              { value: "finance_disbursed", label: "Finance disbursed" },
+              { value: "balance_pending", label: "Balance pending" },
+              { value: "dropped", label: "Dropped" },
+            ]}
+          />
         </div>
       )}
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
