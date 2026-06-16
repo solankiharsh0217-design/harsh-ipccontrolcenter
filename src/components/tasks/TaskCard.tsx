@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ExternalLink, Upload, CheckCircle2 } from "lucide-react";
+import { ExternalLink, Upload, CheckCircle2, Check, Copy, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 import { Task, TaskStatus, TaskSubmission, PRIORITY_PILL, dueLabel, STATUSES, extractUrls, timeAgo } from "@/lib/tasks";
 
 function hostLabel(u: string): string {
@@ -47,7 +48,35 @@ export default function TaskCard({
           : "bg-white border-line hover:bg-off hover:border-[#BBB]"
       }`}
     >
-      <div className={`font-serif text-[15px] font-medium leading-snug ${isDone ? "line-through" : ""}`}>{task.title}</div>
+      <div className="flex items-start justify-between gap-2">
+        <div className={`font-serif text-[15px] font-medium leading-snug flex-1 ${isDone ? "line-through" : ""}`}>{task.title}</div>
+        <div className="flex items-center gap-1 flex-shrink-0" onClick={stop}>
+          <button
+            type="button"
+            title="Copy title"
+            onClick={async (e) => {
+              e.stopPropagation();
+              try { await navigator.clipboard.writeText(task.title); toast.success("Title copied"); }
+              catch { toast.error("Copy failed"); }
+            }}
+            className="w-6 h-6 rounded-md border border-line bg-white hover:bg-off inline-flex items-center justify-center text-muted-foreground hover:text-foreground"
+          >
+            <Copy className="w-3 h-3" />
+          </button>
+          <button
+            type="button"
+            title={isDone ? "Mark as to-do" : "Mark as done"}
+            onClick={(e) => { e.stopPropagation(); onQuickStatus(task, isDone ? "todo" : "done"); }}
+            className={`w-6 h-6 rounded-md border inline-flex items-center justify-center transition-colors ${
+              isDone
+                ? "bg-[#16A34A] border-[#16A34A] text-white hover:bg-[#15803D]"
+                : "bg-white border-line text-muted-foreground hover:bg-[#F0FDF4] hover:border-[#86EFAC] hover:text-[#16A34A]"
+            }`}
+          >
+            {isDone ? <RotateCcw className="w-3 h-3" /> : <Check className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </div>
       <div className="flex items-center justify-between mt-2">
         <span className={`inline-flex items-center gap-1 px-2 h-[20px] text-[10px] rounded-full border ${PRIORITY_PILL[task.priority]}`}>
           <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />{task.priority}
