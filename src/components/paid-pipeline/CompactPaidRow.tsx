@@ -102,15 +102,15 @@ function CompactPaidRow({
         )}
       </div>
 
-      {/* Money: Deal / Token / Coll / Bal — tight 2-col grid */}
+      {/* Money: Deal Value / Token / Collected / Balance — tight 2-col grid */}
       <div className="min-w-0 text-[11px] leading-tight grid grid-cols-2 gap-x-2 gap-y-0">
-        <span className="text-muted-foreground text-[10px]">Deal</span>
+        <span className="text-muted-foreground text-[10px]">Deal Value</span>
         <span className="font-medium tabular-nums text-right">{inr(lead.deal_value_including_gst || 0)}</span>
-        <span className="text-muted-foreground text-[10px]">Tok</span>
+        <span className="text-muted-foreground text-[10px]">Token</span>
         <span className="tabular-nums text-right">{inr(lead.token_amount_collected || 0)}</span>
-        <span className="text-muted-foreground text-[10px]">Coll</span>
+        <span className="text-muted-foreground text-[10px]">Collected</span>
         <span className="tabular-nums text-right">{inr(lead.total_collected || 0)}</span>
-        <span className="text-muted-foreground text-[10px]">Bal</span>
+        <span className="text-muted-foreground text-[10px]">Balance</span>
         <span className={`tabular-nums text-right ${isFullyPaid ? "text-[#16A34A] font-medium" : "text-[#CA8A04] font-medium"}`}>
           {isFullyPaid ? "₹0" : inr(lead.balance_pending || 0)}
         </span>
