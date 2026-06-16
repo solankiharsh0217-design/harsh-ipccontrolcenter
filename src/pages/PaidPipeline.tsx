@@ -192,14 +192,19 @@ export default function PaidPipeline() {
 
   const resetFilters = () => {
     setSearch(""); setSearchInput("");
-    setBatchFilter("all"); setPaidBatchFilter("all"); setOnboardingBatchFilter("all");
+    setBatchFilter([]); setPaidBatchFilter([]); setOnboardingBatchFilter([]);
     setStageFilter("all"); setTempFilter("all");
     setFinancePartnerFilter("all"); setFinanceStatusFilter("all");
-    setFollowUpFilter("all"); setRevenueStatusFilter("all");
+    setFollowUpFilter("all"); setRevenueStatusFilter([]);
     setTagFilter("all"); setOwnerFilter("all"); setInsightFilter(null);
     setPayStatusFilter("all");
+    setPayDateFrom(""); setPayDateTo("");
   };
-  const anyFilterActive = !!search || !!insightFilter || payStatusFilter !== "all" || [batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, revenueStatusFilter, tagFilter, ownerFilter].some(v => v !== "all");
+  const anyFilterActive = !!search || !!insightFilter || payStatusFilter !== "all"
+    || !!payDateFrom || !!payDateTo
+    || batchFilter.length > 0 || paidBatchFilter.length > 0 || onboardingBatchFilter.length > 0
+    || revenueStatusFilter.length > 0
+    || [stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, tagFilter, ownerFilter].some(v => v !== "all");
 
   const financePartnerOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_FINANCE_PARTNERS);
@@ -207,12 +212,56 @@ export default function PaidPipeline() {
     return Array.from(set);
   }, [leads]);
 
+  // Normalize batch labels for forgiving cross-source matching.
+  const normalizeName = (s: string | null | undefined): string =>
+    String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+  // Build the set of normalized batch names for the currently selected webinar batch ids,
+  // so a row whose batch chip falls back to paid_batch_name / onboarding_batch_name /
+  // source_webinar still matches when its label equals the selected webinar batch.
+  const selectedBatchNames = useMemo(() => {
+    if (batchFilter.length === 0) return new Set<string>();
+    const names = new Set<string>();
+    batchFilter.forEach((id) => {
+      const b = batches.find((x) => x.id === id);
+      if (b?.batch_name) names.add(normalizeName(b.batch_name));
+    });
+    return names;
+  }, [batchFilter, batches]);
+
+  // Bulk-fetch the latest payment_date per lead so the Payment Date range can filter.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("paid_pipeline_payments")
+        .select("paid_pipeline_lead_id, payment_date")
+        .eq("is_deleted", false)
+        .order("payment_date", { ascending: false });
+      const map: Record<string, string> = {};
+      ((data as any[]) || []).forEach((r) => {
+        if (r.paid_pipeline_lead_id && r.payment_date && !map[r.paid_pipeline_lead_id]) {
+          map[r.paid_pipeline_lead_id] = String(r.payment_date).slice(0, 10);
+        }
+      });
+      setLatestPayDateMap(map);
+    })();
+  }, [leads.length]);
+
   const filtered = useMemo(() => {
     const td = today();
     return leads.filter(l => {
-      if (batchFilter !== "all" && l.webinar_batch_id !== batchFilter && l.source_webinar_batch_id !== batchFilter) return false;
-      if (paidBatchFilter !== "all" && l.paid_batch_id !== paidBatchFilter) return false;
-      if (onboardingBatchFilter !== "all" && (l.onboarding_batch_name || "") !== onboardingBatchFilter) return false;
+      // Webinar batch multi (OR): id match OR normalized-name fallback match
+      if (batchFilter.length > 0) {
+        const idHit =
+          (l.webinar_batch_id && batchFilter.includes(l.webinar_batch_id)) ||
+          (l.source_webinar_batch_id && batchFilter.includes(l.source_webinar_batch_id));
+        const nameHit = selectedBatchNames.size > 0 && [
+          l.paid_batch_name, l.onboarding_batch_name, l.source_webinar,
+        ].some((n) => n && selectedBatchNames.has(normalizeName(n)));
+        if (!idHit && !nameHit) return false;
+      }
+      if (paidBatchFilter.length > 0 && !(l.paid_batch_id && paidBatchFilter.includes(l.paid_batch_id))) return false;
+      if (onboardingBatchFilter.length > 0 && !onboardingBatchFilter.includes(l.onboarding_batch_name || "")) return false;
       if (stageFilter !== "all" && l.pipeline_stage !== stageFilter) return false;
       if (tempFilter !== "all" && (l.lead_temperature || "") !== tempFilter) return false;
       if (financePartnerFilter !== "all" && (l.finance_partner || "") !== financePartnerFilter) return false;
@@ -226,7 +275,7 @@ export default function PaidPipeline() {
       if (followUpFilter === "upcoming" && !(fu && fu > td)) return false;
       if (followUpFilter === "none" && fu) return false;
       if (followUpFilter === "urgent" && !(["Hot","Urgent"].includes(l.lead_temperature || "") || ["Hot","Urgent"].includes(l.follow_up_priority || ""))) return false;
-      if (revenueStatusFilter !== "all") {
+      if (revenueStatusFilter.length > 0) {
         const total = Number(l.total_collected || 0);
         const deal = Number(l.deal_value_including_gst || 0);
         const map: Record<string, boolean> = {
@@ -238,7 +287,13 @@ export default function PaidPipeline() {
           "balance_pending": Number(l.balance_pending || 0) > 0,
           "dropped": l.is_dropped,
         };
-        if (!map[revenueStatusFilter]) return false;
+        if (!revenueStatusFilter.some((k) => map[k])) return false;
+      }
+      if (payDateFrom || payDateTo) {
+        const d = latestPayDateMap[l.id] || (l.created_at ? String(l.created_at).slice(0, 10) : "");
+        if (!d) return false;
+        if (payDateFrom && d < payDateFrom) return false;
+        if (payDateTo && d > payDateTo) return false;
       }
       if (insightFilter) {
         const bal = Number(l.balance_pending || 0);
@@ -263,7 +318,7 @@ export default function PaidPipeline() {
       }
       return true;
     });
-  }, [leads, batchFilter, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter]);
+  }, [leads, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, latestPayDateMap]);
 
   const insights = useMemo(() => {
     let highBalCount = 0, highBalAmt = 0;
