@@ -15,7 +15,7 @@ interface Props {
 const fmtIso = (d?: Date) => (d ? format(d, "yyyy-MM-dd") : "");
 const fmtNice = (d?: Date) => (d ? format(d, "d MMM yyyy") : "");
 
-export default function PaymentDateRangeFilter({ dateFrom, dateTo, onChange, label = "Payment Date" }: Props) {
+export default function PaymentDateRangeFilter({ dateFrom, dateTo, onChange, label = "Webinar Date" }: Props) {
   const [open, setOpen] = useState(false);
 
   const range: DateRange | undefined =
@@ -25,7 +25,7 @@ export default function PaymentDateRangeFilter({ dateFrom, dateTo, onChange, lab
 
   const display = range?.from
     ? range.to ? `${fmtNice(range.from)} → ${fmtNice(range.to)}` : `${fmtNice(range.from)} → …`
-    : `All ${label.toLowerCase()}s`;
+    : label;
 
   const setPreset = (days: number) => {
     const t = new Date();
@@ -43,16 +43,16 @@ export default function PaymentDateRangeFilter({ dateFrom, dateTo, onChange, lab
   const hasRange = !!(dateFrom || dateTo);
 
   return (
-    <div className="flex items-center gap-0.5 p-0.5 rounded-md border border-line bg-white h-9">
-      <span className="px-2 text-[10.5px] uppercase tracking-wider text-muted-foreground">{label}</span>
+    <div className="flex items-center gap-0.5 p-0.5 rounded-md border border-line bg-white h-9 w-full min-w-0">
+      <span className="px-2 text-[10.5px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">{label}</span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-1.5 px-2 h-7 rounded-md hover:bg-off text-[11.5px] min-w-[180px]"
-            title="Pick payment date range"
+            className="flex items-center gap-1.5 px-2 h-7 rounded-md hover:bg-off text-[11.5px] flex-1 min-w-0"
+            title="Pick webinar date range"
           >
-            <CalendarIcon className="w-3.5 h-3.5 opacity-70" />
+            <CalendarIcon className="w-3.5 h-3.5 opacity-70 flex-shrink-0" />
             <span className="truncate">{display}</span>
           </button>
         </PopoverTrigger>

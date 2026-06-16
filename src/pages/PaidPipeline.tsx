@@ -119,7 +119,7 @@ export default function PaidPipeline() {
   const [revenueStatusFilter, setRevenueStatusFilter] = useState<string[]>([]);
   const [payDateFrom, setPayDateFrom] = useState("");
   const [payDateTo, setPayDateTo] = useState("");
-  const [latestPayDateMap, setLatestPayDateMap] = useState<Record<string, string>>({});
+  
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -229,23 +229,33 @@ export default function PaidPipeline() {
     return names;
   }, [batchFilter, batches]);
 
-  // Bulk-fetch the latest payment_date per lead so the Payment Date range can filter.
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("paid_pipeline_payments")
-        .select("paid_pipeline_lead_id, payment_date")
-        .eq("is_deleted", false)
-        .order("payment_date", { ascending: false });
-      const map: Record<string, string> = {};
-      ((data as any[]) || []).forEach((r) => {
-        if (r.paid_pipeline_lead_id && r.payment_date && !map[r.paid_pipeline_lead_id]) {
-          map[r.paid_pipeline_lead_id] = String(r.payment_date).slice(0, 10);
-        }
-      });
-      setLatestPayDateMap(map);
-    })();
-  }, [leads.length]);
+  // Resolve a "webinar date" per lead from the linked source webinar batch.
+  // Priority: webinar_batch_id → source_webinar_batch_id → fallback by normalized batch name
+  // (source_webinar / paid_batch_name / onboarding_batch_name). Never uses payment dates.
+  const batchDateById = useMemo(() => {
+    const m: Record<string, string> = {};
+    batches.forEach((b) => { if (b.id && b.webinar_date) m[b.id] = String(b.webinar_date).slice(0, 10); });
+    return m;
+  }, [batches]);
+  const batchDateByName = useMemo(() => {
+    const m: Record<string, string> = {};
+    batches.forEach((b) => {
+      if (b.batch_name && b.webinar_date) m[normalizeName(b.batch_name)] = String(b.webinar_date).slice(0, 10);
+    });
+    return m;
+  }, [batches]);
+  const webinarDateForLead = (l: Lead): string => {
+    if (l.webinar_batch_id && batchDateById[l.webinar_batch_id]) return batchDateById[l.webinar_batch_id];
+    if (l.source_webinar_batch_id && batchDateById[l.source_webinar_batch_id]) return batchDateById[l.source_webinar_batch_id];
+    for (const n of [l.source_webinar, l.paid_batch_name, l.onboarding_batch_name]) {
+      if (n) {
+        const hit = batchDateByName[normalizeName(n)];
+        if (hit) return hit;
+      }
+    }
+    return "";
+  };
+
 
   const filtered = useMemo(() => {
     const td = today();
@@ -290,7 +300,7 @@ export default function PaidPipeline() {
         if (!revenueStatusFilter.some((k) => map[k])) return false;
       }
       if (payDateFrom || payDateTo) {
-        const d = latestPayDateMap[l.id] || (l.created_at ? String(l.created_at).slice(0, 10) : "");
+        const d = webinarDateForLead(l);
         if (!d) return false;
         if (payDateFrom && d < payDateFrom) return false;
         if (payDateTo && d > payDateTo) return false;
@@ -318,7 +328,7 @@ export default function PaidPipeline() {
       }
       return true;
     });
-  }, [leads, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, latestPayDateMap]);
+  }, [leads, batches, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, batchDateById, batchDateByName]);
 
   const insights = useMemo(() => {
     let highBalCount = 0, highBalAmt = 0;
@@ -556,14 +566,17 @@ export default function PaidPipeline() {
         <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
           { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
         ]} />
-        <PaymentDateRangeFilter
-          dateFrom={payDateFrom}
-          dateTo={payDateTo}
-          onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }}
-        />
+        <div className="col-span-2 min-w-0">
+          <PaymentDateRangeFilter
+            dateFrom={payDateFrom}
+            dateTo={payDateTo}
+            onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }}
+            label="Webinar Date"
+          />
+        </div>
         <button
           onClick={() => setShowMoreFilters(v => !v)}
-          className="h-9 border border-line rounded-md px-3 text-[12.5px] hover:bg-off text-left"
+          className="h-9 border border-line rounded-md px-3 text-[12.5px] hover:bg-off text-left whitespace-nowrap"
         >{showMoreFilters ? "▾" : "▸"} More filters</button>
       </div>
       {showMoreFilters && (
