@@ -37,6 +37,8 @@ import CompactPaidRow from "@/components/paid-pipeline/CompactPaidRow";
 import { getPaymentStatus, type PayStatusKey } from "@/lib/paidPaymentStatus";
 import ServicePackageChip from "@/components/ServicePackageChip";
 import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
+import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
+import PaymentDateRangeFilter from "@/components/paid-pipeline/PaymentDateRangeFilter";
 
 type Lead = {
   id: string;
