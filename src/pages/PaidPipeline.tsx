@@ -300,7 +300,7 @@ export default function PaidPipeline() {
         if (!revenueStatusFilter.some((k) => map[k])) return false;
       }
       if (payDateFrom || payDateTo) {
-        const d = latestPayDateMap[l.id] || (l.created_at ? String(l.created_at).slice(0, 10) : "");
+        const d = webinarDateForLead(l);
         if (!d) return false;
         if (payDateFrom && d < payDateFrom) return false;
         if (payDateTo && d > payDateTo) return false;
