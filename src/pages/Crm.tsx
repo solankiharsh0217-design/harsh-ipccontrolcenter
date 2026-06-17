@@ -1241,14 +1241,17 @@ export default function Crm() {
                         </select>
                       </div>
                     </div>
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Converted</div>
-                      <select className="ipc-input !h-9 !text-xs w-full" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)}>
-                        <option value="hide">Hide converted</option>
-                        <option value="show">Show converted</option>
-                        <option value="only">Converted only</option>
-                      </select>
-                    </div>
+                    {activePipelineType === "unpaid" && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Converted</div>
+                        <select className="ipc-input !h-9 !text-xs w-full" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)}>
+                          <option value="hide">Hide converted</option>
+                          <option value="show">Show converted</option>
+                          <option value="only">Converted only</option>
+                        </select>
+                      </div>
+                    )}
+
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Tags</div>
                       <MultiSelectFilter
