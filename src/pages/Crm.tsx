@@ -445,6 +445,10 @@ export default function Crm() {
   const baseScopeLeads = useMemo(() => {
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
+    // Converted/linked filter ONLY applies to the Unpaid Sales Pipeline.
+    // Paid Onboarding (and any non-unpaid pipeline) must always show converted/linked rows —
+    // they are the entire point of that board. Never hide rows here based on conversion_status
+    // for paid/operations/custom pipelines.
     if (convertedFilter !== "show" && activePipelineType === "unpaid") {
       list = list.filter((l: any) => {
         const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
@@ -453,6 +457,7 @@ export default function Crm() {
     }
     return list;
   }, [leads, activePipeline, activePipelineType, showArchived, convertedFilter]);
+
 
   // Helpers shared between the main filter and the dropdown count derivations.
   const legacyGradeToHotness = (g: any): Hotness => {
@@ -1070,10 +1075,11 @@ export default function Crm() {
     attendanceGradeFilter.length +
     (minAttendedMinutes > 0 ? 1 : 0) +
     (attendanceDataFilter !== "any" ? 1 : 0) +
-    (convertedFilter !== "hide" ? 1 : 0) +
+    (activePipelineType === "unpaid" && convertedFilter !== "show" ? 1 : 0) +
     tagFilter.length +
     stageFilter.length;
-  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("hide"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("show"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+
   const [chipsExpanded, setChipsExpanded] = useState(false);
 
   return (
@@ -1235,14 +1241,17 @@ export default function Crm() {
                         </select>
                       </div>
                     </div>
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Converted</div>
-                      <select className="ipc-input !h-9 !text-xs w-full" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)}>
-                        <option value="hide">Hide converted</option>
-                        <option value="show">Show converted</option>
-                        <option value="only">Converted only</option>
-                      </select>
-                    </div>
+                    {activePipelineType === "unpaid" && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Converted</div>
+                        <select className="ipc-input !h-9 !text-xs w-full" value={convertedFilter} onChange={(e) => setConvertedFilter(e.target.value as any)}>
+                          <option value="hide">Hide converted</option>
+                          <option value="show">Show converted</option>
+                          <option value="only">Converted only</option>
+                        </select>
+                      </div>
+                    )}
+
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Tags</div>
                       <MultiSelectFilter
