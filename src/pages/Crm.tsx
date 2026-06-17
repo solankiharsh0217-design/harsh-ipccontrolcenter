@@ -1075,10 +1075,11 @@ export default function Crm() {
     attendanceGradeFilter.length +
     (minAttendedMinutes > 0 ? 1 : 0) +
     (attendanceDataFilter !== "any" ? 1 : 0) +
-    (convertedFilter !== "hide" ? 1 : 0) +
+    (activePipelineType === "unpaid" && convertedFilter !== "show" ? 1 : 0) +
     tagFilter.length +
     stageFilter.length;
-  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("hide"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("show"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+
   const [chipsExpanded, setChipsExpanded] = useState(false);
 
   return (
