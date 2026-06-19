@@ -37,6 +37,8 @@ import UniversalSearchPanel from "@/components/crm/UniversalSearchPanel";
 import { useFocusKanbanCard } from "@/hooks/useFocusKanbanCard";
 import type { UniversalSearchResult } from "@/lib/universalSearch";
 import ServicePackageChip from "@/components/ServicePackageChip";
+import { getVisiblePaidOnboardingLeads } from "@/lib/paidOnboardingVisibility";
+import CountHealthPanel from "@/components/crm/CountHealthPanel";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
@@ -302,15 +304,34 @@ export default function Crm() {
       const reload = await supabase.from("pipelines").select("*").order("position");
       p = reload.data || [];
     }
-    const [{ data: s }, { data: l }, elig, { data: wb }] = await Promise.all([
+    // Paginated lead fetch — PostgREST caps a single response at 1000 rows.
+    // Without paging, Paid Onboarding cards with older created_at silently
+    // disappeared from the board (root cause of the 106 vs 65 mismatch).
+    const fetchAllLeads = async (): Promise<any[]> => {
+      const PAGE = 1000;
+      const all: any[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = (data || []) as any[];
+        all.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      return all;
+    };
+    const [{ data: s }, leadsAll, elig, { data: wb }] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
-      supabase.from("leads").select("*").order("created_at", { ascending: false }),
+      fetchAllLeads().catch((e) => { console.error("[CRM] paginated lead fetch failed", e); return [] as any[]; }),
       getEligibleAssignees("calling_crm"),
       supabase.from("webinar_batches" as any).select("id, batch_name, webinar_name, webinar_date, service_package_id, service_package_snapshot, process_template_id, product_name, deal_value, pipeline_id").eq("is_deleted", false),
     ]);
     setPipelines((p || []) as any);
     setStages((s || []) as any);
-    setLeads((l || []) as any);
+    setLeads((leadsAll || []) as any);
     setBatchMeta(((wb as any) || []) as any);
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
     if (!activePipeline && p && p.length) {
@@ -440,15 +461,17 @@ export default function Crm() {
     }
     return map;
   }, [leads]);
-  // Base list: pipeline + archive + converted (used as the universe for ALL secondary filters
-  // and dropdown counts so counts/results stay consistent).
+  // Base list: pipeline + archive + (unpaid-only) converted filter.
+  // For Paid Onboarding we delegate to `getVisiblePaidOnboardingLeads` — the
+  // single source of truth that guarantees conversion_status never hides cards.
   const baseScopeLeads = useMemo(() => {
+    if (activePipelineType === "paid" && activePipeline) {
+      // Paid Onboarding: visibility is intentionally narrow — only archive/delete.
+      return getVisiblePaidOnboardingLeads(leads, activePipeline, { showArchived });
+    }
     let list = leads.filter((l) => l.pipeline_id === activePipeline);
     list = list.filter((l: any) => showArchived ? !!l.archived_at : !l.archived_at && !l.deleted_at);
     // Converted/linked filter ONLY applies to the Unpaid Sales Pipeline.
-    // Paid Onboarding (and any non-unpaid pipeline) must always show converted/linked rows —
-    // they are the entire point of that board. Never hide rows here based on conversion_status
-    // for paid/operations/custom pipelines.
     if (convertedFilter !== "show" && activePipelineType === "unpaid") {
       list = list.filter((l: any) => {
         const isConv = !!l.paid_pipeline_lead_id || l.conversion_status === "converted" || l.conversion_status === "linked_to_paid" || l.hide_from_sales_workload === true;
@@ -1346,6 +1369,24 @@ export default function Crm() {
 
       </div>
 
+
+      {isAdmin && activePipelineType === "paid" && activePipeline && (view === "kanban" || view === "list") && (() => {
+        const activeCards = leads.filter((l: any) => l.pipeline_id === activePipeline && !l.archived_at && !l.deleted_at).length;
+        const archivedHidden = leads.filter((l: any) => l.pipeline_id === activePipeline && (!!l.archived_at || !!l.deleted_at)).length;
+        const baseUniverseForArchive = showArchived
+          ? leads.filter((l: any) => l.pipeline_id === activePipeline && !!l.archived_at && !l.deleted_at).length
+          : activeCards;
+        const hiddenByFilters = Math.max(0, baseUniverseForArchive - pipelineLeads.length);
+        return (
+          <CountHealthPanel
+            paidPipelineId={activePipeline}
+            visibleCount={pipelineLeads.length}
+            activeCardsCount={activeCards}
+            hiddenByFilters={hiddenByFilters}
+            hiddenByArchive={archivedHidden}
+          />
+        );
+      })()}
 
       {(view === "kanban" || view === "list") && (
         <div className="text-[11px] text-muted-foreground mb-2">
