@@ -1370,6 +1370,24 @@ export default function Crm() {
       </div>
 
 
+      {isAdmin && activePipelineType === "paid" && activePipeline && (view === "kanban" || view === "list") && (() => {
+        const activeCards = leads.filter((l: any) => l.pipeline_id === activePipeline && !l.archived_at && !l.deleted_at).length;
+        const archivedHidden = leads.filter((l: any) => l.pipeline_id === activePipeline && (!!l.archived_at || !!l.deleted_at)).length;
+        const baseUniverseForArchive = showArchived
+          ? leads.filter((l: any) => l.pipeline_id === activePipeline && !!l.archived_at && !l.deleted_at).length
+          : activeCards;
+        const hiddenByFilters = Math.max(0, baseUniverseForArchive - pipelineLeads.length);
+        return (
+          <CountHealthPanel
+            paidPipelineId={activePipeline}
+            visibleCount={pipelineLeads.length}
+            activeCardsCount={activeCards}
+            hiddenByFilters={hiddenByFilters}
+            hiddenByArchive={archivedHidden}
+          />
+        );
+      })()}
+
       {(view === "kanban" || view === "list") && (
         <div className="text-[11px] text-muted-foreground mb-2">
           Showing <span className="font-medium text-foreground">{pipelineLeads.length}</span> of <span className="font-medium text-foreground">{leads.filter((l) => l.pipeline_id === activePipeline).length}</span> leads
