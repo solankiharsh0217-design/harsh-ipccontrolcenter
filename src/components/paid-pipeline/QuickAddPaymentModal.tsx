@@ -140,7 +140,15 @@ export default function QuickAddPaymentModal({
       });
       toast.success("Payment added");
       onSaved(); onClose();
-    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+    } catch (e: any) {
+      console.error("Add payment failed", e);
+      const msg = String(e?.message || "");
+      if (/row-level security|permission/i.test(msg)) {
+        toast.error("Payment could not be saved because your account does not have payment-entry permission. Please contact admin.");
+      } else {
+        toast.error(msg || "Failed to save payment");
+      }
+    } finally { setBusy(false); }
   };
 
   const fieldLabel = "block text-[11px] font-medium uppercase tracking-wide text-muted-foreground mb-1";
