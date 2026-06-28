@@ -208,7 +208,10 @@ Deno.serve(async (req) => {
       requestRow = data;
     }
 
-    const signingLink = `${baseUrl}/code-of-conduct/sign/${token}`;
+    // The new destination is the guided page (video gate + signature + group join).
+    // The old direct signature route `/code-of-conduct/sign/${token}` still works
+    // with the same token for backward compatibility.
+    const signingLink = `${baseUrl}/code-of-conduct-guide/${token}`;
     await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'token_generated', metadata: { expires_at: expiresAt, is_test: !!is_test }, created_by: userId });
     await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'email_send_attempted', metadata: { to: member_email, is_test: !!is_test }, created_by: userId });
 
