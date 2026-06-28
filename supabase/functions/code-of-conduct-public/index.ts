@@ -55,7 +55,29 @@ async function resolveSignedPdfUrl(admin: any, rawUrl: string | null): Promise<s
   return signedStorageUrl(admin, rawUrl, 'signed-code-of-conduct');
 }
 
-function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null) {
+async function loadGuideVideoConfig(admin: any) {
+  const { data } = await admin.from('company_settings').select('guide_video_provider,guide_video_id,guide_video_title,guide_video_required_percent,guide_video_is_active').eq('workspace', 'default').maybeSingle();
+  if (!data) return null;
+  return {
+    provider: data.guide_video_provider || 'wistia',
+    video_id: data.guide_video_id || null,
+    title: data.guide_video_title || null,
+    required_percent: Number(data.guide_video_required_percent ?? 95),
+    is_active: data.guide_video_is_active !== false,
+  };
+}
+
+async function loadGuideProgress(admin: any, requestId: string) {
+  const { data } = await admin.from('code_of_conduct_guide_progress').select('*').eq('request_id', requestId).maybeSingle();
+  if (!data) return null;
+  return {
+    percent_watched: Number(data.percent_watched ?? 0),
+    completed_at: data.completed_at || null,
+    video_id: data.video_id || null,
+  };
+}
+
+function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null, guideVideo: any = null, guideProgress: any = null) {
   return {
     ok: true,
     request: {
@@ -83,7 +105,10 @@ function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, sig
       template_pdf_url: originalPdfUrl,
       html_content: t.html_content,
       success_page_message: t.success_page_message,
+      whatsapp_redirect_url: r.status === 'signed' ? (t.whatsapp_redirect_url || null) : null,
     } : null,
+    guide_video: guideVideo,
+    guide_progress: guideProgress,
   };
 }
 
