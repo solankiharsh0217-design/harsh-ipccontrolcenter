@@ -36,13 +36,21 @@ declare global {
   interface Window { _wq?: any[]; }
 }
 
-function loadWistia() {
-  if (document.getElementById("wistia-e-v1")) return;
-  const s1 = document.createElement("script");
-  s1.id = "wistia-e-v1";
-  s1.src = "https://fast.wistia.com/assets/external/E-v1.js";
-  s1.async = true;
-  document.head.appendChild(s1);
+function loadWistia(videoId?: string | null) {
+  if (!document.getElementById("wistia-e-v1")) {
+    const s1 = document.createElement("script");
+    s1.id = "wistia-e-v1";
+    s1.src = "https://fast.wistia.com/assets/external/E-v1.js";
+    s1.async = true;
+    document.head.appendChild(s1);
+  }
+  if (videoId && !document.getElementById(`wistia-jsonp-${videoId}`)) {
+    const s2 = document.createElement("script");
+    s2.id = `wistia-jsonp-${videoId}`;
+    s2.src = `https://fast.wistia.com/embed/medias/${videoId}.jsonp`;
+    s2.async = true;
+    document.head.appendChild(s2);
+  }
 }
 
 export default function CodeOfConductGuide() {
@@ -106,7 +114,7 @@ export default function CodeOfConductGuide() {
 
   useEffect(() => {
     if (!videoConfigured || !data?.guide_video?.video_id) return;
-    loadWistia();
+    loadWistia(data.guide_video.video_id);
     const videoId = data.guide_video.video_id;
     window._wq = window._wq || [];
     const handler = {
@@ -197,10 +205,10 @@ export default function CodeOfConductGuide() {
             </div>
           ) : (
             <>
-              <div className="rounded-lg overflow-hidden border border-slate-200 bg-black aspect-video">
+              <div className="relative w-full overflow-hidden rounded-lg border border-slate-200 bg-black" style={{ aspectRatio: "16 / 9" }}>
                 <div
-                  className={`wistia_embed wistia_async_${videoId} videoFoam=true`}
-                  style={{ height: "100%", width: "100%" }}
+                  className={`wistia_embed wistia_async_${videoId} videoFoam=true seo=false`}
+                  style={{ position: "absolute", inset: 0, height: "100%", width: "100%" }}
                 />
               </div>
               <div className="mt-3">
