@@ -197,10 +197,10 @@ export default function CodeOfConductGuide() {
             </div>
           ) : (
             <>
-              <div className="rounded-lg overflow-hidden border border-slate-200 bg-black aspect-video">
+              <div className="relative w-full overflow-hidden rounded-lg border border-slate-200 bg-black" style={{ aspectRatio: "16 / 9" }}>
                 <div
-                  className={`wistia_embed wistia_async_${videoId} videoFoam=true`}
-                  style={{ height: "100%", width: "100%" }}
+                  className={`wistia_embed wistia_async_${videoId} videoFoam=true seo=false`}
+                  style={{ position: "absolute", inset: 0, height: "100%", width: "100%" }}
                 />
               </div>
               <div className="mt-3">
