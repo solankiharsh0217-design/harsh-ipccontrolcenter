@@ -193,12 +193,23 @@ export default function CodeOfConductGuide() {
           ))}
         </ol>
 
+        {/* Instruction banner */}
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+          <p className="text-sm sm:text-[15px] font-semibold text-amber-900 leading-snug">
+            Please watch this complete video first. After the video is completed, your Code of Conduct signing button will unlock automatically.
+          </p>
+          <p className="mt-1.5 text-[12.5px] text-amber-800/90">
+            This step is required so you understand how to complete your access process correctly.
+          </p>
+        </div>
+
         {/* Step 0: video */}
         <section className="bg-white border border-slate-200 rounded-2xl p-5 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-900">Step 1 · {data.guide_video?.title || "Watch the guide video"}</h2>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-sm font-semibold text-slate-900">Step 1 · Watch This Guide Video First</h2>
             {videoUnlocked && <span className="text-[11px] font-semibold text-emerald-700">Completed</span>}
           </div>
+          <p className="text-[12.5px] text-slate-600 mb-3">Your signing step will unlock after you complete the video.</p>
           {!videoConfigured ? (
             <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-sm p-4">
               Guide video is not configured. Please contact support.
@@ -219,6 +230,11 @@ export default function CodeOfConductGuide() {
                   <span>Watched {Math.min(100, Math.round(percent))}%</span>
                   <span>Unlocks at {required}%</span>
                 </div>
+                <p className={`mt-2 text-[12px] font-medium ${videoUnlocked ? "text-emerald-700" : "text-slate-600"}`}>
+                  {videoUnlocked
+                    ? "Video completed. You can now continue to signing."
+                    : "Keep watching — signing unlocks automatically."}
+                </p>
               </div>
             </>
           )}
@@ -227,7 +243,13 @@ export default function CodeOfConductGuide() {
         {/* Step 1: sign */}
         <section className="bg-white border border-slate-200 rounded-2xl p-5 mb-4">
           <h2 className="text-sm font-semibold text-slate-900 mb-1">Step 2 · Sign your Code of Conduct</h2>
-          <p className="text-[12.5px] text-slate-600 mb-3">This uses the same secure signing flow as before. Your signature is recorded against your name and email.</p>
+          <p className="text-[12.5px] text-slate-600 mb-3">
+            {signed
+              ? "This uses the same secure signing flow as before. Your signature is recorded against your name and email."
+              : videoUnlocked
+                ? "Unlocked — continue to sign your Code of Conduct."
+                : "Locked until video is completed."}
+          </p>
           {signed ? (
             <div className="rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-3">
               You have already signed the Code of Conduct.
@@ -238,7 +260,7 @@ export default function CodeOfConductGuide() {
             </button>
           ) : (
             <button disabled className="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-slate-200 text-slate-500 text-sm font-semibold cursor-not-allowed">
-              Watch the full video to unlock signing
+              Watch the full video first to unlock Code of Conduct signing
             </button>
           )}
         </section>
