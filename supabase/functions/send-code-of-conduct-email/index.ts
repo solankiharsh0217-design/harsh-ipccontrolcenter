@@ -246,7 +246,7 @@ ${is_test ? '<div style="background:#fef3c7;border:1px solid #fcd34d;color:#9240
 <h2 style="margin:0 0 8px;font-size:18px">${escapeHtml(templateRow.document_title || 'Code of Conduct')}</h2>
 <p style="color:#475569;font-size:13px;margin:0 0 20px">${escapeHtml(companyName)}</p>
 ${htmlLines}
-<p style="margin:24px 0"><a href="${signingLink}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:600">Review & Sign</a></p>
+<p style="margin:24px 0"><a href="${signingLink}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:600">Complete Your Access Steps</a></p>
 <p style="font-size:11.5px;color:#94a3b8;margin:20px 0 0">If the button does not work, copy this link: <br/>${signingLink}</p>
 <p style="font-size:11.5px;color:#94a3b8;margin:8px 0 0">This link expires on ${escapeHtml(expiryDate)}.</p>
 </div></body></html>`;
