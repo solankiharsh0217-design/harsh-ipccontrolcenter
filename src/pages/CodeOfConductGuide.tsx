@@ -36,13 +36,21 @@ declare global {
   interface Window { _wq?: any[]; }
 }
 
-function loadWistia() {
-  if (document.getElementById("wistia-e-v1")) return;
-  const s1 = document.createElement("script");
-  s1.id = "wistia-e-v1";
-  s1.src = "https://fast.wistia.com/assets/external/E-v1.js";
-  s1.async = true;
-  document.head.appendChild(s1);
+function loadWistia(videoId?: string | null) {
+  if (!document.getElementById("wistia-e-v1")) {
+    const s1 = document.createElement("script");
+    s1.id = "wistia-e-v1";
+    s1.src = "https://fast.wistia.com/assets/external/E-v1.js";
+    s1.async = true;
+    document.head.appendChild(s1);
+  }
+  if (videoId && !document.getElementById(`wistia-jsonp-${videoId}`)) {
+    const s2 = document.createElement("script");
+    s2.id = `wistia-jsonp-${videoId}`;
+    s2.src = `https://fast.wistia.com/embed/medias/${videoId}.jsonp`;
+    s2.async = true;
+    document.head.appendChild(s2);
+  }
 }
 
 export default function CodeOfConductGuide() {
