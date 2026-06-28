@@ -431,7 +431,39 @@ Deno.serve(async (req) => {
       if (!originalPdf && !tpl?.html_content) return publicError('DOCUMENT_NOT_FOUND', 'The agreement document is not configured yet.', 404);
       const receiptUrl = await resolveSignedReceiptUrl(admin, reqRow.signed_html_url || reqRow.signed_receipt_url || null);
       const signedRequestPdf = await resolveSignedPdfUrl(admin, reqRow.signed_pdf_url || null);
-      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl));
+      const guideVideo = await loadGuideVideoConfig(admin);
+      const guideProgress = await loadGuideProgress(admin, reqRow.id);
+      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl, guideVideo, guideProgress));
+    }
+
+    if (action === 'record_guide_progress') {
+      const percent = Math.max(0, Math.min(100, Number(body.percent_watched ?? 0)));
+      const videoId = body.video_id ? String(body.video_id).slice(0, 200) : null;
+      const guideVideo = await loadGuideVideoConfig(admin);
+      const required = Number(guideVideo?.required_percent ?? 95);
+      const completedNow = percent >= required;
+      const { data: existing } = await admin.from('code_of_conduct_guide_progress').select('*').eq('request_id', reqRow.id).maybeSingle();
+      const nowIso = new Date().toISOString();
+      if (existing) {
+        const nextPercent = Math.max(Number(existing.percent_watched ?? 0), percent);
+        const completedAt = existing.completed_at || (nextPercent >= required ? nowIso : null);
+        await admin.from('code_of_conduct_guide_progress').update({
+          percent_watched: nextPercent,
+          video_id: videoId || existing.video_id,
+          completed_at: completedAt,
+          last_event_at: nowIso,
+        }).eq('id', existing.id);
+        return jsonResponse({ ok: true, percent_watched: nextPercent, completed_at: completedAt, required_percent: required });
+      }
+      const completedAt = completedNow ? nowIso : null;
+      await admin.from('code_of_conduct_guide_progress').insert({
+        request_id: reqRow.id, video_id: videoId, percent_watched: percent, completed_at: completedAt, last_event_at: nowIso,
+      });
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'guide_video_progress_started', metadata: { video_id: videoId } });
+      if (completedNow) {
+        await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'guide_video_completed', metadata: { video_id: videoId, percent_watched: percent } });
+      }
+      return jsonResponse({ ok: true, percent_watched: percent, completed_at: completedAt, required_percent: required });
     }
 
     if (action === 'whatsapp_click') {
