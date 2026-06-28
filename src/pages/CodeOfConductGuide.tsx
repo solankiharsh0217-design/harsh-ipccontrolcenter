@@ -114,7 +114,7 @@ export default function CodeOfConductGuide() {
 
   useEffect(() => {
     if (!videoConfigured || !data?.guide_video?.video_id) return;
-    loadWistia();
+    loadWistia(data.guide_video.video_id);
     const videoId = data.guide_video.video_id;
     window._wq = window._wq || [];
     const handler = {
