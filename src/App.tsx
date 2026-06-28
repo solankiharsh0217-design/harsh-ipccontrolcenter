@@ -40,6 +40,7 @@ import MediaBuyerOperations from "./pages/MediaBuyerOperations";
 import OperationsCrm from "./pages/OperationsCrm";
 import NotFound from "./pages/NotFound";
 import CodeOfConductSign from "./pages/CodeOfConductSign";
+import CodeOfConductGuide from "./pages/CodeOfConductGuide";
 import CodeOfConductAdmin from "./pages/CodeOfConductAdmin";
 import CodeOfConductReceipt from "./pages/CodeOfConductReceipt";
 import CodeOfConductSignedPdf from "./pages/CodeOfConductSignedPdf";
@@ -77,6 +78,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/code-of-conduct/sign/:token" element={<CodeOfConductSign />} />
+            <Route path="/code-of-conduct-guide/:token" element={<CodeOfConductGuide />} />
             <Route path="/admin-center/code-of-conduct" element={<Shell admin><CodeOfConductAdmin /></Shell>} />
             <Route path="/code-of-conduct/signed-pdf/:requestId" element={<Shell admin><CodeOfConductSignedPdf /></Shell>} />
             <Route path="/code-of-conduct/receipt/:requestId" element={<Shell admin><CodeOfConductReceipt /></Shell>} />

@@ -864,6 +864,50 @@ export type Database = {
           },
         ]
       }
+      code_of_conduct_guide_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          last_event_at: string
+          metadata: Json
+          percent_watched: number
+          request_id: string
+          updated_at: string
+          video_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_event_at?: string
+          metadata?: Json
+          percent_watched?: number
+          request_id: string
+          updated_at?: string
+          video_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_event_at?: string
+          metadata?: Json
+          percent_watched?: number
+          request_id?: string
+          updated_at?: string
+          video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_of_conduct_guide_progress_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "code_of_conduct_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       code_of_conduct_requests: {
         Row: {
           acknowledgement_checkbox: boolean
@@ -1276,6 +1320,11 @@ export type Database = {
           created_at: string
           email: string | null
           gstin: string | null
+          guide_video_id: string | null
+          guide_video_is_active: boolean
+          guide_video_provider: string
+          guide_video_required_percent: number
+          guide_video_title: string | null
           id: string
           legal_name: string | null
           logo_path: string | null
@@ -1315,6 +1364,11 @@ export type Database = {
           created_at?: string
           email?: string | null
           gstin?: string | null
+          guide_video_id?: string | null
+          guide_video_is_active?: boolean
+          guide_video_provider?: string
+          guide_video_required_percent?: number
+          guide_video_title?: string | null
           id?: string
           legal_name?: string | null
           logo_path?: string | null
@@ -1354,6 +1408,11 @@ export type Database = {
           created_at?: string
           email?: string | null
           gstin?: string | null
+          guide_video_id?: string | null
+          guide_video_is_active?: boolean
+          guide_video_provider?: string
+          guide_video_required_percent?: number
+          guide_video_title?: string | null
           id?: string
           legal_name?: string | null
           logo_path?: string | null

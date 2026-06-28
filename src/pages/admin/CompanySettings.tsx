@@ -372,6 +372,35 @@ export default function CompanySettingsPage() {
         </Button>
       </details>
 
+      <SectionLabel>Code of Conduct Guide Video</SectionLabel>
+      <div className="bg-white border border-line rounded-xl p-5 mb-8 grid grid-cols-2 gap-4">
+        <div className="col-span-2 text-[12px] text-muted-foreground -mt-1">
+          Shown on the guided Code of Conduct page (<code>/code-of-conduct-guide/:token</code>). Members must watch the configured percentage before the signature button unlocks.
+        </div>
+        <div>
+          <Label className="text-xs">Wistia video ID</Label>
+          <Input value={s.guide_video_id || ""} onChange={(e) => set("guide_video_id" as any, e.target.value)} placeholder="e.g. abc123xyz" />
+        </div>
+        <div>
+          <Label className="text-xs">Video title (optional)</Label>
+          <Input value={s.guide_video_title || ""} onChange={(e) => set("guide_video_title" as any, e.target.value)} placeholder="Welcome to IPC" />
+        </div>
+        <div>
+          <Label className="text-xs">Required watch %</Label>
+          <Input type="number" min={1} max={100} value={s.guide_video_required_percent ?? 95} onChange={(e) => set("guide_video_required_percent" as any, Number(e.target.value) || 95)} />
+        </div>
+        <div className="flex items-end gap-2">
+          <input
+            id="guide_video_is_active"
+            type="checkbox"
+            className="h-4 w-4"
+            checked={s.guide_video_is_active !== false}
+            onChange={(e) => set("guide_video_is_active" as any, e.target.checked)}
+          />
+          <Label htmlFor="guide_video_is_active" className="text-xs">Video gate active</Label>
+        </div>
+      </div>
+
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Company Settings"}</Button>
       </div>

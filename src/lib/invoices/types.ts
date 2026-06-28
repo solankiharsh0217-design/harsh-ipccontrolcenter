@@ -40,6 +40,11 @@ export interface CompanySettings {
   sender_email?: string | null;
   reply_to_email?: string | null;
   support_email?: string | null;
+  guide_video_provider?: string | null;
+  guide_video_id?: string | null;
+  guide_video_title?: string | null;
+  guide_video_required_percent?: number | null;
+  guide_video_is_active?: boolean | null;
 }
 
 export interface InvoiceSettings {
