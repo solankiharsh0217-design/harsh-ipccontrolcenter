@@ -1116,7 +1116,7 @@ export default function Crm() {
         <div className="flex items-center gap-2">
           {(() => {
             const pipe = pipelines.find((p) => p.id === activePipeline);
-            const isPaid = pipe && (pipe as any).pipeline_type === "paid";
+            const isPaid = !!pipe && (pipe.type === "paid" || (pipe as any).pipeline_type === "paid");
             if (!isPaid) return null;
             return (
               <button
@@ -1131,7 +1131,7 @@ export default function Crm() {
           <button
             onClick={() => {
               const pipe = pipelines.find((p) => p.id === activePipeline);
-              const isPaid = pipe && (pipe as any).pipeline_type === "paid";
+              const isPaid = !!pipe && (pipe.type === "paid" || (pipe as any).pipeline_type === "paid");
               navigate(isPaid ? "/paid-pipeline?source=crm-paid-onboarding" : "/paid-pipeline");
             }}
             className="ipc-btn !h-9 bg-gold text-black hover:opacity-90 shadow-sm font-medium"
