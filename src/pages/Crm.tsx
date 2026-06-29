@@ -66,6 +66,9 @@ export default function Crm() {
   const [batchFilter, setBatchFilter] = useState<string[]>([]); // webinar_source values
   const [tagFilter, setTagFilter] = useState<string[]>([]); // tag ids
   const [stageFilter, setStageFilter] = useState<string[]>([]); // stage ids
+  type CocFilter = "all" | "not_sent" | "sent_not_opened" | "opened_not_signed" | "signed_not_access_done" | "access_done";
+  const [cocFilter, setCocFilter] = useState<CocFilter>("all");
+  const [cocAccessDoneStageId, setCocAccessDoneStageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
@@ -323,17 +326,19 @@ export default function Crm() {
       }
       return all;
     };
-    const [{ data: s }, leadsAll, elig, { data: wb }] = await Promise.all([
+    const [{ data: s }, leadsAll, elig, { data: wb }, { data: cs }] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
       fetchAllLeads().catch((e) => { console.error("[CRM] paginated lead fetch failed", e); return [] as any[]; }),
       getEligibleAssignees("calling_crm"),
       supabase.from("webinar_batches" as any).select("id, batch_name, webinar_name, webinar_date, service_package_id, service_package_snapshot, process_template_id, product_name, deal_value, pipeline_id").eq("is_deleted", false),
+      supabase.from("company_settings" as any).select("coc_access_done_stage_id").limit(1).maybeSingle(),
     ]);
     setPipelines((p || []) as any);
     setStages((s || []) as any);
     setLeads((leadsAll || []) as any);
     setBatchMeta(((wb as any) || []) as any);
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
+    setCocAccessDoneStageId(((cs as any)?.coc_access_done_stage_id as string | null) || null);
     if (!activePipeline && p && p.length) {
       const want = new URLSearchParams(window.location.search).get("pipeline");
       const paid = (p as any[]).find((x) => x.type === "paid");
@@ -531,7 +536,7 @@ export default function Crm() {
    * counter so that the dropdown count matches the board result you'd get
    * after selecting that option.
    */
-  type FilterKey = "none" | "grade" | "batch" | "tag" | "stage" | "attendance" | "min" | "attendanceData" | "date" | "search";
+  type FilterKey = "none" | "grade" | "batch" | "tag" | "stage" | "attendance" | "min" | "attendanceData" | "date" | "search" | "coc";
   const applyFiltersExcept = (except: FilterKey): Lead[] => {
     let list = baseScopeLeads;
     if (except !== "grade" && gradeFilter.length > 0) {
@@ -594,13 +599,32 @@ export default function Crm() {
         });
       }
     }
+    if (except !== "coc" && cocFilter !== "all") {
+      list = list.filter((l: any) => {
+        const status = (l.code_of_conduct_status as string | null) || null;
+        const sentAt = l.code_of_conduct_sent_at as string | null;
+        const signedAt = l.code_of_conduct_signed_at as string | null;
+        const isAccessDone = !!(cocAccessDoneStageId && l.stage_id === cocAccessDoneStageId);
+        const isSigned = !!signedAt || status === "signed";
+        const isOpened = status === "viewed" || isSigned;
+        const isSent = !!sentAt || status === "sent" || isOpened;
+        switch (cocFilter) {
+          case "not_sent": return !isSent && !isAccessDone;
+          case "sent_not_opened": return isSent && !isOpened;
+          case "opened_not_signed": return isOpened && !isSigned;
+          case "signed_not_access_done": return isSigned && !isAccessDone;
+          case "access_done": return isAccessDone;
+        }
+        return true;
+      });
+    }
     return list;
   };
 
   const pipelineLeads = useMemo(() => {
     return applyFiltersExcept("none").slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId]);
+  }, [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId, cocFilter, cocAccessDoneStageId]);
 
 
   // Group leads into webinar batches (cards on the Batches view)
@@ -1009,7 +1033,7 @@ export default function Crm() {
   // Dropdown option counts: derived from the SAME visible universe the board would show
   // after selecting that option. Each dropdown excludes its OWN filter so the user can see
   // how many leads would match if they toggled values within that filter.
-  const allFiltersDeps = [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId];
+  const allFiltersDeps = [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId, cocFilter, cocAccessDoneStageId];
 
   const batchOptions = useMemo(() => {
     const scope = applyFiltersExcept("batch");
@@ -1091,6 +1115,7 @@ export default function Crm() {
     batchFilter.length +
     tagFilter.length +
     stageFilter.length +
+    (cocFilter !== "all" ? 1 : 0) +
     (dateFrom || dateTo ? 1 : 0) +
     (searchQuery ? 1 : 0);
   const advancedActiveCount =
@@ -1100,8 +1125,9 @@ export default function Crm() {
     (attendanceDataFilter !== "any" ? 1 : 0) +
     (activePipelineType === "unpaid" && convertedFilter !== "show" ? 1 : 0) +
     tagFilter.length +
-    stageFilter.length;
-  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("show"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+    stageFilter.length +
+    (cocFilter !== "all" ? 1 : 0);
+  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("show"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setCocFilter("all"); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
 
   const [chipsExpanded, setChipsExpanded] = useState(false);
 
@@ -1222,7 +1248,7 @@ export default function Crm() {
                     <div className="font-serif text-[13px]">More filters</div>
                     <div className="flex items-center gap-2">
                       {advancedActiveCount > 0 && (
-                        <button onClick={() => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("hide"); setTagFilter([]); setStageFilter([]); }} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Reset</button>
+                        <button onClick={() => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("hide"); setTagFilter([]); setStageFilter([]); setCocFilter("all"); }} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Reset</button>
                       )}
                     </div>
                   </div>
@@ -1317,6 +1343,21 @@ export default function Crm() {
                         buttonClassName="ipc-input !h-9 !text-xs flex items-center gap-1.5 w-full justify-between bg-white"
                       />
                     </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Code of Conduct follow-up</div>
+                      <select
+                        className="ipc-input !h-9 !text-xs w-full"
+                        value={cocFilter}
+                        onChange={(e) => setCocFilter(e.target.value as CocFilter)}
+                      >
+                        <option value="all">All leads</option>
+                        <option value="not_sent">CoC not sent</option>
+                        <option value="sent_not_opened">Sent · link not opened</option>
+                        <option value="opened_not_signed">Link opened · not signed</option>
+                        <option value="signed_not_access_done">Signed · access not done</option>
+                        <option value="access_done">Access done</option>
+                      </select>
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>
@@ -1366,6 +1407,17 @@ export default function Crm() {
           }
           tagFilter.forEach((tid) => chips.push(<FilterChip key={`t-${tid}`} label={`Tag: ${tagNameLookup[tid] || tid}`} onClear={() => setTagFilter(tagFilter.filter((x) => x !== tid))} />));
           stageFilter.forEach((sid) => chips.push(<FilterChip key={`s-${sid}`} label={`Stage: ${stageNameLookupLocal[sid] || sid}`} onClear={() => setStageFilter(stageFilter.filter((x) => x !== sid))} />));
+          if (cocFilter !== "all") {
+            const cocLbl: Record<CocFilter, string> = {
+              all: "",
+              not_sent: "CoC not sent",
+              sent_not_opened: "Sent · link not opened",
+              opened_not_signed: "Link opened · not signed",
+              signed_not_access_done: "Signed · access not done",
+              access_done: "Access done",
+            };
+            chips.push(<FilterChip key="coc" label={`CoC: ${cocLbl[cocFilter]}`} onClear={() => setCocFilter("all")} />);
+          }
           const MAX = 6;
           const visible = chipsExpanded ? chips : chips.slice(0, MAX);
           const hidden = chips.length - visible.length;
