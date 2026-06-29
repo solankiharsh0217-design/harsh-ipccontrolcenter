@@ -2379,7 +2379,7 @@ export default function Crm() {
               <button onClick={() => { if ((p.type as string) === "operations") { navigate("/operations-crm"); return; } setActivePipeline(p.id); }} className="px-3 py-1.5 text-xs flex items-center gap-1.5" title={(p.type as string) === "operations" ? "Open standalone Operations CRM" : undefined}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
                 {p.name}
-                <span className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leadCount}</span>
+                <span title={pillTitle} className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leadCount}</span>
               </button>
               {isActive && (
                 <button onClick={() => setView("stages")} title="Design pipeline" className={`px-2 py-1.5 border-l ${isActive ? "border-white/20 hover:bg-white/10" : "border-line hover:bg-off"}`}>
