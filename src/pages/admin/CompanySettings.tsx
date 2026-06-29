@@ -119,6 +119,7 @@ export default function CompanySettingsPage() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [diag, setDiag] = useState<any>(null);
   const [signedUrls, setSignedUrls] = useState<Record<AssetKind, string | null>>({ logo_url: null, signature_url: null, stamp_url: null });
+  const [paidStages, setPaidStages] = useState<Array<{ id: string; name: string; pipeline_name: string }>>([]);
 
   async function refreshDiagnostics() {
     const { data, error } = await (supabase as any).rpc("get_invoice_assets_storage_diagnostics");
@@ -140,6 +141,13 @@ export default function CompanySettingsPage() {
   useEffect(() => { (async () => {
     const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
     if (data) { setS(data); await refreshSignedUrls(data); }
+    // Load paid pipeline stages for CoC stage pickers
+    const { data: stages } = await (supabase as any)
+      .from("stages")
+      .select("id, name, position, pipelines!inner(id, name, type)")
+      .eq("pipelines.type", "paid")
+      .order("position");
+    if (stages) setPaidStages(stages.map((s: any) => ({ id: s.id, name: s.name, pipeline_name: s.pipelines?.name || "" })));
     setLoading(false);
   })(); }, []);
 
