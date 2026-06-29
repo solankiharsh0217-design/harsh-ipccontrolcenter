@@ -2612,6 +2612,12 @@ function BatchActionsMenu({ isAdmin, archived, breakdown, onView, onRename, onMo
               </>
             : item(<><RotateCcw className="w-3 h-3" /> Restore batch</>, onRestore, "text-[#15803D]")
           }
+          {isAdmin && !archived && onCleanWrong && (
+            <>
+              <div className="h-px bg-line my-1" />
+              {item(<><Trash2 className="w-3 h-3" /> Clean / Remove Wrong Batch</>, onCleanWrong, "text-[#B45309]")}
+            </>
+          )}
           {isAdmin && (
             <>
               <div className="h-px bg-line my-1" />
