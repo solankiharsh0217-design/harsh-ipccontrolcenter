@@ -1116,7 +1116,7 @@ export default function Crm() {
         <div className="flex items-center gap-2">
           {(() => {
             const pipe = pipelines.find((p) => p.id === activePipeline);
-            const isPaid = pipe && (pipe as any).pipeline_type === "paid";
+            const isPaid = !!pipe && (pipe.type === "paid" || (pipe as any).pipeline_type === "paid");
             if (!isPaid) return null;
             return (
               <button
@@ -1131,7 +1131,7 @@ export default function Crm() {
           <button
             onClick={() => {
               const pipe = pipelines.find((p) => p.id === activePipeline);
-              const isPaid = pipe && (pipe as any).pipeline_type === "paid";
+              const isPaid = !!pipe && (pipe.type === "paid" || (pipe as any).pipeline_type === "paid");
               navigate(isPaid ? "/paid-pipeline?source=crm-paid-onboarding" : "/paid-pipeline");
             }}
             className="ipc-btn !h-9 bg-gold text-black hover:opacity-90 shadow-sm font-medium"
@@ -1337,7 +1337,7 @@ export default function Crm() {
             <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
             {(() => {
               const pipe = pipelines.find((p) => p.id === activePipeline) as any;
-              if (!pipe || pipe.pipeline_type !== "paid") return null;
+              if (!pipe || !(pipe.type === "paid" || pipe.pipeline_type === "paid")) return null;
               return (
                 <button onClick={() => setSendOpsOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Send paid clients to Operations CRM for service delivery">
                   <ExternalLink className="w-3.5 h-3.5" /> Send to Operations
@@ -1404,11 +1404,27 @@ export default function Crm() {
         );
       })()}
 
-      {(view === "kanban" || view === "list") && (
-        <div className="text-[11px] text-muted-foreground mb-2">
-          Showing <span className="font-medium text-foreground">{pipelineLeads.length}</span> of <span className="font-medium text-foreground">{leads.filter((l) => l.pipeline_id === activePipeline).length}</span> leads
-        </div>
-      )}
+      {(view === "kanban" || view === "list") && (() => {
+        const inPipeline = leads.filter((l: any) => l.pipeline_id === activePipeline);
+        const activeTotal = inPipeline.filter((l: any) => !l.archived_at && !l.deleted_at).length;
+        const archivedTotal = inPipeline.filter((l: any) => !!l.archived_at || !!l.deleted_at).length;
+        const visible = pipelineLeads.length;
+        return (
+          <div className="text-[11px] text-muted-foreground mb-2">
+            {showArchived ? (
+              <>
+                Showing <span className="font-medium text-foreground">{visible}</span> of <span className="font-medium text-foreground">{inPipeline.length}</span> total leads
+                {archivedTotal > 0 && <> · <span className="font-medium text-foreground">{activeTotal}</span> active · <span className="font-medium text-foreground">{archivedTotal}</span> archived</>}
+              </>
+            ) : (
+              <>
+                Showing <span className="font-medium text-foreground">{visible}</span> active lead{visible === 1 ? "" : "s"}
+                {archivedTotal > 0 && <> · <span className="font-medium text-foreground">{archivedTotal}</span> archived hidden</>}
+              </>
+            )}
+          </div>
+        );
+      })()}
       {view === "batches" && (
         <div className="text-[11px] text-muted-foreground mb-2">
           Showing <span className="font-medium text-foreground">{visibleBatches.length}</span> of <span className="font-medium text-foreground">{batchesWithType.length}</span> batches
@@ -2343,7 +2359,11 @@ export default function Crm() {
           const isActive = p.id === activePipeline;
           const dot = p.type === "paid" ? "#16A34A" : p.type === "unpaid" ? "#2563EB" : "#C8A84B";
           const isHover = isAdmin && pipeHoverId === p.id && pipeDragId && pipeDragId !== p.id;
-          const leadCount = leads.filter((l) => l.pipeline_id === p.id).length;
+          const inPipe = leads.filter((l: any) => l.pipeline_id === p.id);
+          const activeLeadCount = inPipe.filter((l: any) => !l.archived_at && !l.deleted_at).length;
+          const archivedLeadCount = inPipe.length - activeLeadCount;
+          const leadCount = activeLeadCount;
+          const pillTitle = archivedLeadCount > 0 ? `${activeLeadCount} active, ${archivedLeadCount} archived` : `${activeLeadCount} active`;
           return (
             <div
               key={p.id}
@@ -2359,7 +2379,7 @@ export default function Crm() {
               <button onClick={() => { if ((p.type as string) === "operations") { navigate("/operations-crm"); return; } setActivePipeline(p.id); }} className="px-3 py-1.5 text-xs flex items-center gap-1.5" title={(p.type as string) === "operations" ? "Open standalone Operations CRM" : undefined}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
                 {p.name}
-                <span className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leadCount}</span>
+                <span title={pillTitle} className={`text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground"}`}>{leadCount}</span>
               </button>
               {isActive && (
                 <button onClick={() => setView("stages")} title="Design pipeline" className={`px-2 py-1.5 border-l ${isActive ? "border-white/20 hover:bg-white/10" : "border-line hover:bg-off"}`}>
