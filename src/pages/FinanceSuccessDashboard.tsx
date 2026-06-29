@@ -10,29 +10,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
+
+type CrmLead = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  pipeline_id: string | null;
+  stage_id: string | null;
+  webinar_date: string | null;
+  webinar_name: string | null;
+  webinar_source: string | null;
+  created_at: string;
+  paid_pipeline_lead_id: string | null;
+};
 
 type PaidLead = {
   id: string;
-  name: string | null;
+  crm_lead_id: string | null;
   email: string | null;
   phone: string | null;
-  webinar_batch_id: string | null;
-  source_webinar_batch_id: string | null;
   source_report_date: string | null;
   source_webinar: string | null;
   paid_batch_name: string | null;
-  onboarding_batch_name: string | null;
-  created_at: string;
-  crm_stage_id: string | null;
-  crm_pipeline_id: string | null;
-  pipeline_stage: string | null;
   finance_status: string | null;
-  finance_partner: string | null;
-  code_of_conduct_status: string | null;
   total_collected: number | null;
   balance_pending: number | null;
   token_amount_collected: number | null;
-  assigned_sales_executive: string | null;
+  code_of_conduct_status: string | null;
 };
 
 type Payment = {
@@ -44,11 +50,14 @@ type Payment = {
   payment_date: string;
 };
 
-type WebinarBatch = { id: string; webinar_date: string | null; webinar_name: string; batch_name: string };
+type Pipeline = { id: string; name: string; type: string };
 type Stage = { id: string; name: string; pipeline_id: string; position: number };
 
 const fmtINR = (n: number) =>
   new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Math.round(n || 0));
+
+const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
+const normPhone = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").slice(-10);
 
 const SUCCESS_STAGE_KEYWORDS = ["code of conduct", "coc sign", "signed", "access given", "active member", "finance approved"];
 
@@ -58,36 +67,114 @@ export default function FinanceSuccessDashboard() {
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
   const [drilldownDate, setDrilldownDate] = useState<string | null>(null);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
 
-  // Load paid pipeline leads (active)
-  const { data: leads = [], isLoading: leadsLoading } = useQuery({
-    queryKey: ["fsd-leads"],
+  // Paid CRM pipelines
+  const { data: paidPipelines = [] } = useQuery({
+    queryKey: ["fsd-paid-pipelines"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("paid_pipeline_leads")
-        .select("id,name,email,phone,webinar_batch_id,source_webinar_batch_id,source_report_date,source_webinar,paid_batch_name,onboarding_batch_name,created_at,crm_stage_id,crm_pipeline_id,pipeline_stage,finance_status,finance_partner,code_of_conduct_status,total_collected,balance_pending,token_amount_collected,assigned_sales_executive")
-        .eq("is_deleted", false)
-        .is("archived_at", null)
-        .limit(10000);
+        .from("pipelines")
+        .select("id,name,type")
+        .eq("type", "paid")
+        .order("position");
       if (error) throw error;
-      return (data ?? []) as PaidLead[];
+      return (data ?? []) as Pipeline[];
     },
   });
 
-  const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
-  const batchIds = useMemo(
-    () => Array.from(new Set(leads.flatMap((l) => [l.webinar_batch_id, l.source_webinar_batch_id]).filter(Boolean) as string[])),
-    [leads],
-  );
+  // Default to first paid pipeline (Paid — Onboarding)
+  useEffect(() => {
+    if (!selectedPipelineId && paidPipelines.length > 0) {
+      const preferred = paidPipelines.find((p) => /onboarding/i.test(p.name)) ?? paidPipelines[0];
+      setSelectedPipelineId(preferred.id);
+    }
+  }, [paidPipelines, selectedPipelineId]);
 
-  const { data: payments = [] } = useQuery({
-    queryKey: ["fsd-payments", leadIds.length],
-    enabled: leadIds.length > 0,
+  // Stages for the selected pipeline
+  const { data: pipelineStages = [] } = useQuery({
+    queryKey: ["fsd-pipeline-stages", selectedPipelineId],
+    enabled: !!selectedPipelineId,
     queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stages")
+        .select("id,name,pipeline_id,position")
+        .eq("pipeline_id", selectedPipelineId)
+        .order("position");
+      if (error) throw error;
+      return (data ?? []) as Stage[];
+    },
+  });
+
+  // CRM leads for the selected paid pipeline (source of truth)
+  const { data: crmLeads = [], isLoading: leadsLoading } = useQuery({
+    queryKey: ["fsd-crm-leads", selectedPipelineId],
+    enabled: !!selectedPipelineId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id,full_name,email,phone,pipeline_id,stage_id,webinar_date,webinar_name,webinar_source,created_at,paid_pipeline_lead_id")
+        .eq("pipeline_id", selectedPipelineId)
+        .is("archived_at", null)
+        .is("deleted_at", null)
+        .limit(10000);
+      if (error) throw error;
+      return (data ?? []) as CrmLead[];
+    },
+  });
+
+  // Linked paid pipeline leads (by paid_pipeline_lead_id OR crm_lead_id OR email/phone)
+  const { data: paidLeads = [] } = useQuery({
+    queryKey: ["fsd-paid-leads", crmLeads.map((l) => l.id).join(",")],
+    enabled: crmLeads.length > 0,
+    queryFn: async () => {
+      const ids = Array.from(new Set(crmLeads.map((l) => l.paid_pipeline_lead_id).filter(Boolean) as string[]));
+      const crmIds = crmLeads.map((l) => l.id);
+      const out: PaidLead[] = [];
+      const select = "id,crm_lead_id,email,phone,source_report_date,source_webinar,paid_batch_name,finance_status,total_collected,balance_pending,token_amount_collected,code_of_conduct_status";
+
+      const chunk = <T,>(arr: T[], n: number) => {
+        const r: T[][] = [];
+        for (let i = 0; i < arr.length; i += n) r.push(arr.slice(i, i + n));
+        return r;
+      };
+
+      if (ids.length > 0) {
+        for (const c of chunk(ids, 500)) {
+          const { data, error } = await supabase
+            .from("paid_pipeline_leads")
+            .select(select)
+            .in("id", c)
+            .eq("is_deleted", false);
+          if (error) throw error;
+          out.push(...((data ?? []) as PaidLead[]));
+        }
+      }
+      for (const c of chunk(crmIds, 500)) {
+        const { data, error } = await supabase
+          .from("paid_pipeline_leads")
+          .select(select)
+          .in("crm_lead_id", c)
+          .eq("is_deleted", false);
+        if (error) throw error;
+        out.push(...((data ?? []) as PaidLead[]));
+      }
+      // dedupe by id
+      const seen = new Map<string, PaidLead>();
+      for (const p of out) seen.set(p.id, p);
+      return Array.from(seen.values());
+    },
+  });
+
+  // Payments for linked paid leads (for token amount)
+  const { data: payments = [] } = useQuery({
+    queryKey: ["fsd-payments", paidLeads.map((p) => p.id).join(",")],
+    enabled: paidLeads.length > 0,
+    queryFn: async () => {
+      const ids = paidLeads.map((p) => p.id);
       const out: Payment[] = [];
-      const chunk = 500;
-      for (let i = 0; i < leadIds.length; i += chunk) {
-        const slice = leadIds.slice(i, i + chunk);
+      for (let i = 0; i < ids.length; i += 500) {
+        const slice = ids.slice(i, i + 500);
         const { data, error } = await supabase
           .from("paid_pipeline_payments")
           .select("paid_pipeline_lead_id,amount,is_token,payment_type,payment_category,payment_date")
@@ -100,50 +187,7 @@ export default function FinanceSuccessDashboard() {
     },
   });
 
-  const { data: batches = [] } = useQuery({
-    queryKey: ["fsd-batches", batchIds.length],
-    enabled: batchIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("webinar_batches")
-        .select("id,webinar_date,webinar_name,batch_name")
-        .in("id", batchIds);
-      if (error) throw error;
-      return (data ?? []) as WebinarBatch[];
-    },
-  });
-
-  const { data: stages = [] } = useQuery({
-    queryKey: ["fsd-stages"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stages")
-        .select("id,name,pipeline_id,position")
-        .order("position");
-      if (error) throw error;
-      return (data ?? []) as Stage[];
-    },
-  });
-
-  // Determine paid pipeline + its stages
-  const { data: paidPipelineStages = [] } = useQuery({
-    queryKey: ["fsd-paid-stages"],
-    queryFn: async () => {
-      const { data: pipes, error: pErr } = await supabase.from("pipelines").select("id,type,name").eq("type", "paid");
-      if (pErr) throw pErr;
-      const ids = (pipes ?? []).map((p: any) => p.id);
-      if (ids.length === 0) return [] as Stage[];
-      const { data, error } = await supabase
-        .from("stages")
-        .select("id,name,pipeline_id,position")
-        .in("pipeline_id", ids)
-        .order("position");
-      if (error) throw error;
-      return (data ?? []) as Stage[];
-    },
-  });
-
-  // Persisted success stage selection (company_settings.finance_success_stage_ids)
+  // Persisted success stage selection
   const [successStageIds, setSuccessStageIds] = useState<string[]>([]);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
@@ -162,14 +206,14 @@ export default function FinanceSuccessDashboard() {
     })();
   }, []);
 
-  // Auto-seed default success stages from paid pipeline if none configured yet
+  // Auto-seed from selected pipeline stages if empty
   useEffect(() => {
-    if (!settingsLoaded || successStageIds.length > 0 || paidPipelineStages.length === 0) return;
-    const defaults = paidPipelineStages
+    if (!settingsLoaded || successStageIds.length > 0 || pipelineStages.length === 0) return;
+    const defaults = pipelineStages
       .filter((s) => SUCCESS_STAGE_KEYWORDS.some((k) => s.name.toLowerCase().includes(k)))
       .map((s) => s.id);
     if (defaults.length > 0) setSuccessStageIds(defaults);
-  }, [settingsLoaded, paidPipelineStages, successStageIds.length]);
+  }, [settingsLoaded, pipelineStages, successStageIds.length]);
 
   const saveSuccessStages = async (ids: string[]) => {
     setSuccessStageIds(ids);
@@ -182,57 +226,98 @@ export default function FinanceSuccessDashboard() {
     else toast({ title: "Success stages saved" });
   };
 
-  // Build per-lead enriched info
+  // Build enrichment
   const enriched = useMemo(() => {
-    const batchById = new Map(batches.map((b) => [b.id, b]));
+    const stageById = new Map(pipelineStages.map((s) => [s.id, s]));
+    const successSet = new Set(successStageIds);
+
+    // Build paid-lead lookup maps
+    const paidById = new Map(paidLeads.map((p) => [p.id, p]));
+    const paidByCrm = new Map<string, PaidLead>();
+    const paidByEmail = new Map<string, PaidLead>();
+    const paidByPhone = new Map<string, PaidLead>();
+    for (const p of paidLeads) {
+      if (p.crm_lead_id) paidByCrm.set(p.crm_lead_id, p);
+      const e = norm(p.email);
+      if (e) paidByEmail.set(e, p);
+      const ph = normPhone(p.phone);
+      if (ph) paidByPhone.set(ph, p);
+    }
+
     const paymentsByLead = new Map<string, Payment[]>();
     for (const p of payments) {
       const arr = paymentsByLead.get(p.paid_pipeline_lead_id) ?? [];
       arr.push(p);
       paymentsByLead.set(p.paid_pipeline_lead_id, arr);
     }
-    const stageById = new Map(stages.map((s) => [s.id, s]));
-    const successSet = new Set(successStageIds);
 
-    return leads.map((l) => {
-      const bId = l.webinar_batch_id || l.source_webinar_batch_id;
-      const batch = bId ? batchById.get(bId) : undefined;
-      let webinarDate: string | null = batch?.webinar_date ?? null;
-      let dateSource: "batch" | "source_report_date" | "created_at" = "batch";
-      if (!webinarDate && l.source_report_date) {
-        webinarDate = l.source_report_date;
-        dateSource = "source_report_date";
+    return crmLeads.map((l) => {
+      // Resolve paid record
+      let paid: PaidLead | undefined;
+      if (l.paid_pipeline_lead_id) paid = paidById.get(l.paid_pipeline_lead_id);
+      if (!paid) paid = paidByCrm.get(l.id);
+      if (!paid) {
+        const e = norm(l.email);
+        if (e) paid = paidByEmail.get(e);
+      }
+      if (!paid) {
+        const ph = normPhone(l.phone);
+        if (ph) paid = paidByPhone.get(ph);
+      }
+
+      // Webinar date: CRM first, then paid fallbacks
+      let webinarDate: string | null = l.webinar_date ?? null;
+      let dateSource: "crm" | "paid" | "created_at" = "crm";
+      if (!webinarDate && paid?.source_report_date) {
+        webinarDate = paid.source_report_date;
+        dateSource = "paid";
       }
       if (!webinarDate) {
         webinarDate = l.created_at.slice(0, 10);
         dateSource = "created_at";
       }
-      const ps = paymentsByLead.get(l.id) ?? [];
-      const tokenPayments = ps.filter(
-        (p) => p.is_token || /token/i.test(p.payment_type ?? "") || /token/i.test(p.payment_category ?? ""),
-      );
-      let tokenAmount = tokenPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
-      if (tokenAmount === 0 && Number(l.token_amount_collected || 0) > 0) tokenAmount = Number(l.token_amount_collected);
-      if (tokenAmount === 0 && ps.length > 0) {
-        const sorted = [...ps].sort((a, b) => a.payment_date.localeCompare(b.payment_date));
-        tokenAmount = Number(sorted[0].amount || 0);
+
+      // Token amount
+      let tokenAmount = 0;
+      if (paid) {
+        const ps = paymentsByLead.get(paid.id) ?? [];
+        const tokenPayments = ps.filter(
+          (p) => p.is_token || /token/i.test(p.payment_type ?? "") || /token/i.test(p.payment_category ?? ""),
+        );
+        tokenAmount = tokenPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+        if (tokenAmount === 0 && Number(paid.token_amount_collected || 0) > 0) tokenAmount = Number(paid.token_amount_collected);
+        if (tokenAmount === 0 && ps.length > 0) {
+          const sorted = [...ps].sort((a, b) => a.payment_date.localeCompare(b.payment_date));
+          tokenAmount = Number(sorted[0].amount || 0);
+        }
       }
       const tokenRecorded = tokenAmount > 0;
-      const currentStage = l.crm_stage_id ? stageById.get(l.crm_stage_id)?.name ?? l.pipeline_stage : l.pipeline_stage;
-      const reachedSuccess = l.crm_stage_id ? successSet.has(l.crm_stage_id) : false;
-      const batchLabel = batch?.batch_name || batch?.webinar_name || l.paid_batch_name || l.source_webinar || l.onboarding_batch_name || "—";
+
+      const currentStage = l.stage_id ? stageById.get(l.stage_id)?.name ?? "—" : "—";
+      const reachedSuccess = l.stage_id ? successSet.has(l.stage_id) : false;
+      const batchLabel = l.webinar_name || l.webinar_source || paid?.paid_batch_name || paid?.source_webinar || "—";
+
       return {
-        ...l,
-        webinarDate,
+        id: l.id,
+        name: l.full_name,
+        email: l.email,
+        phone: l.phone,
+        webinarDate: webinarDate!,
         dateSource,
-        tokenAmount,
-        tokenRecorded,
-        currentStage: currentStage || "—",
+        currentStage,
         reachedSuccess,
         batchLabel,
+        tokenAmount,
+        tokenRecorded,
+        totalCollected: Number(paid?.total_collected || 0),
+        balancePending: Number(paid?.balance_pending || 0),
+        financeStatus: paid?.finance_status ?? null,
+        cocStatus: paid?.code_of_conduct_status ?? null,
+        paidLeadId: paid?.id ?? null,
+        hasPaidLink: !!paid,
       };
     });
-  }, [leads, payments, batches, stages, successStageIds]);
+  }, [crmLeads, paidLeads, payments, pipelineStages, successStageIds]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -247,14 +332,14 @@ export default function FinanceSuccessDashboard() {
     });
   }, [enriched, fromDate, toDate, search]);
 
-  // Summary
   const summary = useMemo(() => {
     const total = filtered.length;
     const tokenCollected = filtered.reduce((s, l) => s + l.tokenAmount, 0);
     const tokenRecordedCount = filtered.filter((l) => l.tokenRecorded).length;
     const reached = filtered.filter((l) => l.reachedSuccess).length;
-    const balancePending = filtered.reduce((s, l) => s + Number(l.balance_pending || 0), 0);
-    const financePending = filtered.filter((l) => !l.finance_status || /pending|submitted|requested/i.test(l.finance_status)).length;
+    const balancePending = filtered.reduce((s, l) => s + l.balancePending, 0);
+    const financePending = filtered.filter((l) => !l.financeStatus || /pending|submitted|requested/i.test(l.financeStatus)).length;
+    const missingPaidLink = filtered.filter((l) => !l.hasPaidLink).length;
     return {
       total,
       tokenCollected,
@@ -265,17 +350,16 @@ export default function FinanceSuccessDashboard() {
       balancePending,
       financePending,
       tokenMissing: total - tokenRecordedCount,
+      missingPaidLink,
     };
   }, [filtered]);
 
-  // Webinar-grouped rows
   const byWebinar = useMemo(() => {
     const map = new Map<string, typeof filtered>();
     for (const l of filtered) {
-      const key = l.webinarDate;
-      const arr = map.get(key) ?? [];
+      const arr = map.get(l.webinarDate) ?? [];
       arr.push(l);
-      map.set(key, arr);
+      map.set(l.webinarDate, arr);
     }
     return Array.from(map.entries())
       .map(([date, items]) => {
@@ -283,8 +367,8 @@ export default function FinanceSuccessDashboard() {
         const tokenCollected = items.reduce((s, l) => s + l.tokenAmount, 0);
         const tokenRecordedCount = items.filter((l) => l.tokenRecorded).length;
         const reached = items.filter((l) => l.reachedSuccess).length;
-        const balancePending = items.reduce((s, l) => s + Number(l.balance_pending || 0), 0);
-        const financePending = items.filter((l) => !l.finance_status || /pending|submitted|requested/i.test(l.finance_status)).length;
+        const balancePending = items.reduce((s, l) => s + l.balancePending, 0);
+        const financePending = items.filter((l) => !l.financeStatus || /pending|submitted|requested/i.test(l.financeStatus)).length;
         const stuckByStage = new Map<string, number>();
         for (const l of items) {
           if (l.reachedSuccess) continue;
@@ -309,7 +393,6 @@ export default function FinanceSuccessDashboard() {
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [filtered]);
 
-  // Stuck-stage analysis (across filtered)
   const stuckAnalysis = useMemo(() => {
     const map = new Map<string, number>();
     for (const l of filtered) {
@@ -327,9 +410,34 @@ export default function FinanceSuccessDashboard() {
   const successColor = (pct: number) =>
     pct >= 80 ? "text-emerald-700 bg-emerald-50" : pct >= 50 ? "text-amber-700 bg-amber-50" : "text-red-700 bg-red-50";
 
+  // Validate saved success stages against selected pipeline
+  const invalidSuccessStages = useMemo(() => {
+    if (pipelineStages.length === 0) return [] as string[];
+    const valid = new Set(pipelineStages.map((s) => s.id));
+    return successStageIds.filter((id) => !valid.has(id));
+  }, [successStageIds, pipelineStages]);
+
   return (
     <div className="max-w-[1200px]">
-      <PageHead title="Finance Success Dashboard" sub="Webinar-wise success rate of token-paid members reaching the Code of Conduct / finance success stage. Read-only." />
+      <PageHead
+        title="Finance Success Dashboard"
+        sub="Webinar-wise success rate of CRM Paid Onboarding leads reaching the configured success stage. Read-only."
+      />
+
+      {/* Pipeline selector */}
+      <div className="flex flex-wrap items-end gap-3 mb-4">
+        <div className="min-w-[260px]">
+          <label className="block text-[11px] text-muted-foreground mb-1">Paid Onboarding Pipeline</label>
+          <Select value={selectedPipelineId} onValueChange={setSelectedPipelineId}>
+            <SelectTrigger><SelectValue placeholder="Select pipeline…" /></SelectTrigger>
+            <SelectContent>
+              {paidPipelines.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 mb-5">
@@ -356,7 +464,7 @@ export default function FinanceSuccessDashboard() {
           >
             <SelectTrigger><SelectValue placeholder="Add a success stage…" /></SelectTrigger>
             <SelectContent>
-              {paidPipelineStages
+              {pipelineStages
                 .filter((s) => !successStageIds.includes(s.id))
                 .map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -367,17 +475,21 @@ export default function FinanceSuccessDashboard() {
       </div>
 
       {successStageIds.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-5 text-xs">
+        <div className="flex flex-wrap gap-2 mb-3 text-xs">
           <span className="text-muted-foreground">Success stages:</span>
           {successStageIds.map((id) => {
-            const s = paidPipelineStages.find((x) => x.id === id);
+            const s = pipelineStages.find((x) => x.id === id);
+            const invalid = !s;
             return (
-              <span key={id} className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5">
-                {s?.name ?? "(deleted)"}
+              <span
+                key={id}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${invalid ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}
+              >
+                {s?.name ?? "(not in selected pipeline)"}
                 {isAdmin && (
                   <button
                     onClick={() => saveSuccessStages(successStageIds.filter((x) => x !== id))}
-                    className="text-emerald-900/60 hover:text-emerald-900"
+                    className="opacity-60 hover:opacity-100"
                     aria-label="Remove"
                   >
                     ×
@@ -388,10 +500,36 @@ export default function FinanceSuccessDashboard() {
           })}
         </div>
       )}
+      {invalidSuccessStages.length > 0 && (
+        <div className="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          ⚠ {invalidSuccessStages.length} saved success stage(s) do not belong to the selected pipeline. Please reselect.
+        </div>
+      )}
+
+      {/* Count reconciliation strip (admin) */}
+      {isAdmin && (
+        <Card className="mb-5">
+          <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-3 text-xs">
+            {[
+              { label: "CRM pipeline active leads", value: crmLeads.length },
+              { label: "Dashboard denominator", value: summary.total },
+              { label: "Linked paid records", value: summary.total - summary.missingPaidLink },
+              { label: "Missing paid record/link", value: summary.missingPaidLink },
+              { label: "Reached success stage", value: summary.reached },
+              { label: "Not yet successful", value: summary.stuck },
+            ].map((c) => (
+              <div key={c.label}>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{c.label}</div>
+                <div className="text-base font-semibold">{c.value}</div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary cards */}
       <SectionLabel>Summary</SectionLabel>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-7">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
           { label: "Total Token-Paid Leads", value: String(summary.total) },
           { label: "Total Token Collected", value: `₹${fmtINR(summary.tokenCollected)}` },
@@ -412,7 +550,7 @@ export default function FinanceSuccessDashboard() {
       </div>
       {summary.tokenMissing > 0 && (
         <div className="mb-5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          ⚠ {summary.tokenMissing} lead(s) have no recorded token amount. They are still counted as token-paid.
+          ⚠ {summary.tokenMissing} lead(s) have no recorded token amount. They are still counted.
         </div>
       )}
 
@@ -471,8 +609,7 @@ export default function FinanceSuccessDashboard() {
         </CardContent>
       </Card>
 
-      {/* Stuck-stage analysis */}
-      <SectionLabel>Where Are Token-Paid Members Stuck?</SectionLabel>
+      <SectionLabel>Where Are Members Stuck?</SectionLabel>
       <Card className="mb-10">
         <CardHeader><CardTitle className="text-base">Stuck by current stage</CardTitle></CardHeader>
         <CardContent>
@@ -491,9 +628,8 @@ export default function FinanceSuccessDashboard() {
         </CardContent>
       </Card>
 
-      {/* Drilldown */}
       <Dialog open={!!drilldownDate} onOpenChange={(o) => !o && setDrilldownDate(null)}>
-        <DialogContent className="max-w-[1100px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-[1200px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Leads — Webinar {drilldownDate}</DialogTitle>
           </DialogHeader>
@@ -503,14 +639,15 @@ export default function FinanceSuccessDashboard() {
                 <TableHead>Name</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Webinar Date</TableHead>
                 <TableHead>Batch</TableHead>
                 <TableHead className="text-right">Token</TableHead>
                 <TableHead className="text-right">Collected</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
-                <TableHead>Current Stage</TableHead>
+                <TableHead>Current CRM Stage</TableHead>
                 <TableHead>Finance</TableHead>
-                <TableHead>CoC</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Open</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -519,18 +656,27 @@ export default function FinanceSuccessDashboard() {
                   <TableCell>{l.name ?? "—"}</TableCell>
                   <TableCell>{l.phone ?? "—"}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{l.email ?? "—"}</TableCell>
+                  <TableCell>{l.webinarDate}</TableCell>
                   <TableCell className="max-w-[160px] truncate">{l.batchLabel}</TableCell>
                   <TableCell className="text-right">{l.tokenRecorded ? `₹${fmtINR(l.tokenAmount)}` : <span className="text-amber-700">Not recorded</span>}</TableCell>
-                  <TableCell className="text-right">₹{fmtINR(Number(l.total_collected || 0))}</TableCell>
-                  <TableCell className="text-right">₹{fmtINR(Number(l.balance_pending || 0))}</TableCell>
-                  <TableCell className="max-w-[160px] truncate">{l.currentStage}</TableCell>
-                  <TableCell className="max-w-[120px] truncate">{l.finance_status ?? "—"}</TableCell>
-                  <TableCell className="max-w-[120px] truncate">{l.code_of_conduct_status ?? "—"}</TableCell>
+                  <TableCell className="text-right">₹{fmtINR(l.totalCollected)}</TableCell>
+                  <TableCell className="text-right">₹{fmtINR(l.balancePending)}</TableCell>
+                  <TableCell className="max-w-[180px] truncate">{l.currentStage}</TableCell>
+                  <TableCell className="max-w-[120px] truncate">{l.financeStatus ?? "—"}</TableCell>
                   <TableCell>
                     {l.reachedSuccess ? (
                       <span className="text-emerald-700">Successful</span>
                     ) : (
                       <span className="text-amber-700">Not yet</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <Link to={`/crm?lead=${l.id}`} className="text-blue-600 hover:underline text-xs">CRM</Link>
+                    {l.paidLeadId && (
+                      <>
+                        {" · "}
+                        <Link to={`/paid-pipeline?lead=${l.paidLeadId}`} className="text-blue-600 hover:underline text-xs">Paid</Link>
+                      </>
                     )}
                   </TableCell>
                 </TableRow>
