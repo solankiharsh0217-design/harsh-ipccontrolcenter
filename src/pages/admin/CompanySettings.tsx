@@ -119,6 +119,7 @@ export default function CompanySettingsPage() {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [diag, setDiag] = useState<any>(null);
   const [signedUrls, setSignedUrls] = useState<Record<AssetKind, string | null>>({ logo_url: null, signature_url: null, stamp_url: null });
+  const [paidStages, setPaidStages] = useState<Array<{ id: string; name: string; pipeline_name: string }>>([]);
 
   async function refreshDiagnostics() {
     const { data, error } = await (supabase as any).rpc("get_invoice_assets_storage_diagnostics");
@@ -140,6 +141,13 @@ export default function CompanySettingsPage() {
   useEffect(() => { (async () => {
     const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
     if (data) { setS(data); await refreshSignedUrls(data); }
+    // Load paid pipeline stages for CoC stage pickers
+    const { data: stages } = await (supabase as any)
+      .from("stages")
+      .select("id, name, position, pipelines!inner(id, name, type)")
+      .eq("pipelines.type", "paid")
+      .order("position");
+    if (stages) setPaidStages(stages.map((s: any) => ({ id: s.id, name: s.name, pipeline_name: s.pipelines?.name || "" })));
     setLoading(false);
   })(); }, []);
 
@@ -398,6 +406,59 @@ export default function CompanySettingsPage() {
             onChange={(e) => set("guide_video_is_active" as any, e.target.checked)}
           />
           <Label htmlFor="guide_video_is_active" className="text-xs">Video gate active</Label>
+        </div>
+      </div>
+
+      <SectionLabel>Code of Conduct Stage Automation</SectionLabel>
+      <div className="bg-white border border-line rounded-xl p-5 mb-8 grid grid-cols-2 gap-4">
+        <div className="col-span-2 text-[12px] text-muted-foreground -mt-1">
+          When members open or complete the Code of Conduct, automatically advance their Paid Onboarding stage. Backward moves are never performed.
+        </div>
+        <div>
+          <Label className="text-xs">Link Opened stage</Label>
+          <select
+            className="w-full h-9 px-2 text-sm border border-line rounded bg-white"
+            value={(s as any).coc_link_opened_stage_id || ""}
+            onChange={(e) => set("coc_link_opened_stage_id" as any, e.target.value || null)}
+          >
+            <option value="">— Not configured —</option>
+            {paidStages.map((st) => (
+              <option key={st.id} value={st.id}>{st.pipeline_name} · {st.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-end gap-2">
+          <input
+            id="coc_auto_move_link_opened"
+            type="checkbox"
+            className="h-4 w-4"
+            checked={(s as any).coc_auto_move_link_opened !== false}
+            onChange={(e) => set("coc_auto_move_link_opened" as any, e.target.checked)}
+          />
+          <Label htmlFor="coc_auto_move_link_opened" className="text-xs">Auto-move to Link Opened on first URL visit</Label>
+        </div>
+        <div>
+          <Label className="text-xs">Access Done stage</Label>
+          <select
+            className="w-full h-9 px-2 text-sm border border-line rounded bg-white"
+            value={(s as any).coc_access_done_stage_id || ""}
+            onChange={(e) => set("coc_access_done_stage_id" as any, e.target.value || null)}
+          >
+            <option value="">— Not configured —</option>
+            {paidStages.map((st) => (
+              <option key={st.id} value={st.id}>{st.pipeline_name} · {st.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-end gap-2">
+          <input
+            id="coc_auto_move_access_done"
+            type="checkbox"
+            className="h-4 w-4"
+            checked={!!(s as any).coc_auto_move_access_done}
+            onChange={(e) => set("coc_auto_move_access_done" as any, e.target.checked)}
+          />
+          <Label htmlFor="coc_auto_move_access_done" className="text-xs">Auto-move to Access Done after signing (and video completion when active)</Label>
         </div>
       </div>
 

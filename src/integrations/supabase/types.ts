@@ -925,14 +925,17 @@ export type Database = {
           deal_value: number | null
           email_change_history: Json
           email_error: string | null
+          first_opened_at: string | null
           id: string
           last_email_attempt_at: string | null
           last_email_error: string | null
           last_email_error_code: string | null
+          last_opened_at: string | null
           member_copy_email_sent_at: string | null
           member_email: string
           member_name: string
           member_phone: string | null
+          open_count: number
           paid_pipeline_lead_id: string | null
           program_name: string | null
           provider_message_id: string | null
@@ -973,14 +976,17 @@ export type Database = {
           deal_value?: number | null
           email_change_history?: Json
           email_error?: string | null
+          first_opened_at?: string | null
           id?: string
           last_email_attempt_at?: string | null
           last_email_error?: string | null
           last_email_error_code?: string | null
+          last_opened_at?: string | null
           member_copy_email_sent_at?: string | null
           member_email: string
           member_name: string
           member_phone?: string | null
+          open_count?: number
           paid_pipeline_lead_id?: string | null
           program_name?: string | null
           provider_message_id?: string | null
@@ -1021,14 +1027,17 @@ export type Database = {
           deal_value?: number | null
           email_change_history?: Json
           email_error?: string | null
+          first_opened_at?: string | null
           id?: string
           last_email_attempt_at?: string | null
           last_email_error?: string | null
           last_email_error_code?: string | null
+          last_opened_at?: string | null
           member_copy_email_sent_at?: string | null
           member_email?: string
           member_name?: string
           member_phone?: string | null
+          open_count?: number
           paid_pipeline_lead_id?: string | null
           program_name?: string | null
           provider_message_id?: string | null
@@ -1315,6 +1324,10 @@ export type Database = {
           brand_name: string | null
           business_type: string | null
           city: string | null
+          coc_access_done_stage_id: string | null
+          coc_auto_move_access_done: boolean
+          coc_auto_move_link_opened: boolean
+          coc_link_opened_stage_id: string | null
           company_id: string | null
           country: string | null
           created_at: string
@@ -1361,6 +1374,10 @@ export type Database = {
           brand_name?: string | null
           business_type?: string | null
           city?: string | null
+          coc_access_done_stage_id?: string | null
+          coc_auto_move_access_done?: boolean
+          coc_auto_move_link_opened?: boolean
+          coc_link_opened_stage_id?: string | null
           company_id?: string | null
           country?: string | null
           created_at?: string
@@ -1407,6 +1424,10 @@ export type Database = {
           brand_name?: string | null
           business_type?: string | null
           city?: string | null
+          coc_access_done_stage_id?: string | null
+          coc_auto_move_access_done?: boolean
+          coc_auto_move_link_opened?: boolean
+          coc_link_opened_stage_id?: string | null
           company_id?: string | null
           country?: string | null
           created_at?: string
@@ -7904,6 +7925,19 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      coc_advance_lead_stage: {
+        Args: {
+          _crm_lead_id: string
+          _reason: string
+          _target_stage_id: string
+        }
+        Returns: Json
+      }
+      coc_maybe_move_access_done: {
+        Args: { _request_id: string }
+        Returns: Json
+      }
+      get_coc_stage_settings: { Args: never; Returns: Json }
       get_finance_dead_stage_ids: { Args: never; Returns: string[] }
       get_finance_success_stage_ids: { Args: never; Returns: string[] }
       get_invoice_assets_storage_diagnostics: { Args: never; Returns: Json }
