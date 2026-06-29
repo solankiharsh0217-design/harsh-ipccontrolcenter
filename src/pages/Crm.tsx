@@ -2359,7 +2359,11 @@ export default function Crm() {
           const isActive = p.id === activePipeline;
           const dot = p.type === "paid" ? "#16A34A" : p.type === "unpaid" ? "#2563EB" : "#C8A84B";
           const isHover = isAdmin && pipeHoverId === p.id && pipeDragId && pipeDragId !== p.id;
-          const leadCount = leads.filter((l) => l.pipeline_id === p.id).length;
+          const inPipe = leads.filter((l: any) => l.pipeline_id === p.id);
+          const activeLeadCount = inPipe.filter((l: any) => !l.archived_at && !l.deleted_at).length;
+          const archivedLeadCount = inPipe.length - activeLeadCount;
+          const leadCount = activeLeadCount;
+          const pillTitle = archivedLeadCount > 0 ? `${activeLeadCount} active, ${archivedLeadCount} archived` : `${activeLeadCount} active`;
           return (
             <div
               key={p.id}
