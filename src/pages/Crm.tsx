@@ -2069,6 +2069,13 @@ export default function Crm() {
                       setDeleteBatchBlocked(null);
                     }}
                     onRepair={() => setRepairBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId })}
+                    onCleanWrong={async () => {
+                      const leadIds = leads
+                        .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date)
+                        .map((l) => l.id);
+                      const links = await getLeadLinks(leadIds).catch(() => ({ paid: 0, ops: 0 }));
+                      setBatchChoicesTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds, linkedPaid: links.paid, linkedOps: links.ops });
+                    }}
                   />
                   <div className="flex items-center gap-2">
                     <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-black text-white text-[11px] font-medium tracking-wide">
