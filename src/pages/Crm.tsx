@@ -536,7 +536,7 @@ export default function Crm() {
    * counter so that the dropdown count matches the board result you'd get
    * after selecting that option.
    */
-  type FilterKey = "none" | "grade" | "batch" | "tag" | "stage" | "attendance" | "min" | "attendanceData" | "date" | "search";
+  type FilterKey = "none" | "grade" | "batch" | "tag" | "stage" | "attendance" | "min" | "attendanceData" | "date" | "search" | "coc";
   const applyFiltersExcept = (except: FilterKey): Lead[] => {
     let list = baseScopeLeads;
     if (except !== "grade" && gradeFilter.length > 0) {
