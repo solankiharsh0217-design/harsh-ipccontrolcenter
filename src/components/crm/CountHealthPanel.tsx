@@ -94,9 +94,11 @@ export default function CountHealthPanel(props: Props) {
               <div className="flex justify-between"><span>Paid Pipeline active buyers (DB)</span><span className="font-medium text-foreground">{snap.ppActive}</span></div>
               <div className="flex justify-between"><span>Paid Pipeline linked to CRM</span><span>{snap.ppLinked}</span></div>
               <div className="flex justify-between"><span>Paid Pipeline unlinked buyers</span><span className={snap.ppUnlinked > 0 ? "text-amber-700 font-medium" : ""}>{snap.ppUnlinked}</span></div>
-              <div className="flex justify-between"><span>Paid Onboarding CRM active (DB)</span><span className="font-medium text-foreground">{snap.crmActive}</span></div>
-              <div className="flex justify-between"><span>Paid Onboarding archived</span><span>{snap.crmArchived}</span></div>
-              <div className="flex justify-between"><span>Paid Onboarding soft-deleted</span><span>{snap.crmDeleted}</span></div>
+              <div className="flex justify-between"><span>Paid Onboarding active leads (DB)</span><span className="font-medium text-foreground">{snap.crmActive}</span></div>
+              <div className="flex justify-between"><span>Archived / removed leads</span><span>{snap.crmArchived + snap.crmDeleted}</span></div>
+              <div className="flex justify-between"><span>Total historical leads</span><span className="font-medium text-foreground">{snap.crmActive + snap.crmArchived + snap.crmDeleted}</span></div>
+              <div className="flex justify-between opacity-70"><span>↳ archived</span><span>{snap.crmArchived}</span></div>
+              <div className="flex justify-between opacity-70"><span>↳ soft-deleted</span><span>{snap.crmDeleted}</span></div>
               <div className="flex justify-between"><span>Of which conversion_status = converted</span><span>{snap.crmConverted}</span></div>
               <div className="flex justify-between"><span>Extra onboarding cards vs paid buyers</span><span className={snap.extraOnboarding > 0 ? "text-amber-700" : ""}>{snap.extraOnboarding}</span></div>
               {snap.crmActive !== activeCardsCount && (
