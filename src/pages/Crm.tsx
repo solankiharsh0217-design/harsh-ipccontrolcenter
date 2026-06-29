@@ -1115,6 +1115,7 @@ export default function Crm() {
     batchFilter.length +
     tagFilter.length +
     stageFilter.length +
+    (cocFilter !== "all" ? 1 : 0) +
     (dateFrom || dateTo ? 1 : 0) +
     (searchQuery ? 1 : 0);
   const advancedActiveCount =
@@ -1124,8 +1125,9 @@ export default function Crm() {
     (attendanceDataFilter !== "any" ? 1 : 0) +
     (activePipelineType === "unpaid" && convertedFilter !== "show" ? 1 : 0) +
     tagFilter.length +
-    stageFilter.length;
-  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("show"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
+    stageFilter.length +
+    (cocFilter !== "all" ? 1 : 0);
+  const resetAll = () => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("show"); setBatchFilter([]); setTagFilter([]); setStageFilter([]); setCocFilter("all"); setDateFrom(""); setDateTo(""); setSearchQuery(""); };
 
   const [chipsExpanded, setChipsExpanded] = useState(false);
 
