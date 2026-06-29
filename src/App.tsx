@@ -56,6 +56,7 @@ import TaxCodeMasterPage from "./pages/admin/TaxCodeMaster";
 import ConversionRulesAdmin from "./pages/admin/ConversionRules";
 import LeadRescueSearch from "./pages/admin/LeadRescueSearch";
 import Tasks from "./pages/Tasks";
+import FinanceSuccessDashboard from "./pages/FinanceSuccessDashboard";
 
 import type { ModuleKey } from "@/lib/modules";
 
