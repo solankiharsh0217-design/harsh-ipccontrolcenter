@@ -624,7 +624,7 @@ export default function Crm() {
   const pipelineLeads = useMemo(() => {
     return applyFiltersExcept("none").slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId]);
+  }, [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId, cocFilter, cocAccessDoneStageId]);
 
 
   // Group leads into webinar batches (cards on the Batches view)
