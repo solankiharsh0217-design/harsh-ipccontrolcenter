@@ -1033,7 +1033,7 @@ export default function Crm() {
   // Dropdown option counts: derived from the SAME visible universe the board would show
   // after selecting that option. Each dropdown excludes its OWN filter so the user can see
   // how many leads would match if they toggled values within that filter.
-  const allFiltersDeps = [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId];
+  const allFiltersDeps = [baseScopeLeads, gradeFilter, attendanceGradeFilter, minAttendedMinutes, attendanceDataFilter, hotnessMap, batchFilter, tagFilter, stageFilter, leadTagsMap, dateFrom, dateTo, dateField, searchQuery, linkedIdentityByLeadId, cocFilter, cocAccessDoneStageId];
 
   const batchOptions = useMemo(() => {
     const scope = applyFiltersExcept("batch");
