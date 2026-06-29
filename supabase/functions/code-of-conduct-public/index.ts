@@ -492,6 +492,7 @@ Deno.serve(async (req) => {
       await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'guide_video_progress_started', metadata: { video_id: videoId } });
       if (completedNow) {
         await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'guide_video_completed', metadata: { video_id: videoId, percent_watched: percent } });
+        try { await admin.rpc('coc_maybe_move_access_done', { _request_id: reqRow.id }); } catch (e) { console.warn('access_done auto-move failed', e); }
       }
       return jsonResponse({ ok: true, percent_watched: percent, completed_at: completedAt, required_percent: required });
     }
