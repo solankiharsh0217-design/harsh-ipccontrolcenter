@@ -47,7 +47,7 @@ export default function AnalyticsCenter() {
       desc: "Webinar-wise success rate of token-paid members reaching Code of Conduct / finance success stage.",
       cta: "Open Finance Success",
       to: "/finance-success-dashboard",
-      show: isAdmin,
+      show: isAdmin || hasModule("paid_pipeline") || hasModule("paid-pipeline") || hasModule("calling_crm") || hasModule("crm"),
     },
   ].filter((c) => c.show);
 

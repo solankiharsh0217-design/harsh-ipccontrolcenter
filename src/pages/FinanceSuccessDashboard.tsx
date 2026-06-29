@@ -77,7 +77,12 @@ const normalizeStageName = (name: string) =>
   name.toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
 
 export default function FinanceSuccessDashboard() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, hasModule } = useAuth();
+  const hasAccess = isAdmin
+    || hasModule("paid_pipeline")
+    || hasModule("paid-pipeline")
+    || hasModule("calling_crm")
+    || hasModule("crm");
   const [searchParams] = useSearchParams();
   const urlPipelineId = searchParams.get("pipelineId");
   const [fromDate, setFromDate] = useState("");
@@ -211,18 +216,23 @@ export default function FinanceSuccessDashboard() {
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from("company_settings")
-        .select("id,finance_success_stage_ids" as any)
-        .eq("workspace", "default")
-        .maybeSingle();
-      if (!error && data) {
-        const arr = ((data as any).finance_success_stage_ids ?? []) as string[];
-        setSuccessStageIds(arr);
+      if (isAdmin) {
+        const { data, error } = await supabase
+          .from("company_settings")
+          .select("id,finance_success_stage_ids" as any)
+          .eq("workspace", "default")
+          .maybeSingle();
+        if (!error && data) {
+          const arr = ((data as any).finance_success_stage_ids ?? []) as string[];
+          setSuccessStageIds(arr);
+        }
+      } else {
+        const { data, error } = await supabase.rpc("get_finance_success_stage_ids" as any);
+        if (!error && Array.isArray(data)) setSuccessStageIds(data as string[]);
       }
       setSettingsLoaded(true);
     })();
-  }, []);
+  }, [isAdmin]);
 
   // Auto-seed from selected pipeline stages if empty
   useEffect(() => {
@@ -445,6 +455,16 @@ export default function FinanceSuccessDashboard() {
         sub="Webinar-wise success rate of CRM Paid Onboarding leads reaching the configured success stage. Read-only."
       />
 
+      {!hasAccess && (
+        <div className="border border-line rounded-xl bg-white px-6 py-10 text-center">
+          <div className="font-serif text-xl mb-2">You do not have access to Finance Success Dashboard.</div>
+          <div className="font-sans text-sm text-muted-foreground">Please contact an admin to request access.</div>
+        </div>
+      )}
+
+      {hasAccess && (<>
+
+
       {/* Pipeline selector */}
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <div className="min-w-[260px]">
@@ -474,25 +494,27 @@ export default function FinanceSuccessDashboard() {
           <label className="block text-[11px] text-muted-foreground mb-1">Search name / email / phone / batch</label>
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" />
         </div>
-        <div className="min-w-[240px]">
-          <label className="block text-[11px] text-muted-foreground mb-1">Add success stage</label>
-          <Select
-            value=""
-            onValueChange={(v) => {
-              if (!v) return;
-              if (!successStageIds.includes(v)) saveSuccessStages([...successStageIds, v]);
-            }}
-          >
-            <SelectTrigger><SelectValue placeholder="Add a success stage…" /></SelectTrigger>
-            <SelectContent>
-              {pipelineStages
-                .filter((s) => !successStageIds.includes(s.id))
-                .map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {isAdmin && (
+          <div className="min-w-[240px]">
+            <label className="block text-[11px] text-muted-foreground mb-1">Add success stage</label>
+            <Select
+              value=""
+              onValueChange={(v) => {
+                if (!v) return;
+                if (!successStageIds.includes(v)) saveSuccessStages([...successStageIds, v]);
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Add a success stage…" /></SelectTrigger>
+              <SelectContent>
+                {pipelineStages
+                  .filter((s) => !successStageIds.includes(s.id))
+                  .map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {successStageIds.length > 0 && (
@@ -766,6 +788,7 @@ export default function FinanceSuccessDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+      </>)}
     </div>
   );
 }

@@ -140,7 +140,7 @@ const App = () => (
             <Route path="/operations-crm" element={<Shell moduleKey="operations_crm"><OperationsCrm /></Shell>} />
             <Route path="/system-refinement-checklist" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="/tasks" element={<Shell><Tasks /></Shell>} />
-            <Route path="/finance-success-dashboard" element={<Shell admin><FinanceSuccessDashboard /></Shell>} />
+            <Route path="/finance-success-dashboard" element={<Shell><FinanceSuccessDashboard /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
