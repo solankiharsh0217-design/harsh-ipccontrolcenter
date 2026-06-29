@@ -139,17 +139,46 @@ export default function CompanySettingsPage() {
   }
 
   useEffect(() => { (async () => {
-    const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
-    if (data) { setS(data); await refreshSignedUrls(data); }
-    // Load paid pipeline stages for CoC stage pickers
-    const { data: stages } = await (supabase as any)
-      .from("stages")
-      .select("id, name, position, pipelines!inner(id, name, type)")
-      .eq("pipelines.type", "paid")
-      .order("position");
-    if (stages) setPaidStages(stages.map((s: any) => ({ id: s.id, name: s.name, pipeline_name: s.pipelines?.name || "" })));
+    try {
+      const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
+      if (data) { setS(data); await refreshSignedUrls(data); }
+    } catch (e) { console.error("[CompanySettings] load failed", e); }
+    // Load paid pipeline stages for CoC stage pickers (resilient: never block page render)
+    try {
+      const { data: pipes } = await (supabase as any)
+        .from("pipelines")
+        .select("id, name, type")
+        .eq("type", "paid");
+      const pipeIds = (pipes || []).map((p: any) => p.id);
+      const pipeMap = new Map<string, string>((pipes || []).map((p: any) => [p.id, p.name]));
+      if (pipeIds.length) {
+        const { data: stages } = await (supabase as any)
+          .from("stages")
+          .select("id, name, position, pipeline_id")
+          .in("pipeline_id", pipeIds)
+          .order("position");
+        if (stages) setPaidStages(stages.map((st: any) => ({ id: st.id, name: st.name, pipeline_name: pipeMap.get(st.pipeline_id) || "" })));
+      }
+    } catch (e) { console.error("[CompanySettings] stage load failed", e); }
     setLoading(false);
   })(); }, []);
+
+  async function saveCocAutomation() {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const saved = await saveCompanySettings({
+        coc_link_opened_stage_id: (s as any).coc_link_opened_stage_id ?? null,
+        coc_access_done_stage_id: (s as any).coc_access_done_stage_id ?? null,
+        coc_auto_move_link_opened: (s as any).coc_auto_move_link_opened !== false,
+        coc_auto_move_access_done: !!(s as any).coc_auto_move_access_done,
+      } as any, user.id);
+      if (saved) setS(saved);
+      toast.success("Code of Conduct automation settings saved.");
+    } catch (e: any) {
+      toast.error(e?.message || "Save failed");
+    } finally { setSaving(false); }
+  }
 
   const set = (k: keyof CompanySettings, v: any) => setS((p) => ({ ...p, [k]: v }));
 
