@@ -494,25 +494,27 @@ export default function FinanceSuccessDashboard() {
           <label className="block text-[11px] text-muted-foreground mb-1">Search name / email / phone / batch</label>
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" />
         </div>
-        <div className="min-w-[240px]">
-          <label className="block text-[11px] text-muted-foreground mb-1">Add success stage</label>
-          <Select
-            value=""
-            onValueChange={(v) => {
-              if (!v) return;
-              if (!successStageIds.includes(v)) saveSuccessStages([...successStageIds, v]);
-            }}
-          >
-            <SelectTrigger><SelectValue placeholder="Add a success stage…" /></SelectTrigger>
-            <SelectContent>
-              {pipelineStages
-                .filter((s) => !successStageIds.includes(s.id))
-                .map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {isAdmin && (
+          <div className="min-w-[240px]">
+            <label className="block text-[11px] text-muted-foreground mb-1">Add success stage</label>
+            <Select
+              value=""
+              onValueChange={(v) => {
+                if (!v) return;
+                if (!successStageIds.includes(v)) saveSuccessStages([...successStageIds, v]);
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Add a success stage…" /></SelectTrigger>
+              <SelectContent>
+                {pipelineStages
+                  .filter((s) => !successStageIds.includes(s.id))
+                  .map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {successStageIds.length > 0 && (
