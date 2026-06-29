@@ -1404,11 +1404,27 @@ export default function Crm() {
         );
       })()}
 
-      {(view === "kanban" || view === "list") && (
-        <div className="text-[11px] text-muted-foreground mb-2">
-          Showing <span className="font-medium text-foreground">{pipelineLeads.length}</span> of <span className="font-medium text-foreground">{leads.filter((l) => l.pipeline_id === activePipeline).length}</span> leads
-        </div>
-      )}
+      {(view === "kanban" || view === "list") && (() => {
+        const inPipeline = leads.filter((l: any) => l.pipeline_id === activePipeline);
+        const activeTotal = inPipeline.filter((l: any) => !l.archived_at && !l.deleted_at).length;
+        const archivedTotal = inPipeline.filter((l: any) => !!l.archived_at || !!l.deleted_at).length;
+        const visible = pipelineLeads.length;
+        return (
+          <div className="text-[11px] text-muted-foreground mb-2">
+            {showArchived ? (
+              <>
+                Showing <span className="font-medium text-foreground">{visible}</span> of <span className="font-medium text-foreground">{inPipeline.length}</span> total leads
+                {archivedTotal > 0 && <> · <span className="font-medium text-foreground">{activeTotal}</span> active · <span className="font-medium text-foreground">{archivedTotal}</span> archived</>}
+              </>
+            ) : (
+              <>
+                Showing <span className="font-medium text-foreground">{visible}</span> active lead{visible === 1 ? "" : "s"}
+                {archivedTotal > 0 && <> · <span className="font-medium text-foreground">{archivedTotal}</span> archived hidden</>}
+              </>
+            )}
+          </div>
+        );
+      })()}
       {view === "batches" && (
         <div className="text-[11px] text-muted-foreground mb-2">
           Showing <span className="font-medium text-foreground">{visibleBatches.length}</span> of <span className="font-medium text-foreground">{batchesWithType.length}</span> batches
