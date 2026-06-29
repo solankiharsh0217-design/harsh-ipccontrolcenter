@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { Link, useSearchParams } from "react-router-dom";
@@ -649,60 +650,120 @@ export default function FinanceSuccessDashboard() {
       </Card>
 
       <Dialog open={!!drilldownDate} onOpenChange={(o) => !o && setDrilldownDate(null)}>
-        <DialogContent className="max-w-[1200px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-[1200px] max-h-[85vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Leads — Webinar {drilldownDate}</DialogTitle>
           </DialogHeader>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Webinar Date</TableHead>
-                <TableHead>Batch</TableHead>
-                <TableHead className="text-right">Token</TableHead>
-                <TableHead className="text-right">Collected</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead>Current CRM Stage</TableHead>
-                <TableHead>Finance</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Open</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {drilldownLeads.map((l) => (
-                <TableRow key={l.id}>
-                  <TableCell>{l.name ?? "—"}</TableCell>
-                  <TableCell>{l.phone ?? "—"}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{l.email ?? "—"}</TableCell>
-                  <TableCell>{l.webinarDate}</TableCell>
-                  <TableCell className="max-w-[160px] truncate">{l.batchLabel}</TableCell>
-                  <TableCell className="text-right">{l.tokenRecorded ? `₹${fmtINR(l.tokenAmount)}` : <span className="text-amber-700">Not recorded</span>}</TableCell>
-                  <TableCell className="text-right">₹{fmtINR(l.totalCollected)}</TableCell>
-                  <TableCell className="text-right">₹{fmtINR(l.balancePending)}</TableCell>
-                  <TableCell className="max-w-[180px] truncate">{l.currentStage}</TableCell>
-                  <TableCell className="max-w-[120px] truncate">{l.financeStatus ?? "—"}</TableCell>
-                  <TableCell>
-                    {l.reachedSuccess ? (
-                      <span className="text-emerald-700">Successful</span>
-                    ) : (
-                      <span className="text-amber-700">Not yet</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <Link to={`/crm?lead=${l.id}`} className="text-blue-600 hover:underline text-xs">CRM</Link>
-                    {l.paidLeadId && (
-                      <>
-                        {" · "}
-                        <Link to={`/paid-pipeline?lead=${l.paidLeadId}`} className="text-blue-600 hover:underline text-xs">Paid</Link>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+
+          {/* Mobile: card layout */}
+          <div className="md:hidden space-y-3">
+            {drilldownLeads.map((l) => (
+              <div key={l.id} className="rounded-lg border bg-card p-3 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate">{l.name ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">{l.phone ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground truncate">{l.email ?? "—"}</div>
+                  </div>
+                  {l.reachedSuccess ? (
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">Successful</Badge>
+                  ) : (
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">Not yet</Badge>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Badge variant="outline" className="text-xs">{l.currentStage || "—"}</Badge>
+                  {l.financeStatus && <Badge variant="outline" className="text-xs">{l.financeStatus}</Badge>}
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  <div>{l.webinarDate} · <span className="truncate">{l.batchLabel}</span></div>
+                  <div className="mt-1">
+                    Token: {l.tokenRecorded ? `₹${fmtINR(l.tokenAmount)}` : <span className="text-amber-700">Not recorded</span>}
+                    {" · "}Collected: ₹{fmtINR(l.totalCollected)}
+                    {" · "}Balance: ₹{fmtINR(l.balancePending)}
+                  </div>
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <Link to={`/crm?lead=${l.id}`}>
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs">CRM</Button>
+                  </Link>
+                  {l.paidLeadId && (
+                    <Link to={`/paid-pipeline?lead=${l.paidLeadId}`}>
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs">Paid</Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+            {drilldownLeads.length === 0 && (
+              <div className="text-center text-muted-foreground py-6 text-sm">No leads.</div>
+            )}
+          </div>
+
+          {/* Desktop/tablet: compact table with sticky Member + Status columns */}
+          <div className="hidden md:block relative w-full overflow-x-auto">
+            <table className="w-full caption-bottom text-sm border-collapse">
+              <thead className="[&_tr]:border-b">
+                <tr className="border-b">
+                  <th className="sticky left-0 z-20 bg-background h-10 px-3 text-left align-middle font-medium text-muted-foreground min-w-[220px] shadow-[1px_0_0_0_hsl(var(--border))]">Member</th>
+                  <th className="sticky left-[220px] z-20 bg-background h-10 px-3 text-left align-middle font-medium text-muted-foreground shadow-[1px_0_0_0_hsl(var(--border))]">Status</th>
+                  <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground">CRM Stage</th>
+                  <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground">Open</th>
+                  <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground">Batch / Webinar</th>
+                  <th className="h-10 px-3 text-right align-middle font-medium text-muted-foreground">Token</th>
+                  <th className="h-10 px-3 text-right align-middle font-medium text-muted-foreground">Collected</th>
+                  <th className="h-10 px-3 text-right align-middle font-medium text-muted-foreground">Balance</th>
+                  <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground">Finance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drilldownLeads.map((l) => (
+                  <tr key={l.id} className="border-b hover:bg-muted/40">
+                    <td className="sticky left-0 z-10 bg-background p-3 align-top min-w-[220px] shadow-[1px_0_0_0_hsl(var(--border))]">
+                      <div className="font-semibold leading-tight">{l.name ?? "—"}</div>
+                      <div className="text-xs text-muted-foreground">{l.phone ?? "—"}</div>
+                      <div className="text-xs text-muted-foreground truncate max-w-[200px]">{l.email ?? "—"}</div>
+                    </td>
+                    <td className="sticky left-[220px] z-10 bg-background p-3 align-top shadow-[1px_0_0_0_hsl(var(--border))]">
+                      {l.reachedSuccess ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">Successful</Badge>
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">Not yet</Badge>
+                      )}
+                    </td>
+                    <td className="p-3 align-top max-w-[200px]">
+                      <Badge variant="outline" className="text-xs whitespace-normal text-left">{l.currentStage || "—"}</Badge>
+                    </td>
+                    <td className="p-3 align-top whitespace-nowrap">
+                      <div className="flex gap-1.5">
+                        <Link to={`/crm?lead=${l.id}`}>
+                          <Button size="sm" variant="outline" className="h-7 px-2 text-xs">CRM</Button>
+                        </Link>
+                        {l.paidLeadId && (
+                          <Link to={`/paid-pipeline?lead=${l.paidLeadId}`}>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs">Paid</Button>
+                          </Link>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3 align-top text-xs">
+                      <div>{l.webinarDate}</div>
+                      <div className="text-muted-foreground truncate max-w-[160px]">{l.batchLabel}</div>
+                    </td>
+                    <td className="p-3 align-top text-right whitespace-nowrap">
+                      {l.tokenRecorded ? `₹${fmtINR(l.tokenAmount)}` : <span className="text-amber-700 text-xs">Not recorded</span>}
+                    </td>
+                    <td className="p-3 align-top text-right whitespace-nowrap">₹{fmtINR(l.totalCollected)}</td>
+                    <td className="p-3 align-top text-right whitespace-nowrap">₹{fmtINR(l.balancePending)}</td>
+                    <td className="p-3 align-top text-xs max-w-[140px] truncate">{l.financeStatus ?? "—"}</td>
+                  </tr>
+                ))}
+                {drilldownLeads.length === 0 && (
+                  <tr><td colSpan={9} className="text-center text-muted-foreground py-6">No leads.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
