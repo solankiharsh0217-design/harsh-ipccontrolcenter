@@ -599,6 +599,25 @@ export default function Crm() {
         });
       }
     }
+    if (except !== "coc" && cocFilter !== "all") {
+      list = list.filter((l: any) => {
+        const status = (l.code_of_conduct_status as string | null) || null;
+        const sentAt = l.code_of_conduct_sent_at as string | null;
+        const signedAt = l.code_of_conduct_signed_at as string | null;
+        const isAccessDone = !!(cocAccessDoneStageId && l.stage_id === cocAccessDoneStageId);
+        const isSigned = !!signedAt || status === "signed";
+        const isOpened = status === "viewed" || isSigned;
+        const isSent = !!sentAt || status === "sent" || isOpened;
+        switch (cocFilter) {
+          case "not_sent": return !isSent && !isAccessDone;
+          case "sent_not_opened": return isSent && !isOpened;
+          case "opened_not_signed": return isOpened && !isSigned;
+          case "signed_not_access_done": return isSigned && !isAccessDone;
+          case "access_done": return isAccessDone;
+        }
+        return true;
+      });
+    }
     return list;
   };
 
