@@ -56,6 +56,7 @@ import TaxCodeMasterPage from "./pages/admin/TaxCodeMaster";
 import ConversionRulesAdmin from "./pages/admin/ConversionRules";
 import LeadRescueSearch from "./pages/admin/LeadRescueSearch";
 import Tasks from "./pages/Tasks";
+import FinanceSuccessDashboard from "./pages/FinanceSuccessDashboard";
 
 import type { ModuleKey } from "@/lib/modules";
 
@@ -139,6 +140,7 @@ const App = () => (
             <Route path="/operations-crm" element={<Shell moduleKey="operations_crm"><OperationsCrm /></Shell>} />
             <Route path="/system-refinement-checklist" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="/tasks" element={<Shell><Tasks /></Shell>} />
+            <Route path="/finance-success-dashboard" element={<Shell admin><FinanceSuccessDashboard /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

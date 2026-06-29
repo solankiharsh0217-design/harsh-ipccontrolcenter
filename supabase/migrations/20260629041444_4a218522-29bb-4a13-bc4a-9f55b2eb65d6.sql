@@ -1,0 +1,1 @@
+ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS finance_success_stage_ids uuid[] NOT NULL DEFAULT '{}'::uuid[];

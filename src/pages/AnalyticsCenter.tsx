@@ -42,6 +42,13 @@ export default function AnalyticsCenter() {
       to: "/report-history/media-buyer-comparison",
       show: isAdmin || hasModule("reports"),
     },
+    {
+      title: "Finance Success Dashboard",
+      desc: "Webinar-wise success rate of token-paid members reaching Code of Conduct / finance success stage.",
+      cta: "Open Finance Success",
+      to: "/finance-success-dashboard",
+      show: isAdmin,
+    },
   ].filter((c) => c.show);
 
   return (
