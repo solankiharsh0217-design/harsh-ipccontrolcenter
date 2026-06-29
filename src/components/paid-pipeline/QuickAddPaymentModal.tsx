@@ -77,7 +77,7 @@ export default function QuickAddPaymentModal({
   };
 
   const save = async () => {
-    if (!amount || amount <= 0) { toast.error("Amount required"); return; }
+    if (!amount || amount <= 0) { toast.error("Payment amount must be greater than 0."); return; }
     const isTokenPayment = isToken || /token/i.test(type) || /token/i.test(category);
     if (isTokenPayment) {
       const { data: existing } = await supabase
