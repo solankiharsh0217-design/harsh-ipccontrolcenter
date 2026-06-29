@@ -1113,17 +1113,33 @@ export default function Crm() {
           <h1 className="font-serif text-[22px] leading-tight">Calling CRM</h1>
           <div className="text-[11px] text-muted-foreground">Diamond Program sales pipeline</div>
         </div>
-        <button
-          onClick={() => {
+        <div className="flex items-center gap-2">
+          {(() => {
             const pipe = pipelines.find((p) => p.id === activePipeline);
             const isPaid = pipe && (pipe as any).pipeline_type === "paid";
-            navigate(isPaid ? "/paid-pipeline?source=crm-paid-onboarding" : "/paid-pipeline");
-          }}
-          className="ipc-btn !h-9 bg-gold text-black hover:opacity-90 shadow-sm font-medium"
-          title="Track token, balance, finance, and revenue"
-        >
-          <ExternalLink className="w-3.5 h-3.5" /> Open Paid Pipeline
-        </button>
+            if (!isPaid) return null;
+            return (
+              <button
+                onClick={() => navigate(`/finance-success-dashboard?pipelineId=${activePipeline}`)}
+                className="ipc-btn !h-9 border border-line bg-white hover:bg-off text-foreground font-medium"
+                title="Open Finance Success Dashboard for this paid pipeline"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Finance Success Rate
+              </button>
+            );
+          })()}
+          <button
+            onClick={() => {
+              const pipe = pipelines.find((p) => p.id === activePipeline);
+              const isPaid = pipe && (pipe as any).pipeline_type === "paid";
+              navigate(isPaid ? "/paid-pipeline?source=crm-paid-onboarding" : "/paid-pipeline");
+            }}
+            className="ipc-btn !h-9 bg-gold text-black hover:opacity-90 shadow-sm font-medium"
+            title="Track token, balance, finance, and revenue"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Open Paid Pipeline
+          </button>
+        </div>
       </div>
 
       {/* Compact toolbar */}
@@ -2053,6 +2069,13 @@ export default function Crm() {
                       setDeleteBatchBlocked(null);
                     }}
                     onRepair={() => setRepairBatchTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId })}
+                    onCleanWrong={async () => {
+                      const leadIds = leads
+                        .filter((l: any) => (l.webinar_source || "Unsourced") === b.name && (l.webinar_date || null) === b.date)
+                        .map((l) => l.id);
+                      const links = await getLeadLinks(leadIds).catch(() => ({ paid: 0, ops: 0 }));
+                      setBatchChoicesTarget({ name: b.name, date: b.date, pipelineId: b.pipelineId, leadIds, linkedPaid: links.paid, linkedOps: links.ops });
+                    }}
                   />
                   <div className="flex items-center gap-2">
                     <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-black text-white text-[11px] font-medium tracking-wide">
@@ -2533,11 +2556,12 @@ function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight,
   );
 }
 
-function BatchActionsMenu({ isAdmin, archived, breakdown, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete, onRepair }: {
+function BatchActionsMenu({ isAdmin, archived, breakdown, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete, onRepair, onCleanWrong }: {
   isAdmin: boolean; archived: boolean;
   breakdown?: { active: number; archived: number; hidden: number; paidLinked: number; total: number };
   onView: () => void; onRename: () => void; onMove: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
   onRepair?: () => void;
+  onCleanWrong?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -2588,6 +2612,12 @@ function BatchActionsMenu({ isAdmin, archived, breakdown, onView, onRename, onMo
               </>
             : item(<><RotateCcw className="w-3 h-3" /> Restore batch</>, onRestore, "text-[#15803D]")
           }
+          {isAdmin && !archived && onCleanWrong && (
+            <>
+              <div className="h-px bg-line my-1" />
+              {item(<><Trash2 className="w-3 h-3" /> Clean / Remove Wrong Batch</>, onCleanWrong, "text-[#B45309]")}
+            </>
+          )}
           {isAdmin && (
             <>
               <div className="h-px bg-line my-1" />
