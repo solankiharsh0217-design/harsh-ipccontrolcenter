@@ -415,18 +415,48 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'fetch') {
-      if (reqRow.status === 'sent') {
-        const now = new Date().toISOString();
-        await admin.from('code_of_conduct_requests').update({ status: 'viewed', viewed_at: now }).eq('id', reqRow.id);
-        await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'link_opened' });
-        await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'document_viewed' });
+      const ipOpen = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('cf-connecting-ip') || null;
+      const uaOpen = req.headers.get('user-agent') || null;
+      const nowIso = new Date().toISOString();
+      const isFirstOpen = !reqRow.first_opened_at;
+      // Always increment open counters; set first_opened_at on first open
+      const newOpenCount = Number(reqRow.open_count || 0) + 1;
+      await admin.from('code_of_conduct_requests').update({
+        first_opened_at: reqRow.first_opened_at || nowIso,
+        last_opened_at: nowIso,
+        open_count: newOpenCount,
+        ...(reqRow.status === 'sent' ? { status: 'viewed', viewed_at: nowIso } : {}),
+      }).eq('id', reqRow.id);
+      reqRow.first_opened_at = reqRow.first_opened_at || nowIso;
+      reqRow.last_opened_at = nowIso;
+      reqRow.open_count = newOpenCount;
+      if (reqRow.status === 'sent') { reqRow.status = 'viewed'; reqRow.viewed_at = nowIso; }
+
+      if (isFirstOpen) {
+        await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'link_opened', metadata: { ip: ipOpen, ua: uaOpen?.slice(0, 500) || null, open_count: newOpenCount } });
         if (reqRow.paid_pipeline_lead_id) await admin.from('paid_pipeline_leads').update({ code_of_conduct_status: 'viewed' }).eq('id', reqRow.paid_pipeline_lead_id);
         if (reqRow.crm_lead_id) await admin.from('leads').update({ code_of_conduct_status: 'viewed' }).eq('id', reqRow.crm_lead_id);
-        reqRow.status = 'viewed';
-        reqRow.viewed_at = now;
+
+        // Auto-move stage on first link open if enabled
+        try {
+          const { data: settings } = await admin.rpc('get_coc_stage_settings');
+          const cfg = settings || {};
+          if (reqRow.crm_lead_id && cfg.coc_auto_move_link_opened && cfg.coc_link_opened_stage_id) {
+            const { data: moveRes } = await admin.rpc('coc_advance_lead_stage', {
+              _crm_lead_id: reqRow.crm_lead_id,
+              _target_stage_id: cfg.coc_link_opened_stage_id,
+              _reason: 'code_of_conduct_link_opened_auto',
+            });
+            if (moveRes?.moved) {
+              await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'stage_auto_moved_link_opened', metadata: moveRes });
+            }
+          }
+        } catch (e) { console.warn('coc auto-move link_opened failed', e); }
       } else {
-        await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'document_viewed' });
+        await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'link_reopened', metadata: { open_count: newOpenCount } });
       }
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'document_viewed' });
+
       const originalPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
       if (!originalPdf && !tpl?.html_content) return publicError('DOCUMENT_NOT_FOUND', 'The agreement document is not configured yet.', 404);
       const receiptUrl = await resolveSignedReceiptUrl(admin, reqRow.signed_html_url || reqRow.signed_receipt_url || null);
