@@ -216,18 +216,23 @@ export default function FinanceSuccessDashboard() {
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from("company_settings")
-        .select("id,finance_success_stage_ids" as any)
-        .eq("workspace", "default")
-        .maybeSingle();
-      if (!error && data) {
-        const arr = ((data as any).finance_success_stage_ids ?? []) as string[];
-        setSuccessStageIds(arr);
+      if (isAdmin) {
+        const { data, error } = await supabase
+          .from("company_settings")
+          .select("id,finance_success_stage_ids" as any)
+          .eq("workspace", "default")
+          .maybeSingle();
+        if (!error && data) {
+          const arr = ((data as any).finance_success_stage_ids ?? []) as string[];
+          setSuccessStageIds(arr);
+        }
+      } else {
+        const { data, error } = await supabase.rpc("get_finance_success_stage_ids" as any);
+        if (!error && Array.isArray(data)) setSuccessStageIds(data as string[]);
       }
       setSettingsLoaded(true);
     })();
-  }, []);
+  }, [isAdmin]);
 
   // Auto-seed from selected pipeline stages if empty
   useEffect(() => {
