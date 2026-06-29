@@ -66,6 +66,9 @@ export default function Crm() {
   const [batchFilter, setBatchFilter] = useState<string[]>([]); // webinar_source values
   const [tagFilter, setTagFilter] = useState<string[]>([]); // tag ids
   const [stageFilter, setStageFilter] = useState<string[]>([]); // stage ids
+  type CocFilter = "all" | "not_sent" | "sent_not_opened" | "opened_not_signed" | "signed_not_access_done" | "access_done";
+  const [cocFilter, setCocFilter] = useState<CocFilter>("all");
+  const [cocAccessDoneStageId, setCocAccessDoneStageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [leadTagsMap, setLeadTagsMap] = useState<Record<string, Tag[]>>({});
