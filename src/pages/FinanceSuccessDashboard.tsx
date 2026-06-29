@@ -786,6 +786,7 @@ export default function FinanceSuccessDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+      </>)}
     </div>
   );
 }
