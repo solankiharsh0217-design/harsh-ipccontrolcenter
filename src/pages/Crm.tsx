@@ -1343,6 +1343,21 @@ export default function Crm() {
                         buttonClassName="ipc-input !h-9 !text-xs flex items-center gap-1.5 w-full justify-between bg-white"
                       />
                     </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Code of Conduct follow-up</div>
+                      <select
+                        className="ipc-input !h-9 !text-xs w-full"
+                        value={cocFilter}
+                        onChange={(e) => setCocFilter(e.target.value as CocFilter)}
+                      >
+                        <option value="all">All leads</option>
+                        <option value="not_sent">CoC not sent</option>
+                        <option value="sent_not_opened">Sent · link not opened</option>
+                        <option value="opened_not_signed">Link opened · not signed</option>
+                        <option value="signed_not_access_done">Signed · access not done</option>
+                        <option value="access_done">Access done</option>
+                      </select>
+                    </div>
                   </div>
                 </PopoverContent>
               </Popover>
