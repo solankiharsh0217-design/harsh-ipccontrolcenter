@@ -7958,6 +7958,7 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       students_count: { Args: never; Returns: number }
+      test_paid_archive_trigger: { Args: never; Returns: Json }
       upsert_lead_session_attendance: {
         Args: {
           _attended_minutes_raw: number
