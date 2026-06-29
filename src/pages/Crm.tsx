@@ -2556,11 +2556,12 @@ function StageHeaderMenu({ stage, idx, total, onRename, onMoveLeft, onMoveRight,
   );
 }
 
-function BatchActionsMenu({ isAdmin, archived, breakdown, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete, onRepair }: {
+function BatchActionsMenu({ isAdmin, archived, breakdown, onView, onRename, onMove, onArchive, onRestore, onReset, onDelete, onRepair, onCleanWrong }: {
   isAdmin: boolean; archived: boolean;
   breakdown?: { active: number; archived: number; hidden: number; paidLinked: number; total: number };
   onView: () => void; onRename: () => void; onMove: () => void; onArchive: () => void; onRestore: () => void; onReset: () => void; onDelete: () => void;
   onRepair?: () => void;
+  onCleanWrong?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
