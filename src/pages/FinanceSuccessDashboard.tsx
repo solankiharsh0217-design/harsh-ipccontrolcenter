@@ -455,6 +455,16 @@ export default function FinanceSuccessDashboard() {
         sub="Webinar-wise success rate of CRM Paid Onboarding leads reaching the configured success stage. Read-only."
       />
 
+      {!hasAccess && (
+        <div className="border border-line rounded-xl bg-white px-6 py-10 text-center">
+          <div className="font-serif text-xl mb-2">You do not have access to Finance Success Dashboard.</div>
+          <div className="font-sans text-sm text-muted-foreground">Please contact an admin to request access.</div>
+        </div>
+      )}
+
+      {hasAccess && (<>
+
+
       {/* Pipeline selector */}
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <div className="min-w-[260px]">
