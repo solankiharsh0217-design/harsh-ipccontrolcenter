@@ -45,6 +45,10 @@ export interface CompanySettings {
   guide_video_title?: string | null;
   guide_video_required_percent?: number | null;
   guide_video_is_active?: boolean | null;
+  coc_link_opened_stage_id?: string | null;
+  coc_access_done_stage_id?: string | null;
+  coc_auto_move_link_opened?: boolean | null;
+  coc_auto_move_access_done?: boolean | null;
 }
 
 export interface InvoiceSettings {

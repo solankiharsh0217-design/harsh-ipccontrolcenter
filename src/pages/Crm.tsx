@@ -1934,7 +1934,7 @@ export default function Crm() {
                                       const map: Record<string, { l: string; cls: string }> = {
                                         signed: { l: "CoC Signed", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
                                         sent: { l: "CoC Sent", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-                                        viewed: { l: "CoC Viewed", cls: "bg-violet-50 text-violet-700 border-violet-200" },
+                                        viewed: { l: "Link Opened", cls: "bg-violet-50 text-violet-700 border-violet-200" },
                                         expired: { l: "CoC Expired", cls: "bg-rose-50 text-rose-700 border-rose-200" },
                                         failed: { l: "CoC Failed", cls: "bg-rose-50 text-rose-700 border-rose-200" },
                                         required: { l: "CoC Required", cls: "bg-amber-50 text-amber-800 border-amber-200" },
