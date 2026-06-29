@@ -59,7 +59,21 @@ const fmtINR = (n: number) =>
 const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
 const normPhone = (s: string | null | undefined) => (s ?? "").replace(/\D+/g, "").slice(-10);
 
-const SUCCESS_STAGE_KEYWORDS = ["code of conduct", "coc sign", "signed", "access given", "active member", "finance approved"];
+const SUCCESS_STAGE_KEYWORDS = [
+  "code of conduct",
+  "coc sign",
+  "signed",
+  "access given",
+  "access",
+  "whatsapp",
+  "group joined",
+  "joined",
+  "access and whatsapp",
+  "active member",
+  "finance approved",
+];
+const normalizeStageName = (name: string) =>
+  name.toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
 
 export default function FinanceSuccessDashboard() {
   const { isAdmin } = useAuth();
@@ -210,7 +224,10 @@ export default function FinanceSuccessDashboard() {
   useEffect(() => {
     if (!settingsLoaded || successStageIds.length > 0 || pipelineStages.length === 0) return;
     const defaults = pipelineStages
-      .filter((s) => SUCCESS_STAGE_KEYWORDS.some((k) => s.name.toLowerCase().includes(k)))
+      .filter((s) => {
+        const n = normalizeStageName(s.name);
+        return SUCCESS_STAGE_KEYWORDS.some((k) => n.includes(k));
+      })
       .map((s) => s.id);
     if (defaults.length > 0) setSuccessStageIds(defaults);
   }, [settingsLoaded, pipelineStages, successStageIds.length]);
