@@ -77,6 +77,8 @@ const normalizeStageName = (name: string) =>
 
 export default function FinanceSuccessDashboard() {
   const { isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
+  const urlPipelineId = searchParams.get("pipelineId");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
@@ -97,13 +99,14 @@ export default function FinanceSuccessDashboard() {
     },
   });
 
-  // Default to first paid pipeline (Paid — Onboarding)
+  // Default to URL pipelineId if valid paid pipeline; else first paid pipeline (Paid — Onboarding)
   useEffect(() => {
-    if (!selectedPipelineId && paidPipelines.length > 0) {
-      const preferred = paidPipelines.find((p) => /onboarding/i.test(p.name)) ?? paidPipelines[0];
-      setSelectedPipelineId(preferred.id);
-    }
-  }, [paidPipelines, selectedPipelineId]);
+    if (selectedPipelineId || paidPipelines.length === 0) return;
+    const fromUrl = urlPipelineId && paidPipelines.find((p) => p.id === urlPipelineId);
+    if (fromUrl) { setSelectedPipelineId(fromUrl.id); return; }
+    const preferred = paidPipelines.find((p) => /onboarding/i.test(p.name)) ?? paidPipelines[0];
+    setSelectedPipelineId(preferred.id);
+  }, [paidPipelines, selectedPipelineId, urlPipelineId]);
 
   // Stages for the selected pipeline
   const { data: pipelineStages = [] } = useQuery({
