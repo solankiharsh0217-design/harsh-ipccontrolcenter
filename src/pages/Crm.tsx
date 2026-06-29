@@ -1113,17 +1113,33 @@ export default function Crm() {
           <h1 className="font-serif text-[22px] leading-tight">Calling CRM</h1>
           <div className="text-[11px] text-muted-foreground">Diamond Program sales pipeline</div>
         </div>
-        <button
-          onClick={() => {
+        <div className="flex items-center gap-2">
+          {(() => {
             const pipe = pipelines.find((p) => p.id === activePipeline);
             const isPaid = pipe && (pipe as any).pipeline_type === "paid";
-            navigate(isPaid ? "/paid-pipeline?source=crm-paid-onboarding" : "/paid-pipeline");
-          }}
-          className="ipc-btn !h-9 bg-gold text-black hover:opacity-90 shadow-sm font-medium"
-          title="Track token, balance, finance, and revenue"
-        >
-          <ExternalLink className="w-3.5 h-3.5" /> Open Paid Pipeline
-        </button>
+            if (!isPaid) return null;
+            return (
+              <button
+                onClick={() => navigate(`/finance-success-dashboard?pipelineId=${activePipeline}`)}
+                className="ipc-btn !h-9 border border-line bg-white hover:bg-off text-foreground font-medium"
+                title="Open Finance Success Dashboard for this paid pipeline"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Finance Success Rate
+              </button>
+            );
+          })()}
+          <button
+            onClick={() => {
+              const pipe = pipelines.find((p) => p.id === activePipeline);
+              const isPaid = pipe && (pipe as any).pipeline_type === "paid";
+              navigate(isPaid ? "/paid-pipeline?source=crm-paid-onboarding" : "/paid-pipeline");
+            }}
+            className="ipc-btn !h-9 bg-gold text-black hover:opacity-90 shadow-sm font-medium"
+            title="Track token, balance, finance, and revenue"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Open Paid Pipeline
+          </button>
+        </div>
       </div>
 
       {/* Compact toolbar */}
