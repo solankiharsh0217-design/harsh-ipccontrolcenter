@@ -77,7 +77,12 @@ const normalizeStageName = (name: string) =>
   name.toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
 
 export default function FinanceSuccessDashboard() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, hasModule } = useAuth();
+  const hasAccess = isAdmin
+    || hasModule("paid_pipeline")
+    || hasModule("paid-pipeline")
+    || hasModule("calling_crm")
+    || hasModule("crm");
   const [searchParams] = useSearchParams();
   const urlPipelineId = searchParams.get("pipelineId");
   const [fromDate, setFromDate] = useState("");
