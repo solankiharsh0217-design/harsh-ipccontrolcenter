@@ -567,6 +567,9 @@ Deno.serve(async (req) => {
       await admin.functions.invoke('send-coc-signed-copy', { body: { request_id: updated.id } });
     } catch (e) { console.warn('signed copy dispatch fail', e); }
 
+    // Auto-move CRM lead to Access Done stage if enabled and gating conditions met
+    try { await admin.rpc('coc_maybe_move_access_done', { _request_id: updated.id }); } catch (e) { console.warn('access_done auto-move on sign failed', e); }
+
     try {
       await admin.from('notifications').insert({
         recipient_role: 'admin',
