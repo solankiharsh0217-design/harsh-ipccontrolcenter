@@ -1319,6 +1319,7 @@ export type Database = {
           country: string | null
           created_at: string
           email: string | null
+          finance_success_stage_ids: string[]
           gstin: string | null
           guide_video_id: string | null
           guide_video_is_active: boolean
@@ -1363,6 +1364,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           email?: string | null
+          finance_success_stage_ids?: string[]
           gstin?: string | null
           guide_video_id?: string | null
           guide_video_is_active?: boolean
@@ -1407,6 +1409,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           email?: string | null
+          finance_success_stage_ids?: string[]
           gstin?: string | null
           guide_video_id?: string | null
           guide_video_is_active?: boolean
