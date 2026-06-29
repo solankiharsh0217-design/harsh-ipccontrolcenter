@@ -476,6 +476,7 @@ Deno.serve(async (req) => {
       const nowIso = new Date().toISOString();
       if (existing) {
         const nextPercent = Math.max(Number(existing.percent_watched ?? 0), percent);
+        const justCompleted = !existing.completed_at && nextPercent >= required;
         const completedAt = existing.completed_at || (nextPercent >= required ? nowIso : null);
         await admin.from('code_of_conduct_guide_progress').update({
           percent_watched: nextPercent,
@@ -483,6 +484,10 @@ Deno.serve(async (req) => {
           completed_at: completedAt,
           last_event_at: nowIso,
         }).eq('id', existing.id);
+        if (justCompleted) {
+          await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'guide_video_completed', metadata: { video_id: videoId, percent_watched: nextPercent } });
+          try { await admin.rpc('coc_maybe_move_access_done', { _request_id: reqRow.id }); } catch (e) { console.warn('access_done auto-move failed', e); }
+        }
         return jsonResponse({ ok: true, percent_watched: nextPercent, completed_at: completedAt, required_percent: required });
       }
       const completedAt = completedNow ? nowIso : null;
