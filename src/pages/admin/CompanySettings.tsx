@@ -139,17 +139,46 @@ export default function CompanySettingsPage() {
   }
 
   useEffect(() => { (async () => {
-    const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
-    if (data) { setS(data); await refreshSignedUrls(data); }
-    // Load paid pipeline stages for CoC stage pickers
-    const { data: stages } = await (supabase as any)
-      .from("stages")
-      .select("id, name, position, pipelines!inner(id, name, type)")
-      .eq("pipelines.type", "paid")
-      .order("position");
-    if (stages) setPaidStages(stages.map((s: any) => ({ id: s.id, name: s.name, pipeline_name: s.pipelines?.name || "" })));
+    try {
+      const [data] = await Promise.all([loadCompanySettings(), refreshDiagnostics()]);
+      if (data) { setS(data); await refreshSignedUrls(data); }
+    } catch (e) { console.error("[CompanySettings] load failed", e); }
+    // Load paid pipeline stages for CoC stage pickers (resilient: never block page render)
+    try {
+      const { data: pipes } = await (supabase as any)
+        .from("pipelines")
+        .select("id, name, type")
+        .eq("type", "paid");
+      const pipeIds = (pipes || []).map((p: any) => p.id);
+      const pipeMap = new Map<string, string>((pipes || []).map((p: any) => [p.id, p.name]));
+      if (pipeIds.length) {
+        const { data: stages } = await (supabase as any)
+          .from("stages")
+          .select("id, name, position, pipeline_id")
+          .in("pipeline_id", pipeIds)
+          .order("position");
+        if (stages) setPaidStages(stages.map((st: any) => ({ id: st.id, name: st.name, pipeline_name: pipeMap.get(st.pipeline_id) || "" })));
+      }
+    } catch (e) { console.error("[CompanySettings] stage load failed", e); }
     setLoading(false);
   })(); }, []);
+
+  async function saveCocAutomation() {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const saved = await saveCompanySettings({
+        coc_link_opened_stage_id: (s as any).coc_link_opened_stage_id ?? null,
+        coc_access_done_stage_id: (s as any).coc_access_done_stage_id ?? null,
+        coc_auto_move_link_opened: (s as any).coc_auto_move_link_opened !== false,
+        coc_auto_move_access_done: !!(s as any).coc_auto_move_access_done,
+      } as any, user.id);
+      if (saved) setS(saved);
+      toast.success("Code of Conduct automation settings saved.");
+    } catch (e: any) {
+      toast.error(e?.message || "Save failed");
+    } finally { setSaving(false); }
+  }
 
   const set = (k: keyof CompanySettings, v: any) => setS((p) => ({ ...p, [k]: v }));
 
@@ -410,10 +439,15 @@ export default function CompanySettingsPage() {
       </div>
 
       <SectionLabel>Code of Conduct Stage Automation</SectionLabel>
-      <div className="bg-white border border-line rounded-xl p-5 mb-8 grid grid-cols-2 gap-4">
+      <div className="bg-white border-2 border-primary/30 rounded-xl p-5 mb-8 grid grid-cols-2 gap-4 shadow-sm">
         <div className="col-span-2 text-[12px] text-muted-foreground -mt-1">
           When members open or complete the Code of Conduct, automatically advance their Paid Onboarding stage. Backward moves are never performed.
         </div>
+        {paidStages.length === 0 && (
+          <div className="col-span-2 text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+            No Paid Onboarding stages found. Create stages in Calling CRM → Paid — Onboarding → Add Stage.
+          </div>
+        )}
         <div>
           <Label className="text-xs">Link Opened stage</Label>
           <select
@@ -426,6 +460,14 @@ export default function CompanySettingsPage() {
               <option key={st.id} value={st.id}>{st.pipeline_name} · {st.name}</option>
             ))}
           </select>
+          <div className="text-[11px] text-muted-foreground mt-1">
+            Link Opened means the member clicked the Code of Conduct URL. It does not mean access is done.
+          </div>
+          {!paidStages.some((st) => /link\s*opened/i.test(st.name)) && paidStages.length > 0 && (
+            <div className="text-[11px] text-amber-700 mt-1">
+              Tip: no “Code of Conduct Link Opened” stage exists. Create this stage in Calling CRM → Paid — Onboarding → Add Stage.
+            </div>
+          )}
         </div>
         <div className="flex items-end gap-2">
           <input
@@ -435,7 +477,7 @@ export default function CompanySettingsPage() {
             checked={(s as any).coc_auto_move_link_opened !== false}
             onChange={(e) => set("coc_auto_move_link_opened" as any, e.target.checked)}
           />
-          <Label htmlFor="coc_auto_move_link_opened" className="text-xs">Auto-move to Link Opened on first URL visit</Label>
+          <Label htmlFor="coc_auto_move_link_opened" className="text-xs">Auto-move to Link Opened stage when URL is visited</Label>
         </div>
         <div>
           <Label className="text-xs">Access Done stage</Label>
@@ -449,6 +491,9 @@ export default function CompanySettingsPage() {
               <option key={st.id} value={st.id}>{st.pipeline_name} · {st.name}</option>
             ))}
           </select>
+          <div className="text-[11px] text-muted-foreground mt-1">
+            Access Done should be selected only after signing/completion requirements are met.
+          </div>
         </div>
         <div className="flex items-end gap-2">
           <input
@@ -458,7 +503,12 @@ export default function CompanySettingsPage() {
             checked={!!(s as any).coc_auto_move_access_done}
             onChange={(e) => set("coc_auto_move_access_done" as any, e.target.checked)}
           />
-          <Label htmlFor="coc_auto_move_access_done" className="text-xs">Auto-move to Access Done after signing (and video completion when active)</Label>
+          <Label htmlFor="coc_auto_move_access_done" className="text-xs">Auto-move to Access Done stage after Code of Conduct completion</Label>
+        </div>
+        <div className="col-span-2 flex justify-end pt-1">
+          <Button size="sm" onClick={saveCocAutomation} disabled={saving}>
+            {saving ? "Saving…" : "Save automation settings"}
+          </Button>
         </div>
       </div>
 
