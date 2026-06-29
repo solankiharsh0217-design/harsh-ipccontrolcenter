@@ -326,17 +326,19 @@ export default function Crm() {
       }
       return all;
     };
-    const [{ data: s }, leadsAll, elig, { data: wb }] = await Promise.all([
+    const [{ data: s }, leadsAll, elig, { data: wb }, { data: cs }] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
       fetchAllLeads().catch((e) => { console.error("[CRM] paginated lead fetch failed", e); return [] as any[]; }),
       getEligibleAssignees("calling_crm"),
       supabase.from("webinar_batches" as any).select("id, batch_name, webinar_name, webinar_date, service_package_id, service_package_snapshot, process_template_id, product_name, deal_value, pipeline_id").eq("is_deleted", false),
+      supabase.from("company_settings" as any).select("coc_access_done_stage_id").limit(1).maybeSingle(),
     ]);
     setPipelines((p || []) as any);
     setStages((s || []) as any);
     setLeads((leadsAll || []) as any);
     setBatchMeta(((wb as any) || []) as any);
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })));
+    setCocAccessDoneStageId(((cs as any)?.coc_access_done_stage_id as string | null) || null);
     if (!activePipeline && p && p.length) {
       const want = new URLSearchParams(window.location.search).get("pipeline");
       const paid = (p as any[]).find((x) => x.type === "paid");
