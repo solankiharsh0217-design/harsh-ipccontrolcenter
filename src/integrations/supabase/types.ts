@@ -1319,6 +1319,7 @@ export type Database = {
           country: string | null
           created_at: string
           email: string | null
+          finance_dead_stage_ids: string[]
           finance_success_stage_ids: string[]
           gstin: string | null
           guide_video_id: string | null
@@ -1364,6 +1365,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           email?: string | null
+          finance_dead_stage_ids?: string[]
           finance_success_stage_ids?: string[]
           gstin?: string | null
           guide_video_id?: string | null
@@ -1409,6 +1411,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           email?: string | null
+          finance_dead_stage_ids?: string[]
           finance_success_stage_ids?: string[]
           gstin?: string | null
           guide_video_id?: string | null
@@ -7901,6 +7904,7 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: boolean
       }
+      get_finance_dead_stage_ids: { Args: never; Returns: string[] }
       get_finance_success_stage_ids: { Args: never; Returns: string[] }
       get_invoice_assets_storage_diagnostics: { Args: never; Returns: Json }
       has_module_access: {
