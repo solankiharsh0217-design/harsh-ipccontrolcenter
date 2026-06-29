@@ -1337,7 +1337,7 @@ export default function Crm() {
             <button onClick={() => setAssignOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Users className="w-3.5 h-3.5" /> Assign</button>
             {(() => {
               const pipe = pipelines.find((p) => p.id === activePipeline) as any;
-              if (!pipe || pipe.pipeline_type !== "paid") return null;
+              if (!pipe || !(pipe.type === "paid" || pipe.pipeline_type === "paid")) return null;
               return (
                 <button onClick={() => setSendOpsOpen(true)} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Send paid clients to Operations CRM for service delivery">
                   <ExternalLink className="w-3.5 h-3.5" /> Send to Operations
