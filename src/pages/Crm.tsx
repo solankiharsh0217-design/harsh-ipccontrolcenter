@@ -1248,7 +1248,7 @@ export default function Crm() {
                     <div className="font-serif text-[13px]">More filters</div>
                     <div className="flex items-center gap-2">
                       {advancedActiveCount > 0 && (
-                        <button onClick={() => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("hide"); setTagFilter([]); setStageFilter([]); }} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Reset</button>
+                        <button onClick={() => { setGradeFilter([]); setAttendanceGradeFilter([]); setMinAttendedMinutes(0); setAttendanceDataFilter("any"); setConvertedFilter("hide"); setTagFilter([]); setStageFilter([]); setCocFilter("all"); }} className="text-[10px] text-muted-foreground hover:text-black underline underline-offset-2">Reset</button>
                       )}
                     </div>
                   </div>
