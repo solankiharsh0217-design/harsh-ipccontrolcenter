@@ -1407,6 +1407,17 @@ export default function Crm() {
           }
           tagFilter.forEach((tid) => chips.push(<FilterChip key={`t-${tid}`} label={`Tag: ${tagNameLookup[tid] || tid}`} onClear={() => setTagFilter(tagFilter.filter((x) => x !== tid))} />));
           stageFilter.forEach((sid) => chips.push(<FilterChip key={`s-${sid}`} label={`Stage: ${stageNameLookupLocal[sid] || sid}`} onClear={() => setStageFilter(stageFilter.filter((x) => x !== sid))} />));
+          if (cocFilter !== "all") {
+            const cocLbl: Record<CocFilter, string> = {
+              all: "",
+              not_sent: "CoC not sent",
+              sent_not_opened: "Sent · link not opened",
+              opened_not_signed: "Link opened · not signed",
+              signed_not_access_done: "Signed · access not done",
+              access_done: "Access done",
+            };
+            chips.push(<FilterChip key="coc" label={`CoC: ${cocLbl[cocFilter]}`} onClear={() => setCocFilter("all")} />);
+          }
           const MAX = 6;
           const visible = chipsExpanded ? chips : chips.slice(0, MAX);
           const hidden = chips.length - visible.length;
