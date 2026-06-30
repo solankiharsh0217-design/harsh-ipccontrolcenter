@@ -180,6 +180,94 @@ export default function CompanySettingsPage() {
     } finally { setSaving(false); }
   }
 
+  const bonusResources: BonusResource[] = Array.isArray((s as any).bonus_resources) ? (s as any).bonus_resources : [];
+  const setBonusResources = (next: BonusResource[]) => setS((p) => ({ ...p, bonus_resources: next } as any));
+  const addBonusResource = () => setBonusResources([...bonusResources, { id: `r_${Date.now()}`, title: "New bonus", description: "", url: "", type: "Training", active: true }]);
+  const updateBonusResource = (idx: number, patch: Partial<BonusResource>) => setBonusResources(bonusResources.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  const removeBonusResource = (idx: number) => setBonusResources(bonusResources.filter((_, i) => i !== idx));
+  const moveBonusResource = (idx: number, dir: -1 | 1) => {
+    const j = idx + dir; if (j < 0 || j >= bonusResources.length) return;
+    const next = [...bonusResources]; [next[idx], next[j]] = [next[j], next[idx]]; setBonusResources(next);
+  };
+
+  const [bonusSaving, setBonusSaving] = useState(false);
+  const [bonusPreviewOpen, setBonusPreviewOpen] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [termsSaving, setTermsSaving] = useState(false);
+
+  async function saveBonusEmail() {
+    if (!user) return;
+    setBonusSaving(true);
+    try {
+      const saved = await saveCompanySettings({
+        bonus_email_auto_send: (s as any).bonus_email_auto_send !== false,
+        bonus_email_subject: (s as any).bonus_email_subject ?? "",
+        bonus_email_body: (s as any).bonus_email_body ?? "",
+        bonus_email_support_email: (s as any).bonus_email_support_email ?? "",
+        bonus_email_subscription_duration: (s as any).bonus_email_subscription_duration ?? "",
+        bonus_resources: bonusResources,
+      } as any, user.id);
+      if (saved) setS(saved);
+      toast.success("Bonus email settings saved.");
+    } catch (e: any) { toast.error(e?.message || "Save failed"); }
+    finally { setBonusSaving(false); }
+  }
+
+  async function saveBonusTermsNewVersion() {
+    if (!user) return;
+    setTermsSaving(true);
+    try {
+      const nextVersion = Number((s as any).bonus_terms_version || 0) + 1;
+      const saved = await saveCompanySettings({
+        bonus_terms_text: (s as any).bonus_terms_text ?? "",
+        bonus_terms_version: nextVersion,
+        bonus_terms_updated_at: new Date().toISOString(),
+      } as any, user.id);
+      if (saved) setS(saved);
+      toast.success(`Bonus terms saved as version ${nextVersion}.`);
+    } catch (e: any) { toast.error(e?.message || "Save failed"); }
+    finally { setTermsSaving(false); }
+  }
+
+  async function sendBonusTestEmail() {
+    if (!testEmail.trim()) { toast.error("Enter a test email address"); return; }
+    setTestSending(true);
+    try {
+      // Persist current edits first so test uses latest copy
+      if (user) {
+        await saveCompanySettings({
+          bonus_email_subject: (s as any).bonus_email_subject ?? "",
+          bonus_email_body: (s as any).bonus_email_body ?? "",
+          bonus_email_support_email: (s as any).bonus_email_support_email ?? "",
+          bonus_email_subscription_duration: (s as any).bonus_email_subscription_duration ?? "",
+          bonus_resources: bonusResources,
+        } as any, user.id);
+      }
+      const { data, error } = await supabase.functions.invoke("send-bonus-access-email", { body: { mode: "test", test_email: testEmail.trim() } });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data?.message || "Send failed");
+      toast.success(`Test email sent to ${testEmail.trim()}`);
+    } catch (e: any) { toast.error(e?.message || "Test send failed"); }
+    finally { setTestSending(false); }
+  }
+
+  function renderBonusPreview() {
+    const subject = String((s as any).bonus_email_subject || "");
+    const bodyRaw = String((s as any).bonus_email_body || "");
+    const support = String((s as any).bonus_email_support_email || "");
+    const dur = String((s as any).bonus_email_subscription_duration || "");
+    const ctx: Record<string, string> = {
+      member_name: "Sample Member",
+      support_email: support,
+      activation_date: new Date().toLocaleDateString("en-IN", { dateStyle: "long" }),
+      subscription_duration: dur,
+    };
+    const subj = subject.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => ctx[k] ?? "");
+    const body = bodyRaw.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => ctx[k] ?? "");
+    return { subj, body, support, dur };
+  }
+
   const set = (k: keyof CompanySettings, v: any) => setS((p) => ({ ...p, [k]: v }));
 
   async function uploadAsset(kind: AssetKind, file: File) {
