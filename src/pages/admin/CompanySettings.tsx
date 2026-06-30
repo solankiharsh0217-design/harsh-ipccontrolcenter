@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { loadCompanySettings, saveCompanySettings } from "@/lib/invoices/api";
-import type { CompanySettings } from "@/lib/invoices/types";
+import type { CompanySettings, BonusResource } from "@/lib/invoices/types";
 
 const FIELD_GROUPS: { title: string; fields: { key: keyof CompanySettings; label: string; multiline?: boolean }[] }[] = [
   { title: "Business Identity", fields: [
@@ -178,6 +178,94 @@ export default function CompanySettingsPage() {
     } catch (e: any) {
       toast.error(e?.message || "Save failed");
     } finally { setSaving(false); }
+  }
+
+  const bonusResources: BonusResource[] = Array.isArray((s as any).bonus_resources) ? (s as any).bonus_resources : [];
+  const setBonusResources = (next: BonusResource[]) => setS((p) => ({ ...p, bonus_resources: next } as any));
+  const addBonusResource = () => setBonusResources([...bonusResources, { id: `r_${Date.now()}`, title: "New bonus", description: "", url: "", type: "Training", active: true }]);
+  const updateBonusResource = (idx: number, patch: Partial<BonusResource>) => setBonusResources(bonusResources.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  const removeBonusResource = (idx: number) => setBonusResources(bonusResources.filter((_, i) => i !== idx));
+  const moveBonusResource = (idx: number, dir: -1 | 1) => {
+    const j = idx + dir; if (j < 0 || j >= bonusResources.length) return;
+    const next = [...bonusResources]; [next[idx], next[j]] = [next[j], next[idx]]; setBonusResources(next);
+  };
+
+  const [bonusSaving, setBonusSaving] = useState(false);
+  const [bonusPreviewOpen, setBonusPreviewOpen] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [termsSaving, setTermsSaving] = useState(false);
+
+  async function saveBonusEmail() {
+    if (!user) return;
+    setBonusSaving(true);
+    try {
+      const saved = await saveCompanySettings({
+        bonus_email_auto_send: (s as any).bonus_email_auto_send !== false,
+        bonus_email_subject: (s as any).bonus_email_subject ?? "",
+        bonus_email_body: (s as any).bonus_email_body ?? "",
+        bonus_email_support_email: (s as any).bonus_email_support_email ?? "",
+        bonus_email_subscription_duration: (s as any).bonus_email_subscription_duration ?? "",
+        bonus_resources: bonusResources,
+      } as any, user.id);
+      if (saved) setS(saved);
+      toast.success("Bonus email settings saved.");
+    } catch (e: any) { toast.error(e?.message || "Save failed"); }
+    finally { setBonusSaving(false); }
+  }
+
+  async function saveBonusTermsNewVersion() {
+    if (!user) return;
+    setTermsSaving(true);
+    try {
+      const nextVersion = Number((s as any).bonus_terms_version || 0) + 1;
+      const saved = await saveCompanySettings({
+        bonus_terms_text: (s as any).bonus_terms_text ?? "",
+        bonus_terms_version: nextVersion,
+        bonus_terms_updated_at: new Date().toISOString(),
+      } as any, user.id);
+      if (saved) setS(saved);
+      toast.success(`Bonus terms saved as version ${nextVersion}.`);
+    } catch (e: any) { toast.error(e?.message || "Save failed"); }
+    finally { setTermsSaving(false); }
+  }
+
+  async function sendBonusTestEmail() {
+    if (!testEmail.trim()) { toast.error("Enter a test email address"); return; }
+    setTestSending(true);
+    try {
+      // Persist current edits first so test uses latest copy
+      if (user) {
+        await saveCompanySettings({
+          bonus_email_subject: (s as any).bonus_email_subject ?? "",
+          bonus_email_body: (s as any).bonus_email_body ?? "",
+          bonus_email_support_email: (s as any).bonus_email_support_email ?? "",
+          bonus_email_subscription_duration: (s as any).bonus_email_subscription_duration ?? "",
+          bonus_resources: bonusResources,
+        } as any, user.id);
+      }
+      const { data, error } = await supabase.functions.invoke("send-bonus-access-email", { body: { mode: "test", test_email: testEmail.trim() } });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data?.message || "Send failed");
+      toast.success(`Test email sent to ${testEmail.trim()}`);
+    } catch (e: any) { toast.error(e?.message || "Test send failed"); }
+    finally { setTestSending(false); }
+  }
+
+  function renderBonusPreview() {
+    const subject = String((s as any).bonus_email_subject || "");
+    const bodyRaw = String((s as any).bonus_email_body || "");
+    const support = String((s as any).bonus_email_support_email || "");
+    const dur = String((s as any).bonus_email_subscription_duration || "");
+    const ctx: Record<string, string> = {
+      member_name: "Sample Member",
+      support_email: support,
+      activation_date: new Date().toLocaleDateString("en-IN", { dateStyle: "long" }),
+      subscription_duration: dur,
+    };
+    const subj = subject.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => ctx[k] ?? "");
+    const body = bodyRaw.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => ctx[k] ?? "");
+    return { subj, body, support, dur };
   }
 
   const set = (k: keyof CompanySettings, v: any) => setS((p) => ({ ...p, [k]: v }));
@@ -509,6 +597,137 @@ export default function CompanySettingsPage() {
           <Button size="sm" onClick={saveCocAutomation} disabled={saving}>
             {saving ? "Saving…" : "Save automation settings"}
           </Button>
+        </div>
+      </div>
+
+      <SectionLabel>Bonus Access Email</SectionLabel>
+      <div className="bg-white border-2 border-primary/30 rounded-xl p-5 mb-8 shadow-sm space-y-4">
+        <div className="text-[12px] text-muted-foreground">
+          Email sent to members after Code of Conduct completion. Placeholders: <code>{"{{member_name}}"}</code>, <code>{"{{support_email}}"}</code>, <code>{"{{activation_date}}"}</code>, <code>{"{{subscription_duration}}"}</code>.
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            id="bonus_email_auto_send"
+            type="checkbox"
+            className="h-4 w-4"
+            checked={(s as any).bonus_email_auto_send !== false}
+            onChange={(e) => set("bonus_email_auto_send" as any, e.target.checked)}
+          />
+          <Label htmlFor="bonus_email_auto_send" className="text-xs">Auto-send bonus email after Code of Conduct completion</Label>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs">Email subject</Label>
+            <Input value={(s as any).bonus_email_subject || ""} onChange={(e) => set("bonus_email_subject" as any, e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Support email</Label>
+            <Input value={(s as any).bonus_email_support_email || ""} onChange={(e) => set("bonus_email_support_email" as any, e.target.value)} />
+          </div>
+          <div className="col-span-2">
+            <Label className="text-xs">Subscription duration text</Label>
+            <Input value={(s as any).bonus_email_subscription_duration || ""} onChange={(e) => set("bonus_email_subscription_duration" as any, e.target.value)} />
+          </div>
+          <div className="col-span-2">
+            <Label className="text-xs">Email body</Label>
+            <Textarea rows={8} value={(s as any).bonus_email_body || ""} onChange={(e) => set("bonus_email_body" as any, e.target.value)} />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-xs font-semibold">Bonus resources</Label>
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={addBonusResource}>+ Add resource</Button>
+          </div>
+          <div className="space-y-2">
+            {bonusResources.length === 0 && <div className="text-[12px] text-muted-foreground">No bonus resources yet.</div>}
+            {bonusResources.map((r, idx) => (
+              <div key={r.id} className="border border-line rounded-lg p-3 grid grid-cols-12 gap-2 items-start">
+                <div className="col-span-4">
+                  <Label className="text-[10px]">Title</Label>
+                  <Input value={r.title || ""} onChange={(e) => updateBonusResource(idx, { title: e.target.value })} />
+                </div>
+                <div className="col-span-3">
+                  <Label className="text-[10px]">Type</Label>
+                  <select className="w-full h-10 px-2 text-sm border border-input rounded-md bg-background" value={r.type || "Training"} onChange={(e) => updateBonusResource(idx, { type: e.target.value })}>
+                    {["Training", "Prompt Sheet", "Document", "Portfolio Support", "Other"].map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-5">
+                  <Label className="text-[10px]">URL</Label>
+                  <Input value={r.url || ""} onChange={(e) => updateBonusResource(idx, { url: e.target.value })} placeholder="https://…" />
+                </div>
+                <div className="col-span-12">
+                  <Label className="text-[10px]">Description</Label>
+                  <Input value={r.description || ""} onChange={(e) => updateBonusResource(idx, { description: e.target.value })} />
+                </div>
+                <div className="col-span-12 flex items-center gap-3 text-[11px]">
+                  <label className="flex items-center gap-1.5">
+                    <input type="checkbox" checked={r.active !== false} onChange={(e) => updateBonusResource(idx, { active: e.target.checked })} />
+                    Active
+                  </label>
+                  <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => moveBonusResource(idx, -1)} disabled={idx === 0}>↑ Move up</button>
+                  <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => moveBonusResource(idx, 1)} disabled={idx === bonusResources.length - 1}>↓ Move down</button>
+                  <button type="button" className="ml-auto text-destructive hover:underline" onClick={() => removeBonusResource(idx)}>Remove</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-line">
+          <Button size="sm" variant="outline" onClick={() => setBonusPreviewOpen((v) => !v)}>{bonusPreviewOpen ? "Hide preview" : "Preview email"}</Button>
+          <Input className="max-w-[260px] h-9" placeholder="you@example.com" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} />
+          <Button size="sm" variant="outline" disabled={testSending} onClick={sendBonusTestEmail}>{testSending ? "Sending…" : "Send test email"}</Button>
+          <Button size="sm" className="ml-auto" onClick={saveBonusEmail} disabled={bonusSaving}>{bonusSaving ? "Saving…" : "Save bonus email settings"}</Button>
+        </div>
+
+        {bonusPreviewOpen && (() => {
+          const { subj, body, support, dur } = renderBonusPreview();
+          const active = bonusResources.filter((r) => r.active !== false);
+          return (
+            <div className="border border-line rounded-lg p-4 bg-muted/30">
+              <div className="text-[11px] text-muted-foreground mb-2">PREVIEW · placeholder values shown with sample data</div>
+              <div className="bg-white rounded p-4 border border-line">
+                <div className="text-[11px] text-muted-foreground">Subject</div>
+                <div className="font-semibold mb-3">{subj}</div>
+                <div className="text-sm whitespace-pre-wrap">{body}</div>
+                <div className="mt-4">
+                  <div className="text-sm font-semibold mb-1">Your Bonus Resources</div>
+                  <ul className="list-disc pl-5 space-y-1 text-sm">
+                    {active.length === 0 && <li className="text-muted-foreground">No active resources</li>}
+                    {active.map((r) => (
+                      <li key={r.id}>
+                        <span className="font-medium">{r.title}</span>
+                        {r.type && <span className="text-muted-foreground text-xs"> · {r.type}</span>}
+                        {r.description && <div className="text-xs text-muted-foreground">{r.description}</div>}
+                        {r.url && <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-primary break-all">{r.url}</a>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="text-xs text-muted-foreground mt-4">Support: {support || "—"} · Subscription: {dur || "—"}</div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      <SectionLabel>Bonus Agreement Terms</SectionLabel>
+      <div className="bg-white border border-line rounded-xl p-5 mb-8 space-y-3">
+        <div className="text-[12px] text-muted-foreground">
+          Current version: <span className="font-mono">v{(s as any).bonus_terms_version || 1}</span>
+          {(s as any).bonus_terms_updated_at ? <> · updated {new Date((s as any).bonus_terms_updated_at).toLocaleString("en-IN")}</> : null}
+        </div>
+        <div>
+          <Label className="text-xs">Bonus terms text</Label>
+          <Textarea rows={10} value={(s as any).bonus_terms_text || ""} onChange={(e) => set("bonus_terms_text" as any, e.target.value)} />
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          Saving as a new version increments the version number. Already-accepted members keep their original snapshot — they are not forced to re-accept.
+        </div>
+        <div className="flex justify-end">
+          <Button size="sm" onClick={saveBonusTermsNewVersion} disabled={termsSaving}>{termsSaving ? "Saving…" : "Save as new version"}</Button>
         </div>
       </div>
 

@@ -49,6 +49,24 @@ export interface CompanySettings {
   coc_access_done_stage_id?: string | null;
   coc_auto_move_link_opened?: boolean | null;
   coc_auto_move_access_done?: boolean | null;
+  bonus_email_auto_send?: boolean | null;
+  bonus_email_subject?: string | null;
+  bonus_email_body?: string | null;
+  bonus_email_support_email?: string | null;
+  bonus_email_subscription_duration?: string | null;
+  bonus_resources?: BonusResource[] | null;
+  bonus_terms_text?: string | null;
+  bonus_terms_version?: number | null;
+  bonus_terms_updated_at?: string | null;
+}
+
+export interface BonusResource {
+  id: string;
+  title: string;
+  description?: string;
+  url?: string;
+  type?: "Training" | "Prompt Sheet" | "Document" | "Portfolio Support" | "Other" | string;
+  active?: boolean;
 }
 
 export interface InvoiceSettings {

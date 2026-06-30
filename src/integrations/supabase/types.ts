@@ -916,6 +916,11 @@ export type Database = {
           acknowledgement_ip: string | null
           acknowledgement_user_agent: string | null
           admin_copy_email_sent_at: string | null
+          bonus_email_sent_at: string | null
+          bonus_email_template_version: number | null
+          bonus_terms_accepted_at: string | null
+          bonus_terms_text_snapshot: string | null
+          bonus_terms_version_accepted: number | null
           cancelled_at: string | null
           cancelled_reason: string | null
           corrected_contact_email: string | null
@@ -927,6 +932,7 @@ export type Database = {
           email_error: string | null
           first_opened_at: string | null
           id: string
+          last_bonus_email_resent_at: string | null
           last_email_attempt_at: string | null
           last_email_error: string | null
           last_email_error_code: string | null
@@ -967,6 +973,11 @@ export type Database = {
           acknowledgement_ip?: string | null
           acknowledgement_user_agent?: string | null
           admin_copy_email_sent_at?: string | null
+          bonus_email_sent_at?: string | null
+          bonus_email_template_version?: number | null
+          bonus_terms_accepted_at?: string | null
+          bonus_terms_text_snapshot?: string | null
+          bonus_terms_version_accepted?: number | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
           corrected_contact_email?: string | null
@@ -978,6 +989,7 @@ export type Database = {
           email_error?: string | null
           first_opened_at?: string | null
           id?: string
+          last_bonus_email_resent_at?: string | null
           last_email_attempt_at?: string | null
           last_email_error?: string | null
           last_email_error_code?: string | null
@@ -1018,6 +1030,11 @@ export type Database = {
           acknowledgement_ip?: string | null
           acknowledgement_user_agent?: string | null
           admin_copy_email_sent_at?: string | null
+          bonus_email_sent_at?: string | null
+          bonus_email_template_version?: number | null
+          bonus_terms_accepted_at?: string | null
+          bonus_terms_text_snapshot?: string | null
+          bonus_terms_version_accepted?: number | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
           corrected_contact_email?: string | null
@@ -1029,6 +1046,7 @@ export type Database = {
           email_error?: string | null
           first_opened_at?: string | null
           id?: string
+          last_bonus_email_resent_at?: string | null
           last_email_attempt_at?: string | null
           last_email_error?: string | null
           last_email_error_code?: string | null
@@ -1321,6 +1339,15 @@ export type Database = {
           bank_branch: string | null
           bank_ifsc: string | null
           bank_name: string | null
+          bonus_email_auto_send: boolean
+          bonus_email_body: string | null
+          bonus_email_subject: string | null
+          bonus_email_subscription_duration: string | null
+          bonus_email_support_email: string | null
+          bonus_resources: Json
+          bonus_terms_text: string | null
+          bonus_terms_updated_at: string | null
+          bonus_terms_version: number
           brand_name: string | null
           business_type: string | null
           city: string | null
@@ -1371,6 +1398,15 @@ export type Database = {
           bank_branch?: string | null
           bank_ifsc?: string | null
           bank_name?: string | null
+          bonus_email_auto_send?: boolean
+          bonus_email_body?: string | null
+          bonus_email_subject?: string | null
+          bonus_email_subscription_duration?: string | null
+          bonus_email_support_email?: string | null
+          bonus_resources?: Json
+          bonus_terms_text?: string | null
+          bonus_terms_updated_at?: string | null
+          bonus_terms_version?: number
           brand_name?: string | null
           business_type?: string | null
           city?: string | null
@@ -1421,6 +1457,15 @@ export type Database = {
           bank_branch?: string | null
           bank_ifsc?: string | null
           bank_name?: string | null
+          bonus_email_auto_send?: boolean
+          bonus_email_body?: string | null
+          bonus_email_subject?: string | null
+          bonus_email_subscription_duration?: string | null
+          bonus_email_support_email?: string | null
+          bonus_resources?: Json
+          bonus_terms_text?: string | null
+          bonus_terms_updated_at?: string | null
+          bonus_terms_version?: number
           brand_name?: string | null
           business_type?: string | null
           city?: string | null

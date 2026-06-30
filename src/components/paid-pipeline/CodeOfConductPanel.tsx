@@ -757,6 +757,10 @@ export default function CodeOfConductPanel(props: Props) {
         </div>
         );
       })()}
+
+      {req && (
+        <BonusEmailSection req={req} memberName={memberName} memberEmail={req.signed_member_email || req.member_email || emailOverride} isAdmin={isAdmin} onSent={load} />
+      )}
     </div>
   );
 }
@@ -811,5 +815,78 @@ function SignedMoreMenu(props: {
 function MenuItem({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
   return (
     <button onClick={onClick} disabled={disabled} className="w-full text-left px-3 py-1.5 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white">{children}</button>
+  );
+}
+
+function BonusEmailSection({ req, memberName, memberEmail, isAdmin, onSent }: { req: any; memberName: string; memberEmail: string; isAdmin: boolean; onSent: () => void }) {
+  const [confirm, setConfirm] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [tplVersion, setTplVersion] = useState<number | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("company_settings").select("bonus_terms_version").order("created_at", { ascending: true }).limit(1).maybeSingle();
+      if (data) setTplVersion((data as any).bonus_terms_version || 1);
+    })();
+  }, []);
+  const fmt = (v?: string | null) => v ? new Date(v).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
+  const sentAt: string | null = req.bonus_email_sent_at || null;
+  const resentAt: string | null = req.last_bonus_email_resent_at || null;
+  const sendable = req.status === "signed" && !!memberEmail;
+
+  async function doResend() {
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-bonus-access-email", { body: { request_id: req.id, mode: "resend" } });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data?.message || "Send failed");
+      sonnerToast.success("Bonus email resent to member");
+      setConfirm(false);
+      onSent();
+    } catch (e: any) { sonnerToast.error(e?.message || "Resend failed"); }
+    finally { setSending(false); }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-line bg-white p-3.5">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">🎁 Bonus Access Email</div>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium border ${sentAt ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
+          {sentAt ? "Sent" : "Not sent"}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11.5px]">
+        <div><span className="text-muted-foreground">First sent: </span>{fmt(sentAt)}</div>
+        <div><span className="text-muted-foreground">Last resent: </span>{fmt(resentAt)}</div>
+        <div><span className="text-muted-foreground">Terms accepted: </span>{fmt(req.bonus_terms_accepted_at)}</div>
+        <div><span className="text-muted-foreground">Terms version: </span>{req.bonus_terms_version_accepted ?? "—"}</div>
+      </div>
+      {isAdmin && (
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={() => setConfirm(true)}
+            disabled={!sendable}
+            className="text-[11.5px] px-3 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50"
+            title={sendable ? "Send the latest bonus email copy to this member" : "Available after Code of Conduct is signed"}
+          >Resend Bonus Email</button>
+        </div>
+      )}
+      {confirm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !sending && setConfirm(false)}>
+          <div className="bg-white rounded-xl border border-line w-full max-w-md p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="text-[15px] font-semibold mb-2">Send the latest bonus email copy to this member?</div>
+            <div className="space-y-1 text-[12.5px]">
+              <Row k="Member" v={memberName} />
+              <Row k="Email" v={memberEmail || "—"} />
+              <Row k="Template terms version" v={tplVersion ? `v${tplVersion}` : "—"} />
+              {sentAt && <Row k="Original sent" v={fmt(sentAt)} />}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setConfirm(false)} disabled={sending} className="ipc-btn ipc-btn-ghost">Cancel</button>
+              <button onClick={doResend} disabled={sending} className="ipc-btn ipc-btn-black">{sending ? "Sending…" : "Send Latest Bonus Email"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
