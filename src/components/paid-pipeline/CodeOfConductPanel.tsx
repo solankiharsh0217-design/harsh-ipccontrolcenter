@@ -757,6 +757,10 @@ export default function CodeOfConductPanel(props: Props) {
         </div>
         );
       })()}
+
+      {req && (
+        <BonusEmailSection req={req} memberName={memberName} memberEmail={req.signed_member_email || req.member_email || emailOverride} isAdmin={isAdmin} onSent={load} />
+      )}
     </div>
   );
 }
