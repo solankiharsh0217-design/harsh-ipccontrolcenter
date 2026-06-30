@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { loadCompanySettings, saveCompanySettings } from "@/lib/invoices/api";
-import type { CompanySettings } from "@/lib/invoices/types";
+import type { CompanySettings, BonusResource } from "@/lib/invoices/types";
 
 const FIELD_GROUPS: { title: string; fields: { key: keyof CompanySettings; label: string; multiline?: boolean }[] }[] = [
   { title: "Business Identity", fields: [
