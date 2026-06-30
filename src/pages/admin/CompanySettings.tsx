@@ -600,6 +600,137 @@ export default function CompanySettingsPage() {
         </div>
       </div>
 
+      <SectionLabel>Bonus Access Email</SectionLabel>
+      <div className="bg-white border-2 border-primary/30 rounded-xl p-5 mb-8 shadow-sm space-y-4">
+        <div className="text-[12px] text-muted-foreground">
+          Email sent to members after Code of Conduct completion. Placeholders: <code>{"{{member_name}}"}</code>, <code>{"{{support_email}}"}</code>, <code>{"{{activation_date}}"}</code>, <code>{"{{subscription_duration}}"}</code>.
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            id="bonus_email_auto_send"
+            type="checkbox"
+            className="h-4 w-4"
+            checked={(s as any).bonus_email_auto_send !== false}
+            onChange={(e) => set("bonus_email_auto_send" as any, e.target.checked)}
+          />
+          <Label htmlFor="bonus_email_auto_send" className="text-xs">Auto-send bonus email after Code of Conduct completion</Label>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs">Email subject</Label>
+            <Input value={(s as any).bonus_email_subject || ""} onChange={(e) => set("bonus_email_subject" as any, e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Support email</Label>
+            <Input value={(s as any).bonus_email_support_email || ""} onChange={(e) => set("bonus_email_support_email" as any, e.target.value)} />
+          </div>
+          <div className="col-span-2">
+            <Label className="text-xs">Subscription duration text</Label>
+            <Input value={(s as any).bonus_email_subscription_duration || ""} onChange={(e) => set("bonus_email_subscription_duration" as any, e.target.value)} />
+          </div>
+          <div className="col-span-2">
+            <Label className="text-xs">Email body</Label>
+            <Textarea rows={8} value={(s as any).bonus_email_body || ""} onChange={(e) => set("bonus_email_body" as any, e.target.value)} />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-xs font-semibold">Bonus resources</Label>
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={addBonusResource}>+ Add resource</Button>
+          </div>
+          <div className="space-y-2">
+            {bonusResources.length === 0 && <div className="text-[12px] text-muted-foreground">No bonus resources yet.</div>}
+            {bonusResources.map((r, idx) => (
+              <div key={r.id} className="border border-line rounded-lg p-3 grid grid-cols-12 gap-2 items-start">
+                <div className="col-span-4">
+                  <Label className="text-[10px]">Title</Label>
+                  <Input value={r.title || ""} onChange={(e) => updateBonusResource(idx, { title: e.target.value })} />
+                </div>
+                <div className="col-span-3">
+                  <Label className="text-[10px]">Type</Label>
+                  <select className="w-full h-10 px-2 text-sm border border-input rounded-md bg-background" value={r.type || "Training"} onChange={(e) => updateBonusResource(idx, { type: e.target.value })}>
+                    {["Training", "Prompt Sheet", "Document", "Portfolio Support", "Other"].map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-5">
+                  <Label className="text-[10px]">URL</Label>
+                  <Input value={r.url || ""} onChange={(e) => updateBonusResource(idx, { url: e.target.value })} placeholder="https://…" />
+                </div>
+                <div className="col-span-12">
+                  <Label className="text-[10px]">Description</Label>
+                  <Input value={r.description || ""} onChange={(e) => updateBonusResource(idx, { description: e.target.value })} />
+                </div>
+                <div className="col-span-12 flex items-center gap-3 text-[11px]">
+                  <label className="flex items-center gap-1.5">
+                    <input type="checkbox" checked={r.active !== false} onChange={(e) => updateBonusResource(idx, { active: e.target.checked })} />
+                    Active
+                  </label>
+                  <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => moveBonusResource(idx, -1)} disabled={idx === 0}>↑ Move up</button>
+                  <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => moveBonusResource(idx, 1)} disabled={idx === bonusResources.length - 1}>↓ Move down</button>
+                  <button type="button" className="ml-auto text-destructive hover:underline" onClick={() => removeBonusResource(idx)}>Remove</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-line">
+          <Button size="sm" variant="outline" onClick={() => setBonusPreviewOpen((v) => !v)}>{bonusPreviewOpen ? "Hide preview" : "Preview email"}</Button>
+          <Input className="max-w-[260px] h-9" placeholder="you@example.com" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} />
+          <Button size="sm" variant="outline" disabled={testSending} onClick={sendBonusTestEmail}>{testSending ? "Sending…" : "Send test email"}</Button>
+          <Button size="sm" className="ml-auto" onClick={saveBonusEmail} disabled={bonusSaving}>{bonusSaving ? "Saving…" : "Save bonus email settings"}</Button>
+        </div>
+
+        {bonusPreviewOpen && (() => {
+          const { subj, body, support, dur } = renderBonusPreview();
+          const active = bonusResources.filter((r) => r.active !== false);
+          return (
+            <div className="border border-line rounded-lg p-4 bg-muted/30">
+              <div className="text-[11px] text-muted-foreground mb-2">PREVIEW · placeholder values shown with sample data</div>
+              <div className="bg-white rounded p-4 border border-line">
+                <div className="text-[11px] text-muted-foreground">Subject</div>
+                <div className="font-semibold mb-3">{subj}</div>
+                <div className="text-sm whitespace-pre-wrap">{body}</div>
+                <div className="mt-4">
+                  <div className="text-sm font-semibold mb-1">Your Bonus Resources</div>
+                  <ul className="list-disc pl-5 space-y-1 text-sm">
+                    {active.length === 0 && <li className="text-muted-foreground">No active resources</li>}
+                    {active.map((r) => (
+                      <li key={r.id}>
+                        <span className="font-medium">{r.title}</span>
+                        {r.type && <span className="text-muted-foreground text-xs"> · {r.type}</span>}
+                        {r.description && <div className="text-xs text-muted-foreground">{r.description}</div>}
+                        {r.url && <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-primary break-all">{r.url}</a>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="text-xs text-muted-foreground mt-4">Support: {support || "—"} · Subscription: {dur || "—"}</div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      <SectionLabel>Bonus Agreement Terms</SectionLabel>
+      <div className="bg-white border border-line rounded-xl p-5 mb-8 space-y-3">
+        <div className="text-[12px] text-muted-foreground">
+          Current version: <span className="font-mono">v{(s as any).bonus_terms_version || 1}</span>
+          {(s as any).bonus_terms_updated_at ? <> · updated {new Date((s as any).bonus_terms_updated_at).toLocaleString("en-IN")}</> : null}
+        </div>
+        <div>
+          <Label className="text-xs">Bonus terms text</Label>
+          <Textarea rows={10} value={(s as any).bonus_terms_text || ""} onChange={(e) => set("bonus_terms_text" as any, e.target.value)} />
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          Saving as a new version increments the version number. Already-accepted members keep their original snapshot — they are not forced to re-accept.
+        </div>
+        <div className="flex justify-end">
+          <Button size="sm" onClick={saveBonusTermsNewVersion} disabled={termsSaving}>{termsSaving ? "Saving…" : "Save as new version"}</Button>
+        </div>
+      </div>
+
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Company Settings"}</Button>
       </div>
