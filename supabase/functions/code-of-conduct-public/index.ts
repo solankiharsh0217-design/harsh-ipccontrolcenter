@@ -598,8 +598,27 @@ Deno.serve(async (req) => {
       await admin.functions.invoke('send-coc-signed-copy', { body: { request_id: updated.id } });
     } catch (e) { console.warn('signed copy dispatch fail', e); }
 
+    // Fire-and-forget bonus access email (auto mode). Must never block CoC completion.
+    if (bonusCfg.autoSend && bonusTermsAccepted && !updated.bonus_email_sent_at) {
+      try {
+        const { data: bonusRes, error: bonusErr } = await admin.functions.invoke('send-bonus-access-email', { body: { request_id: updated.id, mode: 'auto' } });
+        if (bonusErr || (bonusRes && bonusRes.ok === false)) {
+          const msg = bonusErr?.message || bonusRes?.message || 'unknown';
+          await admin.from('code_of_conduct_requests').update({ bonus_email_last_error: String(msg).slice(0, 500), bonus_email_last_error_at: new Date().toISOString() }).eq('id', updated.id);
+        } else {
+          await admin.from('code_of_conduct_requests').update({ bonus_email_last_error: null, bonus_email_last_error_at: null }).eq('id', updated.id);
+        }
+      } catch (e) {
+        console.warn('bonus email auto-send failed', e);
+        try {
+          await admin.from('code_of_conduct_requests').update({ bonus_email_last_error: (e as Error).message?.slice(0, 500) || 'invoke failed', bonus_email_last_error_at: new Date().toISOString() }).eq('id', updated.id);
+        } catch { /* ignore */ }
+      }
+    }
+
     // Auto-move CRM lead to Access Done stage if enabled and gating conditions met
     try { await admin.rpc('coc_maybe_move_access_done', { _request_id: updated.id }); } catch (e) { console.warn('access_done auto-move on sign failed', e); }
+
 
     try {
       await admin.from('notifications').insert({
