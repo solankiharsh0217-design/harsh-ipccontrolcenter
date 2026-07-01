@@ -351,6 +351,17 @@ export default function CodeOfConductSign() {
             </div>
           </section>
 
+          {bonusTermsRequired && (
+            <section className="rounded-lg border border-amber-200 bg-amber-50/60 p-4">
+              <h2 className="text-sm font-semibold text-slate-800 mb-2">Bonus Access Terms {bonusTermsVersion ? <span className="text-[11px] font-normal text-slate-500">· v{bonusTermsVersion}</span> : null}</h2>
+              <div className="text-[13px] text-slate-700 whitespace-pre-line leading-relaxed max-h-72 overflow-auto pr-1">{bonusTermsText}</div>
+              <label className="mt-3 flex items-start gap-3 text-[13.5px] text-slate-800">
+                <input type="checkbox" className="mt-0.5 w-4 h-4 accent-slate-900" checked={bonusTermsAccepted} onChange={(e) => setBonusTermsAccepted(e.target.checked)} />
+                <span>I agree to the Bonus Access Terms. <span className="text-rose-500">*</span></span>
+              </label>
+            </section>
+          )}
+
           {error && <div className="text-sm text-rose-600 border border-rose-200 bg-rose-50 rounded-md px-3 py-2">{error}</div>}
 
           <button onClick={submit} disabled={!canSubmit}
