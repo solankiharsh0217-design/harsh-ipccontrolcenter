@@ -77,7 +77,7 @@ async function loadGuideProgress(admin: any, requestId: string) {
   };
 }
 
-function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null, guideVideo: any = null, guideProgress: any = null) {
+function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null, guideVideo: any = null, guideProgress: any = null, bonusTerms: any = null) {
   return {
     ok: true,
     request: {
@@ -95,6 +95,8 @@ function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, sig
       signed_pdf_generated_at: r.signed_pdf_generated_at || null,
       signed_pdf_generation_error: r.signed_pdf_generation_error || null,
       signed_receipt_url: r.status === 'signed' ? signedReceiptHtmlUrl : null,
+      bonus_terms_accepted_at: r.bonus_terms_accepted_at || null,
+      bonus_terms_version_accepted: r.bonus_terms_version_accepted ?? null,
     },
     template: t ? {
       name: t.name,
@@ -109,6 +111,17 @@ function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, sig
     } : null,
     guide_video: guideVideo,
     guide_progress: guideProgress,
+    bonus_terms: bonusTerms,
+  };
+}
+
+async function loadBonusTerms(admin: any) {
+  const { data } = await admin.from('company_settings').select('bonus_terms_text,bonus_terms_version,bonus_email_auto_send').order('created_at', { ascending: true }).limit(1).maybeSingle();
+  if (!data) return { terms: null, autoSend: true };
+  const text = String(data.bonus_terms_text || '').trim();
+  return {
+    terms: text ? { text, version: Number(data.bonus_terms_version || 1) } : null,
+    autoSend: data.bonus_email_auto_send !== false,
   };
 }
 
