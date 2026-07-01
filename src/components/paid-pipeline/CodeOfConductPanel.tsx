@@ -846,20 +846,31 @@ function BonusEmailSection({ req, memberName, memberEmail, isAdmin, onSent }: { 
     finally { setSending(false); }
   }
 
+  const lastError: string | null = req.bonus_email_last_error || null;
+  const lastErrorAt: string | null = req.bonus_email_last_error_at || null;
+  const hasFailure = !!lastError && !sentAt;
+
   return (
     <div className="mt-4 rounded-xl border border-line bg-white p-3.5">
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">🎁 Bonus Access Email</div>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium border ${sentAt ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
-          {sentAt ? "Sent" : "Not sent"}
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium border ${sentAt ? "bg-emerald-50 text-emerald-700 border-emerald-200" : hasFailure ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
+          {sentAt ? "Sent" : hasFailure ? "Failed" : "Not sent"}
         </span>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11.5px]">
         <div><span className="text-muted-foreground">First sent: </span>{fmt(sentAt)}</div>
         <div><span className="text-muted-foreground">Last resent: </span>{fmt(resentAt)}</div>
-        <div><span className="text-muted-foreground">Terms accepted: </span>{fmt(req.bonus_terms_accepted_at)}</div>
+        <div><span className="text-muted-foreground">Terms accepted: </span>{req.bonus_terms_accepted_at ? <span className="text-emerald-700 font-medium">✓ {fmt(req.bonus_terms_accepted_at)}</span> : <span className="text-slate-500">—</span>}</div>
         <div><span className="text-muted-foreground">Terms version: </span>{req.bonus_terms_version_accepted ?? "—"}</div>
       </div>
+      {hasFailure && (
+        <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11.5px] text-rose-800">
+          <div className="font-medium">Bonus email failed{lastErrorAt ? ` at ${fmt(lastErrorAt)}` : ""}.</div>
+          <div className="mt-0.5 break-words opacity-90">{lastError}</div>
+          {isAdmin && <div className="mt-1 opacity-80">Use Resend Bonus Email below to retry with the latest copy.</div>}
+        </div>
+      )}
       {isAdmin && (
         <div className="mt-3 flex justify-end">
           <button
@@ -867,7 +878,7 @@ function BonusEmailSection({ req, memberName, memberEmail, isAdmin, onSent }: { 
             disabled={!sendable}
             className="text-[11.5px] px-3 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50"
             title={sendable ? "Send the latest bonus email copy to this member" : "Available after Code of Conduct is signed"}
-          >Resend Bonus Email</button>
+          >{hasFailure ? "Retry Bonus Email" : "Resend Bonus Email"}</button>
         </div>
       )}
       {confirm && (
