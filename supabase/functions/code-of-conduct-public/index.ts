@@ -546,6 +546,14 @@ Deno.serve(async (req) => {
       return publicError('ACKNOWLEDGEMENT_REQUIRED', 'All acknowledgements must be checked.', 400);
     }
 
+    // Bonus terms gate: if terms are configured, member must accept before signing.
+    const bonusCfg = await loadBonusTerms(admin);
+    const bonusTermsAccepted = body.bonus_terms_accepted === true;
+    if (bonusCfg.terms && !bonusTermsAccepted) {
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'BONUS_TERMS_REQUIRED' } });
+      return publicError('BONUS_TERMS_REQUIRED', 'Please accept the Bonus Access Terms to continue.', 400);
+    }
+
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('cf-connecting-ip') || null;
     const ua = req.headers.get('user-agent') || null;
     const now = new Date().toISOString();
@@ -553,7 +561,7 @@ Deno.serve(async (req) => {
     const trimmedName = signatureName.trim().slice(0, 200);
     const signedEmail = (body.email || reqRow.member_email || '').toString().trim().slice(0, 200);
 
-    const { data: updated, error: updErr } = await admin.from('code_of_conduct_requests').update({
+    const signUpdate: Record<string, unknown> = {
       status: 'signed',
       signed_at: now,
       signature_name: trimmedName,
@@ -565,7 +573,16 @@ Deno.serve(async (req) => {
       acknowledgement_checklist: acknowledgementLabels,
       signed_member_email: signedEmail,
       signed_member_name: trimmedName,
-    }).eq('id', reqRow.id).select().single();
+    };
+    if (bonusCfg.terms && bonusTermsAccepted && !reqRow.bonus_terms_accepted_at) {
+      signUpdate.bonus_terms_accepted_at = now;
+      signUpdate.bonus_terms_version_accepted = bonusCfg.terms.version;
+      signUpdate.bonus_terms_text_snapshot = bonusCfg.terms.text;
+      signUpdate.bonus_terms_accepted_ip = ip;
+      signUpdate.bonus_terms_accepted_user_agent = ua?.slice(0, 500) || null;
+    }
+
+    const { data: updated, error: updErr } = await admin.from('code_of_conduct_requests').update(signUpdate).eq('id', reqRow.id).select().single();
     if (updErr) throw updErr;
 
     await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'signed', metadata: { ip, ua } });
