@@ -155,13 +155,19 @@ export default function CodeOfConductSign() {
     if (!name.trim()) { setError("Please type your full name."); return; }
     if (acks.some((a) => !a)) { setError("Please acknowledge all items."); return; }
     if (!hasDrawn) { setError("Please draw your signature before submitting."); return; }
+    if (bonusTermsRequired && !bonusTermsAccepted) { setError("Please accept the Bonus Access Terms to continue."); return; }
     setSubmitting(true); setError(null);
     const sig = hasDrawn ? canvasRef.current?.toDataURL("image/png") : null;
     try {
       const resp = await fetch(FN_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: ANON, Authorization: `Bearer ${ANON}` },
-        body: JSON.stringify({ token, action: "sign", signature_name: name, signature_data_url: sig, acknowledgements: acks, acknowledgement_labels: ACK_ITEMS }),
+        body: JSON.stringify({
+          token, action: "sign", signature_name: name, signature_data_url: sig,
+          acknowledgements: acks, acknowledgement_labels: ACK_ITEMS,
+          bonus_terms_accepted: bonusTermsRequired ? bonusTermsAccepted : false,
+          bonus_terms_version: bonusTermsVersion,
+        }),
       });
       const json = await resp.json();
       if (!resp.ok) { setError(ERROR_MESSAGES[json.error_code] || json.message || json.error || "Failed to submit"); }
