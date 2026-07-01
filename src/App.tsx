@@ -57,6 +57,8 @@ import ConversionRulesAdmin from "./pages/admin/ConversionRules";
 import LeadRescueSearch from "./pages/admin/LeadRescueSearch";
 import Tasks from "./pages/Tasks";
 import FinanceSuccessDashboard from "./pages/FinanceSuccessDashboard";
+import ResourceLibrary from "./pages/ResourceLibrary";
+import ResourceLibraryAdmin from "./pages/admin/ResourceLibraryAdmin";
 
 import type { ModuleKey } from "@/lib/modules";
 
@@ -141,6 +143,8 @@ const App = () => (
             <Route path="/system-refinement-checklist" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="/tasks" element={<Shell><Tasks /></Shell>} />
             <Route path="/finance-success-dashboard" element={<Shell><FinanceSuccessDashboard /></Shell>} />
+            <Route path="/resource-library" element={<Shell><ResourceLibrary /></Shell>} />
+            <Route path="/admin-center/resource-library" element={<Shell admin><ResourceLibraryAdmin /></Shell>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -44,6 +44,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/invoices": "Invoices",
   "/admin-center/item-catalog": "Invoice Item Catalog",
   "/admin-center/tax-codes": "SAC / HSN Master",
+  "/resource-library": "IPC Resource Library",
+  "/admin-center/resource-library": "IPC Resource Library",
 };
 
 const NavItem = ({ to, children, badge, count, show = true }: { to: string; children: ReactNode; badge?: boolean; count?: number; show?: boolean }) => {
@@ -200,6 +202,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <NavItem to="/operations-crm" show={!isAdmin && hasModule("operations_crm")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M5 8l2 2 4-5"/></></Icon>
             Operations CRM
+          </NavItem>
+          <NavItem to="/resource-library">
+            <Icon><><path d="M2 3h5v10H2z"/><path d="M8 3h6v10H8z"/><path d="M2 3h12"/></></Icon>
+            Resource Library
           </NavItem>
 
           {isAdmin && (

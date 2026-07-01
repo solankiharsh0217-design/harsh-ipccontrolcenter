@@ -6044,6 +6044,108 @@ export type Database = {
         }
         Relationships: []
       }
+      resource_library_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      resource_library_items: {
+        Row: {
+          allowed_module_keys: string[]
+          allowed_role_keys: string[]
+          archived_at: string | null
+          category: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          file_name: string | null
+          file_size: number | null
+          id: string
+          is_published: boolean
+          mime_type: string | null
+          resource_type: string
+          resource_url: string | null
+          storage_path: string | null
+          tags: string[]
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+          visibility: string
+        }
+        Insert: {
+          allowed_module_keys?: string[]
+          allowed_role_keys?: string[]
+          archived_at?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          is_published?: boolean
+          mime_type?: string | null
+          resource_type: string
+          resource_url?: string | null
+          storage_path?: string | null
+          tags?: string[]
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          visibility?: string
+        }
+        Update: {
+          allowed_module_keys?: string[]
+          allowed_role_keys?: string[]
+          archived_at?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          is_published?: boolean
+          mime_type?: string | null
+          resource_type?: string
+          resource_url?: string | null
+          storage_path?: string | null
+          tags?: string[]
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          visibility?: string
+        }
+        Relationships: []
+      }
       roas_ad_spends: {
         Row: {
           created_at: string
@@ -7980,6 +8082,14 @@ export type Database = {
       can_delete_offer_item: { Args: { _id: string }; Returns: boolean }
       can_manage_invoice_settings: {
         Args: { user_uuid: string }
+        Returns: boolean
+      }
+      can_view_resource_library_item: {
+        Args: {
+          _allowed_module_keys: string[]
+          _allowed_role_keys: string[]
+          _visibility: string
+        }
         Returns: boolean
       }
       coc_advance_lead_stage: {
