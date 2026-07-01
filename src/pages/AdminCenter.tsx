@@ -106,6 +106,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "IPC Resource Library",
+      desc: "Upload, organize, and share team resources, files, templates, links, and assets.",
+      cta: "Manage Resource Library",
+      to: "/admin-center/resource-library",
+      show: isAdmin,
+    },
+    {
       title: "Service Packages / Tiers",
       desc: "Define the service tiers (Normal, Specialized, Premium…) you can attach during paid lead import. Carries from Calling CRM → Paid Pipeline → Operations.",
       cta: "Open Service Packages",
