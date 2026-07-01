@@ -43,10 +43,14 @@ export default function CodeOfConductSign() {
   const [pdfPreparing, setPdfPreparing] = useState(false);
   const [name, setName] = useState("");
   const [acks, setAcks] = useState<boolean[]>([false, false, false, false]);
+  const [bonusTermsAccepted, setBonusTermsAccepted] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const [hasDrawn, setHasDrawn] = useState(false);
-  const canSubmit = !!name.trim() && acks.every(Boolean) && hasDrawn && !submitting;
+  const bonusTermsText: string = (data as any)?.bonus_terms?.text || "";
+  const bonusTermsVersion: number | null = (data as any)?.bonus_terms?.version ?? null;
+  const bonusTermsRequired = !!bonusTermsText.trim();
+  const canSubmit = !!name.trim() && acks.every(Boolean) && hasDrawn && !submitting && (!bonusTermsRequired || bonusTermsAccepted);
 
   useEffect(() => {
     (async () => {
