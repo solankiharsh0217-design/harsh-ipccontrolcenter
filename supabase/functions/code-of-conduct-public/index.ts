@@ -476,7 +476,8 @@ Deno.serve(async (req) => {
       const signedRequestPdf = await resolveSignedPdfUrl(admin, reqRow.signed_pdf_url || null);
       const guideVideo = await loadGuideVideoConfig(admin);
       const guideProgress = await loadGuideProgress(admin, reqRow.id);
-      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl, guideVideo, guideProgress));
+      const { terms: bonusTerms } = await loadBonusTerms(admin);
+      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl, guideVideo, guideProgress, bonusTerms));
     }
 
     if (action === 'record_guide_progress') {
