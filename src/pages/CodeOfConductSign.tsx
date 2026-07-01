@@ -43,10 +43,14 @@ export default function CodeOfConductSign() {
   const [pdfPreparing, setPdfPreparing] = useState(false);
   const [name, setName] = useState("");
   const [acks, setAcks] = useState<boolean[]>([false, false, false, false]);
+  const [bonusTermsAccepted, setBonusTermsAccepted] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
   const [hasDrawn, setHasDrawn] = useState(false);
-  const canSubmit = !!name.trim() && acks.every(Boolean) && hasDrawn && !submitting;
+  const bonusTermsText: string = (data as any)?.bonus_terms?.text || "";
+  const bonusTermsVersion: number | null = (data as any)?.bonus_terms?.version ?? null;
+  const bonusTermsRequired = !!bonusTermsText.trim();
+  const canSubmit = !!name.trim() && acks.every(Boolean) && hasDrawn && !submitting && (!bonusTermsRequired || bonusTermsAccepted);
 
   useEffect(() => {
     (async () => {
@@ -151,13 +155,19 @@ export default function CodeOfConductSign() {
     if (!name.trim()) { setError("Please type your full name."); return; }
     if (acks.some((a) => !a)) { setError("Please acknowledge all items."); return; }
     if (!hasDrawn) { setError("Please draw your signature before submitting."); return; }
+    if (bonusTermsRequired && !bonusTermsAccepted) { setError("Please accept the Bonus Access Terms to continue."); return; }
     setSubmitting(true); setError(null);
     const sig = hasDrawn ? canvasRef.current?.toDataURL("image/png") : null;
     try {
       const resp = await fetch(FN_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: ANON, Authorization: `Bearer ${ANON}` },
-        body: JSON.stringify({ token, action: "sign", signature_name: name, signature_data_url: sig, acknowledgements: acks, acknowledgement_labels: ACK_ITEMS }),
+        body: JSON.stringify({
+          token, action: "sign", signature_name: name, signature_data_url: sig,
+          acknowledgements: acks, acknowledgement_labels: ACK_ITEMS,
+          bonus_terms_accepted: bonusTermsRequired ? bonusTermsAccepted : false,
+          bonus_terms_version: bonusTermsVersion,
+        }),
       });
       const json = await resp.json();
       if (!resp.ok) { setError(ERROR_MESSAGES[json.error_code] || json.message || json.error || "Failed to submit"); }
@@ -340,6 +350,17 @@ export default function CodeOfConductSign() {
               <div><span className="text-slate-500">Email: </span>{request.member_email}</div>
             </div>
           </section>
+
+          {bonusTermsRequired && (
+            <section className="rounded-lg border border-amber-200 bg-amber-50/60 p-4">
+              <h2 className="text-sm font-semibold text-slate-800 mb-2">Bonus Access Terms {bonusTermsVersion ? <span className="text-[11px] font-normal text-slate-500">· v{bonusTermsVersion}</span> : null}</h2>
+              <div className="text-[13px] text-slate-700 whitespace-pre-line leading-relaxed max-h-72 overflow-auto pr-1">{bonusTermsText}</div>
+              <label className="mt-3 flex items-start gap-3 text-[13.5px] text-slate-800">
+                <input type="checkbox" className="mt-0.5 w-4 h-4 accent-slate-900" checked={bonusTermsAccepted} onChange={(e) => setBonusTermsAccepted(e.target.checked)} />
+                <span>I agree to the Bonus Access Terms. <span className="text-rose-500">*</span></span>
+              </label>
+            </section>
+          )}
 
           {error && <div className="text-sm text-rose-600 border border-rose-200 bg-rose-50 rounded-md px-3 py-2">{error}</div>}
 

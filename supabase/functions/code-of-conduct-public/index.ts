@@ -77,7 +77,7 @@ async function loadGuideProgress(admin: any, requestId: string) {
   };
 }
 
-function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null, guideVideo: any = null, guideProgress: any = null) {
+function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null, guideVideo: any = null, guideProgress: any = null, bonusTerms: any = null) {
   return {
     ok: true,
     request: {
@@ -95,6 +95,8 @@ function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, sig
       signed_pdf_generated_at: r.signed_pdf_generated_at || null,
       signed_pdf_generation_error: r.signed_pdf_generation_error || null,
       signed_receipt_url: r.status === 'signed' ? signedReceiptHtmlUrl : null,
+      bonus_terms_accepted_at: r.bonus_terms_accepted_at || null,
+      bonus_terms_version_accepted: r.bonus_terms_version_accepted ?? null,
     },
     template: t ? {
       name: t.name,
@@ -109,6 +111,17 @@ function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, sig
     } : null,
     guide_video: guideVideo,
     guide_progress: guideProgress,
+    bonus_terms: bonusTerms,
+  };
+}
+
+async function loadBonusTerms(admin: any) {
+  const { data } = await admin.from('company_settings').select('bonus_terms_text,bonus_terms_version,bonus_email_auto_send').order('created_at', { ascending: true }).limit(1).maybeSingle();
+  if (!data) return { terms: null, autoSend: true };
+  const text = String(data.bonus_terms_text || '').trim();
+  return {
+    terms: text ? { text, version: Number(data.bonus_terms_version || 1) } : null,
+    autoSend: data.bonus_email_auto_send !== false,
   };
 }
 
@@ -463,7 +476,8 @@ Deno.serve(async (req) => {
       const signedRequestPdf = await resolveSignedPdfUrl(admin, reqRow.signed_pdf_url || null);
       const guideVideo = await loadGuideVideoConfig(admin);
       const guideProgress = await loadGuideProgress(admin, reqRow.id);
-      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl, guideVideo, guideProgress));
+      const { terms: bonusTerms } = await loadBonusTerms(admin);
+      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl, guideVideo, guideProgress, bonusTerms));
     }
 
     if (action === 'record_guide_progress') {
@@ -532,6 +546,14 @@ Deno.serve(async (req) => {
       return publicError('ACKNOWLEDGEMENT_REQUIRED', 'All acknowledgements must be checked.', 400);
     }
 
+    // Bonus terms gate: if terms are configured, member must accept before signing.
+    const bonusCfg = await loadBonusTerms(admin);
+    const bonusTermsAccepted = body.bonus_terms_accepted === true;
+    if (bonusCfg.terms && !bonusTermsAccepted) {
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'BONUS_TERMS_REQUIRED' } });
+      return publicError('BONUS_TERMS_REQUIRED', 'Please accept the Bonus Access Terms to continue.', 400);
+    }
+
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('cf-connecting-ip') || null;
     const ua = req.headers.get('user-agent') || null;
     const now = new Date().toISOString();
@@ -539,7 +561,7 @@ Deno.serve(async (req) => {
     const trimmedName = signatureName.trim().slice(0, 200);
     const signedEmail = (body.email || reqRow.member_email || '').toString().trim().slice(0, 200);
 
-    const { data: updated, error: updErr } = await admin.from('code_of_conduct_requests').update({
+    const signUpdate: Record<string, unknown> = {
       status: 'signed',
       signed_at: now,
       signature_name: trimmedName,
@@ -551,7 +573,16 @@ Deno.serve(async (req) => {
       acknowledgement_checklist: acknowledgementLabels,
       signed_member_email: signedEmail,
       signed_member_name: trimmedName,
-    }).eq('id', reqRow.id).select().single();
+    };
+    if (bonusCfg.terms && bonusTermsAccepted && !reqRow.bonus_terms_accepted_at) {
+      signUpdate.bonus_terms_accepted_at = now;
+      signUpdate.bonus_terms_version_accepted = bonusCfg.terms.version;
+      signUpdate.bonus_terms_text_snapshot = bonusCfg.terms.text;
+      signUpdate.bonus_terms_accepted_ip = ip;
+      signUpdate.bonus_terms_accepted_user_agent = ua?.slice(0, 500) || null;
+    }
+
+    const { data: updated, error: updErr } = await admin.from('code_of_conduct_requests').update(signUpdate).eq('id', reqRow.id).select().single();
     if (updErr) throw updErr;
 
     await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'signed', metadata: { ip, ua } });
@@ -567,8 +598,27 @@ Deno.serve(async (req) => {
       await admin.functions.invoke('send-coc-signed-copy', { body: { request_id: updated.id } });
     } catch (e) { console.warn('signed copy dispatch fail', e); }
 
+    // Fire-and-forget bonus access email (auto mode). Must never block CoC completion.
+    if (bonusCfg.autoSend && bonusTermsAccepted && !updated.bonus_email_sent_at) {
+      try {
+        const { data: bonusRes, error: bonusErr } = await admin.functions.invoke('send-bonus-access-email', { body: { request_id: updated.id, mode: 'auto' } });
+        if (bonusErr || (bonusRes && bonusRes.ok === false)) {
+          const msg = bonusErr?.message || bonusRes?.message || 'unknown';
+          await admin.from('code_of_conduct_requests').update({ bonus_email_last_error: String(msg).slice(0, 500), bonus_email_last_error_at: new Date().toISOString() }).eq('id', updated.id);
+        } else {
+          await admin.from('code_of_conduct_requests').update({ bonus_email_last_error: null, bonus_email_last_error_at: null }).eq('id', updated.id);
+        }
+      } catch (e) {
+        console.warn('bonus email auto-send failed', e);
+        try {
+          await admin.from('code_of_conduct_requests').update({ bonus_email_last_error: (e as Error).message?.slice(0, 500) || 'invoke failed', bonus_email_last_error_at: new Date().toISOString() }).eq('id', updated.id);
+        } catch { /* ignore */ }
+      }
+    }
+
     // Auto-move CRM lead to Access Done stage if enabled and gating conditions met
     try { await admin.rpc('coc_maybe_move_access_done', { _request_id: updated.id }); } catch (e) { console.warn('access_done auto-move on sign failed', e); }
+
 
     try {
       await admin.from('notifications').insert({
