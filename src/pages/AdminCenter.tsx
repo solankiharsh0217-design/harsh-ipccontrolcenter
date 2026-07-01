@@ -99,8 +99,8 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
-      title: "Offer / Service Catalog",
-      desc: "Configure the services and offer presets your team can promise paid buyers during import (ad support, bonus sessions, portfolio review, etc.).",
+      title: "Offer Catalog",
+      desc: "Manage promised services, bonuses, and offer presets.",
       cta: "Open Offer Catalog",
       to: "/admin-center/offer-catalog",
       show: isAdmin,
