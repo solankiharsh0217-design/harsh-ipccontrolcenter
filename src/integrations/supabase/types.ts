@@ -916,9 +916,13 @@ export type Database = {
           acknowledgement_ip: string | null
           acknowledgement_user_agent: string | null
           admin_copy_email_sent_at: string | null
+          bonus_email_last_error: string | null
+          bonus_email_last_error_at: string | null
           bonus_email_sent_at: string | null
           bonus_email_template_version: number | null
           bonus_terms_accepted_at: string | null
+          bonus_terms_accepted_ip: string | null
+          bonus_terms_accepted_user_agent: string | null
           bonus_terms_text_snapshot: string | null
           bonus_terms_version_accepted: number | null
           cancelled_at: string | null
@@ -973,9 +977,13 @@ export type Database = {
           acknowledgement_ip?: string | null
           acknowledgement_user_agent?: string | null
           admin_copy_email_sent_at?: string | null
+          bonus_email_last_error?: string | null
+          bonus_email_last_error_at?: string | null
           bonus_email_sent_at?: string | null
           bonus_email_template_version?: number | null
           bonus_terms_accepted_at?: string | null
+          bonus_terms_accepted_ip?: string | null
+          bonus_terms_accepted_user_agent?: string | null
           bonus_terms_text_snapshot?: string | null
           bonus_terms_version_accepted?: number | null
           cancelled_at?: string | null
@@ -1030,9 +1038,13 @@ export type Database = {
           acknowledgement_ip?: string | null
           acknowledgement_user_agent?: string | null
           admin_copy_email_sent_at?: string | null
+          bonus_email_last_error?: string | null
+          bonus_email_last_error_at?: string | null
           bonus_email_sent_at?: string | null
           bonus_email_template_version?: number | null
           bonus_terms_accepted_at?: string | null
+          bonus_terms_accepted_ip?: string | null
+          bonus_terms_accepted_user_agent?: string | null
           bonus_terms_text_snapshot?: string | null
           bonus_terms_version_accepted?: number | null
           cancelled_at?: string | null
