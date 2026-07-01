@@ -141,12 +141,18 @@ Deno.serve(async (req) => {
     const t = await resp.text();
     if (!resp.ok) {
       await admin.from('code_of_conduct_events').insert({ request_id: r.id, event_type: 'bonus_email_failed', metadata: { mode, error: t, status: resp.status } });
+      try {
+        await admin.from('code_of_conduct_requests').update({
+          bonus_email_last_error: `Resend ${resp.status}: ${t}`.slice(0, 500),
+          bonus_email_last_error_at: new Date().toISOString(),
+        }).eq('id', r.id);
+      } catch { /* ignore */ }
       return fail('EMAIL_PROVIDER_REJECTED', `Resend ${resp.status}: ${t}`, 502);
     }
     let providerId: string | null = null;
     try { providerId = JSON.parse(t)?.id || null; } catch { /* ignore */ }
 
-    const patch: Record<string, unknown> = { bonus_email_template_version: templateVersion };
+    const patch: Record<string, unknown> = { bonus_email_template_version: templateVersion, bonus_email_last_error: null, bonus_email_last_error_at: null };
     if (mode === 'auto' || !r.bonus_email_sent_at) {
       patch.bonus_email_sent_at = sentAt;
     }
