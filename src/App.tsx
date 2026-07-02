@@ -59,6 +59,7 @@ import Tasks from "./pages/Tasks";
 import FinanceSuccessDashboard from "./pages/FinanceSuccessDashboard";
 import ResourceLibrary from "./pages/ResourceLibrary";
 import ResourceLibraryAdmin from "./pages/admin/ResourceLibraryAdmin";
+import DreamTurnoverPlanner from "./pages/DreamTurnoverPlanner";
 
 import type { ModuleKey } from "@/lib/modules";
 
@@ -82,6 +83,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/code-of-conduct/sign/:token" element={<CodeOfConductSign />} />
             <Route path="/code-of-conduct-guide/:token" element={<CodeOfConductGuide />} />
+            <Route path="/dream-turnover-planner" element={<DreamTurnoverPlanner />} />
             <Route path="/admin-center/code-of-conduct" element={<Shell admin><CodeOfConductAdmin /></Shell>} />
             <Route path="/code-of-conduct/signed-pdf/:requestId" element={<Shell admin><CodeOfConductSignedPdf /></Shell>} />
             <Route path="/code-of-conduct/receipt/:requestId" element={<Shell admin><CodeOfConductReceipt /></Shell>} />
