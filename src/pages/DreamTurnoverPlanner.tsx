@@ -324,7 +324,7 @@ export default function DreamTurnoverPlanner() {
         <div className="mt-3 uppercase-label">Dream Turnover Planner</div>
       </header>
 
-      <main className="max-w-[760px] mx-auto px-4 pb-24">
+      <main className={`${step === 4 ? "max-w-[1100px]" : "max-w-[760px]"} mx-auto px-4 pb-24`}>
         <Steps />
 
         {savedFlash && (
@@ -495,29 +495,29 @@ export default function DreamTurnoverPlanner() {
               <div className="section-divider">Revenue Plan</div>
 
               {/* Desktop table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="hidden md:block overflow-x-auto -mx-2">
+                <table className="w-full text-sm border-collapse" style={{ minWidth: 960 }}>
                   <thead>
                     <tr className="text-left text-[10px] uppercase tracking-widest text-muted-foreground border-b border-line">
-                      <th className="py-2 pr-2">Package</th>
-                      <th className="py-2 pr-2">Price</th>
-                      <th className="py-2 pr-2">Book/mo</th>
-                      <th className="py-2 pr-2">Quot/mo</th>
-                      <th className="py-2 pr-2">Leads/mo</th>
-                      <th className="py-2 pr-2">Leads/day</th>
-                      <th className="py-2 pr-2">Book/yr</th>
-                      <th className="py-2 pr-2">Rev/mo</th>
-                      <th className="py-2 pr-2">Rev/yr</th>
-                      <th />
+                      <th className="py-2 px-3" style={{ minWidth: 170 }}>Package</th>
+                      <th className="py-2 px-3" style={{ minWidth: 95 }}>Price</th>
+                      <th className="py-2 px-3" style={{ minWidth: 90 }}>Book/mo</th>
+                      <th className="py-2 px-3" style={{ minWidth: 80 }}>Quot/mo</th>
+                      <th className="py-2 px-3" style={{ minWidth: 80 }}>Leads/mo</th>
+                      <th className="py-2 px-3" style={{ minWidth: 80 }}>Leads/day</th>
+                      <th className="py-2 px-3" style={{ minWidth: 80 }}>Book/yr</th>
+                      <th className="py-2 px-3" style={{ minWidth: 100 }}>Rev/mo</th>
+                      <th className="py-2 px-3" style={{ minWidth: 110 }}>Rev/yr</th>
+                      <th className="py-2 px-2" style={{ width: 40 }} />
                     </tr>
                   </thead>
                   <tbody>
                     {rowsCalc.map((x) => (
                       <tr key={x.r.id} className="border-b border-line">
-                        <td className="py-2 pr-2">
+                        <td className="py-2 px-3">
                           <select
                             className="ipc-input"
-                            style={{ height: 36 }}
+                            style={{ height: 36, minWidth: 150, paddingRight: 28 }}
                             value={x.r.pkgId}
                             onChange={(e) => updateRow(x.r.id, { pkgId: e.target.value })}
                           >
@@ -527,8 +527,8 @@ export default function DreamTurnoverPlanner() {
                             ))}
                           </select>
                         </td>
-                        <td className="py-2 pr-2 bg-off text-black">{x.price ? inr(x.price) : "—"}</td>
-                        <td className="py-2 pr-2">
+                        <td className="py-2 px-3 bg-off text-black whitespace-nowrap">{x.price ? inr(x.price) : "—"}</td>
+                        <td className="py-2 px-3">
                           <input
                             className="ipc-input"
                             style={{ height: 36, width: 80 }}
@@ -538,17 +538,18 @@ export default function DreamTurnoverPlanner() {
                             onChange={(e) => updateRow(x.r.id, { bookings: e.target.value === "" ? "" : Number(e.target.value) })}
                           />
                         </td>
-                        <td className="py-2 pr-2 bg-off">{x.quotations ? Math.round(x.quotations) : "—"}</td>
-                        <td className="py-2 pr-2 bg-off">{x.leadsMo ? Math.round(x.leadsMo) : "—"}</td>
-                        <td className="py-2 pr-2 bg-off font-medium">{x.leadsDay || "—"}</td>
-                        <td className="py-2 pr-2 bg-off">{x.bookingsYr || "—"}</td>
-                        <td className="py-2 pr-2 bg-off">{x.revenueMo ? inr(x.revenueMo) : "—"}</td>
-                        <td className="py-2 pr-2 bg-off">{x.revenueYr ? inr(x.revenueYr) : "—"}</td>
-                        <td className="py-2">
+                        <td className="py-2 px-3 bg-off">{x.quotations ? Math.round(x.quotations) : "—"}</td>
+                        <td className="py-2 px-3 bg-off">{x.leadsMo ? Math.round(x.leadsMo) : "—"}</td>
+                        <td className="py-2 px-3 bg-off font-medium text-gold-deep">{x.leadsDay || "—"}</td>
+                        <td className="py-2 px-3 bg-off">{x.bookingsYr || "—"}</td>
+                        <td className="py-2 px-3 bg-off whitespace-nowrap">{x.revenueMo ? inr(x.revenueMo) : "—"}</td>
+                        <td className="py-2 px-3 bg-off whitespace-nowrap">{x.revenueYr ? inr(x.revenueYr) : "—"}</td>
+                        <td className="py-2 px-2">
                           {state.rows.length > 1 && (
                             <button
                               onClick={() => delRow(x.r.id)}
                               className="w-7 h-7 rounded-md border border-line text-muted-foreground hover:text-danger hover:border-danger"
+                              aria-label="Remove row"
                             >×</button>
                           )}
                         </td>
@@ -557,11 +558,11 @@ export default function DreamTurnoverPlanner() {
                   </tbody>
                   <tfoot>
                     <tr className="bg-gold-pale font-medium">
-                      <td className="py-3 px-2" colSpan={5}>Totals</td>
-                      <td className="py-3 px-2 text-gold-deep">{totalLeadsDay}</td>
+                      <td className="py-3 px-3" colSpan={5}>Totals</td>
+                      <td className="py-3 px-3 text-gold-deep">{totalLeadsDay}</td>
                       <td />
-                      <td className="py-3 px-2 text-gold-deep">{inr(totalRevenueMo)}</td>
-                      <td className="py-3 px-2 text-gold-deep">{inr(projectedYr)}</td>
+                      <td className="py-3 px-3 text-gold-deep whitespace-nowrap">{inr(totalRevenueMo)}</td>
+                      <td className="py-3 px-3 text-gold-deep whitespace-nowrap">{inr(projectedYr)}</td>
                       <td />
                     </tr>
                   </tfoot>
@@ -572,46 +573,49 @@ export default function DreamTurnoverPlanner() {
               <div className="md:hidden space-y-4">
                 {rowsCalc.map((x, i) => (
                   <div key={x.r.id} className="border border-line rounded-lg p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="uppercase-label">Row {i + 1}</div>
-                      {state.rows.length > 1 && (
-                        <button
-                          onClick={() => delRow(x.r.id)}
-                          className="text-xs text-muted-foreground hover:text-danger"
-                        >Remove</button>
-                      )}
-                    </div>
-                    <div>
-                      <label className="form-label">Package</label>
+                    <div className="flex items-center gap-2">
                       <select
-                        className="ipc-input"
+                        className="ipc-input flex-1"
                         value={x.r.pkgId}
                         onChange={(e) => updateRow(x.r.id, { pkgId: e.target.value })}
+                        aria-label={`Row ${i + 1} package`}
                       >
-                        <option value="">Select…</option>
+                        <option value="">Select package…</option>
                         {validPackages.map((p) => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
                       </select>
+                      {state.rows.length > 1 && (
+                        <button
+                          onClick={() => delRow(x.r.id)}
+                          className="w-10 h-10 shrink-0 rounded-md border border-line text-muted-foreground hover:text-danger hover:border-danger"
+                          aria-label="Remove row"
+                        >×</button>
+                      )}
                     </div>
-                    <div>
-                      <label className="form-label">Bookings / Month</label>
-                      <input
-                        className="ipc-input"
-                        type="number"
-                        min={0}
-                        value={x.r.bookings}
-                        onChange={(e) => updateRow(x.r.id, { bookings: e.target.value === "" ? "" : Number(e.target.value) })}
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-1">
+                        <label className="form-label">Price</label>
+                        <div className="ipc-input flex items-center bg-off">{x.price ? inr(x.price) : "—"}</div>
+                      </div>
+                      <div className="col-span-1">
+                        <label className="form-label">Bookings / Month</label>
+                        <input
+                          className="ipc-input"
+                          type="number"
+                          min={0}
+                          value={x.r.bookings}
+                          onChange={(e) => updateRow(x.r.id, { bookings: e.target.value === "" ? "" : Number(e.target.value) })}
+                        />
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm bg-off p-3 rounded-md">
-                      <div><span className="uppercase-label block">Price</span>{x.price ? inr(x.price) : "—"}</div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm bg-off p-3 rounded-md">
                       <div><span className="uppercase-label block">Quotations/mo</span>{x.quotations ? Math.round(x.quotations) : "—"}</div>
                       <div><span className="uppercase-label block">Leads/mo</span>{x.leadsMo ? Math.round(x.leadsMo) : "—"}</div>
-                      <div><span className="uppercase-label block">Leads/day</span><span className="font-medium">{x.leadsDay || "—"}</span></div>
-                      <div><span className="uppercase-label block">Book/yr</span>{x.bookingsYr || "—"}</div>
-                      <div><span className="uppercase-label block">Rev/mo</span>{x.revenueMo ? inr(x.revenueMo) : "—"}</div>
-                      <div className="col-span-2"><span className="uppercase-label block">Rev/yr</span>{x.revenueYr ? inr(x.revenueYr) : "—"}</div>
+                      <div><span className="uppercase-label block">Leads/day</span><span className="font-medium text-gold-deep">{x.leadsDay || "—"}</span></div>
+                      <div><span className="uppercase-label block">Bookings/yr</span>{x.bookingsYr || "—"}</div>
+                      <div><span className="uppercase-label block">Revenue/mo</span>{x.revenueMo ? inr(x.revenueMo) : "—"}</div>
+                      <div><span className="uppercase-label block">Revenue/yr</span><span className="font-medium text-gold-deep">{x.revenueYr ? inr(x.revenueYr) : "—"}</span></div>
                     </div>
                   </div>
                 ))}
