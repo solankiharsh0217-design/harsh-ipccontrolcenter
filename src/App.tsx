@@ -59,6 +59,7 @@ import Tasks from "./pages/Tasks";
 import FinanceSuccessDashboard from "./pages/FinanceSuccessDashboard";
 import ResourceLibrary from "./pages/ResourceLibrary";
 import ResourceLibraryAdmin from "./pages/admin/ResourceLibraryAdmin";
+import DreamTurnoverPlanner from "./pages/DreamTurnoverPlanner";
 
 import type { ModuleKey } from "@/lib/modules";
 
