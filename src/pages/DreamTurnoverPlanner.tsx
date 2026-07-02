@@ -324,7 +324,7 @@ export default function DreamTurnoverPlanner() {
         <div className="mt-3 uppercase-label">Dream Turnover Planner</div>
       </header>
 
-      <main className="max-w-[760px] mx-auto px-4 pb-24">
+      <main className={`${step === 4 ? "max-w-[1100px]" : "max-w-[760px]"} mx-auto px-4 pb-24`}>
         <Steps />
 
         {savedFlash && (
