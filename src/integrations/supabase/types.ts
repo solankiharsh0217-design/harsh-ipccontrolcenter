@@ -932,8 +932,13 @@ export type Database = {
           created_by: string | null
           crm_lead_id: string | null
           deal_value: number | null
+          email_attempt_count: number
           email_change_history: Json
           email_error: string | null
+          email_last_error_at: string | null
+          email_sent_at: string | null
+          email_sent_to: string | null
+          email_status: string | null
           first_opened_at: string | null
           id: string
           last_bonus_email_resent_at: string | null
@@ -993,8 +998,13 @@ export type Database = {
           created_by?: string | null
           crm_lead_id?: string | null
           deal_value?: number | null
+          email_attempt_count?: number
           email_change_history?: Json
           email_error?: string | null
+          email_last_error_at?: string | null
+          email_sent_at?: string | null
+          email_sent_to?: string | null
+          email_status?: string | null
           first_opened_at?: string | null
           id?: string
           last_bonus_email_resent_at?: string | null
@@ -1054,8 +1064,13 @@ export type Database = {
           created_by?: string | null
           crm_lead_id?: string | null
           deal_value?: number | null
+          email_attempt_count?: number
           email_change_history?: Json
           email_error?: string | null
+          email_last_error_at?: string | null
+          email_sent_at?: string | null
+          email_sent_to?: string | null
+          email_status?: string | null
           first_opened_at?: string | null
           id?: string
           last_bonus_email_resent_at?: string | null
