@@ -188,6 +188,9 @@ Deno.serve(async (req) => {
         token_hash: tokenHash,
         token_expires_at: expiresAt,
         last_email_attempt_at: nowIso,
+        email_status: 'pending',
+        email_sent_to: member_email,
+        email_attempt_count: 1,
         created_by: userId,
       }).select().single();
       if (error) return fail('REQUEST_CREATION_FAILED', error.message, error, 500);
@@ -195,6 +198,7 @@ Deno.serve(async (req) => {
       await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'request_created', metadata: { is_test: !!is_test }, created_by: userId });
     } else {
       const nextStatus = requestRow.status === 'signed' ? 'signed' : 'ready_to_send';
+      const nextAttempts = Number(requestRow.email_attempt_count || 0) + 1;
       const { data, error } = await admin.from('code_of_conduct_requests').update({
         token_hash: tokenHash,
         token_expires_at: expiresAt,
@@ -203,6 +207,9 @@ Deno.serve(async (req) => {
         member_phone: member_phone || requestRow.member_phone,
         status: nextStatus,
         last_email_attempt_at: nowIso,
+        email_status: 'pending',
+        email_sent_to: member_email,
+        email_attempt_count: nextAttempts,
       }).eq('id', requestRow.id).select().single();
       if (error) return fail('REQUEST_CREATION_FAILED', error.message, error, 500);
       requestRow = data;
@@ -259,7 +266,13 @@ ${htmlLines}
 
     const recordSetupError = async (code: string, msg: string) => {
       if (requestRow) {
-        await admin.from('code_of_conduct_requests').update({ last_email_error: msg, last_email_error_code: code, email_error: msg }).eq('id', requestRow.id);
+        await admin.from('code_of_conduct_requests').update({
+          last_email_error: msg,
+          last_email_error_code: code,
+          email_error: msg,
+          email_status: 'failed',
+          email_last_error_at: nowIso,
+        }).eq('id', requestRow.id);
         await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'email_failed', metadata: { error_code: code, error: msg }, created_by: userId });
       }
     };
@@ -305,7 +318,13 @@ ${htmlLines}
       else if (lower.includes('from') || lower.includes('sender')) code = 'RESEND_DOMAIN_NOT_VERIFIED';
       else if (lower.includes('invalid') && lower.includes('api')) code = 'MISSING_RESEND_API_KEY';
       if (requestRow) {
-        await admin.from('code_of_conduct_requests').update({ last_email_error: errMsg, last_email_error_code: code, email_error: errMsg }).eq('id', requestRow.id);
+        await admin.from('code_of_conduct_requests').update({
+          last_email_error: errMsg,
+          last_email_error_code: code,
+          email_error: errMsg,
+          email_status: 'failed',
+          email_last_error_at: nowIso,
+        }).eq('id', requestRow.id);
         await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'email_failed', metadata: { error_code: code, error: errMsg, status: resp.status }, created_by: userId });
       }
       return fail(code, errMsg, { provider_status: resp.status }, 502);
@@ -320,6 +339,9 @@ ${htmlLines}
         last_email_error: null,
         last_email_error_code: null,
         email_error: null,
+        email_status: 'sent',
+        email_sent_at: nowIso,
+        email_sent_to: member_email,
       }).eq('id', requestRow.id);
       await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'email_sent', metadata: { to: member_email, provider_message_id: providerMessageId, is_test: !!is_test }, created_by: userId });
       if (!is_test && paid_pipeline_lead_id) await admin.from('paid_pipeline_leads').update({ code_of_conduct_status: 'sent', code_of_conduct_request_id: requestRow.id, code_of_conduct_sent_at: nowIso }).eq('id', paid_pipeline_lead_id);
@@ -332,7 +354,13 @@ ${htmlLines}
     const msg = (e as Error)?.message || 'Unknown error';
     try {
       if (admin && requestRow) {
-        await admin.from('code_of_conduct_requests').update({ last_email_error: msg, last_email_error_code: 'UNKNOWN_EDGE_ERROR', email_error: msg }).eq('id', requestRow.id);
+        await admin.from('code_of_conduct_requests').update({
+          last_email_error: msg,
+          last_email_error_code: 'UNKNOWN_EDGE_ERROR',
+          email_error: msg,
+          email_status: 'failed',
+          email_last_error_at: new Date().toISOString(),
+        }).eq('id', requestRow.id);
         await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'email_failed', metadata: { error_code: 'UNKNOWN_EDGE_ERROR', error: msg }, created_by: userId });
       }
     } catch { /* swallow */ }
