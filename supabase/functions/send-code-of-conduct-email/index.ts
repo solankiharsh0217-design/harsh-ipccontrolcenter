@@ -166,12 +166,42 @@ Deno.serve(async (req) => {
       if (data && data.length) requestRow = data[0];
     }
 
-    const token = randomToken();
-    if (!token || token.length < 32) return fail('TOKEN_GENERATION_FAILED', 'Could not generate a secure signing token.', null, 500);
-    const tokenHash = await sha256(token);
-    const expiryDays = Number(templateRow.expiry_days || 7);
-    const expiresAt = new Date(Date.now() + expiryDays * 24 * 3600 * 1000).toISOString();
     const nowIso = new Date().toISOString();
+    const expiryDays = Number(templateRow.expiry_days || 7);
+    const graceMs = 48 * 3600 * 1000; // old link stays valid for 48h after rotation
+
+    // Reuse the existing token when it is still valid (not expired, not cancelled).
+    // Only rotate when there is no token yet, when it is expired, or when admin
+    // explicitly changes the recipient email (member_email differs and old token is stale).
+    let token: string;
+    let tokenHash: string;
+    let expiresAt: string;
+    let previousTokenHash: string | null = null;
+    let previousTokenExpiresAt: string | null = null;
+    let reusedExistingToken = false;
+
+    const existingHash: string | null = requestRow?.token_hash || null;
+    const existingExpiresAt: string | null = requestRow?.token_expires_at || null;
+    const existingStillValid = !!existingHash && (!existingExpiresAt || new Date(existingExpiresAt) > new Date()) && requestRow?.status !== 'cancelled';
+
+    if (existingStillValid) {
+      // Cannot reuse the raw token (we only store the hash); keep the same hash and
+      // extend expiry. The unchanged token in the previously-sent email keeps working.
+      tokenHash = existingHash!;
+      token = ''; // signals: reuse — do not build a new URL from a fresh token
+      expiresAt = new Date(Date.now() + expiryDays * 24 * 3600 * 1000).toISOString();
+      reusedExistingToken = true;
+    } else {
+      token = randomToken();
+      if (!token || token.length < 32) return fail('TOKEN_GENERATION_FAILED', 'Could not generate a secure signing token.', null, 500);
+      tokenHash = await sha256(token);
+      expiresAt = new Date(Date.now() + expiryDays * 24 * 3600 * 1000).toISOString();
+      // Preserve the old hash for a short grace window so any link already delivered still works.
+      if (existingHash && existingHash !== tokenHash) {
+        previousTokenHash = existingHash;
+        previousTokenExpiresAt = new Date(Date.now() + graceMs).toISOString();
+      }
+    }
 
     if (!requestRow) {
       const { data, error } = await admin.from('code_of_conduct_requests').insert({
@@ -199,7 +229,7 @@ Deno.serve(async (req) => {
     } else {
       const nextStatus = requestRow.status === 'signed' ? 'signed' : 'ready_to_send';
       const nextAttempts = Number(requestRow.email_attempt_count || 0) + 1;
-      const { data, error } = await admin.from('code_of_conduct_requests').update({
+      const updatePayload: Record<string, unknown> = {
         token_hash: tokenHash,
         token_expires_at: expiresAt,
         member_name,
@@ -210,10 +240,37 @@ Deno.serve(async (req) => {
         email_status: 'pending',
         email_sent_to: member_email,
         email_attempt_count: nextAttempts,
-      }).eq('id', requestRow.id).select().single();
+      };
+      if (previousTokenHash) {
+        updatePayload.previous_token_hash = previousTokenHash;
+        updatePayload.previous_token_expires_at = previousTokenExpiresAt;
+      }
+      const { data, error } = await admin.from('code_of_conduct_requests').update(updatePayload).eq('id', requestRow.id).select().single();
       if (error) return fail('REQUEST_CREATION_FAILED', error.message, error, 500);
       requestRow = data;
     }
+
+    // If we reused the existing token we cannot rebuild the raw URL (only hash is stored).
+    // In that case we mint a *new* token and record the old hash under previous_token_hash
+    // so both the freshly-emailed link and any previously-delivered link resolve.
+    if (reusedExistingToken) {
+      const freshToken = randomToken();
+      const freshHash = await sha256(freshToken);
+      const oldHash = requestRow.token_hash;
+      const freshExpires = new Date(Date.now() + expiryDays * 24 * 3600 * 1000).toISOString();
+      const freshPrevExpires = new Date(Date.now() + graceMs).toISOString();
+      const { data: reUpd, error: reUpdErr } = await admin.from('code_of_conduct_requests').update({
+        token_hash: freshHash,
+        token_expires_at: freshExpires,
+        previous_token_hash: oldHash,
+        previous_token_expires_at: freshPrevExpires,
+      }).eq('id', requestRow.id).select().single();
+      if (reUpdErr) return fail('TOKEN_GENERATION_FAILED', reUpdErr.message, reUpdErr, 500);
+      requestRow = reUpd;
+      token = freshToken;
+      tokenHash = freshHash;
+    }
+
 
     // The new destination is the guided page (video gate + signature + group join).
     // The old direct signature route `/code-of-conduct/sign/${token}` still works
