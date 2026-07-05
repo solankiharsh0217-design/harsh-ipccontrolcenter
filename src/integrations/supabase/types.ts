@@ -8094,6 +8094,10 @@ export type Database = {
         Returns: string
       }
       assign_next_invoice_number: { Args: never; Returns: string }
+      can_access_unassigned_leads: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       can_delete_offer_item: { Args: { _id: string }; Returns: boolean }
       can_manage_invoice_settings: {
         Args: { user_uuid: string }
