@@ -952,6 +952,8 @@ export type Database = {
           member_phone: string | null
           open_count: number
           paid_pipeline_lead_id: string | null
+          previous_token_expires_at: string | null
+          previous_token_hash: string | null
           program_name: string | null
           provider_message_id: string | null
           sent_at: string | null
@@ -1018,6 +1020,8 @@ export type Database = {
           member_phone?: string | null
           open_count?: number
           paid_pipeline_lead_id?: string | null
+          previous_token_expires_at?: string | null
+          previous_token_hash?: string | null
           program_name?: string | null
           provider_message_id?: string | null
           sent_at?: string | null
@@ -1084,6 +1088,8 @@ export type Database = {
           member_phone?: string | null
           open_count?: number
           paid_pipeline_lead_id?: string | null
+          previous_token_expires_at?: string | null
+          previous_token_hash?: string | null
           program_name?: string | null
           provider_message_id?: string | null
           sent_at?: string | null
