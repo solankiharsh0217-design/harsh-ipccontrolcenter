@@ -100,7 +100,16 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false, leg
           ? "cold"
           : "inactive";
 
-  const grade: Hotness = hasHotnessRow ? displayedHotness(hotness) : hasLegacy ? legacyHotness : "inactive";
+  // Actual verified attendance requires real recorded minutes/sessions.
+  const hasActualAttendance =
+    hasHotnessRow &&
+    ((hotness?.total_sessions_attended ?? 0) > 0 || (hotness?.total_attended_minutes ?? 0) > 0);
+
+  const grade: Hotness = hasActualAttendance
+    ? displayedHotness(hotness)
+    : hasLegacy
+      ? legacyHotness
+      : "inactive";
 
   const eff = {
     score: hotness?.score_numeric ?? (hasLegacy ? Math.round(legacy?.score ?? 0) : 0),
@@ -113,6 +122,12 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false, leg
     lastAttended: hotness?.last_attended_at ?? (hasLegacy ? legacy?.webinar_date ?? null : null),
   };
 
+  // Legacy surface = grade came from import, but no real attendance minutes/sessions recorded.
+  const isLegacyOnly = !hasActualAttendance && (hasLegacy || (hasHotnessRow && (hotness?.current_hotness ?? "inactive") !== "inactive"));
+  const legacyGradeForDisplay: Hotness = hasLegacy ? legacyHotness : (hotness?.current_hotness ?? "inactive");
+  const legacyStyle = HOTNESS_STYLE[legacyGradeForDisplay];
+  const legacyLabel = `${HOTNESS_LABEL[legacyGradeForDisplay]} from Import`;
+
   const visible = expanded ? rows : rows.slice(0, 3);
 
   return (
@@ -120,22 +135,46 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false, leg
       <div className="section-divider flex items-center justify-between">
         <span>Attendance Intelligence</span>
         {isAdmin && (
-          <button onClick={recalc} className="text-[10px] text-muted-foreground hover:text-black underline">
+          <button onClick={recalc} className="text-[10px] text-muted-foreground hover:text-black underline" title="Recalculate after importing attendance session data.">
             Recalculate
           </button>
         )}
       </div>
 
       <div className="rounded-lg border border-line bg-off/30 p-3 mb-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-          <HotnessChip grade={grade} manual={!!hotness?.manual_override} />
-          <div className="text-[10px] text-muted-foreground">
-            Score: <b className="text-foreground">{eff.score}</b>/100
+        {hasActualAttendance ? (
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Attendance Grade</span>
+              <HotnessChip grade={grade} manual={!!hotness?.manual_override} />
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              Score: <b className="text-foreground">{eff.score}</b>/100
+            </div>
           </div>
-        </div>
-        {!hasHotnessRow && hasLegacy && (
-          <div className="mb-2 text-[10px] text-muted-foreground italic">
-            Showing legacy webinar data. Click Recalculate after re-importing attendance for full breakdown.
+        ) : isLegacyOnly ? (
+          <>
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Lead Grade</span>
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border font-medium px-2 py-0.5 text-[10px]"
+                  style={{ background: legacyStyle.bg, color: legacyStyle.text, borderColor: legacyStyle.border }}
+                  title="Grade came from imported webinar data, not verified attendance"
+                >
+                  <span>{legacyStyle.emoji}</span>
+                  <span>{legacyLabel}</span>
+                </span>
+              </div>
+              <span className="text-[10px] text-muted-foreground italic">Attendance: Not recorded</span>
+            </div>
+            <div className="mb-2 text-[10px] text-muted-foreground italic">
+              This grade came from imported webinar data. Actual attendance is not recorded yet. Recalculate after importing attendance session data.
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Attendance: Not recorded</span>
           </div>
         )}
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
