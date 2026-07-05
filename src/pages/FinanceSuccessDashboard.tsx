@@ -224,6 +224,18 @@ export default function FinanceSuccessDashboard() {
     },
   });
 
+  const { data: owners = [] } = useQuery({
+    queryKey: ["fsd-owners", Array.from(new Set(crmLeads.map((l) => l.assigned_agent_id).filter(Boolean) as string[])).join(",")],
+    enabled: crmLeads.length > 0,
+    queryFn: async () => {
+      const ids = Array.from(new Set(crmLeads.map((l) => l.assigned_agent_id).filter(Boolean) as string[]));
+      if (ids.length === 0) return [] as { id: string; full_name: string | null }[];
+      const { data, error } = await supabase.from("profiles").select("id,full_name").in("id", ids);
+      if (error) throw error;
+      return (data ?? []) as { id: string; full_name: string | null }[];
+    },
+  });
+
   // Persisted success + dead stage selections
   const [successStageIds, setSuccessStageIds] = useState<string[]>([]);
   const [deadStageIds, setDeadStageIds] = useState<string[]>([]);
