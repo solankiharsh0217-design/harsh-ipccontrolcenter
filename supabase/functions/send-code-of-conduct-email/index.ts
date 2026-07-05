@@ -127,11 +127,19 @@ Deno.serve(async (req) => {
       const token = randomToken();
       const tokenHash = await sha256(token);
       const expiresAt = new Date(Date.now() + expiryDays * 24 * 3600 * 1000).toISOString();
-      const { data: updated, error: updErr } = await admin.from('code_of_conduct_requests').update({ token_hash: tokenHash, token_expires_at: expiresAt }).eq('id', existing.id).select('id,status,token_expires_at').single();
+      const previousTokenHash = existing.token_hash && existing.token_hash !== tokenHash ? existing.token_hash : null;
+      const previousTokenExpiresAt = previousTokenHash ? new Date(Date.now() + 48 * 3600 * 1000).toISOString() : null;
+      const updatePayload: Record<string, unknown> = { token_hash: tokenHash, token_expires_at: expiresAt };
+      if (previousTokenHash) {
+        updatePayload.previous_token_hash = previousTokenHash;
+        updatePayload.previous_token_expires_at = previousTokenExpiresAt;
+      }
+      const { data: updated, error: updErr } = await admin.from('code_of_conduct_requests').update(updatePayload).eq('id', existing.id).select('id,status,token_expires_at').single();
       if (updErr) return fail('TOKEN_GENERATION_FAILED', updErr.message, updErr, 500);
-      const signingLink = `${baseUrl}/code-of-conduct/sign/${token}`;
+      const signingLink = `${baseUrl}/code-of-conduct-guide/${token}`;
       await admin.from('code_of_conduct_events').insert({ request_id: existing.id, event_type: 'token_generated', metadata: { expires_at: expiresAt, source: 'admin_copy_link' }, created_by: userId });
       return jsonResponse({ ok: true, request_id: existing.id, signing_url: signingLink, token_expires_at: updated.token_expires_at, status: updated.status });
+
     }
 
     if (!member_email || typeof member_email !== 'string' || !member_email.includes('@')) return fail('MISSING_RECIPIENT_EMAIL', 'A valid recipient email is required.');
