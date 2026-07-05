@@ -461,6 +461,94 @@ export default function FinanceSuccessDashboard() {
     };
   }, [filtered]);
 
+  const incompleteAll = useMemo(() => filtered.filter((l) => l.outcome === "pending"), [filtered]);
+
+  const isChipMatch = (l: (typeof filtered)[number]) => {
+    const coc = (l.cocStatus ?? "").toLowerCase();
+    switch (incompleteChip) {
+      case "link_not_opened":
+        return !coc || /not[_ ]?sent|pending|created|queued/.test(coc);
+      case "link_opened":
+        return /opened|viewed|link[_ ]?opened/.test(coc) && !/signed/.test(coc);
+      case "signed_no_access":
+        return /signed/.test(coc) && !/access|whatsapp|group|joined/.test(coc);
+      case "balance":
+        return l.balancePending > 0;
+      case "finance":
+        return !l.financeStatus || /pending|submitted|requested/i.test(l.financeStatus);
+      case "days7":
+        return l.daysPending >= 7;
+      default:
+        return true;
+    }
+  };
+
+  const incompleteFiltered = useMemo(() => {
+    return incompleteAll.filter((l) => {
+      if (incompleteStageId !== "all" && l.stageId !== incompleteStageId) return false;
+      if (incompleteOwnerId !== "all") {
+        if (incompleteOwnerId === "__unassigned") { if (l.ownerId) return false; }
+        else if (l.ownerId !== incompleteOwnerId) return false;
+      }
+      if (incompleteBalance === "has" && !(l.balancePending > 0)) return false;
+      if (incompleteBalance === "no" && l.balancePending > 0) return false;
+      if (incompleteDays !== "all") {
+        const min = parseInt(incompleteDays, 10);
+        if (l.daysPending < min) return false;
+      }
+      if (!isChipMatch(l)) return false;
+      return true;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incompleteAll, incompleteStageId, incompleteOwnerId, incompleteBalance, incompleteDays, incompleteChip]);
+
+  const incompleteSummary = useMemo(() => {
+    const total = incompleteFiltered.length;
+    const withBalance = incompleteFiltered.filter((l) => l.balancePending > 0).length;
+    const financePending = incompleteFiltered.filter((l) => !l.financeStatus || /pending|submitted|requested/i.test(l.financeStatus)).length;
+    const cocPending = incompleteFiltered.filter((l) => {
+      const s = (l.cocStatus ?? "").toLowerCase();
+      return !s || !/access|whatsapp|group|joined/.test(s);
+    }).length;
+    const d7 = incompleteFiltered.filter((l) => l.daysPending >= 7).length;
+    const d15 = incompleteFiltered.filter((l) => l.daysPending >= 15).length;
+    return { total, withBalance, financePending, cocPending, d7, d15 };
+  }, [incompleteFiltered]);
+
+  const ownerOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const l of incompleteAll) {
+      if (l.ownerId) map.set(l.ownerId, l.ownerName || "Unnamed");
+    }
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [incompleteAll]);
+
+  const stageOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const l of incompleteAll) {
+      if (l.stageId) map.set(l.stageId, l.currentStage);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [incompleteAll]);
+
+  const exportIncompleteCsv = () => {
+    const rows = incompleteFiltered.map((l) => ({
+      name: l.name ?? "",
+      phone: l.phone ?? "",
+      email: l.email ?? "",
+      webinar_date: l.webinarDate,
+      batch: l.batchLabel,
+      current_stage: l.currentStage,
+      token: l.tokenAmount,
+      collected: l.totalCollected,
+      balance: l.balancePending,
+      finance_status: l.financeStatus ?? "",
+      owner: l.ownerName,
+      days_pending: l.daysPending,
+    }));
+    downloadCsv(`finance-incomplete-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+  };
+
   const byWebinar = useMemo(() => {
     const map = new Map<string, typeof filtered>();
     for (const l of filtered) {
