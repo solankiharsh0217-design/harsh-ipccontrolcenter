@@ -11,6 +11,7 @@ import {
   type HotnessScore,
   type Hotness,
   HOTNESS_LABEL,
+  HOTNESS_STYLE,
 } from "@/lib/leadAttendance";
 import HotnessChip from "./HotnessChip";
 
