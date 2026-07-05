@@ -861,6 +861,15 @@ export default function FinanceSuccessDashboard() {
         </Card>
       )}
 
+      <Tabs defaultValue="summary" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="summary">Webinar Summary</TabsTrigger>
+          <TabsTrigger value="incomplete">
+            Incomplete Members {incompleteAll.length > 0 && <span className="ml-1.5 rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px]">{incompleteAll.length}</span>}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="summary" className="mt-0">
       <SectionLabel>Summary</SectionLabel>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
