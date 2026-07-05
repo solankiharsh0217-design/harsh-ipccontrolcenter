@@ -382,6 +382,13 @@ export default function FinanceSuccessDashboard() {
       const outcome: Outcome = reachedSuccess ? "successful" : isDead ? "dead" : "pending";
       const batchLabel = l.webinar_name || l.webinar_source || paid?.paid_batch_name || paid?.source_webinar || "—";
 
+      const baseDateStr = l.webinar_date || l.created_at.slice(0, 10);
+      const baseDate = new Date(baseDateStr);
+      const daysPending = Number.isFinite(baseDate.getTime())
+        ? Math.max(0, Math.floor((today.getTime() - baseDate.getTime()) / 86400000))
+        : 0;
+      const ownerName = l.assigned_agent_id ? ownerById.get(l.assigned_agent_id) ?? "" : "";
+
       return {
         id: l.id,
         name: l.full_name,
@@ -403,9 +410,12 @@ export default function FinanceSuccessDashboard() {
         cocStatus: paid?.code_of_conduct_status ?? null,
         paidLeadId: paid?.id ?? null,
         hasPaidLink: !!paid,
+        daysPending,
+        ownerName,
+        ownerId: l.assigned_agent_id,
       };
     });
-  }, [crmLeads, paidLeads, payments, pipelineStages, successStageIds, deadStageIds]);
+  }, [crmLeads, paidLeads, payments, pipelineStages, successStageIds, deadStageIds, owners]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
