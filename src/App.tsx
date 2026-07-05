@@ -38,6 +38,7 @@ import SystemRefinementChecklist from "./pages/SystemRefinementChecklist";
 import CleanSlate from "./pages/CleanSlate";
 import MediaBuyerOperations from "./pages/MediaBuyerOperations";
 import OperationsCrm from "./pages/OperationsCrm";
+import OperationsRewards from "./pages/OperationsRewards";
 import NotFound from "./pages/NotFound";
 import CodeOfConductSign from "./pages/CodeOfConductSign";
 import CodeOfConductGuide from "./pages/CodeOfConductGuide";
@@ -142,6 +143,7 @@ const App = () => (
             <Route path="/admin-center/lead-rescue" element={<Shell admin><LeadRescueSearch /></Shell>} />
             <Route path="/media-buyer-operations" element={<Shell moduleKey="media_buyer_operations"><MediaBuyerOperations /></Shell>} />
             <Route path="/operations-crm" element={<Shell moduleKey="operations_crm"><OperationsCrm /></Shell>} />
+            <Route path="/operations-rewards" element={<Shell><OperationsRewards /></Shell>} />
             <Route path="/system-refinement-checklist" element={<Shell admin><SystemRefinementChecklist /></Shell>} />
             <Route path="/tasks" element={<Shell><Tasks /></Shell>} />
             <Route path="/finance-success-dashboard" element={<Shell><FinanceSuccessDashboard /></Shell>} />

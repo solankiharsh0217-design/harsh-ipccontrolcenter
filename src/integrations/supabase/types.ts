@@ -4556,6 +4556,159 @@ export type Database = {
         }
         Relationships: []
       }
+      operations_result_reward_payouts: {
+        Row: {
+          approved_count: number
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          paid_by: string | null
+          payout_status: string
+          period_end: string
+          period_start: string
+          reward_amount: number
+          team_member_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_count?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payout_status?: string
+          period_end: string
+          period_start: string
+          reward_amount?: number
+          team_member_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_count?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
+          payout_status?: string
+          period_end?: string
+          period_start?: string
+          reward_amount?: number
+          team_member_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      operations_result_reward_rules: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          min_approved_count: number
+          name: string
+          period: string
+          result_type: string | null
+          reward_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_approved_count?: number
+          name: string
+          period?: string
+          result_type?: string | null
+          reward_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          min_approved_count?: number
+          name?: string
+          period?: string
+          result_type?: string | null
+          reward_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      operations_result_submissions: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          crm_lead_id: string | null
+          description: string | null
+          id: string
+          member_name: string | null
+          operations_lead_id: string | null
+          paid_pipeline_lead_id: string | null
+          proof_file_path: string | null
+          proof_url: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          result_date: string | null
+          result_type: string
+          reward_amount: number | null
+          status: string
+          submitted_by: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          crm_lead_id?: string | null
+          description?: string | null
+          id?: string
+          member_name?: string | null
+          operations_lead_id?: string | null
+          paid_pipeline_lead_id?: string | null
+          proof_file_path?: string | null
+          proof_url?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          result_date?: string | null
+          result_type: string
+          reward_amount?: number | null
+          status?: string
+          submitted_by: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          crm_lead_id?: string | null
+          description?: string | null
+          id?: string
+          member_name?: string | null
+          operations_lead_id?: string | null
+          paid_pipeline_lead_id?: string | null
+          proof_file_path?: string | null
+          proof_url?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          result_date?: string | null
+          result_type?: string
+          reward_amount?: number | null
+          status?: string
+          submitted_by?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       operations_reward_progress: {
         Row: {
           achieved_at: string | null

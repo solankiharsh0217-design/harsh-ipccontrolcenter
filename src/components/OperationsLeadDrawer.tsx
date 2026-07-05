@@ -15,6 +15,7 @@ import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
 import ConversionsSection from "@/components/operations/ConversionsSection";
 import ReadinessChecklist from "@/components/operations/ReadinessChecklist";
+import TeamResultSubmissionPanel from "@/components/operations/TeamResultSubmissionPanel";
 import CustomFieldsPanel from "@/components/operations/CustomFieldsPanel";
 import CommTemplatePickerModal from "@/components/operations/CommTemplatePickerModal";
 import StartProcessModal from "@/components/operations/StartProcessModal";
@@ -322,6 +323,14 @@ export default function OperationsLeadDrawer({
             leadName={lead.name}
             assignedBuyerId={lead.assigned_media_buyer_id}
             onChanged={onSaved}
+          />
+
+          {/* Team Result / Reward submissions */}
+          <TeamResultSubmissionPanel
+            operationsLeadId={lead.id}
+            crmLeadId={lead.crm_lead_id}
+            paidPipelineLeadId={lead.paid_pipeline_lead_id}
+            memberName={lead.name}
           />
 
           {/* Timeline */}
