@@ -203,6 +203,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M5 8l2 2 4-5"/></></Icon>
             Operations CRM
           </NavItem>
+          <NavItem to="/operations-rewards" show={isAdmin || hasModule("operations_crm") || hasModule("media_buyer_operations")}>
+            <Icon><><path d="M4 2h8v3a4 4 0 01-8 0z"/><path d="M6 8h4v3H6z"/><path d="M5 13h6"/></></Icon>
+            Operations Rewards
+          </NavItem>
           <NavItem to="/resource-library">
             <Icon><><path d="M2 3h5v10H2z"/><path d="M8 3h6v10H8z"/><path d="M2 3h12"/></></Icon>
             Resource Library
