@@ -970,6 +970,214 @@ export default function FinanceSuccessDashboard() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="incomplete" className="mt-0">
+          <SectionLabel>Incomplete Members — Global View</SectionLabel>
+
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
+            {[
+              { label: "Total Incomplete", value: incompleteSummary.total },
+              { label: "Balance Pending", value: incompleteSummary.withBalance },
+              { label: "Finance Pending", value: incompleteSummary.financePending },
+              { label: "CoC Pending", value: incompleteSummary.cocPending },
+              { label: "7+ Days Pending", value: incompleteSummary.d7 },
+              { label: "15+ Days Pending", value: incompleteSummary.d15 },
+            ].map((c) => (
+              <Card key={c.label}>
+                <CardContent className="p-3">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{c.label}</div>
+                  <div className="text-lg font-semibold">{c.value}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Quick chips */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {([
+              ["all", "All Incomplete"],
+              ["link_not_opened", "Link Not Opened"],
+              ["link_opened", "CoC Opened, Not Signed"],
+              ["signed_no_access", "Signed, No Access"],
+              ["balance", "Balance Pending"],
+              ["finance", "Finance Pending"],
+              ["days7", "7+ Days Pending"],
+            ] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setIncompleteChip(k)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${incompleteChip === k ? "bg-primary text-primary-foreground border-primary" : "bg-white hover:bg-muted/60 border-border text-muted-foreground"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Extra filters */}
+          <div className="flex flex-wrap items-end gap-3 mb-4">
+            <div className="min-w-[200px]">
+              <label className="block text-[11px] text-muted-foreground mb-1">Current CRM stage</label>
+              <Select value={incompleteStageId} onValueChange={setIncompleteStageId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All stages</SelectItem>
+                  {stageOptions.map(([id, name]) => (
+                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[180px]">
+              <label className="block text-[11px] text-muted-foreground mb-1">Owner</label>
+              <Select value={incompleteOwnerId} onValueChange={setIncompleteOwnerId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All owners</SelectItem>
+                  <SelectItem value="__unassigned">Unassigned</SelectItem>
+                  {ownerOptions.map(([id, name]) => (
+                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[160px]">
+              <label className="block text-[11px] text-muted-foreground mb-1">Balance</label>
+              <Select value={incompleteBalance} onValueChange={(v) => setIncompleteBalance(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="has">Has Balance</SelectItem>
+                  <SelectItem value="no">No Balance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[160px]">
+              <label className="block text-[11px] text-muted-foreground mb-1">Days pending</label>
+              <Select value={incompleteDays} onValueChange={(v) => setIncompleteDays(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="3">3+ days</SelectItem>
+                  <SelectItem value="7">7+ days</SelectItem>
+                  <SelectItem value="15">15+ days</SelectItem>
+                  <SelectItem value="30">30+ days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {isAdmin && (
+              <div className="ml-auto">
+                <Button variant="outline" size="sm" onClick={exportIncompleteCsv} disabled={incompleteFiltered.length === 0}>
+                  Export CSV ({incompleteFiltered.length})
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Table */}
+          <Card className="mb-8">
+            <CardContent className="p-0">
+              {/* Mobile cards */}
+              <div className="md:hidden divide-y">
+                {incompleteFiltered.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8 text-sm">No incomplete members match the filters.</div>
+                ) : incompleteFiltered.map((l) => (
+                  <div key={l.id} className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{l.name ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground">{l.phone ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground truncate">{l.email ?? "—"}</div>
+                      </div>
+                      <Badge className="bg-amber-100 text-amber-800 border-amber-200">{l.daysPending}d</Badge>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Badge variant="outline" className="text-xs">{l.currentStage || "—"}</Badge>
+                      {l.financeStatus && <Badge variant="outline" className="text-xs">{l.financeStatus}</Badge>}
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      <div>{l.webinarDate} · <span className="truncate">{l.batchLabel}</span></div>
+                      <div className="mt-1">
+                        Token: ₹{fmtINR(l.tokenAmount)} · Collected: ₹{fmtINR(l.totalCollected)} · Balance: ₹{fmtINR(l.balancePending)}
+                      </div>
+                      {l.ownerName && <div className="mt-1">Owner: {l.ownerName}</div>}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Link to={`/crm?lead=${l.id}`}><Button size="sm" variant="outline" className="h-7 px-2 text-xs">CRM</Button></Link>
+                      {l.paidLeadId && <Link to={`/paid-pipeline?lead=${l.paidLeadId}`}><Button size="sm" variant="outline" className="h-7 px-2 text-xs">Paid</Button></Link>}
+                      {canMoveStage && deadStageIds.length > 0 && (
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-red-700 border-red-200 hover:bg-red-50" onClick={() => openMoveModal(l)}>Refund / Dead</Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block relative w-full overflow-x-auto">
+                <table className="w-full caption-bottom text-sm border-collapse">
+                  <thead className="[&_tr]:border-b">
+                    <tr className="border-b">
+                      <th className="sticky left-0 z-20 bg-background h-10 px-3 text-left align-middle font-medium text-muted-foreground min-w-[220px] shadow-[1px_0_0_0_hsl(var(--border))]">Member</th>
+                      <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground">CRM Stage</th>
+                      <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground">Webinar / Batch</th>
+                      <th className="h-10 px-3 text-right align-middle font-medium text-muted-foreground">Days</th>
+                      <th className="h-10 px-3 text-right align-middle font-medium text-muted-foreground">Token</th>
+                      <th className="h-10 px-3 text-right align-middle font-medium text-muted-foreground">Collected</th>
+                      <th className="h-10 px-3 text-right align-middle font-medium text-muted-foreground">Balance</th>
+                      <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground">Finance</th>
+                      <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground">Owner</th>
+                      <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {incompleteFiltered.length === 0 ? (
+                      <tr><td colSpan={10} className="text-center text-muted-foreground py-6">No incomplete members match the filters.</td></tr>
+                    ) : incompleteFiltered.map((l) => (
+                      <tr key={l.id} className="border-b hover:bg-muted/40">
+                        <td className="sticky left-0 z-10 bg-background p-3 align-top min-w-[220px] shadow-[1px_0_0_0_hsl(var(--border))]">
+                          <div className="font-semibold leading-tight">{l.name ?? "—"}</div>
+                          <div className="text-xs text-muted-foreground">{l.phone ?? "—"}</div>
+                          <div className="text-xs text-muted-foreground truncate max-w-[220px]">{l.email ?? "—"}</div>
+                        </td>
+                        <td className="p-3 align-top max-w-[200px]">
+                          <Badge variant="outline" className="text-xs whitespace-normal text-left">{l.currentStage || "—"}</Badge>
+                        </td>
+                        <td className="p-3 align-top text-xs">
+                          <div>{l.webinarDate}</div>
+                          <div className="text-muted-foreground truncate max-w-[180px]">{l.batchLabel}</div>
+                        </td>
+                        <td className="p-3 align-top text-right whitespace-nowrap">
+                          <span className={`text-xs font-medium ${l.daysPending >= 15 ? "text-red-700" : l.daysPending >= 7 ? "text-amber-700" : "text-muted-foreground"}`}>
+                            {l.daysPending}d
+                          </span>
+                        </td>
+                        <td className="p-3 align-top text-right whitespace-nowrap">₹{fmtINR(l.tokenAmount)}</td>
+                        <td className="p-3 align-top text-right whitespace-nowrap">₹{fmtINR(l.totalCollected)}</td>
+                        <td className="p-3 align-top text-right whitespace-nowrap font-medium">₹{fmtINR(l.balancePending)}</td>
+                        <td className="p-3 align-top text-xs max-w-[140px] truncate">{l.financeStatus ?? "—"}</td>
+                        <td className="p-3 align-top text-xs max-w-[140px] truncate">{l.ownerName || "—"}</td>
+                        <td className="p-3 align-top whitespace-nowrap">
+                          <div className="flex flex-wrap gap-1.5">
+                            <Link to={`/crm?lead=${l.id}`}><Button size="sm" variant="outline" className="h-7 px-2 text-xs">CRM</Button></Link>
+                            {l.paidLeadId && <Link to={`/paid-pipeline?lead=${l.paidLeadId}`}><Button size="sm" variant="outline" className="h-7 px-2 text-xs">Paid</Button></Link>}
+                            {canMoveStage && deadStageIds.length > 0 && (
+                              <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-red-700 border-red-200 hover:bg-red-50" onClick={() => openMoveModal(l)}>Refund / Dead</Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+
 
       <Dialog open={!!drilldownDate} onOpenChange={(o) => !o && setDrilldownDate(null)}>
         <DialogContent className="w-[95vw] sm:max-w-[1200px] max-h-[85vh] overflow-y-auto p-4 sm:p-6">
