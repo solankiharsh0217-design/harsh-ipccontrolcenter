@@ -130,14 +130,25 @@ async function loadRequest(admin: any, token: string, req: Request) {
     return { error: publicError('INVALID_TOKEN', 'Invalid token', 400) };
   }
   const tokenHash = await sha256(token);
-  const { data: reqRow, error } = await admin.from('code_of_conduct_requests').select('*').eq('token_hash', tokenHash).maybeSingle();
+  let { data: reqRow, error } = await admin.from('code_of_conduct_requests').select('*').eq('token_hash', tokenHash).maybeSingle();
   if (error) throw error;
+  // Grace-window fallback: after admin re-generates a link, the previously-mailed token
+  // remains valid for a short window (previous_token_expires_at) so participants who
+  // click the older email still land on their signing page.
+  if (!reqRow) {
+    const { data: prevRow, error: prevErr } = await admin.from('code_of_conduct_requests').select('*').eq('previous_token_hash', tokenHash).maybeSingle();
+    if (prevErr) throw prevErr;
+    if (prevRow && prevRow.previous_token_expires_at && new Date(prevRow.previous_token_expires_at) > new Date()) {
+      reqRow = prevRow;
+    }
+  }
   if (!reqRow) {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('cf-connecting-ip') || null;
     const ua = req.headers.get('user-agent') || null;
-    await admin.from('code_of_conduct_events').insert({ request_id: null, event_type: 'invalid_signing_link_opened', metadata: { token_hash: tokenHash, ip, ua } });
-    return { error: publicError('REQUEST_NOT_FOUND', 'Link not found or invalid.', 404) };
+    await admin.from('code_of_conduct_events').insert({ request_id: null, event_type: 'invalid_signing_link_opened', metadata: { token_hash: tokenHash, ip, ua, reason: 'no_matching_token' } });
+    return { error: publicError('REQUEST_NOT_FOUND', 'This Code of Conduct link is no longer active. Please open the most recent email from Team IPC, or ask them to resend it.', 404) };
   }
+
   if (reqRow.status === 'cancelled') return { error: publicError('REQUEST_CANCELLED', 'This request is no longer active.', 410, { status: 'cancelled' }) };
   if (reqRow.token_expires_at && new Date(reqRow.token_expires_at) < new Date() && reqRow.status !== 'signed') {
     if (reqRow.status !== 'expired') {

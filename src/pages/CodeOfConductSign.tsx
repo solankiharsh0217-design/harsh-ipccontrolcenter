@@ -12,7 +12,7 @@ interface Payload {
 
 const ERROR_MESSAGES: Record<string, string> = {
   INVALID_TOKEN: "This signing link is invalid.",
-  REQUEST_NOT_FOUND: "Link not found or invalid.",
+  REQUEST_NOT_FOUND: "This Code of Conduct link is no longer active. Please open the most recent email from Team IPC, or ask them to resend it.",
   REQUEST_CANCELLED: "This request is no longer active.",
   TOKEN_EXPIRED: "This link has expired. Please contact Team IPC.",
   TEMPLATE_NOT_FOUND: "The agreement template is no longer available. Please contact Team IPC.",
