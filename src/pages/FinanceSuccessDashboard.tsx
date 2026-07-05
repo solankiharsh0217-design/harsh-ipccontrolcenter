@@ -29,6 +29,7 @@ type CrmLead = {
   webinar_source: string | null;
   created_at: string;
   paid_pipeline_lead_id: string | null;
+  assigned_agent_id: string | null;
 };
 
 type PaidLead = {
