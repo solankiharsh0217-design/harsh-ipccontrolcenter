@@ -315,6 +315,8 @@ export default function FinanceSuccessDashboard() {
     const stageById = new Map(pipelineStages.map((s) => [s.id, s]));
     const successSet = new Set(successStageIds);
     const deadSet = new Set(deadStageIds);
+    const ownerById = new Map(owners.map((o) => [o.id, o.full_name || ""]));
+    const today = new Date();
 
     const paidById = new Map(paidLeads.map((p) => [p.id, p]));
     const paidByCrm = new Map<string, PaidLead>();
