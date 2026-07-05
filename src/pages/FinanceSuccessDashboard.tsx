@@ -153,7 +153,7 @@ export default function FinanceSuccessDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id,full_name,email,phone,pipeline_id,stage_id,webinar_date,webinar_name,webinar_source,created_at,paid_pipeline_lead_id")
+        .select("id,full_name,email,phone,pipeline_id,stage_id,webinar_date,webinar_name,webinar_source,created_at,paid_pipeline_lead_id,assigned_agent_id")
         .eq("pipeline_id", selectedPipelineId)
         .is("archived_at", null)
         .is("deleted_at", null)
