@@ -110,6 +110,11 @@ export default function FinanceSuccessDashboard() {
   const [search, setSearch] = useState("");
   const [drilldownDate, setDrilldownDate] = useState<string | null>(null);
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
+  const [incompleteChip, setIncompleteChip] = useState<"all" | "link_not_opened" | "link_opened" | "signed_no_access" | "balance" | "finance" | "days7">("all");
+  const [incompleteStageId, setIncompleteStageId] = useState<string>("all");
+  const [incompleteOwnerId, setIncompleteOwnerId] = useState<string>("all");
+  const [incompleteBalance, setIncompleteBalance] = useState<"all" | "has" | "no">("all");
+  const [incompleteDays, setIncompleteDays] = useState<"all" | "3" | "7" | "15" | "30">("all");
 
   // Paid CRM pipelines
   const { data: paidPipelines = [] } = useQuery({
