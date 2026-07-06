@@ -157,20 +157,26 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false, leg
           <>
             <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Lead Grade</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Lead Grade (Imported)</span>
                 <span
                   className="inline-flex items-center gap-1 rounded-full border font-medium px-2 py-0.5 text-[10px]"
                   style={{ background: legacyStyle.bg, color: legacyStyle.text, borderColor: legacyStyle.border }}
                   title="Grade came from imported webinar data, not verified attendance"
                 >
                   <span>{legacyStyle.emoji}</span>
-                  <span>{legacyLabel}</span>
+                  <span>Legacy {HOTNESS_LABEL[legacyGradeForDisplay]}</span>
                 </span>
               </div>
-              <span className="text-[10px] text-muted-foreground italic">Attendance: Not recorded</span>
+              <span className="text-[10px] text-muted-foreground italic">Attendance Score: Not available</span>
             </div>
             <div className="mb-2 text-[10px] text-muted-foreground italic">
-              This grade came from imported webinar data. Actual attendance is not recorded yet. Recalculate after importing attendance session data.
+              This is an imported lead grade. Actual webinar attendance is not recorded yet.
+            </div>
+            <div className="mb-2 text-[11px]">
+              <span className="text-muted-foreground">Attendance:</span> <b>Not recorded</b>
+            </div>
+            <div className="mb-2 text-[10px] text-muted-foreground italic">
+              Showing imported lead grade only. Import/recalculate attendance session data to see actual attendance score.
             </div>
           </>
         ) : (
@@ -178,16 +184,25 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false, leg
             <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Attendance: Not recorded</span>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-          <div><span className="text-muted-foreground">Attendance %:</span> <b>{eff.attendancePct}%</b></div>
-          <div><span className="text-muted-foreground">Sessions:</span> <b>{eff.sessions}</b></div>
-          <div><span className="text-muted-foreground">Total attended:</span> <b>{eff.attendedMin} min</b></div>
-          <div><span className="text-muted-foreground">Total possible:</span> <b>{eff.possibleMin} min</b></div>
-          <div><span className="text-muted-foreground">Webinars:</span> <b>{eff.webinars}</b></div>
-          <div><span className="text-muted-foreground">Best session:</span> <b>{eff.best}%</b></div>
-          <div className="col-span-2"><span className="text-muted-foreground">Last attended:</span> <b>{eff.lastAttended ? new Date(eff.lastAttended).toLocaleDateString() : "—"}</b></div>
-          <div className="col-span-2"><span className="text-muted-foreground">Identity matched by:</span> <b>{rows[0]?.normalized_email ? "email" : rows[0]?.normalized_phone ? "phone" : rows.length ? "name (weak)" : hasLegacy ? "legacy import" : "—"}</b></div>
-        </div>
+        {hasActualAttendance ? (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+            <div><span className="text-muted-foreground">Attendance %:</span> <b>{eff.attendancePct}%</b></div>
+            <div><span className="text-muted-foreground">Sessions:</span> <b>{eff.sessions}</b></div>
+            <div><span className="text-muted-foreground">Total attended:</span> <b>{eff.attendedMin} min</b></div>
+            <div><span className="text-muted-foreground">Total possible:</span> <b>{eff.possibleMin} min</b></div>
+            <div><span className="text-muted-foreground">Webinars:</span> <b>{eff.webinars}</b></div>
+            <div><span className="text-muted-foreground">Best session:</span> <b>{eff.best}%</b></div>
+            <div className="col-span-2"><span className="text-muted-foreground">Last attended:</span> <b>{eff.lastAttended ? new Date(eff.lastAttended).toLocaleDateString() : "—"}</b></div>
+            <div className="col-span-2"><span className="text-muted-foreground">Identity matched by:</span> <b>{rows[0]?.normalized_email ? "email" : rows[0]?.normalized_phone ? "phone" : rows.length ? "name (weak)" : "—"}</b></div>
+          </div>
+        ) : isLegacyOnly ? (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+            <div><span className="text-muted-foreground">Sessions attended:</span> <b>0</b></div>
+            <div><span className="text-muted-foreground">Total attended:</span> <b>0 min</b></div>
+            <div className="col-span-2"><span className="text-muted-foreground">Imported webinar date:</span> <b>{eff.lastAttended ? new Date(eff.lastAttended).toLocaleDateString() : "—"}</b></div>
+            <div className="col-span-2"><span className="text-muted-foreground">Identity matched by:</span> <b>legacy import</b></div>
+          </div>
+        ) : null}
 
         {isAdmin && (
           <div className="mt-2 pt-2 border-t border-line">
