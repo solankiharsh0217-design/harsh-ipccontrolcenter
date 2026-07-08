@@ -359,6 +359,43 @@ export default function OperationsLeadDrawer({
             />
           </Section>
 
+          {/* Readiness completion → Move to next stage */}
+          {isReady && (
+            <Section title="Readiness complete">
+              <div className="border border-[#BBF7D0] bg-[#F0FDF4] rounded-md p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[#16A34A] text-white font-medium">
+                    <CheckCircle className="w-3 h-3" /> READY
+                  </span>
+                  <span className="text-xs text-[#166534] font-medium">All required onboarding checklist items are complete.</span>
+                </div>
+                <div className="text-[11px] text-[#166534]/80 mb-2">
+                  Current stage: <span className="font-medium">{currentStageObj?.name ?? "—"}</span>
+                  {targetStageObj && !alreadyAtOrAfterTarget && (<> · Next stage: <span className="font-medium">{targetStageObj.name}</span></>)}
+                </div>
+                {alreadyAtOrAfterTarget ? (
+                  <div className="text-[11px] text-muted-foreground italic">Already moved beyond readiness stage.</div>
+                ) : !targetStageObj ? (
+                  <div className="text-[11px] text-[#92400E]">
+                    No target stage resolvable. Configure one in Operations CRM → Settings.
+                  </div>
+                ) : canMoveReadiness ? (
+                  <button
+                    onClick={() => setShowReadinessMove(true)}
+                    className="ipc-btn ipc-btn-black !text-xs"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" /> Move to {targetStageObj.name}
+                  </button>
+                ) : (
+                  <div className="text-[11px] text-muted-foreground italic">
+                    Only admins or the assigned owner can move this lead.
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
+
           {/* Custom Fields */}
           {lead.process_template_id && (
             <Section title="Custom fields">
