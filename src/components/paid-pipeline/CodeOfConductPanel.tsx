@@ -57,6 +57,8 @@ export default function CodeOfConductPanel(props: Props) {
   const { isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [req, setReq] = useState<any>(null);
+  const [historicalReq, setHistoricalReq] = useState<any>(null);
+  const [resignBusy, setResignBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [emailOverride, setEmailOverride] = useState(memberEmail || "");
   const [signingUrl, setSigningUrl] = useState<string | null>(null);
