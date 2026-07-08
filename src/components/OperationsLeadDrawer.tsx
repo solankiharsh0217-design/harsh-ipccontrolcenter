@@ -528,11 +528,11 @@ export default function OperationsLeadDrawer({
           <Section title="Service timeline">
             {eventsLoading ? (
               <div className="text-[11px] text-muted-foreground">Loading…</div>
-            ) : events.length === 0 ? (
+            ) : serviceEvents.length === 0 ? (
               <div className="text-[11px] text-muted-foreground">No service events yet.</div>
             ) : (
               <div className="space-y-2">
-                {events.map((ev) => (
+                {serviceEvents.map((ev) => (
                   <div key={ev.id} className="border border-line rounded-md p-2.5 text-xs">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -549,6 +549,7 @@ export default function OperationsLeadDrawer({
               </div>
             )}
           </Section>
+
 
           {/* Promised offers / services */}
           <PromisedOffersPanel
