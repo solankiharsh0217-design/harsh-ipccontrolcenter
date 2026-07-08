@@ -71,7 +71,16 @@ interface ServiceEvent {
   created_at: string;
   created_by: string | null;
   created_by_name?: string | null;
+  channel?: string | null;
+  template_title?: string | null;
+  message_snapshot?: string | null;
+  subject_snapshot?: string | null;
+  send_status?: string | null;
 }
+
+const COMMUNICATION_EVENT_TYPES = new Set([
+  "communication_logged", "communication_copied", "communication_sent", "communication_failed",
+]);
 
 type ActionType = "start" | "pause" | "resume" | "stop" | "complete";
 
