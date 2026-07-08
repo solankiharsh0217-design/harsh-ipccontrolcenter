@@ -173,6 +173,15 @@ export default function OperationsLeadDrawer({
 
   useEffect(() => { loadEvents(); }, [lead.id]);
 
+  const serviceEvents = useMemo(
+    () => events.filter((e) => !COMMUNICATION_EVENT_TYPES.has(e.event_type)),
+    [events],
+  );
+  const commEvents = useMemo(
+    () => events.filter((e) => COMMUNICATION_EVENT_TYPES.has(e.event_type)),
+    [events],
+  );
+
   const openCrmLink = () => { if (lead.crm_lead_id) window.open(`/crm?lead=${lead.crm_lead_id}`, "_blank"); };
 
   const status = lead.service_status;
