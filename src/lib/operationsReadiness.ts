@@ -104,20 +104,18 @@ export async function moveOperationsLeadStage(params: {
     .eq("id", params.leadId);
   if (error) throw error;
 
-  // Best-effort audit trail via the generic activity_logs table.
+  // Best-effort audit trail via the audit_logs table.
   try {
-    await (supabase as any).from("activity_logs").insert({
-      lead_id: null,
+    await logActivity({
+      module_key: "operations_crm",
+      module_label: "Operations CRM",
       action_type: params.kind,
-      details: {
-        operations_lead_id: params.leadId,
-        old_stage_id: params.fromStageId,
-        new_stage_id: params.toStageId,
-        old_stage_name: params.fromStageName ?? null,
-        new_stage_name: params.toStageName ?? null,
-        actor_user_id: params.actorUserId,
-        reason: "readiness_checklist_complete",
-      },
+      action_label: params.kind === "readiness_auto_move" ? "Readiness auto-move" : "Readiness manual move",
+      entity_type: "operations_lead",
+      entity_id: params.leadId,
+      old_values: { stage_id: params.fromStageId, stage_name: params.fromStageName ?? null },
+      new_values: { stage_id: params.toStageId, stage_name: params.toStageName ?? null },
+      summary: `Readiness completed. Moved from ${params.fromStageName ?? "—"} to ${params.toStageName ?? "—"}.`,
     });
   } catch {
     /* audit log is best-effort */
