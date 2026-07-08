@@ -291,6 +291,15 @@ export default function OperationsLeadDrawer({
             </div>
           </Section>
 
+          {/* Linked Records */}
+          <OperationsLinkedRecordsCard
+            operationsLeadId={lead.id}
+            operationsLeadName={lead.name}
+            operationsStatusLabel={SERVICE_STATUS_LABELS[status] || status}
+            crmLeadId={lead.crm_lead_id}
+            paidPipelineLeadId={lead.paid_pipeline_lead_id}
+          />
+
           {/* Process / Intake summary */}
           <Section title="Process / Intake">
             <div className="grid grid-cols-2 gap-2">
