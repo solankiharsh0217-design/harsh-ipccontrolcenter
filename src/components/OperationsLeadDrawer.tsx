@@ -53,6 +53,8 @@ export interface OpsLeadFull {
   readiness_override_reason?: string | null;
   readiness_override_by?: string | null;
   readiness_override_at?: string | null;
+  pipeline_id?: string | null;
+  stage_id?: string | null;
 }
 
 interface ServiceEvent {
