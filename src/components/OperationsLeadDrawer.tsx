@@ -174,6 +174,62 @@ export default function OperationsLeadDrawer({
   const showComplete = status === "active";
   const showRestart  = status === "stopped" || status === "completed";
 
+  // ── Readiness completion / move logic ─────────────────────────
+  const isReady = (readinessSummary?.pct ?? 0) >= 100 && !!lead.process_template_id;
+  const currentStageObj = useMemo(
+    () => opsStages.find((s) => s.id === lead.stage_id) ?? null,
+    [opsStages, lead.stage_id],
+  );
+  const targetStageObj = useMemo(
+    () => resolveReadinessTargetStage(
+      opsStages,
+      lead.stage_id ?? null,
+      readinessSettings?.operations_readiness_target_stage_id ?? null,
+    ),
+    [opsStages, lead.stage_id, readinessSettings],
+  );
+  const alreadyAtOrAfterTarget = !!targetStageObj && isAtOrAfterTarget(
+    opsStages, lead.stage_id ?? null, targetStageObj.id,
+  );
+  const canMoveReadiness = !!(profile?.id) && (
+    isAdmin || (!!lead.assigned_media_buyer_id && lead.assigned_media_buyer_id === profile.id)
+  );
+
+  const doMove = async (kind: "readiness_manual_move" | "readiness_auto_move") => {
+    if (!targetStageObj) { toast.error("No target stage configured or resolvable."); return; }
+    if (alreadyAtOrAfterTarget) { toast.info("Already moved beyond readiness stage."); return; }
+    try {
+      await moveOperationsLeadStage({
+        leadId: lead.id,
+        fromStageId: lead.stage_id ?? null,
+        toStageId: targetStageObj.id,
+        fromStageName: currentStageObj?.name ?? null,
+        toStageName: targetStageObj.name,
+        kind,
+        actorUserId: profile?.id ?? null,
+      });
+      toast.success(`Moved to ${targetStageObj.name}`);
+      setShowReadinessMove(false);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || "Move failed");
+    }
+  };
+
+  // Optional auto-advance: fire once per drawer session when conditions are met.
+  useEffect(() => {
+    if (autoMovedRef.current) return;
+    if (!readinessSettings?.operations_readiness_auto_move) return;
+    if (!isReady) return;
+    if (!targetStageObj) return;
+    if (alreadyAtOrAfterTarget) return;
+    if (!canMoveReadiness) return;
+    autoMovedRef.current = true;
+    doMove("readiness_auto_move");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, readinessSettings, targetStageObj, alreadyAtOrAfterTarget, canMoveReadiness]);
+
+
   return (
     <div className="fixed inset-0 z-[1100] bg-black/40 flex justify-end" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-white h-full overflow-y-auto">
