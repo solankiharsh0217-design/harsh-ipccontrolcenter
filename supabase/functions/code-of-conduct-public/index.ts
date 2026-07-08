@@ -360,7 +360,14 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
       'I understand group/program access may be provided only after acknowledgement.',
       'I confirm that the name and email shown belong to me.',
     ];
-    for (const ack of acks) { page.drawText('[x]', { x: 58, y, size: 9.5, font: bold, color: rgb(0.09,0.55,0.25) }); y = drawWrapped(page, ack, 82, y, { font, size: 9.5, color: ink, maxWidth: 436, lineHeight: 13 }) - 16; }
+    const tickColor = rgb(0.09, 0.55, 0.25);
+    for (const ack of acks) {
+      // Draw a real check-mark glyph (two connected line segments) instead of the "[x]" that looked like a negative cross.
+      const cx = 60, cy = y + 2;
+      page.drawLine({ start: { x: cx, y: cy + 2 }, end: { x: cx + 3, y: cy - 2 }, thickness: 1.4, color: tickColor });
+      page.drawLine({ start: { x: cx + 3, y: cy - 2 }, end: { x: cx + 9, y: cy + 6 }, thickness: 1.4, color: tickColor });
+      y = drawWrapped(page, ack, 82, y, { font, size: 9.5, color: ink, maxWidth: 436, lineHeight: 13 }) - 16;
+    }
     page.drawLine({ start: { x: 48, y: 68 }, end: { x: 547, y: 68 }, thickness: 1, color: line });
     page.drawText('This page records the digital acknowledgement evidence captured through the secure IPC signing flow.', { x: 48, y: 48, size: 8.5, font, color: muted });
 
