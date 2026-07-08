@@ -581,7 +581,11 @@ Deno.serve(async (req) => {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('cf-connecting-ip') || null;
     const ua = req.headers.get('user-agent') || null;
     const now = new Date().toISOString();
-    const sigTrim = (signatureDataUrl && typeof signatureDataUrl === 'string' && signatureDataUrl.length < 500_000) ? signatureDataUrl : null;
+    const sigTrim = (signatureDataUrl && typeof signatureDataUrl === 'string' && signatureDataUrl.length < 800_000) ? signatureDataUrl : null;
+    if (!sigTrim) {
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_REQUIRED', reason: 'signature_too_large' } });
+      return publicError('SIGNATURE_REQUIRED', 'Signature image is too large. Please draw a simpler signature and try again.', 400);
+    }
     const trimmedName = signatureName.trim().slice(0, 200);
     const signedEmail = (body.email || reqRow.member_email || '').toString().trim().slice(0, 200);
 
