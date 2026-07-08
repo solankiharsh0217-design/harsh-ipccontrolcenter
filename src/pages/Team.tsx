@@ -544,7 +544,7 @@ export default function Team() {
                         if (!confirm(`Send a password reset link to ${editing.email}?`)) return;
                         try {
                           const { error } = await supabase.auth.resetPasswordForEmail(editing.email, {
-                            redirectTo: `${window.location.origin}/login`,
+                            redirectTo: `${window.location.origin}/reset-password`,
                           });
                           if (error) throw error;
                           await logActivity({
