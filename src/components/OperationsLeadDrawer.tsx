@@ -470,6 +470,16 @@ export default function OperationsLeadDrawer({
             )}
           </Section>
 
+          {/* Unified activity timeline */}
+          <Section title="Activity timeline">
+            <OperationsActivityTimeline
+              operationsLeadId={lead.id}
+              leadCreatedAt={(lead as any).created_at ?? null}
+            />
+          </Section>
+
+
+
 
           {/* Start Operations Process */}
           {lead.intake_status !== "active" && lead.service_status === "not_started" && (
