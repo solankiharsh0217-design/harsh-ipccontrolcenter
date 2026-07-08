@@ -1404,6 +1404,8 @@ export type Database = {
           legal_name: string | null
           logo_path: string | null
           logo_url: string | null
+          operations_readiness_auto_move: boolean
+          operations_readiness_target_stage_id: string | null
           pan: string | null
           phone: string | null
           reply_to_email: string | null
@@ -1463,6 +1465,8 @@ export type Database = {
           legal_name?: string | null
           logo_path?: string | null
           logo_url?: string | null
+          operations_readiness_auto_move?: boolean
+          operations_readiness_target_stage_id?: string | null
           pan?: string | null
           phone?: string | null
           reply_to_email?: string | null
@@ -1522,6 +1526,8 @@ export type Database = {
           legal_name?: string | null
           logo_path?: string | null
           logo_url?: string | null
+          operations_readiness_auto_move?: boolean
+          operations_readiness_target_stage_id?: string | null
           pan?: string | null
           phone?: string | null
           reply_to_email?: string | null

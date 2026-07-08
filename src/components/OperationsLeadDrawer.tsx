@@ -20,7 +20,12 @@ import CustomFieldsPanel from "@/components/operations/CustomFieldsPanel";
 import CommTemplatePickerModal from "@/components/operations/CommTemplatePickerModal";
 import StartProcessModal from "@/components/operations/StartProcessModal";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
-import { Mail, Rocket } from "lucide-react";
+import { Mail, Rocket, ArrowRight, CheckCircle } from "lucide-react";
+import {
+  getReadinessSettings, resolveReadinessTargetStage, isAtOrAfterTarget,
+  moveOperationsLeadStage, type ReadinessSettings,
+} from "@/lib/operationsReadiness";
+import type { Stage } from "@/lib/crmTypes";
 
 export interface OpsLeadFull {
   id: string;
@@ -53,6 +58,8 @@ export interface OpsLeadFull {
   readiness_override_reason?: string | null;
   readiness_override_by?: string | null;
   readiness_override_at?: string | null;
+  pipeline_id?: string | null;
+  stage_id?: string | null;
 }
 
 interface ServiceEvent {
@@ -91,6 +98,10 @@ export default function OperationsLeadDrawer({
   const [showStartProcess, setShowStartProcess] = useState(false);
   const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
   const [readinessSummary, setReadinessSummary] = useState<{ pct: number; blocked: boolean } | null>(null);
+  const [readinessSettings, setReadinessSettings] = useState<ReadinessSettings | null>(null);
+  const [opsStages, setOpsStages] = useState<Stage[]>([]);
+  const [showReadinessMove, setShowReadinessMove] = useState(false);
+  const autoMovedRef = (useMemo(() => ({ current: false }), []) as { current: boolean });
 
   const templateName = useMemo(
     () => templates.find((t) => t.id === lead.process_template_id)?.name ?? null,
@@ -99,7 +110,34 @@ export default function OperationsLeadDrawer({
 
   useEffect(() => {
     listProcessTemplates(true).then(setTemplates).catch(() => {});
+    getReadinessSettings().then(setReadinessSettings).catch(() => {});
   }, []);
+
+  // Load Operations pipeline stages (needed to resolve readiness target stage).
+  useEffect(() => {
+    (async () => {
+      if (lead.pipeline_id) {
+        const { data } = await supabase
+          .from("stages")
+          .select("*")
+          .eq("pipeline_id", lead.pipeline_id)
+          .order("position");
+        setOpsStages((data ?? []) as any);
+      } else {
+        // Fall back: look up via the operations pipeline referenced on the lead row.
+        const { data: row } = await supabase
+          .from("operations_leads" as any)
+          .select("pipeline_id")
+          .eq("id", lead.id)
+          .maybeSingle();
+        const pid = (row as any)?.pipeline_id;
+        if (pid) {
+          const { data } = await supabase.from("stages").select("*").eq("pipeline_id", pid).order("position");
+          setOpsStages((data ?? []) as any);
+        }
+      }
+    })();
+  }, [lead.id, lead.pipeline_id]);
 
   const calc = useMemo(() => computeServiceCalc(lead), [lead]);
 
@@ -135,6 +173,62 @@ export default function OperationsLeadDrawer({
   const showStop     = status === "active" || status === "paused";
   const showComplete = status === "active";
   const showRestart  = status === "stopped" || status === "completed";
+
+  // ── Readiness completion / move logic ─────────────────────────
+  const isReady = (readinessSummary?.pct ?? 0) >= 100 && !!lead.process_template_id;
+  const currentStageObj = useMemo(
+    () => opsStages.find((s) => s.id === lead.stage_id) ?? null,
+    [opsStages, lead.stage_id],
+  );
+  const targetStageObj = useMemo(
+    () => resolveReadinessTargetStage(
+      opsStages,
+      lead.stage_id ?? null,
+      readinessSettings?.operations_readiness_target_stage_id ?? null,
+    ),
+    [opsStages, lead.stage_id, readinessSettings],
+  );
+  const alreadyAtOrAfterTarget = !!targetStageObj && isAtOrAfterTarget(
+    opsStages, lead.stage_id ?? null, targetStageObj.id,
+  );
+  const canMoveReadiness = !!(profile?.id) && (
+    isAdmin || (!!lead.assigned_media_buyer_id && lead.assigned_media_buyer_id === profile.id)
+  );
+
+  const doMove = async (kind: "readiness_manual_move" | "readiness_auto_move") => {
+    if (!targetStageObj) { toast.error("No target stage configured or resolvable."); return; }
+    if (alreadyAtOrAfterTarget) { toast.info("Already moved beyond readiness stage."); return; }
+    try {
+      await moveOperationsLeadStage({
+        leadId: lead.id,
+        fromStageId: lead.stage_id ?? null,
+        toStageId: targetStageObj.id,
+        fromStageName: currentStageObj?.name ?? null,
+        toStageName: targetStageObj.name,
+        kind,
+        actorUserId: profile?.id ?? null,
+      });
+      toast.success(`Moved to ${targetStageObj.name}`);
+      setShowReadinessMove(false);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || "Move failed");
+    }
+  };
+
+  // Optional auto-advance: fire once per drawer session when conditions are met.
+  useEffect(() => {
+    if (autoMovedRef.current) return;
+    if (!readinessSettings?.operations_readiness_auto_move) return;
+    if (!isReady) return;
+    if (!targetStageObj) return;
+    if (alreadyAtOrAfterTarget) return;
+    if (!canMoveReadiness) return;
+    autoMovedRef.current = true;
+    doMove("readiness_auto_move");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, readinessSettings, targetStageObj, alreadyAtOrAfterTarget, canMoveReadiness]);
+
 
   return (
     <div className="fixed inset-0 z-[1100] bg-black/40 flex justify-end" onClick={onClose}>
@@ -264,6 +358,43 @@ export default function OperationsLeadDrawer({
               onChange={(pct, blocked) => setReadinessSummary({ pct, blocked })}
             />
           </Section>
+
+          {/* Readiness completion → Move to next stage */}
+          {isReady && (
+            <Section title="Readiness complete">
+              <div className="border border-[#BBF7D0] bg-[#F0FDF4] rounded-md p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[#16A34A] text-white font-medium">
+                    <CheckCircle className="w-3 h-3" /> READY
+                  </span>
+                  <span className="text-xs text-[#166534] font-medium">All required onboarding checklist items are complete.</span>
+                </div>
+                <div className="text-[11px] text-[#166534]/80 mb-2">
+                  Current stage: <span className="font-medium">{currentStageObj?.name ?? "—"}</span>
+                  {targetStageObj && !alreadyAtOrAfterTarget && (<> · Next stage: <span className="font-medium">{targetStageObj.name}</span></>)}
+                </div>
+                {alreadyAtOrAfterTarget ? (
+                  <div className="text-[11px] text-muted-foreground italic">Already moved beyond readiness stage.</div>
+                ) : !targetStageObj ? (
+                  <div className="text-[11px] text-[#92400E]">
+                    No target stage resolvable. Configure one in Operations CRM → Settings.
+                  </div>
+                ) : canMoveReadiness ? (
+                  <button
+                    onClick={() => setShowReadinessMove(true)}
+                    className="ipc-btn ipc-btn-black !text-xs"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" /> Move to {targetStageObj.name}
+                  </button>
+                ) : (
+                  <div className="text-[11px] text-muted-foreground italic">
+                    Only admins or the assigned owner can move this lead.
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
 
           {/* Custom Fields */}
           {lead.process_template_id && (
@@ -416,6 +547,34 @@ export default function OperationsLeadDrawer({
           onClose={() => setShowStartProcess(false)}
           onDone={() => { setShowStartProcess(false); loadEvents(); onSaved(); }}
         />
+      )}
+
+      {showReadinessMove && targetStageObj && (
+        <div className="fixed inset-0 z-[1200] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowReadinessMove(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-lg w-full max-w-md p-5">
+            <div className="font-serif text-base text-black mb-3">Move lead to next operations stage?</div>
+            <div className="space-y-1.5 text-sm mb-4">
+              <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Member</span><div>{lead.name}</div></div>
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div>
+                  <div className="text-muted-foreground text-xs uppercase tracking-wider">Current stage</div>
+                  <div className="text-sm">{currentStageObj?.name ?? "—"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs uppercase tracking-wider">Target stage</div>
+                  <div className="text-sm">{targetStageObj.name}</div>
+                </div>
+              </div>
+              <div className="text-[11px] text-[#166534] mt-2">Readiness completion: 100%</div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setShowReadinessMove(false)} className="ipc-btn ipc-btn-ghost !text-xs">Cancel</button>
+              <button onClick={() => doMove("readiness_manual_move")} className="ipc-btn ipc-btn-black !text-xs">
+                <ArrowRight className="w-3.5 h-3.5" /> Move Lead
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
