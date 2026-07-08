@@ -4831,34 +4831,52 @@ export type Database = {
       }
       operations_service_events: {
         Row: {
+          channel: string | null
           created_at: string
           created_by: string | null
           event_date: string
           event_type: string
           id: string
+          message_snapshot: string | null
           note: string | null
           operations_lead_id: string
           reason: string | null
+          send_status: string | null
+          subject_snapshot: string | null
+          template_id: string | null
+          template_title: string | null
         }
         Insert: {
+          channel?: string | null
           created_at?: string
           created_by?: string | null
           event_date?: string
           event_type: string
           id?: string
+          message_snapshot?: string | null
           note?: string | null
           operations_lead_id: string
           reason?: string | null
+          send_status?: string | null
+          subject_snapshot?: string | null
+          template_id?: string | null
+          template_title?: string | null
         }
         Update: {
+          channel?: string | null
           created_at?: string
           created_by?: string | null
           event_date?: string
           event_type?: string
           id?: string
+          message_snapshot?: string | null
           note?: string | null
           operations_lead_id?: string
           reason?: string | null
+          send_status?: string | null
+          subject_snapshot?: string | null
+          template_id?: string | null
+          template_title?: string | null
         }
         Relationships: [
           {
@@ -4873,6 +4891,13 @@ export type Database = {
             columns: ["operations_lead_id"]
             isOneToOne: false
             referencedRelation: "operations_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_service_events_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "operations_communication_templates"
             referencedColumns: ["id"]
           },
         ]
