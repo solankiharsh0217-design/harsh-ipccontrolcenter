@@ -19,6 +19,7 @@ import TeamResultSubmissionPanel from "@/components/operations/TeamResultSubmiss
 import CustomFieldsPanel from "@/components/operations/CustomFieldsPanel";
 import CommTemplatePickerModal from "@/components/operations/CommTemplatePickerModal";
 import OperationsActivityTimeline from "@/components/operations/OperationsActivityTimeline";
+import OperationsLinkedRecordsCard from "@/components/operations/OperationsLinkedRecordsCard";
 import StartProcessModal from "@/components/operations/StartProcessModal";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
 import { Mail, Rocket, ArrowRight, CheckCircle } from "lucide-react";
@@ -289,6 +290,15 @@ export default function OperationsLeadDrawer({
               )}
             </div>
           </Section>
+
+          {/* Linked Records */}
+          <OperationsLinkedRecordsCard
+            operationsLeadId={lead.id}
+            operationsLeadName={lead.name}
+            operationsStatusLabel={SERVICE_STATUS_LABELS[status] || status}
+            crmLeadId={lead.crm_lead_id}
+            paidPipelineLeadId={lead.paid_pipeline_lead_id}
+          />
 
           {/* Process / Intake summary */}
           <Section title="Process / Intake">
