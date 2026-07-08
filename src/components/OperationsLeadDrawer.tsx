@@ -664,6 +664,17 @@ function eventTone(t: string) {
   }
 }
 
+function commTone(t: string) {
+  switch (t) {
+    case "communication_sent": return "bg-[#DCFCE7] text-[#166534]";
+    case "communication_failed": return "bg-[#FEE2E2] text-[#991B1B]";
+    case "communication_copied": return "bg-[#E0E7FF] text-[#3730A3]";
+    case "communication_logged":
+    default: return "bg-[#F3F4F6] text-[#6B7280]";
+  }
+}
+
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
