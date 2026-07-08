@@ -66,6 +66,51 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
 
   return (
     <div className="space-y-6">
+      <section className="border border-line rounded-md p-4 bg-off/30">
+        <div className="font-serif text-base text-black mb-1">Readiness completion</div>
+        <div className="text-[11px] text-muted-foreground mb-3">
+          When an operations lead's onboarding checklist reaches 100%, they can be moved to the next stage. Choose the target stage below. Enable auto-move only if you want the system to advance leads without a manual click.
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Operations Readiness Target Stage</label>
+            <select
+              disabled={savingReadiness}
+              value={readiness.operations_readiness_target_stage_id ?? ""}
+              onChange={(e) => saveReadiness({ operations_readiness_target_stage_id: e.target.value || null })}
+              className="ipc-input !h-9 !text-xs w-full mt-1"
+            >
+              <option value="">— Auto-detect (Active / In Progress / next stage) —</option>
+              {opsStages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <div className="text-[10px] text-muted-foreground mt-1">
+              If no stage is selected, the system uses the first stage whose name contains "Active" or "In Progress", or otherwise the next stage after the lead's current one.
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Auto-move</label>
+            <div className="flex items-start gap-2 mt-1">
+              <input
+                id="ops-readiness-automove"
+                type="checkbox"
+                disabled={savingReadiness}
+                checked={readiness.operations_readiness_auto_move}
+                onChange={(e) => saveReadiness({ operations_readiness_auto_move: e.target.checked })}
+                className="mt-0.5"
+              />
+              <label htmlFor="ops-readiness-automove" className="text-xs">
+                Auto-move lead when readiness reaches 100%
+                <div className="text-[10px] text-muted-foreground">
+                  Off by default. When off, the drawer shows a Ready badge and a manual "Move to next stage" button. Never moves a lead backwards.
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section>
         <div className="flex items-center justify-between mb-2">
           <div className="font-serif text-base text-black">Process Templates</div>
