@@ -20,7 +20,12 @@ import CustomFieldsPanel from "@/components/operations/CustomFieldsPanel";
 import CommTemplatePickerModal from "@/components/operations/CommTemplatePickerModal";
 import StartProcessModal from "@/components/operations/StartProcessModal";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
-import { Mail, Rocket } from "lucide-react";
+import { Mail, Rocket, ArrowRight, CheckCircle } from "lucide-react";
+import {
+  getReadinessSettings, resolveReadinessTargetStage, isAtOrAfterTarget,
+  moveOperationsLeadStage, type ReadinessSettings,
+} from "@/lib/operationsReadiness";
+import type { Stage } from "@/lib/crmTypes";
 
 export interface OpsLeadFull {
   id: string;
