@@ -394,6 +394,98 @@ export default function CodeOfConductPanel(props: Props) {
     } finally { setPostSendBusy(false); }
   };
 
+  /**
+   * Re-signature recovery for a legacy signed request whose drawn signature is
+   * missing or invalid. NEVER overwrites the old row, its signed PDF, or its
+   * signed_at evidence. Creates (or reuses) a new signing request linked back
+   * to the old one via re_signature_for_request_id.
+   */
+  const requestResign = async () => {
+    if (!req || !isAdmin) return;
+    if (req.status !== "signed") { toast({ title: "Re-signature is only for signed requests" }); return; }
+    if (hasValidSignature(req)) {
+      const ok = confirm("This request already has a valid drawn signature. Force a re-signature anyway?");
+      if (!ok) return;
+    }
+    const oldId: string = req.id;
+    setResignBusy(true);
+    try {
+      // 1) Reuse an existing active re-signature request for this old row.
+      const { data: existing } = await (supabase as any)
+        .from("code_of_conduct_requests")
+        .select("*")
+        .eq("re_signature_for_request_id", oldId)
+        .in("status", RESIGN_ACTIVE_STATUSES)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      let targetId: string | null = existing?.[0]?.id || null;
+
+      // 2) Otherwise create a fresh draft row linked to the old one.
+      if (!targetId) {
+        const { data: created, error: cErr } = await (supabase as any)
+          .from("code_of_conduct_requests")
+          .insert({
+            template_id: req.template_id,
+            crm_lead_id: req.crm_lead_id,
+            paid_pipeline_lead_id: req.paid_pipeline_lead_id,
+            member_name: req.member_name,
+            member_email: req.corrected_contact_email || req.member_email,
+            member_phone: req.member_phone,
+            program_name: req.program_name,
+            deal_value: req.deal_value,
+            status: "draft",
+            re_signature_for_request_id: oldId,
+            re_signature_reason: "missing_invalid_signature",
+            re_signature_requested_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+        if (cErr) throw cErr;
+        targetId = created.id;
+        await (supabase as any).from("code_of_conduct_events").insert({
+          request_id: targetId,
+          event_type: "coc_resign_requested",
+          metadata: { old_request_id: oldId, reason: "missing_invalid_signature" },
+        });
+        await (supabase as any).from("code_of_conduct_events").insert({
+          request_id: oldId,
+          event_type: "coc_resign_requested",
+          metadata: { new_request_id: targetId, reason: "missing_invalid_signature" },
+        });
+      }
+
+      // 3) Send (or resend) the re-signature email via the existing send function.
+      const { data: sent, error: sErr } = await supabase.functions.invoke("send-code-of-conduct-email", {
+        body: {
+          request_id: targetId,
+          paid_pipeline_lead_id: req.paid_pipeline_lead_id || undefined,
+          crm_lead_id: req.crm_lead_id || undefined,
+          member_name: req.member_name,
+          member_email: emailOverride || req.corrected_contact_email || req.member_email,
+          member_phone: req.member_phone,
+          program_name: req.program_name,
+          deal_value: req.deal_value,
+          origin: window.location.origin,
+        },
+      });
+      if (sErr) throw sErr;
+      if ((sent as any)?.ok === false) throw new Error(`[${(sent as any).error_code}] ${(sent as any).message}`);
+      await (supabase as any).from("code_of_conduct_events").insert({
+        request_id: targetId,
+        event_type: "coc_resign_email_sent",
+        metadata: { old_request_id: oldId },
+      });
+      toast({ title: existing?.[0] ? "Re-signature email resent" : "Re-signature request created and email sent" });
+      await load();
+    } catch (e: any) {
+      toast({ title: "Re-signature failed", description: e?.message, variant: "destructive" });
+    } finally {
+      setResignBusy(false);
+    }
+  };
+
+
+
 
 
   const tpl = diag?.template;
