@@ -956,6 +956,10 @@ export type Database = {
           previous_token_hash: string | null
           program_name: string | null
           provider_message_id: string | null
+          re_signature_for_request_id: string | null
+          re_signature_reason: string | null
+          re_signature_requested_at: string | null
+          re_signature_requested_by: string | null
           sent_at: string | null
           signature_data_url: string | null
           signature_name: string | null
@@ -1024,6 +1028,10 @@ export type Database = {
           previous_token_hash?: string | null
           program_name?: string | null
           provider_message_id?: string | null
+          re_signature_for_request_id?: string | null
+          re_signature_reason?: string | null
+          re_signature_requested_at?: string | null
+          re_signature_requested_by?: string | null
           sent_at?: string | null
           signature_data_url?: string | null
           signature_name?: string | null
@@ -1092,6 +1100,10 @@ export type Database = {
           previous_token_hash?: string | null
           program_name?: string | null
           provider_message_id?: string | null
+          re_signature_for_request_id?: string | null
+          re_signature_reason?: string | null
+          re_signature_requested_at?: string | null
+          re_signature_requested_by?: string | null
           sent_at?: string | null
           signature_data_url?: string | null
           signature_name?: string | null
@@ -1114,6 +1126,13 @@ export type Database = {
           whatsapp_redirect_opened_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "code_of_conduct_requests_re_signature_for_request_id_fkey"
+            columns: ["re_signature_for_request_id"]
+            isOneToOne: false
+            referencedRelation: "code_of_conduct_requests"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "code_of_conduct_requests_template_id_fkey"
             columns: ["template_id"]
