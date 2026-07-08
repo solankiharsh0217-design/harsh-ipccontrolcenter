@@ -154,13 +154,45 @@ export default function CodeOfConductSign() {
     ctx.clearRect(0, 0, r.width, r.height); setHasDrawn(false);
   };
 
+  /** Count non-transparent, non-white pixels on the signature canvas. */
+  const countSignaturePixels = (): { inked: number; total: number; bboxArea: number } => {
+    const c = canvasRef.current;
+    if (!c) return { inked: 0, total: 0, bboxArea: 0 };
+    const ctx = c.getContext("2d");
+    if (!ctx) return { inked: 0, total: 0, bboxArea: 0 };
+    try {
+      const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
+      let inked = 0, minX = width, minY = height, maxX = 0, maxY = 0;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const a = data[i + 3];
+          if (a > 20) {
+            // treat as ink (canvas is transparent by default; anti-white check redundant)
+            inked++;
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+          }
+        }
+      }
+      const bboxArea = inked ? Math.max(0, maxX - minX) * Math.max(0, maxY - minY) : 0;
+      return { inked, total: width * height, bboxArea };
+    } catch { return { inked: 0, total: 0, bboxArea: 0 }; }
+  };
+
   const submit = async () => {
     if (!name.trim()) { setError("Please type your full name."); return; }
     if (acks.some((a) => !a)) { setError("Please acknowledge all items."); return; }
-    if (!hasDrawn) { setError("Please draw your signature before submitting."); return; }
+    if (!hasDrawn) { setError("Please draw your digital signature before submitting."); return; }
+    // Real-signature check: require enough inked pixels AND a meaningful bounding box.
+    const { inked, bboxArea } = countSignaturePixels();
+    if (inked < 60 || bboxArea < 600) {
+      setError("Your signature looks empty or too small. Please draw a fuller signature.");
+      return;
+    }
     if (bonusTermsRequired && !bonusTermsAccepted) { setError("Please accept the Bonus Access Terms to continue."); return; }
     setSubmitting(true); setError(null);
-    const sig = hasDrawn ? canvasRef.current?.toDataURL("image/png") : null;
+    const sig = canvasRef.current?.toDataURL("image/png") || null;
     try {
       const resp = await fetch(FN_URL, {
         method: "POST",
