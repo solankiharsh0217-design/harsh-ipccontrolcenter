@@ -134,7 +134,7 @@ export default function Team() {
     setAuthBusy(m.id);
     try {
       const { data, error } = await supabase.functions.invoke("admin-team-auth", {
-        body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/login` },
+        body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/reset-password` },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -172,7 +172,7 @@ export default function Team() {
     for (const m of eligible) {
       try {
         const { data, error } = await supabase.functions.invoke("admin-team-auth", {
-          body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/login` },
+          body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/reset-password` },
         });
         if (error || (data as any)?.error) throw new Error(error?.message || (data as any)?.error);
         ok++;
