@@ -44,6 +44,14 @@ const STATUS_LABELS: Record<string, string> = {
 
 const normPhone = (v?: string | null) => (v || "").replace(/\D/g, "");
 
+/** A drawn digital signature is considered valid when it is a non-trivial base64 image payload. */
+export function hasValidSignature(r: any): boolean {
+  if (!r) return false;
+  const s = r.signature_data_url;
+  return typeof s === "string" && s.startsWith("data:image/") && s.length > 800;
+}
+const RESIGN_ACTIVE_STATUSES = ["draft", "ready_to_send", "sent", "viewed"];
+
 export default function CodeOfConductPanel(props: Props) {
   const { paidLeadId, crmLeadId, memberName, memberEmail, memberPhone, programName, dealValue, evalSource, evalPipelineId, evalStageId } = props;
   const { isAdmin } = useAuth();
