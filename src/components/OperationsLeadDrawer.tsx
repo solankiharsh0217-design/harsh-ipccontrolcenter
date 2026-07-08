@@ -18,6 +18,7 @@ import ReadinessChecklist from "@/components/operations/ReadinessChecklist";
 import TeamResultSubmissionPanel from "@/components/operations/TeamResultSubmissionPanel";
 import CustomFieldsPanel from "@/components/operations/CustomFieldsPanel";
 import CommTemplatePickerModal from "@/components/operations/CommTemplatePickerModal";
+import OperationsActivityTimeline from "@/components/operations/OperationsActivityTimeline";
 import StartProcessModal from "@/components/operations/StartProcessModal";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
 import { Mail, Rocket, ArrowRight, CheckCircle } from "lucide-react";
