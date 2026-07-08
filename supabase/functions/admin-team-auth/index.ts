@@ -92,15 +92,73 @@ Deno.serve(async (req) => {
       const email = String(body?.email || "").trim();
       if (!email) return json({ error: "Email required" }, 400);
       const redirectTo = String(body?.redirectTo || "");
-      // Use the anon client to trigger the standard recovery email (uses configured email templates).
+
+      const resendKey = Deno.env.get("RESEND_API_KEY");
+      const fromAddr = Deno.env.get("EMAIL_FROM_ADDRESS");
+      const fromName = Deno.env.get("EMAIL_FROM_NAME") || "IPC Control Center";
+      const replyTo = Deno.env.get("EMAIL_REPLY_TO");
+
+      // Prefer sending via Resend using an admin-generated recovery link,
+      // so we don't depend on Supabase's built-in SMTP.
+      if (resendKey && fromAddr) {
+        const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
+          type: "recovery",
+          email,
+          options: redirectTo ? { redirectTo } : undefined,
+        });
+        if (linkErr) return json({ error: linkErr.message }, 400);
+        const actionLink = (linkData as any)?.properties?.action_link
+          ?? (linkData as any)?.action_link;
+        if (!actionLink) return json({ error: "Could not generate recovery link" }, 500);
+
+        const html = `
+          <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#111">
+            <h2 style="font-weight:600;font-size:18px;margin:0 0 12px">Reset your Control Center password</h2>
+            <p style="font-size:14px;line-height:1.55;color:#333">
+              An administrator requested a password reset for your India Photographers Club — Control Center account.
+              Click the button below to set a new password. This link expires shortly for your security.
+            </p>
+            <p style="margin:22px 0">
+              <a href="${actionLink}" style="background:#000;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:14px;display:inline-block">Set new password</a>
+            </p>
+            <p style="font-size:12px;color:#666">If the button doesn't work, copy and paste this URL into your browser:</p>
+            <p style="font-size:12px;color:#666;word-break:break-all">${actionLink}</p>
+            <p style="font-size:12px;color:#999;margin-top:24px">If you didn't expect this email, you can safely ignore it.</p>
+          </div>`;
+
+        const fromHeader = `${fromName} <${fromAddr}>`;
+        const resendRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: fromHeader,
+            to: [email],
+            subject: "Reset your Control Center password",
+            html,
+            ...(replyTo ? { reply_to: replyTo } : {}),
+          }),
+        });
+        if (!resendRes.ok) {
+          const errText = await resendRes.text();
+          console.error("Resend send failed", resendRes.status, errText);
+          return json({ error: `Email send failed: ${errText}` }, resendRes.status);
+        }
+        return json({ ok: true, via: "resend" });
+      }
+
+      // Fallback: Supabase built-in recovery email
       const anonClient = createClient(url, anon);
       const { error } = await anonClient.auth.resetPasswordForEmail(
         email,
         redirectTo ? { redirectTo } : undefined,
       );
       if (error) return json({ error: error.message }, 400);
-      return json({ ok: true });
+      return json({ ok: true, via: "supabase" });
     }
+
 
     return json({ error: "Unknown op" }, 400);
   } catch (e) {
