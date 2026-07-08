@@ -207,9 +207,21 @@ export default function CodeOfConductPanel(props: Props) {
     if (paidLeadId && crmLeadId) q = q.or(`paid_pipeline_lead_id.eq.${paidLeadId},crm_lead_id.eq.${crmLeadId}`);
     else if (paidLeadId) q = q.eq("paid_pipeline_lead_id", paidLeadId);
     else if (crmLeadId) q = q.eq("crm_lead_id", crmLeadId);
-    else { setLoading(false); return; }
+    else { setHistoricalReq(null); setLoading(false); return; }
     const { data } = await q;
-    setReq(data?.[0] || null);
+    const latest = data?.[0] || null;
+    setReq(latest);
+    // Load historical (superseded) request when the latest is a re-signature
+    if (latest?.re_signature_for_request_id) {
+      const { data: hist } = await (supabase as any)
+        .from("code_of_conduct_requests")
+        .select("*")
+        .eq("id", latest.re_signature_for_request_id)
+        .maybeSingle();
+      setHistoricalReq(hist || null);
+    } else {
+      setHistoricalReq(null);
+    }
     setLoading(false);
   };
 
