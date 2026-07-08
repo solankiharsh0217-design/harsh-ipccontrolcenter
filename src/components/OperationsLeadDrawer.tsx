@@ -98,6 +98,10 @@ export default function OperationsLeadDrawer({
   const [showStartProcess, setShowStartProcess] = useState(false);
   const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
   const [readinessSummary, setReadinessSummary] = useState<{ pct: number; blocked: boolean } | null>(null);
+  const [readinessSettings, setReadinessSettings] = useState<ReadinessSettings | null>(null);
+  const [opsStages, setOpsStages] = useState<Stage[]>([]);
+  const [showReadinessMove, setShowReadinessMove] = useState(false);
+  const autoMovedRef = (useMemo(() => ({ current: false }), []) as { current: boolean });
 
   const templateName = useMemo(
     () => templates.find((t) => t.id === lead.process_template_id)?.name ?? null,
@@ -106,7 +110,34 @@ export default function OperationsLeadDrawer({
 
   useEffect(() => {
     listProcessTemplates(true).then(setTemplates).catch(() => {});
+    getReadinessSettings().then(setReadinessSettings).catch(() => {});
   }, []);
+
+  // Load Operations pipeline stages (needed to resolve readiness target stage).
+  useEffect(() => {
+    (async () => {
+      if (lead.pipeline_id) {
+        const { data } = await supabase
+          .from("stages")
+          .select("*")
+          .eq("pipeline_id", lead.pipeline_id)
+          .order("position");
+        setOpsStages((data ?? []) as any);
+      } else {
+        // Fall back: look up via the operations pipeline referenced on the lead row.
+        const { data: row } = await supabase
+          .from("operations_leads" as any)
+          .select("pipeline_id")
+          .eq("id", lead.id)
+          .maybeSingle();
+        const pid = (row as any)?.pipeline_id;
+        if (pid) {
+          const { data } = await supabase.from("stages").select("*").eq("pipeline_id", pid).order("position");
+          setOpsStages((data ?? []) as any);
+        }
+      }
+    })();
+  }, [lead.id, lead.pipeline_id]);
 
   const calc = useMemo(() => computeServiceCalc(lead), [lead]);
 
