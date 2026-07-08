@@ -19,6 +19,7 @@ import TeamResultSubmissionPanel from "@/components/operations/TeamResultSubmiss
 import CustomFieldsPanel from "@/components/operations/CustomFieldsPanel";
 import CommTemplatePickerModal from "@/components/operations/CommTemplatePickerModal";
 import OperationsActivityTimeline from "@/components/operations/OperationsActivityTimeline";
+import OperationsLinkedRecordsCard from "@/components/operations/OperationsLinkedRecordsCard";
 import StartProcessModal from "@/components/operations/StartProcessModal";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
 import { Mail, Rocket, ArrowRight, CheckCircle } from "lucide-react";
