@@ -583,16 +583,22 @@ export default function OperationsLeadDrawer({
       {showCommModal && (
         <CommTemplatePickerModal
           lead={{
+            id: lead.id,
             name: lead.name,
             email: lead.email,
+            phone: lead.phone,
             brand_name: lead.brand_name ?? null,
             program_name: lead.program_name ?? null,
             product_name: lead.product_name,
             assigned_media_buyer_name: lead.assigned_media_buyer_name,
+            crm_lead_id: lead.crm_lead_id,
+            paid_pipeline_lead_id: lead.paid_pipeline_lead_id,
           }}
           onClose={() => setShowCommModal(false)}
+          onLogged={() => loadEvents()}
         />
       )}
+
 
       {showStartProcess && (
         <StartProcessModal
