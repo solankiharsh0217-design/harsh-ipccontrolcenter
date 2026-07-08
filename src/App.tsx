@@ -7,6 +7,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import RouteErrorBoundary from "@/components/RouteErrorBoundary";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import FounderDashboard from "./pages/FounderDashboard";
 import RoasCalculator from "./pages/RoasCalculator";
@@ -82,6 +83,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/code-of-conduct/sign/:token" element={<CodeOfConductSign />} />
             <Route path="/code-of-conduct-guide/:token" element={<CodeOfConductGuide />} />
             <Route path="/dream-turnover-planner" element={<DreamTurnoverPlanner />} />
