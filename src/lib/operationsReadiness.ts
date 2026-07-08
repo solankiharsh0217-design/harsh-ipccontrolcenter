@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Stage } from "@/lib/crmTypes";
+import { logActivity } from "@/lib/auditLog";
 
 export interface ReadinessSettings {
   operations_readiness_target_stage_id: string | null;
