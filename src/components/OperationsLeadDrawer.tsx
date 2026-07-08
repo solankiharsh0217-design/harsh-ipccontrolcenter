@@ -71,7 +71,16 @@ interface ServiceEvent {
   created_at: string;
   created_by: string | null;
   created_by_name?: string | null;
+  channel?: string | null;
+  template_title?: string | null;
+  message_snapshot?: string | null;
+  subject_snapshot?: string | null;
+  send_status?: string | null;
 }
+
+const COMMUNICATION_EVENT_TYPES = new Set([
+  "communication_logged", "communication_copied", "communication_sent", "communication_failed",
+]);
 
 type ActionType = "start" | "pause" | "resume" | "stop" | "complete";
 
@@ -163,6 +172,15 @@ export default function OperationsLeadDrawer({
   };
 
   useEffect(() => { loadEvents(); }, [lead.id]);
+
+  const serviceEvents = useMemo(
+    () => events.filter((e) => !COMMUNICATION_EVENT_TYPES.has(e.event_type)),
+    [events],
+  );
+  const commEvents = useMemo(
+    () => events.filter((e) => COMMUNICATION_EVENT_TYPES.has(e.event_type)),
+    [events],
+  );
 
   const openCrmLink = () => { if (lead.crm_lead_id) window.open(`/crm?lead=${lead.crm_lead_id}`, "_blank"); };
 
@@ -405,10 +423,52 @@ export default function OperationsLeadDrawer({
 
           {/* Communication Templates */}
           <Section title="Communication">
-            <button onClick={() => setShowCommModal(true)} className="ipc-btn ipc-btn-ghost !text-xs">
-              <Mail className="w-3.5 h-3.5" /> Send / Copy Client Instructions
+            <button onClick={() => setShowCommModal(true)} className="ipc-btn ipc-btn-black !text-xs">
+              <Mail className="w-3.5 h-3.5" /> Send / Log Communication
             </button>
           </Section>
+
+          {/* Communication history */}
+          <Section title="Communication history">
+            {eventsLoading ? (
+              <div className="text-[11px] text-muted-foreground">Loading…</div>
+            ) : commEvents.length === 0 ? (
+              <div className="text-[11px] text-muted-foreground">No communication logged yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {commEvents.map((ev) => (
+                  <div key={ev.id} className="border border-line rounded-md p-2.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${commTone(ev.event_type)}`}>
+                          {ev.channel || "note"}
+                        </span>
+                        <span className="text-foreground truncate" title={ev.template_title || ""}>
+                          {ev.template_title || "(no template)"}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{new Date(ev.created_at).toLocaleString()}</span>
+                    </div>
+                    {ev.subject_snapshot && (
+                      <div className="mt-1 text-[11px]"><span className="text-muted-foreground">Subject:</span> {ev.subject_snapshot}</div>
+                    )}
+                    {ev.message_snapshot && (
+                      <div className="mt-1 text-[11px] whitespace-pre-wrap line-clamp-4 text-foreground/80">
+                        {ev.message_snapshot}
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center justify-between">
+                      <div className="text-[10px] text-muted-foreground">
+                        {ev.event_type === "communication_copied" ? "copied" : ev.event_type === "communication_sent" ? "sent" : ev.event_type === "communication_failed" ? "failed" : "logged"}
+                        {" · by "}{ev.created_by_name || "—"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
 
           {/* Start Operations Process */}
           {lead.intake_status !== "active" && lead.service_status === "not_started" && (
@@ -468,11 +528,11 @@ export default function OperationsLeadDrawer({
           <Section title="Service timeline">
             {eventsLoading ? (
               <div className="text-[11px] text-muted-foreground">Loading…</div>
-            ) : events.length === 0 ? (
+            ) : serviceEvents.length === 0 ? (
               <div className="text-[11px] text-muted-foreground">No service events yet.</div>
             ) : (
               <div className="space-y-2">
-                {events.map((ev) => (
+                {serviceEvents.map((ev) => (
                   <div key={ev.id} className="border border-line rounded-md p-2.5 text-xs">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -489,6 +549,7 @@ export default function OperationsLeadDrawer({
               </div>
             )}
           </Section>
+
 
           {/* Promised offers / services */}
           <PromisedOffersPanel
@@ -522,16 +583,22 @@ export default function OperationsLeadDrawer({
       {showCommModal && (
         <CommTemplatePickerModal
           lead={{
+            id: lead.id,
             name: lead.name,
             email: lead.email,
+            phone: lead.phone,
             brand_name: lead.brand_name ?? null,
             program_name: lead.program_name ?? null,
             product_name: lead.product_name,
             assigned_media_buyer_name: lead.assigned_media_buyer_name,
+            crm_lead_id: lead.crm_lead_id,
+            paid_pipeline_lead_id: lead.paid_pipeline_lead_id,
           }}
           onClose={() => setShowCommModal(false)}
+          onLogged={() => loadEvents()}
         />
       )}
+
 
       {showStartProcess && (
         <StartProcessModal
@@ -596,6 +663,17 @@ function eventTone(t: string) {
       return "bg-[#F3F4F6] text-[#6B7280]";
   }
 }
+
+function commTone(t: string) {
+  switch (t) {
+    case "communication_sent": return "bg-[#DCFCE7] text-[#166534]";
+    case "communication_failed": return "bg-[#FEE2E2] text-[#991B1B]";
+    case "communication_copied": return "bg-[#E0E7FF] text-[#3730A3]";
+    case "communication_logged":
+    default: return "bg-[#F3F4F6] text-[#6B7280]";
+  }
+}
+
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
