@@ -549,8 +549,21 @@ Deno.serve(async (req) => {
     const acknowledgements = body.acknowledgements || body.acknowledgement_checkbox_values;
     const acknowledgementLabels = Array.isArray(body.acknowledgement_labels) ? body.acknowledgement_labels.slice(0, 12).map((s: any) => String(s).slice(0, 300)) : null;
     if (!signatureName || typeof signatureName !== 'string' || signatureName.trim().length < 2) {
-      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_REQUIRED' } });
-      return publicError('SIGNATURE_REQUIRED', 'Typed full name is required.', 400);
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_NAME_REQUIRED' } });
+      return publicError('SIGNATURE_NAME_REQUIRED', 'Typed full name is required.', 400);
+    }
+    // Drawn digital signature is mandatory. Reject missing / malformed / trivially-small payloads.
+    if (!signatureDataUrl || typeof signatureDataUrl !== 'string' || !signatureDataUrl.startsWith('data:image/')) {
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_REQUIRED', reason: 'missing_signature_data_url' } });
+      return publicError('SIGNATURE_REQUIRED', 'Please draw your digital signature before submitting.', 400);
+    }
+    {
+      const parsed = dataUrlBytes(signatureDataUrl);
+      // Anything under ~800 bytes of PNG payload is effectively a blank canvas / accidental dot.
+      if (!parsed || parsed.bytes.length < 800) {
+        await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_REQUIRED', reason: 'signature_blank_or_too_small', size: parsed?.bytes?.length || 0 } });
+        return publicError('SIGNATURE_REQUIRED', 'Please draw your digital signature before submitting.', 400);
+      }
     }
     if (!acknowledgements || !Array.isArray(acknowledgements) || acknowledgements.length < 4 || acknowledgements.some((b: any) => b !== true)) {
       await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'ACKNOWLEDGEMENT_REQUIRED' } });
