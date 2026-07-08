@@ -17,8 +17,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   TOKEN_EXPIRED: "This link has expired. Please contact Team IPC.",
   TEMPLATE_NOT_FOUND: "The agreement template is no longer available. Please contact Team IPC.",
   DOCUMENT_NOT_FOUND: "The agreement document is not configured yet. Please contact Team IPC.",
-  SIGNATURE_REQUIRED: "Please type your full name.",
+  SIGNATURE_REQUIRED: "Please draw your digital signature before submitting.",
+  SIGNATURE_NAME_REQUIRED: "Please type your full name.",
+  SIGNATURE_TOO_SMALL: "Your signature looks too small. Please draw a fuller signature.",
   ACKNOWLEDGEMENT_REQUIRED: "Please acknowledge all items.",
+  BONUS_TERMS_REQUIRED: "Please accept the Bonus Access Terms to continue.",
   SIGN_SUBMIT_FAILED: "We could not submit your signature. Please try again.",
 };
 
