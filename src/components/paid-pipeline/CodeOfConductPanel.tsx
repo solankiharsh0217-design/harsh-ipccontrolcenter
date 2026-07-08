@@ -695,18 +695,47 @@ export default function CodeOfConductPanel(props: Props) {
             <Cell label="Request id" value={req.id.slice(0, 8)} />
           </div>
           {req.status === "signed" && (() => {
-            const hasSig = typeof req.signature_data_url === "string" && req.signature_data_url.startsWith("data:image/") && req.signature_data_url.length > 800;
+            const hasSig = hasValidSignature(req);
             return hasSig ? (
               <div className="text-[11px] inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-800">
                 <span>✓</span><span className="font-medium">Signature: Valid</span>
+                {req.re_signature_for_request_id && <span className="ml-1 opacity-70">(re-signed)</span>}
               </div>
             ) : (
               <div className="text-[11.5px] rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-rose-800">
-                <span className="font-semibold">Signature: Missing / Invalid.</span>{" "}
-                Digital signature is missing. Ask the member to re-sign the Code of Conduct.
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div>
+                    <div><span className="font-semibold">Signature: Missing / Invalid.</span> Action required: Re-signature needed.</div>
+                    <div className="opacity-80 mt-0.5">This legacy record will remain preserved as historical evidence. A new signing request will be created.</div>
+                  </div>
+                  {isAdmin && (
+                    <button onClick={requestResign} disabled={resignBusy}
+                      className="ipc-btn ipc-btn-black !h-8 disabled:opacity-50">
+                      {resignBusy ? "Requesting…" : "Request Re-signature"}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })()}
+          {historicalReq && (
+            <div className="text-[11.5px] rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-slate-700">
+              <div className="font-semibold">Historical request (preserved)</div>
+              <div className="opacity-80 mt-0.5">
+                Previous request {historicalReq.id.slice(0, 8)} · status: {historicalReq.status}
+                {historicalReq.signed_at ? ` · signed ${new Date(historicalReq.signed_at).toLocaleDateString()}` : ""}
+                {" · "}Signature: {hasValidSignature(historicalReq) ? "Valid" : "Missing / Invalid"}
+                {req.re_signature_reason ? ` · Reason: ${req.re_signature_reason.replace(/_/g, " ")}` : ""}
+              </div>
+              <div className="opacity-70 mt-0.5">Old signed PDF and evidence are not modified.</div>
+            </div>
+          )}
+          {req.re_signature_for_request_id && req.status !== "signed" && (
+            <div className="text-[11.5px] rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-amber-900">
+              <span className="font-semibold">Pending Re-signature.</span>{" "}
+              A fresh signing link has been issued for this member. Current status: {STATUS_LABELS[req.status] || req.status}.
+            </div>
+          )}
           {isFailed && (
             <div className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1.5">
               <div className="font-medium">Email failed</div>
