@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   listProcessTemplates, listCommunicationTemplates,
   type ProcessTemplate, type CommunicationTemplate,
 } from "@/lib/operationsTemplates";
 import ProcessTemplateEditor from "@/components/operations/ProcessTemplateEditor";
 import CommunicationTemplateEditor from "@/components/operations/CommunicationTemplateEditor";
+import { ensureOperationsPipeline } from "@/lib/operationsCrm";
+import { getReadinessSettings, updateReadinessSettings, type ReadinessSettings } from "@/lib/operationsReadiness";
+import type { Stage } from "@/lib/crmTypes";
 
 export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean }) {
   const [templates, setTemplates] = useState<ProcessTemplate[]>([]);
