@@ -580,6 +580,19 @@ export default function CodeOfConductPanel(props: Props) {
             {req.corrected_contact_email && <Cell label="Corrected contact" value={req.corrected_contact_email} />}
             <Cell label="Request id" value={req.id.slice(0, 8)} />
           </div>
+          {req.status === "signed" && (() => {
+            const hasSig = typeof req.signature_data_url === "string" && req.signature_data_url.startsWith("data:image/") && req.signature_data_url.length > 800;
+            return hasSig ? (
+              <div className="text-[11px] inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-800">
+                <span>✓</span><span className="font-medium">Signature: Valid</span>
+              </div>
+            ) : (
+              <div className="text-[11.5px] rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-rose-800">
+                <span className="font-semibold">Signature: Missing / Invalid.</span>{" "}
+                Digital signature is missing. Ask the member to re-sign the Code of Conduct.
+              </div>
+            );
+          })()}
           {isFailed && (
             <div className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-1.5">
               <div className="font-medium">Email failed</div>

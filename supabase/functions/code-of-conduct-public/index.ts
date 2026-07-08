@@ -360,7 +360,14 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
       'I understand group/program access may be provided only after acknowledgement.',
       'I confirm that the name and email shown belong to me.',
     ];
-    for (const ack of acks) { page.drawText('[x]', { x: 58, y, size: 9.5, font: bold, color: rgb(0.09,0.55,0.25) }); y = drawWrapped(page, ack, 82, y, { font, size: 9.5, color: ink, maxWidth: 436, lineHeight: 13 }) - 16; }
+    const tickColor = rgb(0.09, 0.55, 0.25);
+    for (const ack of acks) {
+      // Draw a real check-mark glyph (two connected line segments) instead of the "[x]" that looked like a negative cross.
+      const cx = 60, cy = y + 2;
+      page.drawLine({ start: { x: cx, y: cy + 2 }, end: { x: cx + 3, y: cy - 2 }, thickness: 1.4, color: tickColor });
+      page.drawLine({ start: { x: cx + 3, y: cy - 2 }, end: { x: cx + 9, y: cy + 6 }, thickness: 1.4, color: tickColor });
+      y = drawWrapped(page, ack, 82, y, { font, size: 9.5, color: ink, maxWidth: 436, lineHeight: 13 }) - 16;
+    }
     page.drawLine({ start: { x: 48, y: 68 }, end: { x: 547, y: 68 }, thickness: 1, color: line });
     page.drawText('This page records the digital acknowledgement evidence captured through the secure IPC signing flow.', { x: 48, y: 48, size: 8.5, font, color: muted });
 
@@ -549,8 +556,21 @@ Deno.serve(async (req) => {
     const acknowledgements = body.acknowledgements || body.acknowledgement_checkbox_values;
     const acknowledgementLabels = Array.isArray(body.acknowledgement_labels) ? body.acknowledgement_labels.slice(0, 12).map((s: any) => String(s).slice(0, 300)) : null;
     if (!signatureName || typeof signatureName !== 'string' || signatureName.trim().length < 2) {
-      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_REQUIRED' } });
-      return publicError('SIGNATURE_REQUIRED', 'Typed full name is required.', 400);
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_NAME_REQUIRED' } });
+      return publicError('SIGNATURE_NAME_REQUIRED', 'Typed full name is required.', 400);
+    }
+    // Drawn digital signature is mandatory. Reject missing / malformed / trivially-small payloads.
+    if (!signatureDataUrl || typeof signatureDataUrl !== 'string' || !signatureDataUrl.startsWith('data:image/')) {
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_REQUIRED', reason: 'missing_signature_data_url' } });
+      return publicError('SIGNATURE_REQUIRED', 'Please draw your digital signature before submitting.', 400);
+    }
+    {
+      const parsed = dataUrlBytes(signatureDataUrl);
+      // Anything under ~800 bytes of PNG payload is effectively a blank canvas / accidental dot.
+      if (!parsed || parsed.bytes.length < 800) {
+        await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_REQUIRED', reason: 'signature_blank_or_too_small', size: parsed?.bytes?.length || 0 } });
+        return publicError('SIGNATURE_REQUIRED', 'Please draw your digital signature before submitting.', 400);
+      }
     }
     if (!acknowledgements || !Array.isArray(acknowledgements) || acknowledgements.length < 4 || acknowledgements.some((b: any) => b !== true)) {
       await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'ACKNOWLEDGEMENT_REQUIRED' } });
@@ -568,7 +588,11 @@ Deno.serve(async (req) => {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('cf-connecting-ip') || null;
     const ua = req.headers.get('user-agent') || null;
     const now = new Date().toISOString();
-    const sigTrim = (signatureDataUrl && typeof signatureDataUrl === 'string' && signatureDataUrl.length < 500_000) ? signatureDataUrl : null;
+    const sigTrim = (signatureDataUrl && typeof signatureDataUrl === 'string' && signatureDataUrl.length < 800_000) ? signatureDataUrl : null;
+    if (!sigTrim) {
+      await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: 'sign_failed', metadata: { error_code: 'SIGNATURE_REQUIRED', reason: 'signature_too_large' } });
+      return publicError('SIGNATURE_REQUIRED', 'Signature image is too large. Please draw a simpler signature and try again.', 400);
+    }
     const trimmedName = signatureName.trim().slice(0, 200);
     const signedEmail = (body.email || reqRow.member_email || '').toString().trim().slice(0, 200);
 
