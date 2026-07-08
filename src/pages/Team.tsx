@@ -134,7 +134,7 @@ export default function Team() {
     setAuthBusy(m.id);
     try {
       const { data, error } = await supabase.functions.invoke("admin-team-auth", {
-        body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/login` },
+        body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/reset-password` },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -172,7 +172,7 @@ export default function Team() {
     for (const m of eligible) {
       try {
         const { data, error } = await supabase.functions.invoke("admin-team-auth", {
-          body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/login` },
+          body: { op: "reset", email: m.email, redirectTo: `${window.location.origin}/reset-password` },
         });
         if (error || (data as any)?.error) throw new Error(error?.message || (data as any)?.error);
         ok++;
@@ -395,17 +395,45 @@ export default function Team() {
           </button>
         ))}
       </div>
-      {isAdmin && selected.size > 0 && (
-        <div className="mb-3 flex items-center justify-between gap-3 px-3 py-2 rounded-md border border-line bg-off">
-          <div className="font-sans text-[12px] text-black">{selected.size} selected</div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setSelected(new Set())} className="h-7 px-2 rounded-md border border-line bg-white text-[11px] font-sans hover:bg-off">Clear</button>
-            <button onClick={bulkReset} disabled={bulkBusy} className="h-7 px-3 rounded-md bg-black text-white text-[11px] font-sans disabled:opacity-50">
-              {bulkBusy ? "Sending…" : "Send Password Reset"}
-            </button>
+      {isAdmin && (() => {
+        const eligibleForBulk = members.filter((m) => {
+          if (!m.email || m.deactivated_at) return false;
+          const st = getAuthFor(m).state;
+          return st === "active" || st === "confirmed";
+        });
+        const allSelected = eligibleForBulk.length > 0 && eligibleForBulk.every((m) => selected.has(m.id));
+        const someSelected = eligibleForBulk.some((m) => selected.has(m.id));
+        return (
+          <div className="mb-3 flex items-center justify-between gap-3 px-3 py-2 rounded-md border border-line bg-off">
+            <label className="flex items-center gap-2 font-sans text-[12px] text-black cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4"
+                checked={allSelected}
+                ref={(el) => { if (el) el.indeterminate = !allSelected && someSelected; }}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelected(new Set(eligibleForBulk.map((m) => m.id)));
+                  } else {
+                    setSelected(new Set());
+                  }
+                }}
+                disabled={eligibleForBulk.length === 0}
+              />
+              Select all eligible ({eligibleForBulk.length})
+              {selected.size > 0 && <span className="text-muted-foreground">· {selected.size} selected</span>}
+            </label>
+            <div className="flex items-center gap-2">
+              {selected.size > 0 && (
+                <button onClick={() => setSelected(new Set())} className="h-7 px-2 rounded-md border border-line bg-white text-[11px] font-sans hover:bg-off">Clear</button>
+              )}
+              <button onClick={bulkReset} disabled={bulkBusy || selected.size === 0} className="h-7 px-3 rounded-md bg-black text-white text-[11px] font-sans disabled:opacity-40">
+                {bulkBusy ? "Sending…" : `Send Password Reset${selected.size > 0 ? ` (${selected.size})` : ""}`}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {visible.length === 0 && <div className="font-sans text-sm text-muted-foreground">No members in this view.</div>}
       <div className="grid grid-cols-2 gap-3">
         {visible.map((m, i) => {
@@ -544,7 +572,7 @@ export default function Team() {
                         if (!confirm(`Send a password reset link to ${editing.email}?`)) return;
                         try {
                           const { error } = await supabase.auth.resetPasswordForEmail(editing.email, {
-                            redirectTo: `${window.location.origin}/login`,
+                            redirectTo: `${window.location.origin}/reset-password`,
                           });
                           if (error) throw error;
                           await logActivity({
