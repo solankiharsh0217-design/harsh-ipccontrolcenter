@@ -414,10 +414,52 @@ export default function OperationsLeadDrawer({
 
           {/* Communication Templates */}
           <Section title="Communication">
-            <button onClick={() => setShowCommModal(true)} className="ipc-btn ipc-btn-ghost !text-xs">
-              <Mail className="w-3.5 h-3.5" /> Send / Copy Client Instructions
+            <button onClick={() => setShowCommModal(true)} className="ipc-btn ipc-btn-black !text-xs">
+              <Mail className="w-3.5 h-3.5" /> Send / Log Communication
             </button>
           </Section>
+
+          {/* Communication history */}
+          <Section title="Communication history">
+            {eventsLoading ? (
+              <div className="text-[11px] text-muted-foreground">Loading…</div>
+            ) : commEvents.length === 0 ? (
+              <div className="text-[11px] text-muted-foreground">No communication logged yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {commEvents.map((ev) => (
+                  <div key={ev.id} className="border border-line rounded-md p-2.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${commTone(ev.event_type)}`}>
+                          {ev.channel || "note"}
+                        </span>
+                        <span className="text-foreground truncate" title={ev.template_title || ""}>
+                          {ev.template_title || "(no template)"}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{new Date(ev.created_at).toLocaleString()}</span>
+                    </div>
+                    {ev.subject_snapshot && (
+                      <div className="mt-1 text-[11px]"><span className="text-muted-foreground">Subject:</span> {ev.subject_snapshot}</div>
+                    )}
+                    {ev.message_snapshot && (
+                      <div className="mt-1 text-[11px] whitespace-pre-wrap line-clamp-4 text-foreground/80">
+                        {ev.message_snapshot}
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center justify-between">
+                      <div className="text-[10px] text-muted-foreground">
+                        {ev.event_type === "communication_copied" ? "copied" : ev.event_type === "communication_sent" ? "sent" : ev.event_type === "communication_failed" ? "failed" : "logged"}
+                        {" · by "}{ev.created_by_name || "—"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
 
           {/* Start Operations Process */}
           {lead.intake_status !== "active" && lead.service_status === "not_started" && (
