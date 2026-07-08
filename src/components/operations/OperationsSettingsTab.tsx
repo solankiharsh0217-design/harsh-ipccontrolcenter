@@ -20,16 +20,44 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
   const [creatingTpl, setCreatingTpl] = useState(false);
   const [editingComm, setEditingComm] = useState<CommunicationTemplate | null>(null);
   const [creatingComm, setCreatingComm] = useState(false);
+  const [opsStages, setOpsStages] = useState<Stage[]>([]);
+  const [readiness, setReadiness] = useState<ReadinessSettings>({
+    operations_readiness_target_stage_id: null,
+    operations_readiness_auto_move: false,
+  });
+  const [savingReadiness, setSavingReadiness] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [t, c] = await Promise.all([listProcessTemplates(false), listCommunicationTemplates(false)]);
-      setTemplates(t); setComms(c);
+      const [t, c, r] = await Promise.all([
+        listProcessTemplates(false),
+        listCommunicationTemplates(false),
+        getReadinessSettings(),
+      ]);
+      setTemplates(t); setComms(c); setReadiness(r);
+      try {
+        const { pipelineId } = await ensureOperationsPipeline();
+        const { data } = await supabase.from("stages").select("*").eq("pipeline_id", pipelineId).order("position");
+        setOpsStages((data ?? []) as any);
+      } catch { /* stages optional */ }
     } catch (e: any) { toast.error(e.message || "Failed to load"); }
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
+
+  const saveReadiness = async (patch: Partial<ReadinessSettings>) => {
+    setSavingReadiness(true);
+    try {
+      await updateReadinessSettings(patch);
+      setReadiness((r) => ({ ...r, ...patch }));
+      toast.success("Readiness settings saved");
+    } catch (e: any) {
+      toast.error(e.message || "Save failed");
+    } finally {
+      setSavingReadiness(false);
+    }
+  };
 
   if (!isAdmin) {
     return <div className="text-sm text-muted-foreground py-12 text-center">Only admins can edit Operations settings.</div>;
