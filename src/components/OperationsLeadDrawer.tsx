@@ -548,6 +548,34 @@ export default function OperationsLeadDrawer({
           onDone={() => { setShowStartProcess(false); loadEvents(); onSaved(); }}
         />
       )}
+
+      {showReadinessMove && targetStageObj && (
+        <div className="fixed inset-0 z-[1200] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowReadinessMove(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-lg w-full max-w-md p-5">
+            <div className="font-serif text-base text-black mb-3">Move lead to next operations stage?</div>
+            <div className="space-y-1.5 text-sm mb-4">
+              <div><span className="text-muted-foreground text-xs uppercase tracking-wider">Member</span><div>{lead.name}</div></div>
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div>
+                  <div className="text-muted-foreground text-xs uppercase tracking-wider">Current stage</div>
+                  <div className="text-sm">{currentStageObj?.name ?? "—"}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs uppercase tracking-wider">Target stage</div>
+                  <div className="text-sm">{targetStageObj.name}</div>
+                </div>
+              </div>
+              <div className="text-[11px] text-[#166534] mt-2">Readiness completion: 100%</div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setShowReadinessMove(false)} className="ipc-btn ipc-btn-ghost !text-xs">Cancel</button>
+              <button onClick={() => doMove("readiness_manual_move")} className="ipc-btn ipc-btn-black !text-xs">
+                <ArrowRight className="w-3.5 h-3.5" /> Move Lead
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
