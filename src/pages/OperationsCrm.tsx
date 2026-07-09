@@ -211,9 +211,17 @@ export default function OperationsCrm() {
         const a = agingByLead.get(l.id);
         if (!a || a.status !== slaFilter) return false;
       }
+      if (deliveryFilter !== "all") {
+        const d = deliveryMap.get(l.id);
+        if (!d || d.total === 0) return false;
+        if (deliveryFilter === "has_pending" && d.pending + d.in_progress === 0) return false;
+        if (deliveryFilter === "has_overdue" && d.overdue === 0) return false;
+        if (deliveryFilter === "fully_delivered" && d.delivered !== d.total) return false;
+        if (deliveryFilter === "blocked" && d.blocked === 0) return false;
+      }
       return true;
     });
-  }, [leads, search, buyerFilter, statusFilter, stageFilter, slaFilter, agingByLead, profile?.id]);
+  }, [leads, search, buyerFilter, statusFilter, stageFilter, slaFilter, agingByLead, profile?.id, deliveryFilter, deliveryMap]);
 
   const metrics = useMemo(() => {
     const now = new Date();
