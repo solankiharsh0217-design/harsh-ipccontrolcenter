@@ -23,6 +23,7 @@ export default function DeliveryTrackingSection({ operationsLeadId, crmLeadId, p
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, Partial<OperationsOfferDelivery>>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [rewardModal, setRewardModal] = useState<null | { row: OperationsOfferDelivery; title: string; description: string; proof_url: string; result_date: string; submitting: boolean }>(null);
 
   const load = async (doSync = false) => {
     setLoading(true);
