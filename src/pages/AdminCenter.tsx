@@ -43,6 +43,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "KPI Review & Scorecard",
+      desc: "Review submitted KPI proofs, approve or reject with notes, mark overdue KPIs missed, and inspect daily/weekly/monthly scorecards per team member.",
+      cta: "Open KPI Review",
+      to: "/team-performance/review",
+      show: isAdmin,
+    },
+    {
       title: "Audit Log",
       desc: "History of important changes across the Control Center.",
       cta: "Open Audit Log",
