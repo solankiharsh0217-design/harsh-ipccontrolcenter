@@ -5,15 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format, formatDistanceStrict } from "date-fns";
+import { ExternalLink } from "lucide-react";
 import {
   fetchMyAttendance, checkIn, checkOut, fetchMyTodayEntries,
   generateMyEntriesForDate, countMyActiveAssignments,
   todayStr, type AttendanceSession, type MyKpiEntry,
 } from "@/lib/myToday";
+import { fetchSubmissionsForEntries, type KpiSubmission } from "@/lib/kpiSubmissions";
 import { logActivity } from "@/lib/auditLog";
+import SubmitKpiModal from "@/components/team-performance/SubmitKpiModal";
 
 const MOD = { module_key: "team_performance", module_label: "Team Performance" };
 
@@ -36,6 +38,16 @@ function statusChipClass(status: string, overdue: boolean): string {
   }
 }
 
+const REVIEWED_STATUSES = ["approved", "rejected", "missed", "waived"];
+
+function actionLabel(entryStatus: string): string {
+  if (entryStatus === "pending") return "Submit KPI";
+  if (entryStatus === "submitted") return "Edit submission";
+  if (entryStatus === "approved") return "View submission";
+  if (entryStatus === "rejected") return "View feedback";
+  return "View details";
+}
+
 export default function MyToday() {
   const { user, profile, isAdmin } = useAuth();
   const uid = user?.id;
@@ -43,6 +55,7 @@ export default function MyToday() {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [entries, setEntries] = useState<MyKpiEntry[]>([]);
+  const [submissions, setSubmissions] = useState<Record<string, KpiSubmission>>({});
   const [assignmentCount, setAssignmentCount] = useState<number>(0);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<MyKpiEntry | null>(null);
@@ -52,6 +65,14 @@ export default function MyToday() {
     if (!uid) return;
     logActivity({ ...MOD, action_type: "my_today_opened", entity_type: "my_today", metadata: { date: today } }).catch(() => {});
   }, [uid, today]);
+
+  const loadSubmissions = async (rows: MyKpiEntry[]) => {
+    if (rows.length === 0) { setSubmissions({}); return; }
+    try {
+      const map = await fetchSubmissionsForEntries(rows.map(r => r.id));
+      setSubmissions(map);
+    } catch { /* non-fatal */ }
+  };
 
   const load = async () => {
     if (!uid) return;
@@ -64,20 +85,21 @@ export default function MyToday() {
       ]);
       setSession(att);
       setAssignmentCount(count);
+      let final = existing;
       if (existing.length === 0 && count > 0) {
         try {
           await generateMyEntriesForDate(today);
-          const refreshed = await fetchMyTodayEntries(uid, today);
-          setEntries(refreshed);
+          final = await fetchMyTodayEntries(uid, today);
           setGenError(null);
         } catch (e: any) {
-          setEntries([]);
+          final = [];
           setGenError(e?.message ?? "Failed to generate KPIs");
         }
       } else {
-        setEntries(existing);
         setGenError(null);
       }
+      setEntries(final);
+      await loadSubmissions(final);
     } finally {
       setLoading(false);
     }
@@ -107,6 +129,11 @@ export default function MyToday() {
     } catch (e: any) {
       toast.error(e?.message ?? "Could not check out");
     } finally { setBusy(false); }
+  };
+
+  const handleSubmissionSaved = (sub: KpiSubmission, entryStatus: string) => {
+    setSubmissions((prev) => ({ ...prev, [sub.entry_id]: sub }));
+    setEntries((prev) => prev.map((e) => e.id === sub.entry_id ? { ...e, status: entryStatus } : e));
   };
 
   const stats = useMemo(() => {
@@ -246,13 +273,12 @@ export default function MyToday() {
             <ul className="divide-y divide-border">
               {entries.map((e) => {
                 const overdue = e.status === "pending" && e.due_at != null && new Date(e.due_at) < now;
+                const sub = submissions[e.id];
+                const reviewed = REVIEWED_STATUSES.includes(e.status);
                 return (
-                  <li key={e.id}>
-                    <button
-                      onClick={() => setSelected(e)}
-                      className="w-full text-left py-3 px-1 hover:bg-muted/40 transition-colors rounded-md flex items-start justify-between gap-3"
-                    >
-                      <div className="min-w-0">
+                  <li key={e.id} className="py-3 px-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
                         <div className="font-medium text-sm truncate">{e.kpi?.name ?? "KPI"}</div>
                         {e.kpi?.description && (
                           <div className="text-xs text-muted-foreground line-clamp-1">{e.kpi.description}</div>
@@ -275,16 +301,55 @@ export default function MyToday() {
                             <Badge variant="outline" className="text-[10px] capitalize">{e.assignment.assignment_type}</Badge>
                           )}
                         </div>
+
+                        {sub && (
+                          <div className="mt-2 rounded-md bg-muted/40 border border-border px-2.5 py-1.5 text-xs space-y-0.5">
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                              {sub.submitted_value != null && (
+                                <span>Value: <span className="font-medium">{sub.submitted_value}{e.kpi?.target_unit ? ` ${e.kpi.target_unit}` : ""}</span></span>
+                              )}
+                              <span className="text-muted-foreground">
+                                Submitted {format(new Date(sub.submitted_at), "d MMM, hh:mm a")}
+                              </span>
+                              {sub.proof_url && (
+                                <a
+                                  href={sub.proof_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-sky-700 hover:underline"
+                                  onClick={(ev) => ev.stopPropagation()}
+                                >
+                                  Proof <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                            {sub.notes && (
+                              <div className="text-muted-foreground line-clamp-1">Notes: {sub.notes}</div>
+                            )}
+                            {e.status === "rejected" && sub.review_notes && (
+                              <div className="text-rose-700">Feedback: {sub.review_notes}</div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex flex-col items-end gap-1">
+
+                      <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusChipClass(e.status, overdue)}`}>
                           {e.status}
                         </span>
                         {overdue && (
                           <span className="text-[10px] text-amber-700">Overdue</span>
                         )}
+                        <Button
+                          size="sm"
+                          variant={reviewed ? "outline" : "default"}
+                          className="mt-1 h-7 text-xs"
+                          onClick={() => setSelected(e)}
+                        >
+                          {actionLabel(e.status)}
+                        </Button>
                       </div>
-                    </button>
+                    </div>
                   </li>
                 );
               })}
@@ -293,53 +358,14 @@ export default function MyToday() {
         </CardContent>
       </Card>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="font-serif text-2xl">{selected?.kpi?.name ?? "KPI"}</DialogTitle>
-            {selected?.kpi?.description && (
-              <DialogDescription>{selected.kpi.description}</DialogDescription>
-            )}
-          </DialogHeader>
-          {selected && (
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="text-xs text-muted-foreground">Cadence</div>
-                  <div className="capitalize">{selected.period_type}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Target</div>
-                  <div>{selected.target_value ?? "—"}{selected.kpi?.target_unit ? ` ${selected.kpi.target_unit}` : ""}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Period</div>
-                  <div>{format(new Date(selected.period_start), "d MMM")} – {format(new Date(selected.period_end), "d MMM")}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Due</div>
-                  <div>{selected.due_at ? format(new Date(selected.due_at), "d MMM, hh:mm a") : "—"}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Proof required</div>
-                  <div>{selected.kpi?.proof_required ? "Yes" : "No"}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Approval required</div>
-                  <div>{selected.kpi?.approval_required ? "Yes" : "No"}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Status</div>
-                  <div className="capitalize">{selected.status}</div>
-                </div>
-              </div>
-              <div className="rounded-md bg-muted/50 border border-border px-3 py-2 text-xs text-muted-foreground">
-                Submission will be available in the next phase.
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {selected && uid && (
+        <SubmitKpiModal
+          entry={selected}
+          actorId={uid}
+          onClose={() => setSelected(null)}
+          onSaved={handleSubmissionSaved}
+        />
+      )}
     </div>
   );
 }
