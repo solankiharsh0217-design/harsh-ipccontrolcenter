@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, Save, RefreshCw } from "lucide-react";
+import { ExternalLink, Save, RefreshCw, Trophy } from "lucide-react";
 import {
   listDeliveriesForLead, syncDeliveriesForLead, updateDelivery, summarize,
   isOverdue, DELIVERY_STATUS_LABELS, DELIVERY_STATUS_COLORS,
   type OperationsOfferDelivery, type DeliveryStatus,
 } from "@/lib/operationsDeliveries";
+import { submitResult } from "@/lib/operationsRewards";
 
 interface Props {
   operationsLeadId: string;
