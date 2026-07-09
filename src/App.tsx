@@ -144,6 +144,7 @@ const App = () => (
             <Route path="/admin-center/clean-slate" element={<Shell admin><CleanSlate /></Shell>} />
             <Route path="/admin-center/conversion-rules" element={<Shell admin><ConversionRulesAdmin /></Shell>} />
             <Route path="/admin-center/lead-rescue" element={<Shell admin><LeadRescueSearch /></Shell>} />
+            <Route path="/admin-center/access-templates" element={<Shell admin><AccessTemplatesAdmin /></Shell>} />
             <Route path="/media-buyer-operations" element={<Shell moduleKey="media_buyer_operations"><MediaBuyerOperations /></Shell>} />
             <Route path="/operations-crm" element={<Shell moduleKey="operations_crm"><OperationsCrm /></Shell>} />
             <Route path="/operations-rewards" element={<Shell><OperationsRewards /></Shell>} />
