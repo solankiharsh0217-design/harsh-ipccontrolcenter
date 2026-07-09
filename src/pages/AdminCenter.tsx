@@ -50,6 +50,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "KPI Rewards",
+      desc: "Configure reward rules, generate reward earnings from approved KPI performance, and track approvals and payouts. Internal tracking only.",
+      cta: "Open KPI Rewards",
+      to: "/team-performance/rewards",
+      show: isAdmin,
+    },
+    {
       title: "Audit Log",
       desc: "History of important changes across the Control Center.",
       cta: "Open Audit Log",
