@@ -21,12 +21,13 @@ export default function TeamPerformanceAdmin() {
 
   return (
     <div className="max-w-[1180px]">
-      <PageHead title="Team Performance OS" sub="Set-and-forget KPIs, templates by role, and assignments. Configuration only — recurring generation runs in Phase 2." />
+      <PageHead title="Team Performance OS" sub="Set-and-forget KPIs, templates by role, assignments, and recurring entry generation." />
       <div className="flex gap-1 mb-6 border-b border-line">
         {[
           { k: "library", l: "KPI Library" },
           { k: "templates", l: "KPI Templates" },
           { k: "assign", l: "Assign KPIs" },
+          { k: "generated", l: "Generated Entries" },
         ].map((t) => (
           <button
             key={t.k}
@@ -43,6 +44,7 @@ export default function TeamPerformanceAdmin() {
       {tab === "library" && <LibraryTab />}
       {tab === "templates" && <TemplatesTab />}
       {tab === "assign" && <AssignTab />}
+      {tab === "generated" && <GeneratedTab />}
     </div>
   );
 }
