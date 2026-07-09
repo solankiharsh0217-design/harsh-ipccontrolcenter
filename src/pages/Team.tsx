@@ -542,6 +542,15 @@ export default function Team() {
           onClose={() => setAssignedLeadsMember(null)}
         />
       )}
+      {applyTplMember && user && (
+        <ApplyTemplateModal
+          memberId={applyTplMember.id}
+          memberName={applyTplMember.full_name || "Member"}
+          actorId={user.id}
+          onClose={() => setApplyTplMember(null)}
+          onDone={load}
+        />
+      )}
 
 
       {editing && (
