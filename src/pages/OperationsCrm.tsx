@@ -22,6 +22,11 @@ import OperationsSettingsTab from "@/components/operations/OperationsSettingsTab
 import { getMonthlyCountsByBuyer, currentMonthStr } from "@/lib/operationsConversions";
 import type { Pipeline, Stage } from "@/lib/crmTypes";
 import ServicePackageChip from "@/components/ServicePackageChip";
+import SlaChip from "@/components/operations/SlaChip";
+import {
+  getOperationsSlaSettings, fetchStageChangeMap, computeStageAging,
+  DEFAULT_SLA, type OperationsSlaSettings, type SlaStatus,
+} from "@/lib/operationsSla";
 
 interface OpsLead {
   id: string;
