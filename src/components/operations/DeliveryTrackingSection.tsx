@@ -253,6 +253,66 @@ export default function DeliveryTrackingSection({ operationsLeadId, crmLeadId, p
           );
         })}
       </div>
+
+      {rewardModal && (
+        <div className="fixed inset-0 z-[1400] bg-black/50 flex items-center justify-center p-4" onClick={() => setRewardModal(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-lg p-5">
+            <div className="font-serif text-lg mb-1 flex items-center gap-2"><Trophy className="w-4 h-4 text-[#92400E]" /> Submit delivery for reward</div>
+            <div className="text-[11px] text-muted-foreground mb-3">Admin approval required. This does not auto-approve or auto-pay.</div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Title *</label>
+                <input className="ipc-input" value={rewardModal.title} onChange={(e) => setRewardModal({ ...rewardModal, title: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Description</label>
+                <textarea rows={3} className="ipc-input !text-xs" value={rewardModal.description} onChange={(e) => setRewardModal({ ...rewardModal, description: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Proof URL</label>
+                  <input className="ipc-input" value={rewardModal.proof_url} onChange={(e) => setRewardModal({ ...rewardModal, proof_url: e.target.value })} placeholder="https://…" />
+                </div>
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Result date</label>
+                  <input type="date" className="ipc-input" value={rewardModal.result_date} onChange={(e) => setRewardModal({ ...rewardModal, result_date: e.target.value })} />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setRewardModal(null)} className="h-9 px-3 text-[12px] text-muted-foreground">Cancel</button>
+              <button
+                disabled={rewardModal.submitting || !rewardModal.title.trim()}
+                onClick={async () => {
+                  if (!rewardModal.title.trim()) { toast.error("Title required"); return; }
+                  setRewardModal({ ...rewardModal, submitting: true });
+                  try {
+                    await submitResult({
+                      operations_lead_id: operationsLeadId,
+                      crm_lead_id: crmLeadId,
+                      paid_pipeline_lead_id: paidPipelineLeadId,
+                      member_name: actor.name ?? null,
+                      result_type: "delivery_completed",
+                      title: rewardModal.title.trim(),
+                      description: rewardModal.description.trim() || null,
+                      proof_url: rewardModal.proof_url.trim() || null,
+                      result_date: rewardModal.result_date || null,
+                    });
+                    toast.success("Submitted for approval");
+                    setRewardModal(null);
+                  } catch (e: any) {
+                    toast.error(e?.message || "Failed to submit");
+                    setRewardModal((m) => (m ? { ...m, submitting: false } : m));
+                  }
+                }}
+                className="h-9 px-4 bg-black text-white text-[12px] rounded-md disabled:opacity-50"
+              >
+                {rewardModal.submitting ? "Submitting…" : "Submit for approval"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
