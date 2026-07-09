@@ -192,9 +192,13 @@ export default function OperationsCrm() {
       }
       if (statusFilter !== "all" && l.service_status !== statusFilter) return false;
       if (stageFilter !== "all" && l.stage_id !== stageFilter) return false;
+      if (slaFilter !== "all") {
+        const a = agingByLead.get(l.id);
+        if (!a || a.status !== slaFilter) return false;
+      }
       return true;
     });
-  }, [leads, search, buyerFilter, statusFilter, stageFilter, profile?.id]);
+  }, [leads, search, buyerFilter, statusFilter, stageFilter, slaFilter, agingByLead, profile?.id]);
 
   const metrics = useMemo(() => {
     const now = new Date();
