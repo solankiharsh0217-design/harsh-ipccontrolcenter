@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import PromisedOffersPanel from "@/components/offers/PromisedOffersPanel";
+import DeliveryTrackingSection from "@/components/operations/DeliveryTrackingSection";
 import {
   X as XIcon, ExternalLink, Play, Pause, Square, CheckCircle2, RotateCcw,
   ClipboardCopy,
