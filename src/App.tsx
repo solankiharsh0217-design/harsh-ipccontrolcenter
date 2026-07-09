@@ -65,6 +65,7 @@ import DreamTurnoverPlanner from "./pages/DreamTurnoverPlanner";
 import AccessTemplatesAdmin from "./pages/admin/AccessTemplates";
 import TeamPerformanceAdmin from "./pages/admin/TeamPerformanceAdmin";
 import MyToday from "./pages/MyToday";
+import TeamPerformanceReview from "./pages/admin/TeamPerformanceReview";
 
 import type { ModuleKey } from "@/lib/modules";
 
@@ -148,6 +149,7 @@ const App = () => (
             <Route path="/admin-center/lead-rescue" element={<Shell admin><LeadRescueSearch /></Shell>} />
             <Route path="/admin-center/access-templates" element={<Shell admin><AccessTemplatesAdmin /></Shell>} />
             <Route path="/team-performance/admin" element={<Shell admin><TeamPerformanceAdmin /></Shell>} />
+            <Route path="/team-performance/review" element={<Shell admin><TeamPerformanceReview /></Shell>} />
             <Route path="/my-today" element={<Shell><MyToday /></Shell>} />
             <Route path="/media-buyer-operations" element={<Shell moduleKey="media_buyer_operations"><MediaBuyerOperations /></Shell>} />
             <Route path="/operations-crm" element={<Shell moduleKey="operations_crm"><OperationsCrm /></Shell>} />

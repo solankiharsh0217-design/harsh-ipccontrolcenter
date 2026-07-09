@@ -56,6 +56,7 @@ export default function MyToday() {
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [entries, setEntries] = useState<MyKpiEntry[]>([]);
   const [submissions, setSubmissions] = useState<Record<string, KpiSubmission>>({});
+  const [reviewers, setReviewers] = useState<Record<string, string>>({});
   const [assignmentCount, setAssignmentCount] = useState<number>(0);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<MyKpiEntry | null>(null);
@@ -67,10 +68,20 @@ export default function MyToday() {
   }, [uid, today]);
 
   const loadSubmissions = async (rows: MyKpiEntry[]) => {
-    if (rows.length === 0) { setSubmissions({}); return; }
+    if (rows.length === 0) { setSubmissions({}); setReviewers({}); return; }
     try {
       const map = await fetchSubmissionsForEntries(rows.map(r => r.id));
       setSubmissions(map);
+      const reviewerIds = Array.from(new Set(Object.values(map).map((s) => s.reviewed_by).filter(Boolean) as string[]));
+      if (reviewerIds.length > 0) {
+        const { data: profs } = await (await import("@/integrations/supabase/client")).supabase
+          .from("profiles").select("id, full_name, email").in("id", reviewerIds);
+        const rm: Record<string, string> = {};
+        (profs ?? []).forEach((p: any) => { rm[p.id] = p.full_name || p.email || "Reviewer"; });
+        setReviewers(rm);
+      } else {
+        setReviewers({});
+      }
     } catch { /* non-fatal */ }
   };
 
@@ -326,8 +337,18 @@ export default function MyToday() {
                             {sub.notes && (
                               <div className="text-muted-foreground line-clamp-1">Notes: {sub.notes}</div>
                             )}
+                            {sub.reviewed_at && (
+                              <div className="text-muted-foreground">
+                                {e.status === "approved" ? "Approved" : e.status === "rejected" ? "Rejected" : "Reviewed"}{" "}
+                                {format(new Date(sub.reviewed_at), "d MMM, hh:mm a")}
+                                {reviewers[sub.reviewed_by ?? ""] ? ` by ${reviewers[sub.reviewed_by!]}` : ""}
+                              </div>
+                            )}
                             {e.status === "rejected" && sub.review_notes && (
                               <div className="text-rose-700">Feedback: {sub.review_notes}</div>
+                            )}
+                            {e.status === "approved" && sub.review_notes && (
+                              <div className="text-emerald-700">Note: {sub.review_notes}</div>
                             )}
                           </div>
                         )}
