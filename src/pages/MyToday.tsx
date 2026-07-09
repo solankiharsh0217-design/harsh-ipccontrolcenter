@@ -172,11 +172,16 @@ export default function MyToday() {
           </div>
         </div>
         {isAdmin && (
+        <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm">
-            <Link to="/team-performance/admin">Open Team Performance Admin</Link>
+            <Link to="/team-performance/rewards">My Rewards</Link>
           </Button>
-        )}
-      </div>
+          {isAdmin && (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/team-performance/admin">Open Team Performance Admin</Link>
+            </Button>
+          )}
+        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Attendance card */}
