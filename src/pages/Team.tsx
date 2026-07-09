@@ -513,6 +513,7 @@ export default function Team() {
                   isAdmin={isAdmin}
                   isDeactivated={isDeact}
                   onManage={() => openEdit(m)}
+                  onApplyTemplate={() => setApplyTplMember(m)}
                   onAssignedLeads={() => setAssignedLeadsMember(m)}
                   onDeactivate={() => setActionModal({ action: "deactivate", member: m })}
                   onRemoveAccess={() => setActionModal({ action: "remove_access", member: m })}
