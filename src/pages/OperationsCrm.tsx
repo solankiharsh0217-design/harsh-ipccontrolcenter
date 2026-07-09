@@ -510,6 +510,15 @@ export default function OperationsCrm() {
                       {l.batch_name && (
                         <div className="text-[10px] text-muted-foreground truncate mt-0.5 italic">{l.batch_name}</div>
                       )}
+                      {(() => {
+                        const a = agingByLead.get(l.id);
+                        if (!a) return null;
+                        return (
+                          <div className="mt-1.5">
+                            <SlaChip status={a.status} days={a.days} compact />
+                          </div>
+                        );
+                      })()}
                     </div>
                     );
                   })}
