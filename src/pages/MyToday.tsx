@@ -171,7 +171,6 @@ export default function MyToday() {
             {format(now, "EEEE, d MMMM yyyy")}
           </div>
         </div>
-        {isAdmin && (
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm">
             <Link to="/team-performance/rewards">My Rewards</Link>
@@ -182,6 +181,7 @@ export default function MyToday() {
             </Button>
           )}
         </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Attendance card */}
