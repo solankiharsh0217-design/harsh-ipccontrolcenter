@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreVertical, Settings, UserMinus, ShieldOff, RotateCcw, Trash2, Users } from "lucide-react";
+import { MoreVertical, Settings, UserMinus, ShieldOff, RotateCcw, Trash2, Users, Layers } from "lucide-react";
 
 interface Props {
   isAdmin: boolean;
   isDeactivated: boolean;
   onManage: () => void;
+  onApplyTemplate?: () => void;
   onDeactivate: () => void;
   onRemoveAccess: () => void;
   onRestore: () => void;
@@ -13,7 +14,7 @@ interface Props {
   onAssignedLeads?: () => void;
 }
 
-export default function MemberActionMenu({ isAdmin, isDeactivated, onManage, onDeactivate, onRemoveAccess, onRestore, onDelete, onAssignedLeads }: Props) {
+export default function MemberActionMenu({ isAdmin, isDeactivated, onManage, onApplyTemplate, onDeactivate, onRemoveAccess, onRestore, onDelete, onAssignedLeads }: Props) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
