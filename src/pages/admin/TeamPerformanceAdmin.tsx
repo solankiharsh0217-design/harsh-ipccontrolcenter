@@ -9,8 +9,10 @@ import {
   listAllAssignments, createAssignment, deactivateAssignment,
   Cadence, MeasurementType,
 } from "@/lib/teamPerformance";
+import { generateKpiEntriesForDate, listGeneratedEntries, GenerationResult, GeneratedEntryRow } from "@/lib/kpiGeneration";
+import { format, addDays } from "date-fns";
 
-type Tab = "library" | "templates" | "assign";
+type Tab = "library" | "templates" | "assign" | "generated";
 
 interface Profile { id: string; full_name: string; role: string | null; }
 
