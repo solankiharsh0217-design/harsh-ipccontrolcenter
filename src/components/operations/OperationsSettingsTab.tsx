@@ -30,6 +30,9 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
     operations_readiness_auto_move: false,
   });
   const [savingReadiness, setSavingReadiness] = useState(false);
+  const [sla, setSla] = useState<OperationsSlaSettings>(DEFAULT_SLA);
+  const [slaDraft, setSlaDraft] = useState<OperationsSlaSettings>(DEFAULT_SLA);
+  const [savingSla, setSavingSla] = useState(false);
 
   const load = async () => {
     setLoading(true);
