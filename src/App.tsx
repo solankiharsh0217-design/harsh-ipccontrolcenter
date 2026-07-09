@@ -62,6 +62,7 @@ import FinanceSuccessDashboard from "./pages/FinanceSuccessDashboard";
 import ResourceLibrary from "./pages/ResourceLibrary";
 import ResourceLibraryAdmin from "./pages/admin/ResourceLibraryAdmin";
 import DreamTurnoverPlanner from "./pages/DreamTurnoverPlanner";
+import AccessTemplatesAdmin from "./pages/admin/AccessTemplates";
 
 import type { ModuleKey } from "@/lib/modules";
 
