@@ -56,6 +56,7 @@ export default function MyToday() {
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [entries, setEntries] = useState<MyKpiEntry[]>([]);
   const [submissions, setSubmissions] = useState<Record<string, KpiSubmission>>({});
+  const [reviewers, setReviewers] = useState<Record<string, string>>({});
   const [assignmentCount, setAssignmentCount] = useState<number>(0);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<MyKpiEntry | null>(null);
