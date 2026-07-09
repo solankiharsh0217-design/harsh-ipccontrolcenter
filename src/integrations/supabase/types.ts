@@ -2988,6 +2988,149 @@ export type Database = {
           },
         ]
       }
+      kpi_reward_earnings: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          badge_name: string | null
+          cash_amount: number
+          created_at: string
+          generated_at: string
+          generated_by: string | null
+          id: string
+          paid_at: string | null
+          paid_by: string | null
+          payout_notes: string | null
+          period_end: string
+          period_start: string
+          period_type: string
+          recognition_label: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          reward_points: number
+          reward_rule_id: string | null
+          score: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          badge_name?: string | null
+          cash_amount?: number
+          created_at?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payout_notes?: string | null
+          period_end: string
+          period_start: string
+          period_type: string
+          recognition_label?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          reward_points?: number
+          reward_rule_id?: string | null
+          score: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          badge_name?: string | null
+          cash_amount?: number
+          created_at?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payout_notes?: string | null
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          recognition_label?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          reward_points?: number
+          reward_rule_id?: string | null
+          score?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_reward_earnings_reward_rule_id_fkey"
+            columns: ["reward_rule_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_reward_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_reward_rules: {
+        Row: {
+          applies_to_role: string | null
+          applies_to_user_id: string | null
+          badge_name: string | null
+          cash_amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          min_score: number
+          name: string
+          period_type: string
+          recognition_label: string | null
+          reward_points: number
+          updated_at: string
+        }
+        Insert: {
+          applies_to_role?: string | null
+          applies_to_user_id?: string | null
+          badge_name?: string | null
+          cash_amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          min_score?: number
+          name: string
+          period_type?: string
+          recognition_label?: string | null
+          reward_points?: number
+          updated_at?: string
+        }
+        Update: {
+          applies_to_role?: string | null
+          applies_to_user_id?: string | null
+          badge_name?: string | null
+          cash_amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          min_score?: number
+          name?: string
+          period_type?: string
+          recognition_label?: string | null
+          reward_points?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kpi_submissions: {
         Row: {
           created_at: string
