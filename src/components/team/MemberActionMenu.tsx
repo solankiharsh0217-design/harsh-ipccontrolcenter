@@ -69,6 +69,7 @@ export default function MemberActionMenu({ isAdmin, isDeactivated, onManage, onA
           style={{ top: pos.top, left: pos.left }}
         >
           {item(<Settings className="w-3.5 h-3.5" />, "Manage Member", onManage)}
+          {isAdmin && !isDeactivated && onApplyTemplate && item(<Layers className="w-3.5 h-3.5" />, "Apply Access Template", onApplyTemplate)}
           {isAdmin && onAssignedLeads && item(<Users className="w-3.5 h-3.5" />, "Assigned CRM Leads", onAssignedLeads)}
           {isAdmin && !isDeactivated && item(<UserMinus className="w-3.5 h-3.5" />, "Deactivate Member", onDeactivate)}
           {isAdmin && !isDeactivated && item(<ShieldOff className="w-3.5 h-3.5" />, "Remove Access", onRemoveAccess)}
