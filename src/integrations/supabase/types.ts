@@ -8791,6 +8791,10 @@ export type Database = {
         Args: { _request_id: string }
         Returns: Json
       }
+      generate_my_kpi_entries_for_date: {
+        Args: { _target_date: string }
+        Returns: Json
+      }
       get_coc_stage_settings: { Args: never; Returns: Json }
       get_finance_dead_stage_ids: { Args: never; Returns: string[] }
       get_finance_success_stage_ids: { Args: never; Returns: string[] }
