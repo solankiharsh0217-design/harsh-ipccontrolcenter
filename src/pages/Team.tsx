@@ -13,6 +13,7 @@ import { logActivity } from "@/lib/auditLog";
 import MemberActionMenu from "@/components/team/MemberActionMenu";
 import MemberActionModal from "@/components/team/MemberActionModal";
 import MemberAssignedLeadsModal from "@/components/team/MemberAssignedLeadsModal";
+import ApplyTemplateModal from "@/components/team/ApplyTemplateModal";
 
 interface Member {
   id: string;
@@ -64,6 +65,7 @@ export default function Team() {
   const [filter, setFilter] = useState<"active" | "deactivated" | "all">("active");
   const [actionModal, setActionModal] = useState<{ action: "deactivate" | "remove_access" | "restore" | "delete"; member: Member } | null>(null);
   const [assignedLeadsMember, setAssignedLeadsMember] = useState<Member | null>(null);
+  const [applyTplMember, setApplyTplMember] = useState<Member | null>(null);
 
   // ─── Login Access (admin only) ───
   type AuthState = "active" | "confirmed" | "invited" | "unconfirmed" | "no_auth" | "unknown";
@@ -511,6 +513,7 @@ export default function Team() {
                   isAdmin={isAdmin}
                   isDeactivated={isDeact}
                   onManage={() => openEdit(m)}
+                  onApplyTemplate={() => setApplyTplMember(m)}
                   onAssignedLeads={() => setAssignedLeadsMember(m)}
                   onDeactivate={() => setActionModal({ action: "deactivate", member: m })}
                   onRemoveAccess={() => setActionModal({ action: "remove_access", member: m })}
@@ -537,6 +540,15 @@ export default function Team() {
           memberId={assignedLeadsMember.id}
           memberName={assignedLeadsMember.full_name || "Member"}
           onClose={() => setAssignedLeadsMember(null)}
+        />
+      )}
+      {applyTplMember && user && (
+        <ApplyTemplateModal
+          memberId={applyTplMember.id}
+          memberName={applyTplMember.full_name || "Member"}
+          actorId={user.id}
+          onClose={() => setApplyTplMember(null)}
+          onDone={load}
         />
       )}
 
