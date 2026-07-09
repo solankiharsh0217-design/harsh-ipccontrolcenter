@@ -641,6 +641,15 @@ export default function OperationsLeadDrawer({
             title="Services / Commitments"
           />
 
+          {/* Delivery Tracking */}
+          <DeliveryTrackingSection
+            operationsLeadId={lead.id}
+            crmLeadId={lead.crm_lead_id}
+            paidPipelineLeadId={lead.paid_pipeline_lead_id}
+            actor={{ id: profile?.id ?? null, name: profile?.full_name ?? null }}
+            buyers={deliveryBuyers}
+          />
+
           {/* Notes */}
           {lead.notes && (
             <Section title="Notes">
