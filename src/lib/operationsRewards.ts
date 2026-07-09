@@ -4,11 +4,14 @@ export type ResultStatus = "pending" | "approved" | "rejected";
 export type PayoutStatus = "pending" | "approved" | "paid" | "cancelled";
 
 export const RESULT_TYPES = [
+  { value: "delivery_completed", label: "Delivery completed" },
+  { value: "client_result", label: "Client result" },
   { value: "lead_generated", label: "Lead generated" },
   { value: "campaign_live", label: "Campaign live" },
   { value: "client_win", label: "Client win" },
   { value: "portfolio_completed", label: "Portfolio completed" },
   { value: "ads_result", label: "Ads result" },
+  { value: "onboarding_completed", label: "Onboarding completed" },
   { value: "support_milestone", label: "Support milestone" },
   { value: "custom", label: "Custom" },
 ];

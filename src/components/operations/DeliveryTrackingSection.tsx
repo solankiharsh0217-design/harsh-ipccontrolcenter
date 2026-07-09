@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, Save, RefreshCw } from "lucide-react";
+import { ExternalLink, Save, RefreshCw, Trophy } from "lucide-react";
 import {
   listDeliveriesForLead, syncDeliveriesForLead, updateDelivery, summarize,
   isOverdue, DELIVERY_STATUS_LABELS, DELIVERY_STATUS_COLORS,
   type OperationsOfferDelivery, type DeliveryStatus,
 } from "@/lib/operationsDeliveries";
+import { submitResult } from "@/lib/operationsRewards";
 
 interface Props {
   operationsLeadId: string;
@@ -22,6 +23,7 @@ export default function DeliveryTrackingSection({ operationsLeadId, crmLeadId, p
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, Partial<OperationsOfferDelivery>>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [rewardModal, setRewardModal] = useState<null | { row: OperationsOfferDelivery; title: string; description: string; proof_url: string; result_date: string; submitting: boolean }>(null);
 
   const load = async (doSync = false) => {
     setLoading(true);
@@ -213,8 +215,25 @@ export default function DeliveryTrackingSection({ operationsLeadId, crmLeadId, p
               </label>
 
               {r.delivered_at && (
-                <div className="text-[10px] text-muted-foreground mt-1">
-                  Delivered at {new Date(r.delivered_at).toLocaleString()}
+                <div className="flex items-center justify-between mt-1 gap-2">
+                  <div className="text-[10px] text-muted-foreground">
+                    Delivered at {new Date(r.delivered_at).toLocaleString()}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRewardModal({
+                      row: r,
+                      title: `Delivered: ${r.title}`,
+                      description: r.description ?? "",
+                      proof_url: r.proof_url ?? "",
+                      result_date: (r.delivered_at ?? "").slice(0, 10),
+                      submitting: false,
+                    })}
+                    className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-line hover:bg-off text-[#92400E]"
+                    title="Submit this delivery as a reward result (needs admin approval)"
+                  >
+                    <Trophy className="w-3 h-3" /> Submit for Reward
+                  </button>
                 </div>
               )}
 
@@ -234,6 +253,66 @@ export default function DeliveryTrackingSection({ operationsLeadId, crmLeadId, p
           );
         })}
       </div>
+
+      {rewardModal && (
+        <div className="fixed inset-0 z-[1400] bg-black/50 flex items-center justify-center p-4" onClick={() => setRewardModal(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-xl border border-line shadow-2xl w-full max-w-lg p-5">
+            <div className="font-serif text-lg mb-1 flex items-center gap-2"><Trophy className="w-4 h-4 text-[#92400E]" /> Submit delivery for reward</div>
+            <div className="text-[11px] text-muted-foreground mb-3">Admin approval required. This does not auto-approve or auto-pay.</div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Title *</label>
+                <input className="ipc-input" value={rewardModal.title} onChange={(e) => setRewardModal({ ...rewardModal, title: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Description</label>
+                <textarea rows={3} className="ipc-input !text-xs" value={rewardModal.description} onChange={(e) => setRewardModal({ ...rewardModal, description: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Proof URL</label>
+                  <input className="ipc-input" value={rewardModal.proof_url} onChange={(e) => setRewardModal({ ...rewardModal, proof_url: e.target.value })} placeholder="https://…" />
+                </div>
+                <div>
+                  <label className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Result date</label>
+                  <input type="date" className="ipc-input" value={rewardModal.result_date} onChange={(e) => setRewardModal({ ...rewardModal, result_date: e.target.value })} />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setRewardModal(null)} className="h-9 px-3 text-[12px] text-muted-foreground">Cancel</button>
+              <button
+                disabled={rewardModal.submitting || !rewardModal.title.trim()}
+                onClick={async () => {
+                  if (!rewardModal.title.trim()) { toast.error("Title required"); return; }
+                  setRewardModal({ ...rewardModal, submitting: true });
+                  try {
+                    await submitResult({
+                      operations_lead_id: operationsLeadId,
+                      crm_lead_id: crmLeadId,
+                      paid_pipeline_lead_id: paidPipelineLeadId,
+                      member_name: actor.name ?? null,
+                      result_type: "delivery_completed",
+                      title: rewardModal.title.trim(),
+                      description: rewardModal.description.trim() || null,
+                      proof_url: rewardModal.proof_url.trim() || null,
+                      result_date: rewardModal.result_date || null,
+                    });
+                    toast.success("Submitted for approval");
+                    setRewardModal(null);
+                  } catch (e: any) {
+                    toast.error(e?.message || "Failed to submit");
+                    setRewardModal((m) => (m ? { ...m, submitting: false } : m));
+                  }
+                }}
+                className="h-9 px-4 bg-black text-white text-[12px] rounded-md disabled:opacity-50"
+              >
+                {rewardModal.submitting ? "Submitting…" : "Submit for approval"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
