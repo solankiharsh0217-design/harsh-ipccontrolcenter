@@ -50,7 +50,11 @@ function humanTitle(eventType: string): string {
     lead_created: "Added to Operations",
     operations_lead_created: "Added to Operations",
     note_added: "Note Added",
-  };
+    delivery_status_changed: "Delivery Status Changed",
+    delivery_marked_delivered: "Delivery Completed",
+    delivery_blocked: "Delivery Blocked",
+    delivery_due_date_updated: "Delivery Due Date Updated",
+    delivery_assignee_updated: "Delivery Owner Updated",
   return map[eventType] || eventType.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
