@@ -122,6 +122,21 @@ export default function OperationsLeadDrawer({
   const [showReadinessMove, setShowReadinessMove] = useState(false);
   const [slaSettings, setSlaSettings] = useState<OperationsSlaSettings>(DEFAULT_SLA);
   const [exactStageMovedAt, setExactStageMovedAt] = useState<string | null>(null);
+  const [deliveryBuyers, setDeliveryBuyers] = useState<{ id: string; full_name: string }[]>([]);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("can_receive_operations_leads", true as any);
+      if (!cancel) {
+        setDeliveryBuyers(((data ?? []) as any[]).map((b) => ({ id: b.id, full_name: b.full_name ?? "Unnamed" })));
+      }
+    })();
+    return () => { cancel = true; };
+  }, []);
   const autoMovedRef = (useMemo(() => ({ current: false }), []) as { current: boolean });
 
   const templateName = useMemo(
