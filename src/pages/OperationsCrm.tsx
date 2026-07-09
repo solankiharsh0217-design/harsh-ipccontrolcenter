@@ -129,6 +129,38 @@ export default function OperationsCrm() {
 
   useEffect(() => { load(); }, []);
 
+  // Load SLA thresholds once
+  useEffect(() => {
+    let cancel = false;
+    getOperationsSlaSettings().then((s) => { if (!cancel) setSlaSettings(s); }).catch(() => {});
+    return () => { cancel = true; };
+  }, []);
+
+  // Fetch exact stage-change timestamps for currently loaded leads (best-effort)
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const ids = leads.map((l) => l.id);
+      if (!ids.length) { setStageMoveMap(new Map()); return; }
+      const m = await fetchStageChangeMap(ids);
+      if (!cancel) setStageMoveMap(m);
+    })();
+    return () => { cancel = true; };
+  }, [leads]);
+
+  // Aging per lead
+  const agingByLead = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeStageAging>>();
+    for (const l of leads) {
+      map.set(l.id, computeStageAging(
+        { created_at: l.created_at, updated_at: (l as any).updated_at ?? null },
+        slaSettings,
+        stageMoveMap.get(l.id) ?? null,
+      ));
+    }
+    return map;
+  }, [leads, slaSettings, stageMoveMap]);
+
   useEffect(() => {
     let cancel = false;
     (async () => {
