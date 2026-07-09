@@ -36,6 +36,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Team Performance OS",
+      desc: "Set-and-forget KPIs. Manage the KPI library, role-based templates, and assign KPIs to team members. Daily/weekly/monthly instances generate automatically in Phase 2.",
+      cta: "Open Team Performance",
+      to: "/team-performance/admin",
+      show: isAdmin,
+    },
+    {
       title: "Audit Log",
       desc: "History of important changes across the Control Center.",
       cta: "Open Audit Log",

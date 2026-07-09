@@ -234,6 +234,48 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_sessions: {
+        Row: {
+          check_in_at: string | null
+          check_out_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          source: string
+          status: string
+          total_minutes: number | null
+          updated_at: string
+          user_id: string
+          work_date: string
+        }
+        Insert: {
+          check_in_at?: string | null
+          check_out_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          status?: string
+          total_minutes?: number | null
+          updated_at?: string
+          user_id: string
+          work_date: string
+        }
+        Update: {
+          check_in_at?: string | null
+          check_out_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          status?: string
+          total_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+          work_date?: string
+        }
+        Relationships: []
+      }
       attribution_attendee_lists: {
         Row: {
           column_mapping: Json | null
@@ -2735,6 +2777,303 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      kpi_assignments: {
+        Row: {
+          assigned_by: string | null
+          assignment_type: string
+          created_at: string
+          custom_reward_points: number | null
+          custom_target: number | null
+          custom_weight: number | null
+          end_date: string | null
+          id: string
+          is_active: boolean
+          kpi_id: string | null
+          notes: string | null
+          start_date: string
+          template_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assignment_type?: string
+          created_at?: string
+          custom_reward_points?: number | null
+          custom_target?: number | null
+          custom_weight?: number | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          kpi_id?: string | null
+          notes?: string | null
+          start_date?: string
+          template_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assignment_type?: string
+          created_at?: string
+          custom_reward_points?: number | null
+          custom_target?: number | null
+          custom_weight?: number | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          kpi_id?: string | null
+          notes?: string | null
+          start_date?: string
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_assignments_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_assignments_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_definitions: {
+        Row: {
+          approval_required: boolean
+          auto_source_key: string | null
+          cadence: string
+          category: string | null
+          created_at: string
+          created_by: string | null
+          department: string | null
+          description: string | null
+          due_day_of_month: number | null
+          due_day_of_week: number | null
+          due_time: string | null
+          id: string
+          is_active: boolean
+          measurement_type: string
+          name: string
+          owner_role: string | null
+          proof_required: boolean
+          recurrence_rule: string | null
+          reward_points: number
+          target_default: number | null
+          target_unit: string | null
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          approval_required?: boolean
+          auto_source_key?: string | null
+          cadence: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          due_day_of_month?: number | null
+          due_day_of_week?: number | null
+          due_time?: string | null
+          id?: string
+          is_active?: boolean
+          measurement_type: string
+          name: string
+          owner_role?: string | null
+          proof_required?: boolean
+          recurrence_rule?: string | null
+          reward_points?: number
+          target_default?: number | null
+          target_unit?: string | null
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          approval_required?: boolean
+          auto_source_key?: string | null
+          cadence?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          due_day_of_month?: number | null
+          due_day_of_week?: number | null
+          due_time?: string | null
+          id?: string
+          is_active?: boolean
+          measurement_type?: string
+          name?: string
+          owner_role?: string | null
+          proof_required?: boolean
+          recurrence_rule?: string | null
+          reward_points?: number
+          target_default?: number | null
+          target_unit?: string | null
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      kpi_entries: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          due_at: string | null
+          generated_at: string
+          id: string
+          kpi_id: string
+          period_end: string
+          period_start: string
+          period_type: string
+          status: string
+          target_value: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          due_at?: string | null
+          generated_at?: string
+          id?: string
+          kpi_id: string
+          period_end: string
+          period_start: string
+          period_type: string
+          status?: string
+          target_value?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          due_at?: string | null
+          generated_at?: string
+          id?: string
+          kpi_id?: string
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          status?: string
+          target_value?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_entries_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_entries_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_template_items: {
+        Row: {
+          created_at: string
+          id: string
+          is_required: boolean
+          kpi_id: string
+          reward_points_override: number | null
+          sort_order: number
+          target_override: number | null
+          template_id: string
+          weight_override: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          kpi_id: string
+          reward_points_override?: number | null
+          sort_order?: number
+          target_override?: number | null
+          template_id: string
+          weight_override?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          kpi_id?: string
+          reward_points_override?: number | null
+          sort_order?: number
+          target_override?: number | null
+          template_id?: string
+          weight_override?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_template_items_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          role_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          role_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          role_label?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       lead_entries: {
         Row: {
