@@ -450,8 +450,25 @@ export default function OperationsCrm() {
         </span>
       </div>
 
+      {/* Delivery filter chips */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-3">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Delivery</span>
+        {([
+          ["all", "All"],
+          ["has_pending", "Has Pending"],
+          ["has_overdue", "Has Overdue"],
+          ["fully_delivered", "Fully Delivered"],
+          ["blocked", "Blocked"],
+        ] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setDeliveryFilter(k)}
+            className={`text-[11px] px-2 py-0.5 rounded border transition ${deliveryFilter === k ? "bg-black text-white border-black" : "bg-white border-line text-muted-foreground hover:text-black"}`}
+          >{label}</button>
+        ))}
+      </div>
 
-      {/* Kanban */}
+
       {loading ? (
         <div className="text-sm text-muted-foreground py-12 text-center">Loading…</div>
       ) : stages.length === 0 ? (
