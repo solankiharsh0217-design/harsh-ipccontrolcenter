@@ -35,6 +35,7 @@ export interface MyKpiEntry {
     description: string | null;
     cadence: string;
     target_unit: string | null;
+    measurement_type: string;
     proof_required: boolean;
     approval_required: boolean;
   };
