@@ -62,6 +62,7 @@ function humanTitle(eventType: string): string {
 function categoryOf(eventType: string): Category {
   if (eventType.startsWith("communication_")) return "communication";
   if (eventType.includes("readiness") || eventType.includes("stage")) return "stage";
+  if (eventType.startsWith("delivery_")) return "service";
   if (["start", "pause", "resume", "stop", "complete", "restart"].includes(eventType)) return "service";
   if (eventType.includes("note")) return "note";
   return "other";
