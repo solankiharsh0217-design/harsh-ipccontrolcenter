@@ -65,6 +65,7 @@ export default function Team() {
   const [filter, setFilter] = useState<"active" | "deactivated" | "all">("active");
   const [actionModal, setActionModal] = useState<{ action: "deactivate" | "remove_access" | "restore" | "delete"; member: Member } | null>(null);
   const [assignedLeadsMember, setAssignedLeadsMember] = useState<Member | null>(null);
+  const [applyTplMember, setApplyTplMember] = useState<Member | null>(null);
 
   // ─── Login Access (admin only) ───
   type AuthState = "active" | "confirmed" | "invited" | "unconfirmed" | "no_auth" | "unknown";
