@@ -71,6 +71,10 @@ export default function OperationsCrm() {
   const [buyerFilter, setBuyerFilter] = useState<string>(params.get("assigned_to") === "me" ? "me" : (isAdmin ? "all" : "me"));
   const [statusFilter, setStatusFilter] = useState<string>(params.get("filter") || "all");
   const [stageFilter, setStageFilter] = useState<string>("all");
+  const [slaFilter, setSlaFilter] = useState<"all" | SlaStatus>("all");
+  const [slaSortOverdue, setSlaSortOverdue] = useState(false);
+  const [slaSettings, setSlaSettings] = useState<OperationsSlaSettings>(DEFAULT_SLA);
+  const [stageMoveMap, setStageMoveMap] = useState<Map<string, string>>(new Map());
   const [buyers, setBuyers] = useState<{ id: string; full_name: string }[]>([]);
   const [openLead, setOpenLead] = useState<string | null>(params.get("lead"));
   const [addStageOpen, setAddStageOpen] = useState(false);
