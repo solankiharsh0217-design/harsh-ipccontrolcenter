@@ -151,6 +151,18 @@ export default function OperationsCrm() {
     return () => { cancel = true; };
   }, [leads]);
 
+  // Delivery summaries per lead
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const ids = leads.map((l) => l.id);
+      if (!ids.length) { setDeliveryMap(new Map()); return; }
+      const m = await fetchDeliverySummaries(ids);
+      if (!cancel) setDeliveryMap(m);
+    })();
+    return () => { cancel = true; };
+  }, [leads, refreshKey]);
+
   // Aging per lead
   const agingByLead = useMemo(() => {
     const map = new Map<string, ReturnType<typeof computeStageAging>>();
