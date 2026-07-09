@@ -433,3 +433,181 @@ function AssignTab() {
     </div>
   );
 }
+
+// ─────────────────────── GENERATED ENTRIES ───────────────────────
+function GeneratedTab() {
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [date, setDate] = useState<string>(today);
+  const [running, setRunning] = useState(false);
+  const [lastResult, setLastResult] = useState<GenerationResult | null>(null);
+  const [rows, setRows] = useState<GeneratedEntryRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filterUser, setFilterUser] = useState<string>("");
+  const [filterCadence, setFilterCadence] = useState<string>("");
+  const [filterKpi, setFilterKpi] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterDate, setFilterDate] = useState<string>(today);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [kpis, setKpis] = useState<KpiDefinition[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: p } = await supabase.from("profiles").select("id, full_name, role").eq("status", "active").order("full_name");
+      setProfiles((p ?? []) as any);
+      try { setKpis(await listKpiDefinitions()); } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const reload = async () => {
+    setLoading(true);
+    try {
+      setRows(await listGeneratedEntries({
+        date: filterDate || undefined,
+        user_id: filterUser || undefined,
+        cadence: filterCadence || undefined,
+        kpi_id: filterKpi || undefined,
+        status: filterStatus || undefined,
+      }));
+    } catch (e: any) { toast({ title: "Failed to load", description: e.message }); }
+    setLoading(false);
+  };
+  useEffect(() => { reload(); }, [filterDate, filterUser, filterCadence, filterKpi, filterStatus]);
+
+  const runGen = async (d: string) => {
+    setRunning(true);
+    try {
+      const r = await generateKpiEntriesForDate(d);
+      setLastResult(r);
+      toast({ title: "Generation complete", description: `${r.entries_created} created, ${r.entries_skipped_duplicates} duplicates skipped` });
+      setFilterDate(d);
+      reload();
+    } catch (e: any) {
+      toast({ title: "Generation failed", description: e.message });
+    }
+    setRunning(false);
+  };
+
+  const quickButtons = [
+    { l: "Today", d: today },
+    { l: "Tomorrow", d: format(addDays(new Date(), 1), "yyyy-MM-dd") },
+    { l: "This Week (Mon)", d: format(new Date(), "yyyy-MM-dd") },
+    { l: "This Month (1st)", d: format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd") },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="border border-line rounded-xl bg-white p-5">
+        <SectionLabel>Generate KPI Entries</SectionLabel>
+        <div className="flex items-end gap-3 flex-wrap mt-2">
+          <div>
+            <div className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">Date</div>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border border-line rounded-md px-2 py-1.5 font-sans text-[13px]" />
+          </div>
+          <button onClick={() => runGen(date)} disabled={running || !date} className="bg-black text-white text-[13px] font-medium rounded-md px-4 py-2 disabled:opacity-50">
+            {running ? "Generating…" : "Generate KPIs for Date"}
+          </button>
+          <div className="flex gap-2 ml-2">
+            {quickButtons.map((q) => (
+              <button key={q.l} onClick={() => { setDate(q.d); runGen(q.d); }} disabled={running}
+                className="border border-line rounded-md px-3 py-1.5 text-[12px] hover:bg-off">
+                {q.l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-3">
+          Idempotent — running twice for the same date will not create duplicates. Weekly/monthly KPIs generate for the period containing the selected date.
+        </p>
+
+        {lastResult && (
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-6 gap-3 text-[12px]">
+            {[
+              ["Checked", lastResult.assignments_checked],
+              ["Created", lastResult.entries_created],
+              ["Duplicates", lastResult.entries_skipped_duplicates],
+              ["Inactive", lastResult.entries_skipped_inactive],
+              ["Out of range", lastResult.entries_skipped_out_of_range],
+              ["Unsupported", lastResult.entries_skipped_unsupported],
+            ].map(([l, v]) => (
+              <div key={l as string} className="border border-line rounded-md px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{l}</div>
+                <div className="font-medium text-[15px]">{v as number}</div>
+              </div>
+            ))}
+            {lastResult.errors.length > 0 && (
+              <div className="col-span-full text-[12px] text-red-700">{lastResult.errors.length} error(s) — see audit log</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="border border-line rounded-xl bg-white">
+        <div className="p-4 border-b border-line flex flex-wrap items-center gap-2">
+          <SectionLabel>Generated Entries</SectionLabel>
+          <div className="flex-1" />
+          <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="border border-line rounded-md px-2 py-1.5 text-[12px]" />
+          <select value={filterUser} onChange={(e) => setFilterUser(e.target.value)} className="border border-line rounded-md px-2 py-1.5 text-[12px]">
+            <option value="">All members</option>
+            {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+          </select>
+          <select value={filterCadence} onChange={(e) => setFilterCadence(e.target.value)} className="border border-line rounded-md px-2 py-1.5 text-[12px]">
+            <option value="">All cadences</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="recurring">Recurring</option>
+          </select>
+          <select value={filterKpi} onChange={(e) => setFilterKpi(e.target.value)} className="border border-line rounded-md px-2 py-1.5 text-[12px]">
+            <option value="">All KPIs</option>
+            {kpis.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
+          </select>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border border-line rounded-md px-2 py-1.5 text-[12px]">
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="submitted">Submitted</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="missed">Missed</option>
+          </select>
+        </div>
+        {loading ? <div className="p-4 text-sm text-muted-foreground">Loading…</div> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px] font-sans">
+              <thead className="bg-off text-[11px] uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="text-left px-4 py-2.5">Team Member</th>
+                  <th className="text-left px-4 py-2.5">KPI</th>
+                  <th className="text-left px-4 py-2.5">Cadence</th>
+                  <th className="text-left px-4 py-2.5">Period</th>
+                  <th className="text-left px-4 py-2.5">Due</th>
+                  <th className="text-left px-4 py-2.5">Target</th>
+                  <th className="text-left px-4 py-2.5">Source</th>
+                  <th className="text-left px-4 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 && (
+                  <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">No entries.</td></tr>
+                )}
+                {rows.map((r) => (
+                  <tr key={r.id} className="border-t border-line">
+                    <td className="px-4 py-2.5">{r.user_name || r.user_id.slice(0, 6)}</td>
+                    <td className="px-4 py-2.5 font-medium">{r.kpi_name || "—"}</td>
+                    <td className="px-4 py-2.5">{r.period_type}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{r.period_start}{r.period_start !== r.period_end ? ` → ${r.period_end}` : ""}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{r.due_at ? format(new Date(r.due_at), "MMM d, HH:mm") : "—"}</td>
+                    <td className="px-4 py-2.5">{r.target_value ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{r.assignment_type || "—"}</td>
+                    <td className="px-4 py-2.5">
+                      <span className="text-[11px] px-2 py-0.5 rounded bg-off">{r.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
