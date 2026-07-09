@@ -76,6 +76,8 @@ export default function OperationsCrm() {
   const [slaSortOverdue, setSlaSortOverdue] = useState(false);
   const [slaSettings, setSlaSettings] = useState<OperationsSlaSettings>(DEFAULT_SLA);
   const [stageMoveMap, setStageMoveMap] = useState<Map<string, string>>(new Map());
+  const [deliveryMap, setDeliveryMap] = useState<Map<string, DeliverySummary>>(new Map());
+  const [deliveryFilter, setDeliveryFilter] = useState<"all" | "has_pending" | "has_overdue" | "fully_delivered" | "blocked">("all");
   const [buyers, setBuyers] = useState<{ id: string; full_name: string }[]>([]);
   const [openLead, setOpenLead] = useState<string | null>(params.get("lead"));
   const [addStageOpen, setAddStageOpen] = useState(false);
