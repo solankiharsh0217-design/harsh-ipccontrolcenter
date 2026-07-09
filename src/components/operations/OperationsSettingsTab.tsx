@@ -10,6 +10,10 @@ import ProcessTemplateEditor from "@/components/operations/ProcessTemplateEditor
 import CommunicationTemplateEditor from "@/components/operations/CommunicationTemplateEditor";
 import { ensureOperationsPipeline } from "@/lib/operationsCrm";
 import { getReadinessSettings, updateReadinessSettings, type ReadinessSettings } from "@/lib/operationsReadiness";
+import {
+  getOperationsSlaSettings, updateOperationsSlaSettings,
+  DEFAULT_SLA, type OperationsSlaSettings,
+} from "@/lib/operationsSla";
 import type { Stage } from "@/lib/crmTypes";
 
 export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean }) {
