@@ -151,6 +151,7 @@ const App = () => (
             <Route path="/admin-center/access-templates" element={<Shell admin><AccessTemplatesAdmin /></Shell>} />
             <Route path="/team-performance/admin" element={<Shell admin><TeamPerformanceAdmin /></Shell>} />
             <Route path="/team-performance/review" element={<Shell admin><TeamPerformanceReview /></Shell>} />
+            <Route path="/team-performance/rewards" element={<Shell><TeamPerformanceRewards /></Shell>} />
             <Route path="/my-today" element={<Shell><MyToday /></Shell>} />
             <Route path="/media-buyer-operations" element={<Shell moduleKey="media_buyer_operations"><MediaBuyerOperations /></Shell>} />
             <Route path="/operations-crm" element={<Shell moduleKey="operations_crm"><OperationsCrm /></Shell>} />
