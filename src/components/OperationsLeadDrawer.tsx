@@ -27,6 +27,11 @@ import {
   getReadinessSettings, resolveReadinessTargetStage, isAtOrAfterTarget,
   moveOperationsLeadStage, type ReadinessSettings,
 } from "@/lib/operationsReadiness";
+import {
+  getOperationsSlaSettings, fetchStageChangeMap, computeStageAging,
+  DEFAULT_SLA, type OperationsSlaSettings,
+} from "@/lib/operationsSla";
+import SlaChip from "@/components/operations/SlaChip";
 import type { Stage } from "@/lib/crmTypes";
 
 export interface OpsLeadFull {
