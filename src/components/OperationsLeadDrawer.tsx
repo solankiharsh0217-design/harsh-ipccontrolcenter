@@ -131,7 +131,17 @@ export default function OperationsLeadDrawer({
   useEffect(() => {
     listProcessTemplates(true).then(setTemplates).catch(() => {});
     getReadinessSettings().then(setReadinessSettings).catch(() => {});
+    getOperationsSlaSettings().then(setSlaSettings).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const m = await fetchStageChangeMap([lead.id]);
+      if (!cancel) setExactStageMovedAt(m.get(lead.id) ?? null);
+    })();
+    return () => { cancel = true; };
+  }, [lead.id]);
 
   // Load Operations pipeline stages (needed to resolve readiness target stage).
   useEffect(() => {
