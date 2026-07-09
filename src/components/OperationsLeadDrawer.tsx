@@ -27,6 +27,11 @@ import {
   getReadinessSettings, resolveReadinessTargetStage, isAtOrAfterTarget,
   moveOperationsLeadStage, type ReadinessSettings,
 } from "@/lib/operationsReadiness";
+import {
+  getOperationsSlaSettings, fetchStageChangeMap, computeStageAging,
+  DEFAULT_SLA, type OperationsSlaSettings,
+} from "@/lib/operationsSla";
+import SlaChip from "@/components/operations/SlaChip";
 import type { Stage } from "@/lib/crmTypes";
 
 export interface OpsLeadFull {
@@ -62,6 +67,8 @@ export interface OpsLeadFull {
   readiness_override_at?: string | null;
   pipeline_id?: string | null;
   stage_id?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 interface ServiceEvent {
@@ -112,6 +119,8 @@ export default function OperationsLeadDrawer({
   const [readinessSettings, setReadinessSettings] = useState<ReadinessSettings | null>(null);
   const [opsStages, setOpsStages] = useState<Stage[]>([]);
   const [showReadinessMove, setShowReadinessMove] = useState(false);
+  const [slaSettings, setSlaSettings] = useState<OperationsSlaSettings>(DEFAULT_SLA);
+  const [exactStageMovedAt, setExactStageMovedAt] = useState<string | null>(null);
   const autoMovedRef = (useMemo(() => ({ current: false }), []) as { current: boolean });
 
   const templateName = useMemo(
@@ -122,7 +131,17 @@ export default function OperationsLeadDrawer({
   useEffect(() => {
     listProcessTemplates(true).then(setTemplates).catch(() => {});
     getReadinessSettings().then(setReadinessSettings).catch(() => {});
+    getOperationsSlaSettings().then(setSlaSettings).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const m = await fetchStageChangeMap([lead.id]);
+      if (!cancel) setExactStageMovedAt(m.get(lead.id) ?? null);
+    })();
+    return () => { cancel = true; };
+  }, [lead.id]);
 
   // Load Operations pipeline stages (needed to resolve readiness target stage).
   useEffect(() => {
@@ -378,6 +397,47 @@ export default function OperationsLeadDrawer({
             )}
           </Section>
 
+
+          {/* Stage Aging / SLA */}
+          {(() => {
+            const aging = computeStageAging(
+              { created_at: lead.created_at ?? null, updated_at: lead.updated_at ?? null },
+              slaSettings,
+              exactStageMovedAt,
+            );
+            const currentStageName = opsStages.find((s) => s.id === lead.stage_id)?.name ?? "—";
+            const lastMoved = new Date(aging.lastMovedAt);
+            const lastMovedText = Number.isFinite(lastMoved.getTime())
+              ? lastMoved.toLocaleString(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+              : "—";
+            return (
+              <Section title="Stage aging">
+                <div className="border border-line rounded-md bg-white p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-muted-foreground">Current stage</div>
+                    <div className="text-xs font-medium text-black truncate">{currentStageName}</div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-muted-foreground">In this stage</div>
+                    <div className="text-xs text-black">{aging.days} day{aging.days === 1 ? "" : "s"}</div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-muted-foreground">Status</div>
+                    <SlaChip status={aging.status} days={aging.days} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-muted-foreground">Last moved</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {lastMovedText} <span className="opacity-70">· {aging.source}</span>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground/70 pt-1">
+                    Watch ≥ {slaSettings.watch_days}d · Overdue ≥ {slaSettings.overdue_days}d
+                  </div>
+                </div>
+              </Section>
+            );
+          })()}
 
           {/* Readiness Checklist */}
           <Section title="Readiness checklist">

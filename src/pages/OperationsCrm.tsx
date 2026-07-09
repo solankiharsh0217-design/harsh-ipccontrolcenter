@@ -22,6 +22,11 @@ import OperationsSettingsTab from "@/components/operations/OperationsSettingsTab
 import { getMonthlyCountsByBuyer, currentMonthStr } from "@/lib/operationsConversions";
 import type { Pipeline, Stage } from "@/lib/crmTypes";
 import ServicePackageChip from "@/components/ServicePackageChip";
+import SlaChip from "@/components/operations/SlaChip";
+import {
+  getOperationsSlaSettings, fetchStageChangeMap, computeStageAging,
+  DEFAULT_SLA, type OperationsSlaSettings, type SlaStatus,
+} from "@/lib/operationsSla";
 
 interface OpsLead {
   id: string;
@@ -50,6 +55,7 @@ interface OpsLead {
   paid_pipeline_lead_id: string | null;
   notes: string | null;
   created_at: string;
+  updated_at?: string | null;
   sort_order: number;
 }
 
@@ -65,6 +71,10 @@ export default function OperationsCrm() {
   const [buyerFilter, setBuyerFilter] = useState<string>(params.get("assigned_to") === "me" ? "me" : (isAdmin ? "all" : "me"));
   const [statusFilter, setStatusFilter] = useState<string>(params.get("filter") || "all");
   const [stageFilter, setStageFilter] = useState<string>("all");
+  const [slaFilter, setSlaFilter] = useState<"all" | SlaStatus>("all");
+  const [slaSortOverdue, setSlaSortOverdue] = useState(false);
+  const [slaSettings, setSlaSettings] = useState<OperationsSlaSettings>(DEFAULT_SLA);
+  const [stageMoveMap, setStageMoveMap] = useState<Map<string, string>>(new Map());
   const [buyers, setBuyers] = useState<{ id: string; full_name: string }[]>([]);
   const [openLead, setOpenLead] = useState<string | null>(params.get("lead"));
   const [addStageOpen, setAddStageOpen] = useState(false);
@@ -119,6 +129,38 @@ export default function OperationsCrm() {
 
   useEffect(() => { load(); }, []);
 
+  // Load SLA thresholds once
+  useEffect(() => {
+    let cancel = false;
+    getOperationsSlaSettings().then((s) => { if (!cancel) setSlaSettings(s); }).catch(() => {});
+    return () => { cancel = true; };
+  }, []);
+
+  // Fetch exact stage-change timestamps for currently loaded leads (best-effort)
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const ids = leads.map((l) => l.id);
+      if (!ids.length) { setStageMoveMap(new Map()); return; }
+      const m = await fetchStageChangeMap(ids);
+      if (!cancel) setStageMoveMap(m);
+    })();
+    return () => { cancel = true; };
+  }, [leads]);
+
+  // Aging per lead
+  const agingByLead = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeStageAging>>();
+    for (const l of leads) {
+      map.set(l.id, computeStageAging(
+        { created_at: l.created_at, updated_at: (l as any).updated_at ?? null },
+        slaSettings,
+        stageMoveMap.get(l.id) ?? null,
+      ));
+    }
+    return map;
+  }, [leads, slaSettings, stageMoveMap]);
+
   useEffect(() => {
     let cancel = false;
     (async () => {
@@ -150,9 +192,13 @@ export default function OperationsCrm() {
       }
       if (statusFilter !== "all" && l.service_status !== statusFilter) return false;
       if (stageFilter !== "all" && l.stage_id !== stageFilter) return false;
+      if (slaFilter !== "all") {
+        const a = agingByLead.get(l.id);
+        if (!a || a.status !== slaFilter) return false;
+      }
       return true;
     });
-  }, [leads, search, buyerFilter, statusFilter, stageFilter, profile?.id]);
+  }, [leads, search, buyerFilter, statusFilter, stageFilter, slaFilter, agingByLead, profile?.id]);
 
   const metrics = useMemo(() => {
     const now = new Date();
@@ -174,8 +220,14 @@ export default function OperationsCrm() {
     for (const l of filtered) {
       if (l.stage_id && map.has(l.stage_id)) map.get(l.stage_id)!.push(l);
     }
+    if (slaSortOverdue) {
+      for (const [k, arr] of map) {
+        arr.sort((a, b) => (agingByLead.get(b.id)?.days ?? 0) - (agingByLead.get(a.id)?.days ?? 0));
+        map.set(k, arr);
+      }
+    }
     return map;
-  }, [filtered, stages]);
+  }, [filtered, stages, slaSortOverdue, agingByLead]);
 
   const onDropToStage = async (toStageId: string) => {
     if (!drag) return;
@@ -340,16 +392,41 @@ export default function OperationsCrm() {
           <option value="all">All stages</option>
           {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        {(search || buyerFilter !== "all" || statusFilter !== "all" || stageFilter !== "all") && (
+        {(search || buyerFilter !== "all" || statusFilter !== "all" || stageFilter !== "all" || slaFilter !== "all" || slaSortOverdue) && (
           <button
             className="text-[11px] underline text-muted-foreground hover:text-black"
-            onClick={() => { setSearch(""); setBuyerFilter("all"); setStatusFilter("all"); setStageFilter("all"); }}
+            onClick={() => { setSearch(""); setBuyerFilter("all"); setStatusFilter("all"); setStageFilter("all"); setSlaFilter("all"); setSlaSortOverdue(false); }}
           >Reset</button>
         )}
         <div className="ml-auto text-[11px] text-muted-foreground">
           Showing <span className="text-foreground font-medium">{filtered.length}</span> of {leads.length}
         </div>
       </div>
+
+      {/* SLA filter chips */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-3">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">SLA</span>
+        {([
+          ["all", "All"],
+          ["on_track", "On Track"],
+          ["watch", "Watch"],
+          ["overdue", "Overdue"],
+        ] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setSlaFilter(k)}
+            className={`text-[11px] px-2 py-0.5 rounded border transition ${slaFilter === k ? "bg-black text-white border-black" : "bg-white border-line text-muted-foreground hover:text-black"}`}
+          >{label}</button>
+        ))}
+        <label className="text-[11px] text-muted-foreground flex items-center gap-1 ml-2 cursor-pointer select-none">
+          <input type="checkbox" checked={slaSortOverdue} onChange={(e) => setSlaSortOverdue(e.target.checked)} />
+          Most overdue first
+        </label>
+        <span className="text-[10px] text-muted-foreground/70 ml-2">
+          Watch ≥ {slaSettings.watch_days}d · Overdue ≥ {slaSettings.overdue_days}d
+        </span>
+      </div>
+
 
       {/* Kanban */}
       {loading ? (
@@ -433,6 +510,15 @@ export default function OperationsCrm() {
                       {l.batch_name && (
                         <div className="text-[10px] text-muted-foreground truncate mt-0.5 italic">{l.batch_name}</div>
                       )}
+                      {(() => {
+                        const a = agingByLead.get(l.id);
+                        if (!a) return null;
+                        return (
+                          <div className="mt-1.5">
+                            <SlaChip status={a.status} days={a.days} compact />
+                          </div>
+                        );
+                      })()}
                     </div>
                     );
                   })}

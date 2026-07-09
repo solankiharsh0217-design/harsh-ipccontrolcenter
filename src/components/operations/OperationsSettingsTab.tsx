@@ -10,6 +10,10 @@ import ProcessTemplateEditor from "@/components/operations/ProcessTemplateEditor
 import CommunicationTemplateEditor from "@/components/operations/CommunicationTemplateEditor";
 import { ensureOperationsPipeline } from "@/lib/operationsCrm";
 import { getReadinessSettings, updateReadinessSettings, type ReadinessSettings } from "@/lib/operationsReadiness";
+import {
+  getOperationsSlaSettings, updateOperationsSlaSettings,
+  DEFAULT_SLA, type OperationsSlaSettings,
+} from "@/lib/operationsSla";
 import type { Stage } from "@/lib/crmTypes";
 
 export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean }) {
@@ -26,16 +30,20 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
     operations_readiness_auto_move: false,
   });
   const [savingReadiness, setSavingReadiness] = useState(false);
+  const [sla, setSla] = useState<OperationsSlaSettings>(DEFAULT_SLA);
+  const [slaDraft, setSlaDraft] = useState<OperationsSlaSettings>(DEFAULT_SLA);
+  const [savingSla, setSavingSla] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [t, c, r] = await Promise.all([
+      const [t, c, r, s] = await Promise.all([
         listProcessTemplates(false),
         listCommunicationTemplates(false),
         getReadinessSettings(),
+        getOperationsSlaSettings(),
       ]);
-      setTemplates(t); setComms(c); setReadiness(r);
+      setTemplates(t); setComms(c); setReadiness(r); setSla(s); setSlaDraft(s);
       try {
         const { pipelineId } = await ensureOperationsPipeline();
         const { data } = await supabase.from("stages").select("*").eq("pipeline_id", pipelineId).order("position");
@@ -58,6 +66,23 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
       setSavingReadiness(false);
     }
   };
+
+  const saveSla = async () => {
+    const watch = Math.max(1, Math.floor(Number(slaDraft.watch_days) || 0));
+    const overdue = Math.max(watch + 1, Math.floor(Number(slaDraft.overdue_days) || 0));
+    setSavingSla(true);
+    try {
+      await updateOperationsSlaSettings({ watch_days: watch, overdue_days: overdue });
+      const next = { watch_days: watch, overdue_days: overdue };
+      setSla(next); setSlaDraft(next);
+      toast.success("SLA thresholds saved");
+    } catch (e: any) {
+      toast.error(e.message || "Save failed");
+    } finally {
+      setSavingSla(false);
+    }
+  };
+
 
   if (!isAdmin) {
     return <div className="text-sm text-muted-foreground py-12 text-center">Only admins can edit Operations settings.</div>;
@@ -107,6 +132,52 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
                 </div>
               </label>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border border-line rounded-md p-4 bg-off/30">
+        <div className="font-serif text-base text-black mb-1">Operations SLA thresholds</div>
+        <div className="text-[11px] text-muted-foreground mb-3">
+          Controls the aging chips shown on Operations kanban cards and inside the lead drawer. A card turns amber (Watch) after the first threshold and red (Overdue) after the second. Only admins can change these values.
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Watch after (days)</label>
+            <input
+              type="number"
+              min={1}
+              value={slaDraft.watch_days}
+              disabled={savingSla}
+              onChange={(e) => setSlaDraft((d) => ({ ...d, watch_days: Number(e.target.value) }))}
+              className="ipc-input !h-9 !text-xs w-full mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Overdue after (days)</label>
+            <input
+              type="number"
+              min={2}
+              value={slaDraft.overdue_days}
+              disabled={savingSla}
+              onChange={(e) => setSlaDraft((d) => ({ ...d, overdue_days: Number(e.target.value) }))}
+              className="ipc-input !h-9 !text-xs w-full mt-1"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            onClick={saveSla}
+            disabled={savingSla || (slaDraft.watch_days === sla.watch_days && slaDraft.overdue_days === sla.overdue_days)}
+            className="ipc-btn ipc-btn-black !h-9 !text-xs"
+          >Save thresholds</button>
+          <button
+            onClick={() => setSlaDraft(sla)}
+            disabled={savingSla || (slaDraft.watch_days === sla.watch_days && slaDraft.overdue_days === sla.overdue_days)}
+            className="ipc-btn ipc-btn-ghost !h-9 !text-xs"
+          >Reset</button>
+          <div className="text-[10px] text-muted-foreground ml-2">
+            Current: Watch ≥ {sla.watch_days}d · Overdue ≥ {sla.overdue_days}d
           </div>
         </div>
       </section>
