@@ -27,6 +27,7 @@ import {
   getOperationsSlaSettings, fetchStageChangeMap, computeStageAging,
   DEFAULT_SLA, type OperationsSlaSettings, type SlaStatus,
 } from "@/lib/operationsSla";
+import { fetchDeliverySummaries, type DeliverySummary } from "@/lib/operationsDeliveries";
 
 interface OpsLead {
   id: string;
@@ -75,6 +76,8 @@ export default function OperationsCrm() {
   const [slaSortOverdue, setSlaSortOverdue] = useState(false);
   const [slaSettings, setSlaSettings] = useState<OperationsSlaSettings>(DEFAULT_SLA);
   const [stageMoveMap, setStageMoveMap] = useState<Map<string, string>>(new Map());
+  const [deliveryMap, setDeliveryMap] = useState<Map<string, DeliverySummary>>(new Map());
+  const [deliveryFilter, setDeliveryFilter] = useState<"all" | "has_pending" | "has_overdue" | "fully_delivered" | "blocked">("all");
   const [buyers, setBuyers] = useState<{ id: string; full_name: string }[]>([]);
   const [openLead, setOpenLead] = useState<string | null>(params.get("lead"));
   const [addStageOpen, setAddStageOpen] = useState(false);
@@ -148,6 +151,18 @@ export default function OperationsCrm() {
     return () => { cancel = true; };
   }, [leads]);
 
+  // Delivery summaries per lead
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const ids = leads.map((l) => l.id);
+      if (!ids.length) { setDeliveryMap(new Map()); return; }
+      const m = await fetchDeliverySummaries(ids);
+      if (!cancel) setDeliveryMap(m);
+    })();
+    return () => { cancel = true; };
+  }, [leads, refreshKey]);
+
   // Aging per lead
   const agingByLead = useMemo(() => {
     const map = new Map<string, ReturnType<typeof computeStageAging>>();
@@ -196,9 +211,17 @@ export default function OperationsCrm() {
         const a = agingByLead.get(l.id);
         if (!a || a.status !== slaFilter) return false;
       }
+      if (deliveryFilter !== "all") {
+        const d = deliveryMap.get(l.id);
+        if (!d || d.total === 0) return false;
+        if (deliveryFilter === "has_pending" && d.pending + d.in_progress === 0) return false;
+        if (deliveryFilter === "has_overdue" && d.overdue === 0) return false;
+        if (deliveryFilter === "fully_delivered" && d.delivered !== d.total) return false;
+        if (deliveryFilter === "blocked" && d.blocked === 0) return false;
+      }
       return true;
     });
-  }, [leads, search, buyerFilter, statusFilter, stageFilter, slaFilter, agingByLead, profile?.id]);
+  }, [leads, search, buyerFilter, statusFilter, stageFilter, slaFilter, agingByLead, profile?.id, deliveryFilter, deliveryMap]);
 
   const metrics = useMemo(() => {
     const now = new Date();
@@ -427,8 +450,25 @@ export default function OperationsCrm() {
         </span>
       </div>
 
+      {/* Delivery filter chips */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-3">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Delivery</span>
+        {([
+          ["all", "All"],
+          ["has_pending", "Has Pending"],
+          ["has_overdue", "Has Overdue"],
+          ["fully_delivered", "Fully Delivered"],
+          ["blocked", "Blocked"],
+        ] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setDeliveryFilter(k)}
+            className={`text-[11px] px-2 py-0.5 rounded border transition ${deliveryFilter === k ? "bg-black text-white border-black" : "bg-white border-line text-muted-foreground hover:text-black"}`}
+          >{label}</button>
+        ))}
+      </div>
 
-      {/* Kanban */}
+
       {loading ? (
         <div className="text-sm text-muted-foreground py-12 text-center">Loading…</div>
       ) : stages.length === 0 ? (
@@ -516,6 +556,23 @@ export default function OperationsCrm() {
                         return (
                           <div className="mt-1.5">
                             <SlaChip status={a.status} days={a.days} compact />
+                          </div>
+                        );
+                      })()}
+                      {(() => {
+                        const d = deliveryMap.get(l.id);
+                        if (!d || d.total === 0) return null;
+                        const full = d.delivered === d.total;
+                        return (
+                          <div className="mt-1 text-[10px] flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-1.5 py-0.5 rounded ${full ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#F3F4F6] text-[#374151]"}`}>
+                              Delivery: {d.delivered}/{d.total} done
+                            </span>
+                            {d.overdue > 0 && (
+                              <span className="px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#991B1B]">
+                                {d.overdue} overdue
+                              </span>
+                            )}
                           </div>
                         );
                       })()}

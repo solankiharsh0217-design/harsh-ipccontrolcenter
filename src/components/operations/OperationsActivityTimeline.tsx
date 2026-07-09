@@ -50,6 +50,11 @@ function humanTitle(eventType: string): string {
     lead_created: "Added to Operations",
     operations_lead_created: "Added to Operations",
     note_added: "Note Added",
+    delivery_status_changed: "Delivery Status Changed",
+    delivery_marked_delivered: "Delivery Completed",
+    delivery_blocked: "Delivery Blocked",
+    delivery_due_date_updated: "Delivery Due Date Updated",
+    delivery_assignee_updated: "Delivery Owner Updated",
   };
   return map[eventType] || eventType.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }
@@ -57,6 +62,7 @@ function humanTitle(eventType: string): string {
 function categoryOf(eventType: string): Category {
   if (eventType.startsWith("communication_")) return "communication";
   if (eventType.includes("readiness") || eventType.includes("stage")) return "stage";
+  if (eventType.startsWith("delivery_")) return "service";
   if (["start", "pause", "resume", "stop", "complete", "restart"].includes(eventType)) return "service";
   if (eventType.includes("note")) return "note";
   return "other";

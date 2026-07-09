@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import PromisedOffersPanel from "@/components/offers/PromisedOffersPanel";
+import DeliveryTrackingSection from "@/components/operations/DeliveryTrackingSection";
 import {
   X as XIcon, ExternalLink, Play, Pause, Square, CheckCircle2, RotateCcw,
   ClipboardCopy,
@@ -121,6 +122,21 @@ export default function OperationsLeadDrawer({
   const [showReadinessMove, setShowReadinessMove] = useState(false);
   const [slaSettings, setSlaSettings] = useState<OperationsSlaSettings>(DEFAULT_SLA);
   const [exactStageMovedAt, setExactStageMovedAt] = useState<string | null>(null);
+  const [deliveryBuyers, setDeliveryBuyers] = useState<{ id: string; full_name: string }[]>([]);
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("can_receive_operations_leads", true as any);
+      if (!cancel) {
+        setDeliveryBuyers(((data ?? []) as any[]).map((b) => ({ id: b.id, full_name: b.full_name ?? "Unnamed" })));
+      }
+    })();
+    return () => { cancel = true; };
+  }, []);
   const autoMovedRef = (useMemo(() => ({ current: false }), []) as { current: boolean });
 
   const templateName = useMemo(
@@ -638,6 +654,15 @@ export default function OperationsLeadDrawer({
             paidPipelineLeadId={lead.paid_pipeline_lead_id}
             crmLeadId={lead.crm_lead_id}
             title="Services / Commitments"
+          />
+
+          {/* Delivery Tracking */}
+          <DeliveryTrackingSection
+            operationsLeadId={lead.id}
+            crmLeadId={lead.crm_lead_id}
+            paidPipelineLeadId={lead.paid_pipeline_lead_id}
+            actor={{ id: profile?.id ?? null, name: profile?.full_name ?? null }}
+            buyers={deliveryBuyers}
           />
 
           {/* Notes */}

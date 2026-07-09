@@ -4551,6 +4551,84 @@ export type Database = {
           },
         ]
       }
+      operations_offer_deliveries: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          crm_lead_id: string | null
+          delivered_at: string | null
+          delivered_by: string | null
+          delivery_status: string
+          description: string | null
+          due_date: string | null
+          id: string
+          notes: string | null
+          offer_item_id: string | null
+          operations_lead_id: string
+          paid_lead_offer_item_id: string | null
+          paid_pipeline_lead_id: string | null
+          proof_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          delivered_at?: string | null
+          delivered_by?: string | null
+          delivery_status?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          offer_item_id?: string | null
+          operations_lead_id: string
+          paid_lead_offer_item_id?: string | null
+          paid_pipeline_lead_id?: string | null
+          proof_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          crm_lead_id?: string | null
+          delivered_at?: string | null
+          delivered_by?: string | null
+          delivery_status?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          offer_item_id?: string | null
+          operations_lead_id?: string
+          paid_lead_offer_item_id?: string | null
+          paid_pipeline_lead_id?: string | null
+          proof_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operations_offer_deliveries_operations_lead_id_fkey"
+            columns: ["operations_lead_id"]
+            isOneToOne: false
+            referencedRelation: "operations_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_offer_deliveries_paid_lead_offer_item_id_fkey"
+            columns: ["paid_lead_offer_item_id"]
+            isOneToOne: false
+            referencedRelation: "paid_lead_offer_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operations_process_templates: {
         Row: {
           created_at: string
