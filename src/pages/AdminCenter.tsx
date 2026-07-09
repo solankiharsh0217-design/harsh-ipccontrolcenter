@@ -22,6 +22,13 @@ export default function AdminCenter() {
       show: isAdmin || hasModule("team"),
     },
     {
+      title: "Access Templates",
+      desc: "Reusable module access presets. Apply a template to any team member in one click.",
+      cta: "Manage Access Templates",
+      to: "/admin-center/access-templates",
+      show: isAdmin,
+    },
+    {
       title: "Admin Panel",
       desc: "Access requests, module access, and admin-level controls.",
       cta: "Open Admin Panel",
