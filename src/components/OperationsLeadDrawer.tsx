@@ -398,6 +398,47 @@ export default function OperationsLeadDrawer({
           </Section>
 
 
+          {/* Stage Aging / SLA */}
+          {(() => {
+            const aging = computeStageAging(
+              { created_at: lead.created_at ?? null, updated_at: lead.updated_at ?? null },
+              slaSettings,
+              exactStageMovedAt,
+            );
+            const currentStageName = opsStages.find((s) => s.id === lead.stage_id)?.name ?? "—";
+            const lastMoved = new Date(aging.lastMovedAt);
+            const lastMovedText = Number.isFinite(lastMoved.getTime())
+              ? lastMoved.toLocaleString(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+              : "—";
+            return (
+              <Section title="Stage aging">
+                <div className="border border-line rounded-md bg-white p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-muted-foreground">Current stage</div>
+                    <div className="text-xs font-medium text-black truncate">{currentStageName}</div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-muted-foreground">In this stage</div>
+                    <div className="text-xs text-black">{aging.days} day{aging.days === 1 ? "" : "s"}</div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-muted-foreground">Status</div>
+                    <SlaChip status={aging.status} days={aging.days} />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-muted-foreground">Last moved</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {lastMovedText} <span className="opacity-70">· {aging.source}</span>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground/70 pt-1">
+                    Watch ≥ {slaSettings.watch_days}d · Overdue ≥ {slaSettings.overdue_days}d
+                  </div>
+                </div>
+              </Section>
+            );
+          })()}
+
           {/* Readiness Checklist */}
           <Section title="Readiness checklist">
             <ReadinessChecklist
