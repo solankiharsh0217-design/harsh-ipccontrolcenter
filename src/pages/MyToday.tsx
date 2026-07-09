@@ -326,8 +326,18 @@ export default function MyToday() {
                             {sub.notes && (
                               <div className="text-muted-foreground line-clamp-1">Notes: {sub.notes}</div>
                             )}
+                            {sub.reviewed_at && (
+                              <div className="text-muted-foreground">
+                                {e.status === "approved" ? "Approved" : e.status === "rejected" ? "Rejected" : "Reviewed"}{" "}
+                                {format(new Date(sub.reviewed_at), "d MMM, hh:mm a")}
+                                {reviewers[sub.reviewed_by ?? ""] ? ` by ${reviewers[sub.reviewed_by!]}` : ""}
+                              </div>
+                            )}
                             {e.status === "rejected" && sub.review_notes && (
                               <div className="text-rose-700">Feedback: {sub.review_notes}</div>
+                            )}
+                            {e.status === "approved" && sub.review_notes && (
+                              <div className="text-emerald-700">Note: {sub.review_notes}</div>
                             )}
                           </div>
                         )}
