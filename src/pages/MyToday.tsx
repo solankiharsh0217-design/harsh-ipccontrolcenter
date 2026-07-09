@@ -68,10 +68,20 @@ export default function MyToday() {
   }, [uid, today]);
 
   const loadSubmissions = async (rows: MyKpiEntry[]) => {
-    if (rows.length === 0) { setSubmissions({}); return; }
+    if (rows.length === 0) { setSubmissions({}); setReviewers({}); return; }
     try {
       const map = await fetchSubmissionsForEntries(rows.map(r => r.id));
       setSubmissions(map);
+      const reviewerIds = Array.from(new Set(Object.values(map).map((s) => s.reviewed_by).filter(Boolean) as string[]));
+      if (reviewerIds.length > 0) {
+        const { data: profs } = await (await import("@/integrations/supabase/client")).supabase
+          .from("profiles").select("id, full_name, email").in("id", reviewerIds);
+        const rm: Record<string, string> = {};
+        (profs ?? []).forEach((p: any) => { rm[p.id] = p.full_name || p.email || "Reviewer"; });
+        setReviewers(rm);
+      } else {
+        setReviewers({});
+      }
     } catch { /* non-fatal */ }
   };
 
