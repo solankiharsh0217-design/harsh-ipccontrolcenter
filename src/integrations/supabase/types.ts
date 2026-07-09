@@ -1425,6 +1425,8 @@ export type Database = {
           logo_url: string | null
           operations_readiness_auto_move: boolean
           operations_readiness_target_stage_id: string | null
+          operations_sla_overdue_days: number
+          operations_sla_watch_days: number
           pan: string | null
           phone: string | null
           reply_to_email: string | null
@@ -1486,6 +1488,8 @@ export type Database = {
           logo_url?: string | null
           operations_readiness_auto_move?: boolean
           operations_readiness_target_stage_id?: string | null
+          operations_sla_overdue_days?: number
+          operations_sla_watch_days?: number
           pan?: string | null
           phone?: string | null
           reply_to_email?: string | null
@@ -1547,6 +1551,8 @@ export type Database = {
           logo_url?: string | null
           operations_readiness_auto_move?: boolean
           operations_readiness_target_stage_id?: string | null
+          operations_sla_overdue_days?: number
+          operations_sla_watch_days?: number
           pan?: string | null
           phone?: string | null
           reply_to_email?: string | null
