@@ -91,7 +91,7 @@ export async function checkOut(session: AttendanceSession): Promise<AttendanceSe
 export async function fetchMyTodayEntries(userId: string, date: string): Promise<MyKpiEntry[]> {
   const { data, error } = await sb
     .from("kpi_entries")
-    .select("*, kpi:kpi_definitions(id,name,description,cadence,target_unit,proof_required,approval_required), assignment:kpi_assignments(assignment_type)")
+    .select("*, kpi:kpi_definitions(id,name,description,cadence,target_unit,measurement_type,proof_required,approval_required), assignment:kpi_assignments(assignment_type)")
     .eq("user_id", userId)
     .lte("period_start", date)
     .gte("period_end", date)
