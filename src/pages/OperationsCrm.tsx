@@ -27,6 +27,7 @@ import {
   getOperationsSlaSettings, fetchStageChangeMap, computeStageAging,
   DEFAULT_SLA, type OperationsSlaSettings, type SlaStatus,
 } from "@/lib/operationsSla";
+import { fetchDeliverySummaries, type DeliverySummary } from "@/lib/operationsDeliveries";
 
 interface OpsLead {
   id: string;
