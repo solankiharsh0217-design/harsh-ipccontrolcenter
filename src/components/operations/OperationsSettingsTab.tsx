@@ -37,12 +37,13 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
   const load = async () => {
     setLoading(true);
     try {
-      const [t, c, r] = await Promise.all([
+      const [t, c, r, s] = await Promise.all([
         listProcessTemplates(false),
         listCommunicationTemplates(false),
         getReadinessSettings(),
+        getOperationsSlaSettings(),
       ]);
-      setTemplates(t); setComms(c); setReadiness(r);
+      setTemplates(t); setComms(c); setReadiness(r); setSla(s); setSlaDraft(s);
       try {
         const { pipelineId } = await ensureOperationsPipeline();
         const { data } = await supabase.from("stages").select("*").eq("pipeline_id", pipelineId).order("position");
