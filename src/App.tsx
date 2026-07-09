@@ -67,6 +67,7 @@ import TeamPerformanceAdmin from "./pages/admin/TeamPerformanceAdmin";
 import MyToday from "./pages/MyToday";
 import TeamPerformanceReview from "./pages/admin/TeamPerformanceReview";
 import TeamPerformanceRewards from "./pages/admin/TeamPerformanceRewards";
+import TeamPerformanceDashboard from "./pages/admin/TeamPerformanceDashboard";
 
 import type { ModuleKey } from "@/lib/modules";
 
@@ -149,6 +150,7 @@ const App = () => (
             <Route path="/admin-center/conversion-rules" element={<Shell admin><ConversionRulesAdmin /></Shell>} />
             <Route path="/admin-center/lead-rescue" element={<Shell admin><LeadRescueSearch /></Shell>} />
             <Route path="/admin-center/access-templates" element={<Shell admin><AccessTemplatesAdmin /></Shell>} />
+            <Route path="/team-performance" element={<Shell><TeamPerformanceDashboard /></Shell>} />
             <Route path="/team-performance/admin" element={<Shell admin><TeamPerformanceAdmin /></Shell>} />
             <Route path="/team-performance/review" element={<Shell admin><TeamPerformanceReview /></Shell>} />
             <Route path="/team-performance/rewards" element={<Shell><TeamPerformanceRewards /></Shell>} />

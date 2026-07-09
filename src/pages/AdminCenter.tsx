@@ -36,6 +36,13 @@ export default function AdminCenter() {
       show: isAdmin,
     },
     {
+      title: "Team Performance Dashboard",
+      desc: "Executive view of team productivity: attendance, KPI completion, scores, pending reviews, reward liability, and people needing attention — all in one place.",
+      cta: "Open Team Performance Dashboard",
+      to: "/team-performance",
+      show: isAdmin,
+    },
+    {
       title: "Team Performance OS",
       desc: "Set-and-forget KPIs. Manage the KPI library, role-based templates, and assign KPIs to team members. Daily/weekly/monthly instances generate automatically in Phase 2.",
       cta: "Open Team Performance",
