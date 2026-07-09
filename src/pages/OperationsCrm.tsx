@@ -559,6 +559,23 @@ export default function OperationsCrm() {
                           </div>
                         );
                       })()}
+                      {(() => {
+                        const d = deliveryMap.get(l.id);
+                        if (!d || d.total === 0) return null;
+                        const full = d.delivered === d.total;
+                        return (
+                          <div className="mt-1 text-[10px] flex items-center gap-1.5 flex-wrap">
+                            <span className={`px-1.5 py-0.5 rounded ${full ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#F3F4F6] text-[#374151]"}`}>
+                              Delivery: {d.delivered}/{d.total} done
+                            </span>
+                            {d.overdue > 0 && (
+                              <span className="px-1.5 py-0.5 rounded bg-[#FEE2E2] text-[#991B1B]">
+                                {d.overdue} overdue
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                     );
                   })}
