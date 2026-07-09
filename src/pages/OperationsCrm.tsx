@@ -220,8 +220,14 @@ export default function OperationsCrm() {
     for (const l of filtered) {
       if (l.stage_id && map.has(l.stage_id)) map.get(l.stage_id)!.push(l);
     }
+    if (slaSortOverdue) {
+      for (const [k, arr] of map) {
+        arr.sort((a, b) => (agingByLead.get(b.id)?.days ?? 0) - (agingByLead.get(a.id)?.days ?? 0));
+        map.set(k, arr);
+      }
+    }
     return map;
-  }, [filtered, stages]);
+  }, [filtered, stages, slaSortOverdue, agingByLead]);
 
   const onDropToStage = async (toStageId: string) => {
     if (!drag) return;
