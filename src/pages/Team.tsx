@@ -13,6 +13,7 @@ import { logActivity } from "@/lib/auditLog";
 import MemberActionMenu from "@/components/team/MemberActionMenu";
 import MemberActionModal from "@/components/team/MemberActionModal";
 import MemberAssignedLeadsModal from "@/components/team/MemberAssignedLeadsModal";
+import ApplyTemplateModal from "@/components/team/ApplyTemplateModal";
 
 interface Member {
   id: string;
