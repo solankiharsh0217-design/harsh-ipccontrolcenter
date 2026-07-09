@@ -55,6 +55,7 @@ interface OpsLead {
   paid_pipeline_lead_id: string | null;
   notes: string | null;
   created_at: string;
+  updated_at?: string | null;
   sort_order: number;
 }
 
