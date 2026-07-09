@@ -55,6 +55,7 @@ function humanTitle(eventType: string): string {
     delivery_blocked: "Delivery Blocked",
     delivery_due_date_updated: "Delivery Due Date Updated",
     delivery_assignee_updated: "Delivery Owner Updated",
+  };
   return map[eventType] || eventType.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
