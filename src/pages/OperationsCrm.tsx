@@ -392,16 +392,41 @@ export default function OperationsCrm() {
           <option value="all">All stages</option>
           {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        {(search || buyerFilter !== "all" || statusFilter !== "all" || stageFilter !== "all") && (
+        {(search || buyerFilter !== "all" || statusFilter !== "all" || stageFilter !== "all" || slaFilter !== "all" || slaSortOverdue) && (
           <button
             className="text-[11px] underline text-muted-foreground hover:text-black"
-            onClick={() => { setSearch(""); setBuyerFilter("all"); setStatusFilter("all"); setStageFilter("all"); }}
+            onClick={() => { setSearch(""); setBuyerFilter("all"); setStatusFilter("all"); setStageFilter("all"); setSlaFilter("all"); setSlaSortOverdue(false); }}
           >Reset</button>
         )}
         <div className="ml-auto text-[11px] text-muted-foreground">
           Showing <span className="text-foreground font-medium">{filtered.length}</span> of {leads.length}
         </div>
       </div>
+
+      {/* SLA filter chips */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-3">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">SLA</span>
+        {([
+          ["all", "All"],
+          ["on_track", "On Track"],
+          ["watch", "Watch"],
+          ["overdue", "Overdue"],
+        ] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setSlaFilter(k)}
+            className={`text-[11px] px-2 py-0.5 rounded border transition ${slaFilter === k ? "bg-black text-white border-black" : "bg-white border-line text-muted-foreground hover:text-black"}`}
+          >{label}</button>
+        ))}
+        <label className="text-[11px] text-muted-foreground flex items-center gap-1 ml-2 cursor-pointer select-none">
+          <input type="checkbox" checked={slaSortOverdue} onChange={(e) => setSlaSortOverdue(e.target.checked)} />
+          Most overdue first
+        </label>
+        <span className="text-[10px] text-muted-foreground/70 ml-2">
+          Watch ≥ {slaSettings.watch_days}d · Overdue ≥ {slaSettings.overdue_days}d
+        </span>
+      </div>
+
 
       {/* Kanban */}
       {loading ? (
