@@ -67,6 +67,23 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
     }
   };
 
+  const saveSla = async () => {
+    const watch = Math.max(1, Math.floor(Number(slaDraft.watch_days) || 0));
+    const overdue = Math.max(watch + 1, Math.floor(Number(slaDraft.overdue_days) || 0));
+    setSavingSla(true);
+    try {
+      await updateOperationsSlaSettings({ watch_days: watch, overdue_days: overdue });
+      const next = { watch_days: watch, overdue_days: overdue };
+      setSla(next); setSlaDraft(next);
+      toast.success("SLA thresholds saved");
+    } catch (e: any) {
+      toast.error(e.message || "Save failed");
+    } finally {
+      setSavingSla(false);
+    }
+  };
+
+
   if (!isAdmin) {
     return <div className="text-sm text-muted-foreground py-12 text-center">Only admins can edit Operations settings.</div>;
   }
