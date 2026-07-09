@@ -215,8 +215,25 @@ export default function DeliveryTrackingSection({ operationsLeadId, crmLeadId, p
               </label>
 
               {r.delivered_at && (
-                <div className="text-[10px] text-muted-foreground mt-1">
-                  Delivered at {new Date(r.delivered_at).toLocaleString()}
+                <div className="flex items-center justify-between mt-1 gap-2">
+                  <div className="text-[10px] text-muted-foreground">
+                    Delivered at {new Date(r.delivered_at).toLocaleString()}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRewardModal({
+                      row: r,
+                      title: `Delivered: ${r.title}`,
+                      description: r.description ?? "",
+                      proof_url: r.proof_url ?? "",
+                      result_date: (r.delivered_at ?? "").slice(0, 10),
+                      submitting: false,
+                    })}
+                    className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-line hover:bg-off text-[#92400E]"
+                    title="Submit this delivery as a reward result (needs admin approval)"
+                  >
+                    <Trophy className="w-3 h-3" /> Submit for Reward
+                  </button>
                 </div>
               )}
 
