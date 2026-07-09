@@ -136,6 +136,52 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
         </div>
       </section>
 
+      <section className="border border-line rounded-md p-4 bg-off/30">
+        <div className="font-serif text-base text-black mb-1">Operations SLA thresholds</div>
+        <div className="text-[11px] text-muted-foreground mb-3">
+          Controls the aging chips shown on Operations kanban cards and inside the lead drawer. A card turns amber (Watch) after the first threshold and red (Overdue) after the second. Only admins can change these values.
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Watch after (days)</label>
+            <input
+              type="number"
+              min={1}
+              value={slaDraft.watch_days}
+              disabled={savingSla}
+              onChange={(e) => setSlaDraft((d) => ({ ...d, watch_days: Number(e.target.value) }))}
+              className="ipc-input !h-9 !text-xs w-full mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Overdue after (days)</label>
+            <input
+              type="number"
+              min={2}
+              value={slaDraft.overdue_days}
+              disabled={savingSla}
+              onChange={(e) => setSlaDraft((d) => ({ ...d, overdue_days: Number(e.target.value) }))}
+              className="ipc-input !h-9 !text-xs w-full mt-1"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            onClick={saveSla}
+            disabled={savingSla || (slaDraft.watch_days === sla.watch_days && slaDraft.overdue_days === sla.overdue_days)}
+            className="ipc-btn ipc-btn-black !h-9 !text-xs"
+          >Save thresholds</button>
+          <button
+            onClick={() => setSlaDraft(sla)}
+            disabled={savingSla || (slaDraft.watch_days === sla.watch_days && slaDraft.overdue_days === sla.overdue_days)}
+            className="ipc-btn ipc-btn-ghost !h-9 !text-xs"
+          >Reset</button>
+          <div className="text-[10px] text-muted-foreground ml-2">
+            Current: Watch ≥ {sla.watch_days}d · Overdue ≥ {sla.overdue_days}d
+          </div>
+        </div>
+      </section>
+
       <section>
         <div className="flex items-center justify-between mb-2">
           <div className="font-serif text-base text-black">Process Templates</div>
