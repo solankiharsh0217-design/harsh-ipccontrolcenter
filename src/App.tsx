@@ -65,6 +65,7 @@ import DreamTurnoverPlanner from "./pages/DreamTurnoverPlanner";
 import AccessTemplatesAdmin from "./pages/admin/AccessTemplates";
 import TeamPerformanceAdmin from "./pages/admin/TeamPerformanceAdmin";
 import MyToday from "./pages/MyToday";
+import TeamPerformanceReview from "./pages/admin/TeamPerformanceReview";
 
 import type { ModuleKey } from "@/lib/modules";
 
