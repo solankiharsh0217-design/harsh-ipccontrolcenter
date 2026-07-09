@@ -119,6 +119,8 @@ export default function OperationsLeadDrawer({
   const [readinessSettings, setReadinessSettings] = useState<ReadinessSettings | null>(null);
   const [opsStages, setOpsStages] = useState<Stage[]>([]);
   const [showReadinessMove, setShowReadinessMove] = useState(false);
+  const [slaSettings, setSlaSettings] = useState<OperationsSlaSettings>(DEFAULT_SLA);
+  const [exactStageMovedAt, setExactStageMovedAt] = useState<string | null>(null);
   const autoMovedRef = (useMemo(() => ({ current: false }), []) as { current: boolean });
 
   const templateName = useMemo(
