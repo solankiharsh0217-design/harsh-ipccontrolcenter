@@ -221,6 +221,9 @@ export default function MyToday() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary" className="capitalize">{session.status}</Badge>
+                  <span className="text-[10px] text-muted-foreground">
+                    Source: {session.source === "login" ? "Login (auto)" : session.source === "manual" ? "Manual" : session.source}
+                  </span>
                   {!session.check_out_at ? (
                     <Button size="sm" onClick={doCheckOut} disabled={busy}>Check out</Button>
                   ) : (
