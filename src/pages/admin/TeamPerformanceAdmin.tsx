@@ -534,6 +534,11 @@ function GeneratedTab() {
                 <div className="font-medium text-[15px]">{v as number}</div>
               </div>
             ))}
+            {lastResult.entries_skipped_unsupported > 0 && (
+              <div className="col-span-full border border-amber-300 bg-amber-50 text-amber-900 rounded-md px-3 py-2 text-[12px]">
+                <span className="font-medium">{lastResult.entries_skipped_unsupported}</span> assignment{lastResult.entries_skipped_unsupported === 1 ? "" : "s"} skipped — cadence not yet supported by the generator (e.g. <span className="font-mono">custom</span> or complex recurring rules). Custom cadence support will be added in a later phase.
+              </div>
+            )}
             {lastResult.errors.length > 0 && (
               <div className="col-span-full text-[12px] text-red-700">{lastResult.errors.length} error(s) — see audit log</div>
             )}
