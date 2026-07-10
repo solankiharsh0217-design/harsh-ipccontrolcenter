@@ -12,7 +12,7 @@ import {
 import { generateKpiEntriesForDate, listGeneratedEntries, GenerationResult, GeneratedEntryRow } from "@/lib/kpiGeneration";
 import { format, addDays } from "date-fns";
 
-type Tab = "library" | "templates" | "assign" | "generated";
+type Tab = "library" | "templates" | "assign" | "generated" | "settings";
 
 interface Profile { id: string; full_name: string; role: string | null; }
 
@@ -28,6 +28,7 @@ export default function TeamPerformanceAdmin() {
           { k: "templates", l: "KPI Templates" },
           { k: "assign", l: "Assign KPIs" },
           { k: "generated", l: "Generated Entries" },
+          { k: "settings", l: "Settings" },
         ].map((t) => (
           <button
             key={t.k}
@@ -45,6 +46,124 @@ export default function TeamPerformanceAdmin() {
       {tab === "templates" && <TemplatesTab />}
       {tab === "assign" && <AssignTab />}
       {tab === "generated" && <GeneratedTab />}
+      {tab === "settings" && <SettingsTab />}
+    </div>
+  );
+}
+
+// ─────────────────────── SETTINGS ───────────────────────
+function SettingsTab() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [autoCheckin, setAutoCheckin] = useState(false);
+  const [dailyReminder, setDailyReminder] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from("company_settings")
+        .select("team_performance_auto_checkin_on_login, team_performance_daily_reminder_enabled")
+        .eq("workspace", "default")
+        .maybeSingle();
+      if (error) throw error;
+      setAutoCheckin(!!data?.team_performance_auto_checkin_on_login);
+      setDailyReminder(!!data?.team_performance_daily_reminder_enabled);
+    } catch (e: any) {
+      toast({ title: "Failed to load settings", description: e.message });
+    }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async (patch: Record<string, boolean>, actionType: string, label: string, newValue: boolean) => {
+    setSaving(actionType);
+    try {
+      const { error } = await (supabase as any)
+        .from("company_settings")
+        .update(patch)
+        .eq("workspace", "default");
+      if (error) throw error;
+      await (supabase as any).from("activity_logs").insert({
+        module_key: "team_performance",
+        module_label: "Team Performance",
+        action_type: actionType,
+        entity_type: "company_settings",
+        metadata: { ...patch },
+        summary: `${label} turned ${newValue ? "ON" : "OFF"}`,
+      });
+      toast({ title: "Saved", description: `${label} is now ${newValue ? "ON" : "OFF"}` });
+    } catch (e: any) {
+      toast({ title: "Save failed", description: e.message });
+      await load();
+    }
+    setSaving(null);
+  };
+
+  const toggleAuto = async () => {
+    const next = !autoCheckin;
+    setAutoCheckin(next);
+    await save(
+      { team_performance_auto_checkin_on_login: next },
+      "team_performance_auto_checkin_setting_updated",
+      "Auto Check-in on Login",
+      next,
+    );
+  };
+  const toggleReminder = async () => {
+    const next = !dailyReminder;
+    setDailyReminder(next);
+    await save(
+      { team_performance_daily_reminder_enabled: next },
+      "team_performance_reminder_setting_updated",
+      "Daily KPI Reminder",
+      next,
+    );
+  };
+
+  if (loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="border border-line rounded-xl bg-white p-5">
+        <SectionLabel>Attendance</SectionLabel>
+        <div className="mt-3 flex items-start justify-between gap-6">
+          <div>
+            <div className="font-medium text-[14px]">Auto Check-in on Login</div>
+            <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+              When enabled, active team members will be checked in automatically when they log into IPC Control Centre. If they already have a session for today, it will not be overwritten.
+            </p>
+          </div>
+          <button
+            onClick={toggleAuto}
+            disabled={saving === "team_performance_auto_checkin_setting_updated"}
+            className={`shrink-0 w-11 h-6 rounded-full transition-colors ${autoCheckin ? "bg-black" : "bg-neutral-300"} relative`}
+            aria-pressed={autoCheckin}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${autoCheckin ? "translate-x-5" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      <div className="border border-line rounded-xl bg-white p-5">
+        <SectionLabel>Reminders</SectionLabel>
+        <div className="mt-3 flex items-start justify-between gap-6">
+          <div>
+            <div className="font-medium text-[14px]">Daily KPI Reminder</div>
+            <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
+              Reminder foundation only. No notifications will be sent yet unless a safe channel is configured later.
+            </p>
+          </div>
+          <button
+            onClick={toggleReminder}
+            disabled={saving === "team_performance_reminder_setting_updated"}
+            className={`shrink-0 w-11 h-6 rounded-full transition-colors ${dailyReminder ? "bg-black" : "bg-neutral-300"} relative`}
+            aria-pressed={dailyReminder}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${dailyReminder ? "translate-x-5" : ""}`} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
