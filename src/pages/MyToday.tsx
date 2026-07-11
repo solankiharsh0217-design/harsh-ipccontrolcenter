@@ -494,6 +494,36 @@ export default function MyToday() {
                           )}
                         </div>
 
+                        {isActiveWorkKpi(e) && (() => {
+                          const target = activeWorkTarget(e, tpSettings?.active_minutes_daily_target ?? 360);
+                          const am = Number((session as any)?.active_minutes ?? 0);
+                          const trackingOn = !!tpSettings?.active_tracking_enabled;
+                          if (!trackingOn) {
+                            return (
+                              <div className="mt-2 text-[11px] text-muted-foreground">
+                                Active tracking is off. This KPI cannot auto-complete.
+                              </div>
+                            );
+                          }
+                          if (e.status === "approved") {
+                            return (
+                              <div className="mt-2 text-[11px] text-emerald-700">
+                                Approved automatically from active work time.
+                              </div>
+                            );
+                          }
+                          const pct = Math.min(100, Math.round((am / Math.max(1, target)) * 100));
+                          return (
+                            <div className="mt-2">
+                              <div className="flex items-baseline justify-between">
+                                <div className="text-[11px] text-muted-foreground">Active Work</div>
+                                <div className="text-[11px] text-muted-foreground">{am} / {target} min</div>
+                              </div>
+                              <Progress value={pct} className="h-1 mt-0.5" />
+                            </div>
+                          );
+                        })()}
+
                         {sub && (
                           <div className="mt-2 rounded-md bg-muted/40 border border-border px-2.5 py-1.5 text-xs space-y-0.5">
                             <div className="flex flex-wrap gap-x-3 gap-y-0.5">
