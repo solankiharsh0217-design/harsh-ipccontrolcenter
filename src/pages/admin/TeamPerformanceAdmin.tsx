@@ -500,15 +500,41 @@ function TemplatesTab() {
   const [items, setItems] = useState<(KpiTemplateItem & { kpi: KpiDefinition })[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [newForm, setNewForm] = useState<Partial<KpiTemplate>>({ name: "", role_label: "" });
+  const [roleOpts, setRoleOpts] = useState<string[]>([]);
 
   const reload = async () => {
-    const [t, d] = await Promise.all([listKpiTemplates(), listKpiDefinitions()]);
+    const [t, d, roles] = await Promise.all([listKpiTemplates(), listKpiDefinitions(), listRoles(true).catch(() => [])]);
     setTemplates(t); setDefs(d);
+    setRoleOpts(mergeLabels(
+      (roles as any[]).map((r: any) => r.role_label),
+      d.map((k) => k.owner_role || null),
+      t.map((x) => x.role_label || null),
+    ));
   };
   useEffect(() => { reload(); }, []);
   useEffect(() => { if (selected) listTemplateItems(selected.id).then(setItems); else setItems([]); }, [selected]);
 
   const availableToAdd = defs.filter((d) => d.is_active && !items.some(i => i.kpi_id === d.id));
+
+  // Per-template summary: active KPI count + cadence breakdown
+  const [templateSummaries, setTemplateSummaries] = useState<Record<string, { count: number; daily: number; weekly: number; monthly: number; other: number }>>({});
+  useEffect(() => {
+    (async () => {
+      const sb: any = supabase;
+      const { data } = await sb.from("kpi_template_items").select("template_id, kpi:kpi_definitions(is_active, cadence)");
+      const acc: typeof templateSummaries = {};
+      (data ?? []).forEach((row: any) => {
+        if (!row.kpi || row.kpi.is_active === false) return;
+        const s = acc[row.template_id] ??= { count: 0, daily: 0, weekly: 0, monthly: 0, other: 0 };
+        s.count++;
+        if (row.kpi.cadence === "daily") s.daily++;
+        else if (row.kpi.cadence === "weekly") s.weekly++;
+        else if (row.kpi.cadence === "monthly") s.monthly++;
+        else s.other++;
+      });
+      setTemplateSummaries(acc);
+    })();
+  }, [templates]);
 
   return (
     <div className="grid grid-cols-[280px_1fr] gap-6">
@@ -518,22 +544,38 @@ function TemplatesTab() {
           <button onClick={() => setShowNew(true)} className="text-[12px] text-black hover:underline">+ New</button>
         </div>
         <div className="border border-line rounded-xl bg-white divide-y divide-line">
-          {templates.map(t => (
-            <button key={t.id} onClick={() => setSelected(t)} className={`w-full text-left px-3 py-2.5 text-[13px] ${selected?.id === t.id ? "bg-off" : "hover:bg-off/50"}`}>
-              <div className="font-medium">{t.name}</div>
-              <div className="text-[11px] text-muted-foreground">{t.role_label || "—"}</div>
-            </button>
-          ))}
+          {templates.map(t => {
+            const s = templateSummaries[t.id];
+            return (
+              <button key={t.id} onClick={() => setSelected(t)} className={`w-full text-left px-3 py-2.5 text-[13px] ${selected?.id === t.id ? "bg-off" : "hover:bg-off/50"}`}>
+                <div className="font-medium">{t.name}</div>
+                <div className="text-[11px] text-muted-foreground">{t.role_label || "—"}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {s ? `${s.count} KPI${s.count === 1 ? "" : "s"} · D${s.daily}/W${s.weekly}/M${s.monthly}${s.other ? `/+${s.other}` : ""}` : "0 KPIs"}
+                </div>
+              </button>
+            );
+          })}
           {templates.length === 0 && <div className="px-3 py-4 text-[12px] text-muted-foreground">No templates yet.</div>}
         </div>
         {showNew && (
           <div className="mt-3 border border-line rounded-xl bg-white p-3 text-[13px] space-y-2">
             <input placeholder="Template name" value={newForm.name ?? ""} onChange={(e) => setNewForm({ ...newForm, name: e.target.value })} className="w-full border border-line rounded-md px-2 py-1.5" />
-            <input placeholder="Role label" value={newForm.role_label ?? ""} onChange={(e) => setNewForm({ ...newForm, role_label: e.target.value })} className="w-full border border-line rounded-md px-2 py-1.5" />
+            <input
+              list="tpl-role-options"
+              placeholder="Role (e.g. Video Editor)"
+              value={newForm.role_label ?? ""}
+              onChange={(e) => setNewForm({ ...newForm, role_label: e.target.value })}
+              className="w-full border border-line rounded-md px-2 py-1.5"
+            />
+            <datalist id="tpl-role-options">
+              {roleOpts.map((r) => <option key={r} value={r} />)}
+            </datalist>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setShowNew(false)} className="text-[12px] text-muted-foreground">Cancel</button>
               <button onClick={async () => {
                 if (!newForm.name?.trim()) return;
+                if (newForm.role_label) await ensureRoleLabel(newForm.role_label).catch(() => {});
                 const t = await createKpiTemplate(newForm);
                 setShowNew(false); setNewForm({ name: "", role_label: "" });
                 await reload(); setSelected(t);
@@ -542,6 +584,7 @@ function TemplatesTab() {
           </div>
         )}
       </div>
+
 
       <div>
         {!selected ? (
