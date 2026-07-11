@@ -46,6 +46,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin-center/tax-codes": "SAC / HSN Master",
   "/resource-library": "IPC Resource Library",
   "/admin-center/resource-library": "IPC Resource Library",
+  "/my-today": "My Today",
 };
 
 const NavItem = ({ to, children, badge, count, show = true }: { to: string; children: ReactNode; badge?: boolean; count?: number; show?: boolean }) => {
@@ -138,6 +139,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <NavItem to="/" show={hasModule("dashboard")}>
             <Icon><><rect x="1" y="1" width="6" height="6" rx="1.5"/><rect x="9" y="1" width="6" height="6" rx="1.5"/><rect x="1" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/></></Icon>
             Dashboard
+          </NavItem>
+          <NavItem to="/my-today">
+            <Icon><><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6h12M5 1v3M11 1v3"/></></Icon>
+            My Today
           </NavItem>
           <NavItem to="/announcements" badge show={hasModule("announcements")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
