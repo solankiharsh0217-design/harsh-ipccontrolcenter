@@ -17,6 +17,8 @@ export function useActivityHeartbeat(opts: { enabled: boolean; idleTimeoutMinute
   const { enabled, idleTimeoutMinutes = 5, onTick } = opts;
   const lastActivityRef = useRef<number>(Date.now());
   const timerRef = useRef<number | null>(null);
+  const onTickRef = useRef<typeof onTick>(onTick);
+  useEffect(() => { onTickRef.current = onTick; }, [onTick]);
 
   useEffect(() => {
     if (!enabled) return;
