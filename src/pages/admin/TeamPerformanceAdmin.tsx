@@ -293,6 +293,118 @@ function SettingsTab() {
           {genResult && <div className="text-[12px] text-muted-foreground mt-2">{genResult}</div>}
         </div>
       </div>
+
+      {/* Active Work Tracking */}
+      <div className="border border-line rounded-xl bg-white p-5 space-y-4">
+        <SectionLabel>Active Work Tracking</SectionLabel>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          Privacy-safe. Counts a minute only when the IPC Control Centre tab is <strong>visible and focused</strong>
+          and the user had recent input (mouse, keyboard, scroll) inside the app.
+          No keystrokes, screenshots, mouse coordinates, or page content are ever stored — only per-minute counts.
+          Tracking is disabled by default and only runs after a user has checked in.
+        </p>
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <div className="font-medium text-[14px]">Enable Active Work Tracking</div>
+            <p className="text-[12px] text-muted-foreground mt-1">Users must have a check-in row for today. No tracking outside IPC Control Centre.</p>
+          </div>
+          <button
+            onClick={async () => {
+              const next = !activeTracking;
+              setActiveTracking(next);
+              await save({ team_performance_active_tracking_enabled: next }, "team_performance_active_tracking_setting_updated", "Active Work Tracking", next ? "ON" : "OFF");
+            }}
+            disabled={saving !== null}
+            className={`shrink-0 w-11 h-6 rounded-full transition-colors ${activeTracking ? "bg-black" : "bg-neutral-300"} relative`}
+            aria-pressed={activeTracking}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${activeTracking ? "translate-x-5" : ""}`} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-line">
+          <div>
+            <label className="text-[12px] font-medium">Daily target (minutes)</label>
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="number"
+                min={30}
+                max={1440}
+                value={activeTarget}
+                onChange={(e) => setActiveTarget(Number(e.target.value))}
+                className="border border-line rounded px-2 py-1.5 text-[13px] w-24"
+              />
+              <button
+                onClick={async () => {
+                  const n = Math.max(30, Math.min(1440, Number(activeTarget) || 360));
+                  setActiveTarget(n);
+                  await save({ team_performance_active_minutes_daily_target: n }, "team_performance_active_tracking_setting_updated", "Active daily target", `${n} min`);
+                }}
+                disabled={!activeTracking || saving !== null}
+                className="text-[12px] px-3 py-1.5 rounded border border-line hover:bg-neutral-50 disabled:opacity-50"
+              >Save</button>
+              <span className="text-[11px] text-muted-foreground">{Math.floor(activeTarget/60)}h {activeTarget%60}m</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-[12px] font-medium">Idle timeout (minutes)</label>
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={idleTimeout}
+                onChange={(e) => setIdleTimeout(Number(e.target.value))}
+                className="border border-line rounded px-2 py-1.5 text-[13px] w-20"
+              />
+              <button
+                onClick={async () => {
+                  const n = Math.max(1, Math.min(60, Number(idleTimeout) || 5));
+                  setIdleTimeout(n);
+                  await save({ team_performance_idle_timeout_minutes: n }, "team_performance_active_tracking_setting_updated", "Idle timeout", `${n} min`);
+                }}
+                disabled={!activeTracking || saving !== null}
+                className="text-[12px] px-3 py-1.5 rounded border border-line hover:bg-neutral-50 disabled:opacity-50"
+              >Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Diagnostics */}
+      {diag && (
+        <div className="border border-line rounded-xl bg-white p-5 space-y-3">
+          <SectionLabel>Role &amp; Category Setup</SectionLabel>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[12px]">
+            <div className="border border-line rounded-md px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Active Roles</div>
+              <div className="font-medium text-[15px]">{diag.roles}</div>
+            </div>
+            <div className="border border-line rounded-md px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Active Categories</div>
+              <div className="font-medium text-[15px]">{diag.categories}</div>
+            </div>
+            <div className="border border-line rounded-md px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Unmapped Profile Roles</div>
+              <div className="font-medium text-[15px]">{diag.unmappedRoles.length}</div>
+            </div>
+            <div className="border border-line rounded-md px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Sessions w/ heartbeat today</div>
+              <div className="font-medium text-[15px]">{diag.heartbeatsToday}</div>
+            </div>
+          </div>
+          {diag.unmappedRoles.length > 0 && (
+            <div className="text-[11px] text-muted-foreground">
+              Profile roles not in catalog:{" "}
+              <span className="text-amber-800">{diag.unmappedRoles.join(", ")}</span>
+              . These will still appear in KPI dropdowns; add to the catalog for standardization.
+            </div>
+          )}
+          <div className="text-[11px] text-muted-foreground">
+            Active tracking: <strong>{activeTracking ? "ON" : "OFF"}</strong> · Target {activeTarget} min · Idle timeout {idleTimeout} min
+          </div>
+        </div>
+      )}
     </div>
   );
 }
