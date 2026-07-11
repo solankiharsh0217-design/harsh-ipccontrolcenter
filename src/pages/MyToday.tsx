@@ -121,9 +121,14 @@ export default function MyToday() {
       }
       setEntries(final);
       await loadSubmissions(final);
-      // Reminders: only generate if setting ON, then fetch
+      // Reminders + active-tracking settings
       try {
         const settings = await fetchTpSettings();
+        setTpSettings(settings ? {
+          active_tracking_enabled: !!(settings as any).active_tracking_enabled,
+          active_minutes_daily_target: (settings as any).active_minutes_daily_target ?? 360,
+          idle_timeout_minutes: (settings as any).idle_timeout_minutes ?? 5,
+        } : null);
         if (settings?.daily_reminder_enabled) {
           await generateMyReminders(uid, today).catch(() => {});
         }
