@@ -8,12 +8,7 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import PayrollFieldsSection, { emptyPayroll, PayrollFormState, payrollToDb } from "@/components/PayrollFieldsSection";
 import { MODULES, type ModuleKey } from "@/lib/modules";
 import { logActivity } from "@/lib/auditLog";
-
-const DEFAULT_ROLES = [
-  "Admin","Media Buyer","Backend Operations","Community Manager","Content Creator",
-  "Operations Lead","Photography Lead","Sales Agent","Sales Executive","Sales Manager",
-  "Support Executive","Telecaller","Finance Executive",
-];
+import { listRoles, ensureRoleLabel, type RoleCatalogRow } from "@/lib/roleCategory";
 
 const ROLE_PRESETS: Record<string, ModuleKey[]> = {
   "Admin": MODULES.map(m => m.key),
@@ -38,6 +33,8 @@ export default function Admin() {
   const [logs, setLogs] = useState<any[]>([]);
   const [studentCount, setStudentCount] = useState<number | null>(null);
   const [syncBusy, setSyncBusy] = useState(false);
+  const [roleCatalog, setRoleCatalog] = useState<RoleCatalogRow[]>([]);
+  const [newRoleLabel, setNewRoleLabel] = useState("");
 
   const syncStudents = async () => {
     setSyncBusy(true);
@@ -82,7 +79,11 @@ export default function Admin() {
   };
 
   const addMember = async () => {
-    if (!mName || !mEmail || !mPass) return toast.error("Name, email and password required.");
+    if (!mName.trim()) return toast.error("Full name is required.");
+    const email = mEmail.trim().toLowerCase();
+    if (!email) return toast.error("Email is required.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast.error("Please enter a valid email.");
+    if (!mPass || mPass.length < 6) return toast.error("Temporary password must be at least 6 characters.");
     if (!mRole.trim()) return toast.error("Please select or add a role.");
     if (mPayroll.payroll_applicable && !mPayroll.joining_date) return toast.error("Joining date is required for payroll-applicable members.");
     if (mPayroll.payroll_applicable) {
@@ -97,47 +98,47 @@ export default function Admin() {
       if (!confirm("Admin Panel access gives sensitive system access. Are you sure?")) return;
     }
     setMBusy(true);
+    logActivity({ module_key: "team_directory", action_type: "team_member_create_attempted", entity_type: "team_member", entity_label: mName, summary: `Add-member attempted for ${email}.`, new_values: { role: mRole, is_admin: mIsAdmin, module_count: mModules.size } });
     const { data, error } = await supabase.functions.invoke("admin-create-member", {
       body: {
-        full_name: mName, email: mEmail, password: mPass, role: mRole,
+        full_name: mName.trim(),
+        email,
+        password: mPass,
+        role: mRole.trim(),
         department: mDept || null,
+        is_admin: mIsAdmin,
+        modules: mIsAdmin ? [] : Array.from(mModules),
         payroll: payrollToDb(mPayroll),
       },
     });
-    if (error || (data as any)?.error) {
+    // Structured response: function always returns 200 with `ok:false` on failure
+    // so the message is visible to the admin.
+    let payload: any = data;
+    if (error) {
+      // Try to recover the JSON body from FunctionsHttpError.
+      try {
+        const resp = (error as any).context;
+        if (resp && typeof resp.text === "function") payload = JSON.parse(await resp.text());
+      } catch { /* ignore */ }
+    }
+    if (!payload?.ok) {
       setMBusy(false);
-      return toast.error((data as any)?.error || error!.message);
+      const msg = payload?.message || payload?.error || error?.message || "Failed to add team member.";
+      logActivity({ module_key: "team_directory", action_type: "team_member_create_failed", entity_type: "team_member", entity_label: mName, summary: `Add-member failed: ${msg}`, severity: "warning", new_values: { error_code: payload?.error_code || null, details: payload?.details || null } });
+      return toast.error(msg);
     }
-    const newId = (data as any).id as string;
-
-    // Persist access permissions
-    let accessFailed = false;
-    try {
-      if (mIsAdmin) {
-        await supabase.from("user_roles").upsert(
-          { user_id: newId, role: "admin" },
-          { onConflict: "user_id,role" }
-        );
-      }
-      if (!mIsAdmin) {
-        const rows = Array.from(mModules).map(k => ({
-          user_id: newId, module_key: k, granted_by: user?.id ?? null,
-        }));
-        if (rows.length) {
-          const { error: aErr } = await supabase.from("user_module_access").insert(rows);
-          if (aErr) throw aErr;
-        }
-      }
-    } catch (e: any) {
-      accessFailed = true;
-      console.error("access save failed", e);
-    }
+    const newId = payload.user_id || payload.id;
     setMBusy(false);
-    if (accessFailed) {
-      toast.error("Member created, but access permissions could not be saved. Please retry from Team Directory.");
+    if (payload.warning) {
+      toast.warning(payload.message || "Team member added with warnings.");
     } else {
-      toast.success(`${mName} added and activated.`);
-      logActivity({ module_key: "team_directory", action_type: "team_member_created", entity_type: "team_member", entity_id: newId, entity_label: mName, target_user_id: newId, target_name: mName, new_values: { full_name: mName, role: mRole, department: mDept || null, is_admin: mIsAdmin, modules: Array.from(mModules) }, summary: `Team member '${mName}' created (${mRole}).` });
+      toast.success(payload.message || `${mName} added and activated.`);
+    }
+    logActivity({ module_key: "team_directory", action_type: "team_member_created", entity_type: "team_member", entity_id: newId, entity_label: mName, target_user_id: newId, target_name: mName, new_values: { full_name: mName, role: mRole, department: mDept || null, is_admin: mIsAdmin, modules: Array.from(mModules), module_access_count: payload.module_access_count ?? 0 }, summary: `Team member '${mName}' created (${mRole}).` });
+    if (mIsAdmin) {
+      logActivity({ module_key: "team_directory", action_type: "admin_role_assigned", entity_type: "team_member", entity_id: newId, entity_label: mName, target_user_id: newId, target_name: mName, summary: `${mName} granted admin access.`, severity: "warning" });
+    } else {
+      logActivity({ module_key: "team_directory", action_type: "module_access_assigned", entity_type: "team_member", entity_id: newId, entity_label: mName, target_user_id: newId, target_name: mName, summary: `${mName} granted ${payload.module_access_count ?? mModules.size} module(s).`, new_values: { modules: Array.from(mModules) } });
     }
     setMName(""); setMEmail(""); setMPass(""); setMDept(""); setMPayroll(emptyPayroll());
     setMIsAdmin(false); setMModules(new Set(["dashboard","announcements"]));
@@ -157,6 +158,12 @@ export default function Admin() {
     setLogs(todayLogs ?? []);
     const { count: sC } = await supabase.from("students").select("id",{count:"exact",head:true});
     setStudentCount(sC ?? 0);
+    try {
+      const rows = await listRoles(true);
+      setRoleCatalog(rows);
+    } catch (e: any) {
+      console.error("role catalog load failed", e);
+    }
   };
   useEffect(() => { load(); }, []);
 
@@ -212,20 +219,44 @@ export default function Admin() {
             <input className="ipc-input" type="email" value={mEmail} onChange={(e)=>setMEmail(e.target.value)} placeholder="name@ipc.in" /></div>
           <div><label className="form-label">Temporary password</label>
             <input className="ipc-input" type="text" value={mPass} onChange={(e)=>setMPass(e.target.value)} placeholder="Set a password" /></div>
-          <div><label className="form-label">Role</label>
-            <QuickSaveInput
-              fieldKey="team_member_role"
-              value={mRole}
-              onChange={setMRole}
-              placeholder="Click to choose saved role or type new"
-            />
-            <div className="mt-1 flex flex-wrap gap-1">
-              {DEFAULT_ROLES.map(r => (
-                <button type="button" key={r} onClick={() => setMRole(r)} className={`text-[10px] font-sans px-2 py-0.5 rounded border ${mRole === r ? "bg-black text-white border-black" : "bg-white border-line text-muted-foreground hover:text-black"}`}>{r}</button>
+          <div>
+            <label className="form-label">Role / Position</label>
+            <select className="ipc-input cursor-pointer" value={mRole} onChange={(e)=>setMRole(e.target.value)}>
+              <option value="">— Select a role —</option>
+              {roleCatalog.map(r => (
+                <option key={r.id} value={r.role_label}>{r.role_label}</option>
               ))}
+            </select>
+            <div className="mt-2 flex gap-2 items-center">
+              <input
+                className="ipc-input flex-1 !h-[28px] !text-[11px]"
+                value={newRoleLabel}
+                onChange={(e)=>setNewRoleLabel(e.target.value)}
+                placeholder="Add a new role (e.g. Video Editor)"
+              />
+              <button
+                type="button"
+                onClick={async ()=>{
+                  const label = newRoleLabel.trim();
+                  if (!label) return;
+                  try {
+                    await ensureRoleLabel(label);
+                    const rows = await listRoles(true);
+                    setRoleCatalog(rows);
+                    setMRole(label);
+                    setNewRoleLabel("");
+                    toast.success(`Role "${label}" added.`);
+                    logActivity({ module_key: "team_directory", action_type: "role_catalog_role_created", entity_type: "role", entity_label: label, summary: `Role catalog entry '${label}' created.` });
+                  } catch (e: any) {
+                    toast.error(e?.message || "Failed to add role.");
+                  }
+                }}
+                className="h-[28px] px-3 rounded-md border border-line bg-off hover:bg-white text-[11px] font-sans"
+              >Add role</button>
             </div>
           </div>
-          <div><label className="form-label">Department (optional)</label>
+          <div>
+            <label className="form-label">Department (optional)</label>
             <QuickSaveInput
               fieldKey="department"
               value={mDept}
