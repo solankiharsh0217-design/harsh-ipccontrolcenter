@@ -39,6 +39,7 @@ export function useActivityHeartbeat(opts: { enabled: boolean; idleTimeoutMinute
         if (!visible || !focused || !activeRecently) return;
         const sb: any = supabase;
         await sb.rpc("record_active_minute");
+        try { onTick?.(); } catch { /* non-fatal */ }
       } catch { /* non-fatal */ }
     };
 
