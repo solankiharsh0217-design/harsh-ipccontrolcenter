@@ -81,6 +81,23 @@ const Shell = ({ children, admin, moduleKey }: { children: React.ReactNode; admi
   </ProtectedRoute>
 );
 
+// Home gate: admins land on the founder/admin Dashboard; non-admins land on My Today.
+const HomeGate = () => {
+  const AuthCtx = require("@/context/AuthContext").useAuth as () => { isAdmin: boolean; hasModule: (k: any) => boolean; loading: boolean; user: any };
+  return null;
+};
+
+const HomeRoute = () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { useAuth } = require("@/context/AuthContext");
+  const { isAdmin, loading, user } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isAdmin) return <Navigate to="/my-today" replace />;
+  return <Shell moduleKey="dashboard"><Dashboard /></Shell>;
+};
+
+
 const App = () => (
   <QueryClientProvider client={qc}>
     <TooltipProvider>
