@@ -46,6 +46,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin-center/tax-codes": "SAC / HSN Master",
   "/resource-library": "IPC Resource Library",
   "/admin-center/resource-library": "IPC Resource Library",
+  "/my-today": "My Today",
 };
 
 const NavItem = ({ to, children, badge, count, show = true }: { to: string; children: ReactNode; badge?: boolean; count?: number; show?: boolean }) => {
