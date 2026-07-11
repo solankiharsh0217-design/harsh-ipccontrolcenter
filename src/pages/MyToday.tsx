@@ -62,6 +62,7 @@ export default function MyToday() {
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<MyKpiEntry | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  const [reminders, setReminders] = useState<TpReminder[]>([]);
 
   useEffect(() => {
     if (!uid) return;
