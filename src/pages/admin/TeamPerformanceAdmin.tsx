@@ -717,12 +717,32 @@ function AssignTab() {
             <button onClick={() => setMode("individual")} className={`text-[12px] px-3 py-1.5 rounded-md border ${mode === "individual" ? "bg-black text-white border-black" : "border-line"}`}>Individual KPI</button>
           </div>
           {mode === "template" ? (
-            <label className="block"><div className="text-muted-foreground mb-1">Template</div>
-              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full border border-line rounded-md px-2 py-1.5">
-                <option value="">Select…</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </label>
+            <div>
+              <label className="block"><div className="text-muted-foreground mb-1">Template</div>
+                <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full border border-line rounded-md px-2 py-1.5">
+                  <option value="">Select…</option>
+                  {templates.map(t => {
+                    const s = tplSummary[t.id];
+                    const suffix = s ? ` — ${s.count} KPI${s.count === 1 ? "" : "s"} (D${s.daily}/W${s.weekly}/M${s.monthly})` : " — 0 KPIs";
+                    return <option key={t.id} value={t.id}>{t.name}{t.role_label ? ` · ${t.role_label}` : ""}{suffix}</option>;
+                  })}
+                </select>
+              </label>
+              {templateId && (() => {
+                const s = tplSummary[templateId];
+                const t = templates.find((x) => x.id === templateId);
+                if (!s || s.count === 0) {
+                  return <div className="mt-2 text-[11px] bg-amber-50 border border-amber-200 text-amber-900 rounded px-2.5 py-1.5">
+                    ⚠ This template has no active KPIs. Assigning it will generate no entries.
+                  </div>;
+                }
+                return <div className="mt-2 text-[11px] text-muted-foreground bg-off rounded px-2.5 py-1.5">
+                  {t?.role_label ? <><span className="font-medium">{t.role_label}</span> · </> : null}
+                  {s.count} active KPI{s.count === 1 ? "" : "s"} · Daily {s.daily} · Weekly {s.weekly} · Monthly {s.monthly}
+                  {s.other ? ` · Other ${s.other}` : ""}
+                </div>;
+              })()}
+            </div>
           ) : (
             <label className="block"><div className="text-muted-foreground mb-1">KPI</div>
               <select value={kpiId} onChange={(e) => setKpiId(e.target.value)} className="w-full border border-line rounded-md px-2 py-1.5">
