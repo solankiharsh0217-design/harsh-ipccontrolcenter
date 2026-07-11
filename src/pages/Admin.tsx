@@ -209,20 +209,42 @@ export default function Admin() {
             <input className="ipc-input" type="email" value={mEmail} onChange={(e)=>setMEmail(e.target.value)} placeholder="name@ipc.in" /></div>
           <div><label className="form-label">Temporary password</label>
             <input className="ipc-input" type="text" value={mPass} onChange={(e)=>setMPass(e.target.value)} placeholder="Set a password" /></div>
-          <div><label className="form-label">Role</label>
-            <QuickSaveInput
-              fieldKey="team_member_role"
-              value={mRole}
-              onChange={setMRole}
-              placeholder="Click to choose saved role or type new"
-            />
-            <div className="mt-1 flex flex-wrap gap-1">
-              {DEFAULT_ROLES.map(r => (
-                <button type="button" key={r} onClick={() => setMRole(r)} className={`text-[10px] font-sans px-2 py-0.5 rounded border ${mRole === r ? "bg-black text-white border-black" : "bg-white border-line text-muted-foreground hover:text-black"}`}>{r}</button>
+          <div>
+            <label className="form-label">Role / Position</label>
+            <select className="ipc-input cursor-pointer" value={mRole} onChange={(e)=>setMRole(e.target.value)}>
+              <option value="">— Select a role —</option>
+              {roleCatalog.map(r => (
+                <option key={r.id} value={r.role_label}>{r.role_label}</option>
               ))}
+            </select>
+            <div className="mt-2 flex gap-2 items-center">
+              <input
+                className="ipc-input flex-1 !h-[28px] !text-[11px]"
+                value={newRoleLabel}
+                onChange={(e)=>setNewRoleLabel(e.target.value)}
+                placeholder="Add a new role (e.g. Video Editor)"
+              />
+              <button
+                type="button"
+                onClick={async ()=>{
+                  const label = newRoleLabel.trim();
+                  if (!label) return;
+                  try {
+                    await ensureRoleLabel(label);
+                    const rows = await listRoles(true);
+                    setRoleCatalog(rows);
+                    setMRole(label);
+                    setNewRoleLabel("");
+                    toast.success(`Role "${label}" added.`);
+                    logActivity({ module_key: "team_directory", action_type: "role_catalog_role_created", entity_type: "role", entity_label: label, summary: `Role catalog entry '${label}' created.` });
+                  } catch (e: any) {
+                    toast.error(e?.message || "Failed to add role.");
+                  }
+                }}
+                className="h-[28px] px-3 rounded-md border border-line bg-off hover:bg-white text-[11px] font-sans"
+              >Add role</button>
             </div>
           </div>
-          <div><label className="form-label">Department (optional)</label>
             <QuickSaveInput
               fieldKey="department"
               value={mDept}
