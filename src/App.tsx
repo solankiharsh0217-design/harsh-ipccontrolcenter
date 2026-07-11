@@ -96,7 +96,7 @@ const App = () => (
             <Route path="/admin-center/code-of-conduct" element={<Shell admin><CodeOfConductAdmin /></Shell>} />
             <Route path="/code-of-conduct/signed-pdf/:requestId" element={<Shell admin><CodeOfConductSignedPdf /></Shell>} />
             <Route path="/code-of-conduct/receipt/:requestId" element={<Shell admin><CodeOfConductReceipt /></Shell>} />
-            <Route path="/" element={<Shell moduleKey="dashboard"><Dashboard /></Shell>} />
+            <Route path="/" element={<HomeGate />} />
             <Route path="/founder-dashboard" element={<Shell><FounderDashboard /></Shell>} />
             <Route path="/roas-calculator" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
             <Route path="/roas" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
