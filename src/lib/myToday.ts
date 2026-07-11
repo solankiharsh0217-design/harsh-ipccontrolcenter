@@ -38,6 +38,8 @@ export interface MyKpiEntry {
     measurement_type: string;
     proof_required: boolean;
     approval_required: boolean;
+    auto_source_key: string | null;
+    target_default: number | null;
   };
   assignment?: { assignment_type: string };
 }
