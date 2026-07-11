@@ -1519,6 +1519,9 @@ export type Database = {
           support_email: string | null
           team_performance_auto_checkin_on_login: boolean
           team_performance_daily_reminder_enabled: boolean
+          team_performance_reminder_due_soon_minutes: number
+          team_performance_reminder_morning_time: string
+          team_performance_reminder_overdue_enabled: boolean
           updated_at: string
           updated_by: string | null
           upi_id: string | null
@@ -1584,6 +1587,9 @@ export type Database = {
           support_email?: string | null
           team_performance_auto_checkin_on_login?: boolean
           team_performance_daily_reminder_enabled?: boolean
+          team_performance_reminder_due_soon_minutes?: number
+          team_performance_reminder_morning_time?: string
+          team_performance_reminder_overdue_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           upi_id?: string | null
@@ -1649,6 +1655,9 @@ export type Database = {
           support_email?: string | null
           team_performance_auto_checkin_on_login?: boolean
           team_performance_daily_reminder_enabled?: boolean
+          team_performance_reminder_due_soon_minutes?: number
+          team_performance_reminder_morning_time?: string
+          team_performance_reminder_overdue_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           upi_id?: string | null
@@ -8705,6 +8714,62 @@ export type Database = {
         }
         Relationships: []
       }
+      team_performance_reminders: {
+        Row: {
+          created_at: string
+          dismissed_at: string | null
+          generated_at: string
+          id: string
+          kpi_entry_id: string | null
+          message: string
+          read_at: string | null
+          reminder_for_date: string
+          reminder_type: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed_at?: string | null
+          generated_at?: string
+          id?: string
+          kpi_entry_id?: string | null
+          message: string
+          read_at?: string | null
+          reminder_for_date: string
+          reminder_type: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dismissed_at?: string | null
+          generated_at?: string
+          id?: string
+          kpi_entry_id?: string | null
+          message?: string
+          read_at?: string | null
+          reminder_for_date?: string
+          reminder_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_performance_reminders_kpi_entry_id_fkey"
+            columns: ["kpi_entry_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_salary_history: {
         Row: {
           change_reason: string | null
@@ -9000,6 +9065,14 @@ export type Database = {
         Args: { _target_date: string }
         Returns: Json
       }
+      generate_tp_reminders_for_date: {
+        Args: { _target_date: string }
+        Returns: Json
+      }
+      generate_tp_reminders_for_user: {
+        Args: { _target_date: string; _user_id: string }
+        Returns: Json
+      }
       get_coc_stage_settings: { Args: never; Returns: Json }
       get_finance_dead_stage_ids: { Args: never; Returns: string[] }
       get_finance_success_stage_ids: { Args: never; Returns: string[] }
@@ -9009,6 +9082,9 @@ export type Database = {
         Returns: {
           auto_checkin_on_login: boolean
           daily_reminder_enabled: boolean
+          reminder_due_soon_minutes: number
+          reminder_morning_time: string
+          reminder_overdue_enabled: boolean
         }[]
       }
       has_module_access: {
