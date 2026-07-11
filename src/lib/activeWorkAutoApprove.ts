@@ -14,11 +14,7 @@ export function isActiveWorkKpi(entry: MyKpiEntry): boolean {
 }
 
 export function activeWorkTarget(entry: MyKpiEntry, fallback: number): number {
-  const t =
-    (entry.target_value ?? null) ??
-    (entry.kpi?.target_default ?? null) ??
-    fallback ??
-    360;
+  const t = entry.target_value ?? entry.kpi?.target_default ?? fallback ?? 360;
   const n = Number(t);
   return Number.isFinite(n) && n > 0 ? n : 360;
 }
