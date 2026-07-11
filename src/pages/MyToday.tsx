@@ -158,6 +158,19 @@ export default function MyToday() {
     setEntries((prev) => prev.map((e) => e.id === sub.entry_id ? { ...e, status: entryStatus } : e));
   };
 
+  const doMarkRead = async (r: TpReminder) => {
+    try {
+      await markReminderRead(r.id);
+      setReminders((prev) => prev.map((x) => x.id === r.id ? { ...x, status: "read" } : x));
+    } catch (e: any) { toast.error(e?.message ?? "Could not mark read"); }
+  };
+  const doDismiss = async (r: TpReminder) => {
+    try {
+      await dismissReminder(r.id);
+      setReminders((prev) => prev.filter((x) => x.id !== r.id));
+    } catch (e: any) { toast.error(e?.message ?? "Could not dismiss"); }
+  };
+
   const stats = useMemo(() => {
     const total = entries.length;
     const pending = entries.filter((e) => e.status === "pending").length;
