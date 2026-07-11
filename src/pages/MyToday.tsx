@@ -18,6 +18,7 @@ import { logActivity } from "@/lib/auditLog";
 import SubmitKpiModal from "@/components/team-performance/SubmitKpiModal";
 import { fetchMyTodayReminders, generateMyReminders, markReminderRead, dismissReminder, fetchTpSettings, type TpReminder } from "@/lib/tpReminders";
 import { useActivityHeartbeat } from "@/hooks/useActivityHeartbeat";
+import { evaluateActiveWorkKpis, isActiveWorkKpi, activeWorkTarget } from "@/lib/activeWorkAutoApprove";
 
 const MOD = { module_key: "team_performance", module_label: "Team Performance" };
 
@@ -70,6 +71,7 @@ export default function MyToday() {
   useActivityHeartbeat({
     enabled: !!tpSettings?.active_tracking_enabled && !!session && !!session.check_in_at && !session.check_out_at,
     idleTimeoutMinutes: tpSettings?.idle_timeout_minutes ?? 5,
+    onTick: () => { void refreshActiveWork(); },
   });
 
   useEffect(() => {
@@ -120,24 +122,86 @@ export default function MyToday() {
         setGenError(null);
       }
       setEntries(final);
-      await loadSubmissions(final);
+      const subMap = final.length > 0 ? await (async () => {
+        try {
+          const m = await fetchSubmissionsForEntries(final.map(r => r.id));
+          return m;
+        } catch { return {} as Record<string, KpiSubmission>; }
+      })() : {} as Record<string, KpiSubmission>;
+      setSubmissions(subMap);
       // Reminders + active-tracking settings
+      let settingsLocal: any = null;
       try {
-        const settings = await fetchTpSettings();
-        setTpSettings(settings ? {
-          active_tracking_enabled: !!(settings as any).active_tracking_enabled,
-          active_minutes_daily_target: (settings as any).active_minutes_daily_target ?? 360,
-          idle_timeout_minutes: (settings as any).idle_timeout_minutes ?? 5,
+        settingsLocal = await fetchTpSettings();
+        setTpSettings(settingsLocal ? {
+          active_tracking_enabled: !!settingsLocal.active_tracking_enabled,
+          active_minutes_daily_target: settingsLocal.active_minutes_daily_target ?? 360,
+          idle_timeout_minutes: settingsLocal.idle_timeout_minutes ?? 5,
         } : null);
-        if (settings?.daily_reminder_enabled) {
+        if (settingsLocal?.daily_reminder_enabled) {
           await generateMyReminders(uid, today).catch(() => {});
         }
         const rems = await fetchMyTodayReminders(uid, today);
         setReminders(rems);
       } catch { /* non-fatal */ }
+
+      // Auto-approve active-work KPIs if target already reached
+      if (settingsLocal?.active_tracking_enabled && att) {
+        const activeMinutes = Number((att as any).active_minutes ?? 0);
+        const fallback = Number(settingsLocal.active_minutes_daily_target ?? 360);
+        const res = await evaluateActiveWorkKpis({
+          userId: uid,
+          entries: final,
+          submissions: subMap,
+          activeMinutes,
+          fallbackTarget: fallback,
+          trackingEnabled: true,
+        });
+        if (res.approvedEntryIds.length > 0) {
+          setEntries((prev) => prev.map((e) => res.approvedEntryIds.includes(e.id) ? { ...e, status: "approved" } : e));
+          setSubmissions((prev) => ({ ...prev, ...res.submissionsByEntry }));
+        }
+      }
+
+      // Reviewers (post-approval-aware)
+      try {
+        const currentSubs = { ...subMap };
+        const reviewerIds = Array.from(new Set(Object.values(currentSubs).map((s) => s.reviewed_by).filter(Boolean) as string[]));
+        if (reviewerIds.length > 0) {
+          const { data: profs } = await (await import("@/integrations/supabase/client")).supabase
+            .from("profiles").select("id, full_name, email").in("id", reviewerIds);
+          const rm: Record<string, string> = {};
+          (profs ?? []).forEach((p: any) => { rm[p.id] = p.full_name || p.email || "Reviewer"; });
+          setReviewers(rm);
+        }
+      } catch { /* non-fatal */ }
     } finally {
       setLoading(false);
     }
+  };
+
+  // Lightweight refresh triggered after a heartbeat records a new active minute.
+  const refreshActiveWork = async () => {
+    if (!uid) return;
+    if (!tpSettings?.active_tracking_enabled) return;
+    try {
+      const att = await fetchMyAttendance(uid, today);
+      if (!att) return;
+      setSession(att);
+      const activeMinutes = Number((att as any).active_minutes ?? 0);
+      const res = await evaluateActiveWorkKpis({
+        userId: uid,
+        entries,
+        submissions,
+        activeMinutes,
+        fallbackTarget: tpSettings.active_minutes_daily_target,
+        trackingEnabled: true,
+      });
+      if (res.approvedEntryIds.length > 0) {
+        setEntries((prev) => prev.map((e) => res.approvedEntryIds.includes(e.id) ? { ...e, status: "approved" } : e));
+        setSubmissions((prev) => ({ ...prev, ...res.submissionsByEntry }));
+      }
+    } catch { /* non-fatal */ }
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [uid, today]);
@@ -429,6 +493,36 @@ export default function MyToday() {
                             <Badge variant="outline" className="text-[10px] capitalize">{e.assignment.assignment_type}</Badge>
                           )}
                         </div>
+
+                        {isActiveWorkKpi(e) && (() => {
+                          const target = activeWorkTarget(e, tpSettings?.active_minutes_daily_target ?? 360);
+                          const am = Number((session as any)?.active_minutes ?? 0);
+                          const trackingOn = !!tpSettings?.active_tracking_enabled;
+                          if (!trackingOn) {
+                            return (
+                              <div className="mt-2 text-[11px] text-muted-foreground">
+                                Active tracking is off. This KPI cannot auto-complete.
+                              </div>
+                            );
+                          }
+                          if (e.status === "approved") {
+                            return (
+                              <div className="mt-2 text-[11px] text-emerald-700">
+                                Approved automatically from active work time.
+                              </div>
+                            );
+                          }
+                          const pct = Math.min(100, Math.round((am / Math.max(1, target)) * 100));
+                          return (
+                            <div className="mt-2">
+                              <div className="flex items-baseline justify-between">
+                                <div className="text-[11px] text-muted-foreground">Active Work</div>
+                                <div className="text-[11px] text-muted-foreground">{am} / {target} min</div>
+                              </div>
+                              <Progress value={pct} className="h-1 mt-0.5" />
+                            </div>
+                          );
+                        })()}
 
                         {sub && (
                           <div className="mt-2 rounded-md bg-muted/40 border border-border px-2.5 py-1.5 text-xs space-y-0.5">
