@@ -158,6 +158,12 @@ export default function Admin() {
     setLogs(todayLogs ?? []);
     const { count: sC } = await supabase.from("students").select("id",{count:"exact",head:true});
     setStudentCount(sC ?? 0);
+    try {
+      const rows = await listRoles(true);
+      setRoleCatalog(rows);
+    } catch (e: any) {
+      console.error("role catalog load failed", e);
+    }
   };
   useEffect(() => { load(); }, []);
 
