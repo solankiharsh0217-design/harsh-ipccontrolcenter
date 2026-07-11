@@ -13,8 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
  * - Server-side RPC is a no-op unless admin has enabled active tracking and the
  *   user has an attendance session for today (i.e. checked in).
  */
-export function useActivityHeartbeat(opts: { enabled: boolean; idleTimeoutMinutes?: number }) {
-  const { enabled, idleTimeoutMinutes = 5 } = opts;
+export function useActivityHeartbeat(opts: { enabled: boolean; idleTimeoutMinutes?: number; onTick?: () => void }) {
+  const { enabled, idleTimeoutMinutes = 5, onTick } = opts;
   const lastActivityRef = useRef<number>(Date.now());
   const timerRef = useRef<number | null>(null);
 
