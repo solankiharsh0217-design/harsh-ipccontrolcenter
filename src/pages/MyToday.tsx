@@ -18,7 +18,7 @@ import { logActivity } from "@/lib/auditLog";
 import SubmitKpiModal from "@/components/team-performance/SubmitKpiModal";
 import { fetchMyTodayReminders, generateMyReminders, markReminderRead, dismissReminder, fetchTpSettings, type TpReminder } from "@/lib/tpReminders";
 import { useActivityHeartbeat } from "@/hooks/useActivityHeartbeat";
-import { evaluateActiveWorkKpis, isActiveWorkKpi, activeWorkTarget, ACTIVE_WORK_KEY } from "@/lib/activeWorkAutoApprove";
+import { evaluateActiveWorkKpis, isActiveWorkKpi, activeWorkTarget } from "@/lib/activeWorkAutoApprove";
 
 const MOD = { module_key: "team_performance", module_label: "Team Performance" };
 
