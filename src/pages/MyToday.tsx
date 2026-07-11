@@ -64,6 +64,13 @@ export default function MyToday() {
   const [selected, setSelected] = useState<MyKpiEntry | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
   const [reminders, setReminders] = useState<TpReminder[]>([]);
+  const [tpSettings, setTpSettings] = useState<{ active_tracking_enabled: boolean; active_minutes_daily_target: number; idle_timeout_minutes: number } | null>(null);
+
+  // Heartbeat: only when admin has enabled it and the user has a check-in session for today
+  useActivityHeartbeat({
+    enabled: !!tpSettings?.active_tracking_enabled && !!session && !!session.check_in_at && !session.check_out_at,
+    idleTimeoutMinutes: tpSettings?.idle_timeout_minutes ?? 5,
+  });
 
   useEffect(() => {
     if (!uid) return;
