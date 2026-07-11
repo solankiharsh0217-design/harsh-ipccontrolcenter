@@ -71,6 +71,7 @@ export default function MyToday() {
   useActivityHeartbeat({
     enabled: !!tpSettings?.active_tracking_enabled && !!session && !!session.check_in_at && !session.check_out_at,
     idleTimeoutMinutes: tpSettings?.idle_timeout_minutes ?? 5,
+    onTick: () => { void refreshActiveWork(); },
   });
 
   useEffect(() => {
