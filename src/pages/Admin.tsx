@@ -8,12 +8,7 @@ import QuickSaveInput from "@/components/QuickSaveInput";
 import PayrollFieldsSection, { emptyPayroll, PayrollFormState, payrollToDb } from "@/components/PayrollFieldsSection";
 import { MODULES, type ModuleKey } from "@/lib/modules";
 import { logActivity } from "@/lib/auditLog";
-
-const DEFAULT_ROLES = [
-  "Admin","Media Buyer","Backend Operations","Community Manager","Content Creator",
-  "Operations Lead","Photography Lead","Sales Agent","Sales Executive","Sales Manager",
-  "Support Executive","Telecaller","Finance Executive",
-];
+import { listRoles, ensureRoleLabel, type RoleCatalogRow } from "@/lib/roleCategory";
 
 const ROLE_PRESETS: Record<string, ModuleKey[]> = {
   "Admin": MODULES.map(m => m.key),
