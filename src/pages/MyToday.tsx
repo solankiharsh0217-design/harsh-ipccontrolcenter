@@ -113,6 +113,15 @@ export default function MyToday() {
       }
       setEntries(final);
       await loadSubmissions(final);
+      // Reminders: only generate if setting ON, then fetch
+      try {
+        const settings = await fetchTpSettings();
+        if (settings?.daily_reminder_enabled) {
+          await generateMyReminders(uid, today).catch(() => {});
+        }
+        const rems = await fetchMyTodayReminders(uid, today);
+        setReminders(rems);
+      } catch { /* non-fatal */ }
     } finally {
       setLoading(false);
     }
