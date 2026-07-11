@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format, formatDistanceStrict } from "date-fns";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Bell, Check, X } from "lucide-react";
 import {
   fetchMyAttendance, checkIn, checkOut, fetchMyTodayEntries,
   generateMyEntriesForDate, countMyActiveAssignments,
@@ -16,6 +16,7 @@ import {
 import { fetchSubmissionsForEntries, type KpiSubmission } from "@/lib/kpiSubmissions";
 import { logActivity } from "@/lib/auditLog";
 import SubmitKpiModal from "@/components/team-performance/SubmitKpiModal";
+import { fetchMyTodayReminders, generateMyReminders, markReminderRead, dismissReminder, fetchTpSettings, type TpReminder } from "@/lib/tpReminders";
 
 const MOD = { module_key: "team_performance", module_label: "Team Performance" };
 
