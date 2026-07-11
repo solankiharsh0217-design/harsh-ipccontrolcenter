@@ -267,6 +267,29 @@ export default function MyToday() {
                     <span className="text-xs text-muted-foreground">Day complete</span>
                   )}
                 </div>
+                {tpSettings?.active_tracking_enabled && (
+                  <div className="pt-2 border-t">
+                    {(() => {
+                      const am = (session as any).active_minutes ?? 0;
+                      const target = tpSettings.active_minutes_daily_target ?? 360;
+                      const pct = Math.min(100, Math.round((am / Math.max(1, target)) * 100));
+                      return (
+                        <>
+                          <div className="flex items-baseline justify-between">
+                            <div className="text-xs text-muted-foreground">Active work time</div>
+                            <div className="text-xs text-muted-foreground">{am} / {target} min</div>
+                          </div>
+                          <div className="text-lg font-medium">{Math.floor(am/60)}h {am%60}m <span className="text-xs text-muted-foreground font-normal">active today</span></div>
+                          <Progress value={pct} className="h-1.5 mt-1" />
+                          <div className="text-[10px] text-muted-foreground mt-1">Counts only when this tab is visible and focused. No keystrokes, screenshots, or content are stored.</div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+                {!tpSettings?.active_tracking_enabled && (
+                  <div className="pt-2 border-t text-[10px] text-muted-foreground">Active time tracking is off.</div>
+                )}
               </>
             )}
           </CardContent>
