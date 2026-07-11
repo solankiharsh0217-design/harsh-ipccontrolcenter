@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format, formatDistanceStrict } from "date-fns";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Bell, Check, X } from "lucide-react";
 import {
   fetchMyAttendance, checkIn, checkOut, fetchMyTodayEntries,
   generateMyEntriesForDate, countMyActiveAssignments,
@@ -16,6 +16,7 @@ import {
 import { fetchSubmissionsForEntries, type KpiSubmission } from "@/lib/kpiSubmissions";
 import { logActivity } from "@/lib/auditLog";
 import SubmitKpiModal from "@/components/team-performance/SubmitKpiModal";
+import { fetchMyTodayReminders, generateMyReminders, markReminderRead, dismissReminder, fetchTpSettings, type TpReminder } from "@/lib/tpReminders";
 
 const MOD = { module_key: "team_performance", module_label: "Team Performance" };
 
@@ -61,6 +62,7 @@ export default function MyToday() {
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<MyKpiEntry | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  const [reminders, setReminders] = useState<TpReminder[]>([]);
 
   useEffect(() => {
     if (!uid) return;
@@ -111,6 +113,15 @@ export default function MyToday() {
       }
       setEntries(final);
       await loadSubmissions(final);
+      // Reminders: only generate if setting ON, then fetch
+      try {
+        const settings = await fetchTpSettings();
+        if (settings?.daily_reminder_enabled) {
+          await generateMyReminders(uid, today).catch(() => {});
+        }
+        const rems = await fetchMyTodayReminders(uid, today);
+        setReminders(rems);
+      } catch { /* non-fatal */ }
     } finally {
       setLoading(false);
     }
@@ -145,6 +156,19 @@ export default function MyToday() {
   const handleSubmissionSaved = (sub: KpiSubmission, entryStatus: string) => {
     setSubmissions((prev) => ({ ...prev, [sub.entry_id]: sub }));
     setEntries((prev) => prev.map((e) => e.id === sub.entry_id ? { ...e, status: entryStatus } : e));
+  };
+
+  const doMarkRead = async (r: TpReminder) => {
+    try {
+      await markReminderRead(r.id);
+      setReminders((prev) => prev.map((x) => x.id === r.id ? { ...x, status: "read" } : x));
+    } catch (e: any) { toast.error(e?.message ?? "Could not mark read"); }
+  };
+  const doDismiss = async (r: TpReminder) => {
+    try {
+      await dismissReminder(r.id);
+      setReminders((prev) => prev.filter((x) => x.id !== r.id));
+    } catch (e: any) { toast.error(e?.message ?? "Could not dismiss"); }
   };
 
   const stats = useMemo(() => {
@@ -269,6 +293,55 @@ export default function MyToday() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Today's Reminders */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-sans flex items-center gap-2">
+            <Bell className="w-4 h-4" /> Today's Reminders
+            {reminders.filter((r) => r.status === "unread").length > 0 && (
+              <Badge variant="secondary" className="ml-1">{reminders.filter((r) => r.status === "unread").length} unread</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {reminders.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-2">No reminders right now.</div>
+          ) : (
+            <ul className="space-y-2">
+              {reminders.map((r) => {
+                const typeColor =
+                  r.reminder_type === "overdue" ? "bg-rose-50 border-rose-200 text-rose-800" :
+                  r.reminder_type === "due_soon" ? "bg-amber-50 border-amber-200 text-amber-800" :
+                  r.reminder_type === "rejected_feedback" ? "bg-rose-50 border-rose-200 text-rose-800" :
+                  "bg-sky-50 border-sky-200 text-sky-800";
+                const unread = r.status === "unread";
+                return (
+                  <li key={r.id} className={`rounded-md border px-3 py-2 flex items-start justify-between gap-3 ${unread ? typeColor : "bg-muted/30 border-border text-foreground/70"}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium">{r.title}</div>
+                      <div className="text-xs mt-0.5">{r.message}</div>
+                      <div className="text-[10px] text-muted-foreground mt-1">
+                        {format(new Date(r.generated_at), "hh:mm a")} · <span className="capitalize">{r.reminder_type.replace("_", " ")}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {unread && (
+                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => doMarkRead(r)} title="Mark as read">
+                          <Check className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => doDismiss(r)} title="Dismiss">
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {/* KPI list */}
       <Card>

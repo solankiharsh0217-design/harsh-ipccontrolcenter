@@ -57,18 +57,27 @@ function SettingsTab() {
   const [saving, setSaving] = useState<string | null>(null);
   const [autoCheckin, setAutoCheckin] = useState(false);
   const [dailyReminder, setDailyReminder] = useState(false);
+  const [morningTime, setMorningTime] = useState("10:00");
+  const [dueSoonMin, setDueSoonMin] = useState(60);
+  const [overdueOn, setOverdueOn] = useState(true);
+  const [genDate, setGenDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [genResult, setGenResult] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
       const { data, error } = await (supabase as any)
         .from("company_settings")
-        .select("team_performance_auto_checkin_on_login, team_performance_daily_reminder_enabled")
+        .select("team_performance_auto_checkin_on_login, team_performance_daily_reminder_enabled, team_performance_reminder_morning_time, team_performance_reminder_due_soon_minutes, team_performance_reminder_overdue_enabled")
         .eq("workspace", "default")
         .maybeSingle();
       if (error) throw error;
       setAutoCheckin(!!data?.team_performance_auto_checkin_on_login);
       setDailyReminder(!!data?.team_performance_daily_reminder_enabled);
+      setMorningTime((data?.team_performance_reminder_morning_time ?? "10:00:00").slice(0, 5));
+      setDueSoonMin(data?.team_performance_reminder_due_soon_minutes ?? 60);
+      setOverdueOn(data?.team_performance_reminder_overdue_enabled ?? true);
     } catch (e: any) {
       toast({ title: "Failed to load settings", description: e.message });
     }
@@ -76,7 +85,7 @@ function SettingsTab() {
   };
   useEffect(() => { load(); }, []);
 
-  const save = async (patch: Record<string, boolean>, actionType: string, label: string, newValue: boolean) => {
+  const save = async (patch: Record<string, any>, actionType: string, label: string, valueText: string) => {
     setSaving(actionType);
     try {
       const { error } = await (supabase as any)
@@ -90,9 +99,9 @@ function SettingsTab() {
         action_type: actionType,
         entity_type: "company_settings",
         metadata: { ...patch },
-        summary: `${label} turned ${newValue ? "ON" : "OFF"}`,
+        summary: `${label} → ${valueText}`,
       });
-      toast({ title: "Saved", description: `${label} is now ${newValue ? "ON" : "OFF"}` });
+      toast({ title: "Saved", description: `${label}: ${valueText}` });
     } catch (e: any) {
       toast({ title: "Save failed", description: e.message });
       await load();
@@ -103,22 +112,42 @@ function SettingsTab() {
   const toggleAuto = async () => {
     const next = !autoCheckin;
     setAutoCheckin(next);
-    await save(
-      { team_performance_auto_checkin_on_login: next },
-      "team_performance_auto_checkin_setting_updated",
-      "Auto Check-in on Login",
-      next,
-    );
+    await save({ team_performance_auto_checkin_on_login: next }, "team_performance_auto_checkin_setting_updated", "Auto Check-in on Login", next ? "ON" : "OFF");
   };
   const toggleReminder = async () => {
     const next = !dailyReminder;
     setDailyReminder(next);
-    await save(
-      { team_performance_daily_reminder_enabled: next },
-      "team_performance_reminder_setting_updated",
-      "Daily KPI Reminder",
-      next,
-    );
+    await save({ team_performance_daily_reminder_enabled: next }, "team_performance_reminder_settings_updated", "Daily KPI Reminder", next ? "ON" : "OFF");
+  };
+  const toggleOverdue = async () => {
+    const next = !overdueOn;
+    setOverdueOn(next);
+    await save({ team_performance_reminder_overdue_enabled: next }, "team_performance_reminder_settings_updated", "Overdue reminder", next ? "ON" : "OFF");
+  };
+  const saveMorning = async () => {
+    await save({ team_performance_reminder_morning_time: morningTime }, "team_performance_reminder_settings_updated", "Morning reminder time", morningTime);
+  };
+  const saveDueSoon = async () => {
+    const n = Math.max(1, Math.min(1440, Number(dueSoonMin) || 60));
+    setDueSoonMin(n);
+    await save({ team_performance_reminder_due_soon_minutes: n }, "team_performance_reminder_settings_updated", "Due-soon window", `${n} min`);
+  };
+
+  const runGenerate = async () => {
+    setGenerating(true);
+    setGenResult(null);
+    try {
+      const mod = await import("@/lib/tpReminders");
+      const res = await mod.adminGenerateReminders(genDate);
+      if (res.skipped_disabled) {
+        setGenResult("Reminders are OFF. No reminders were generated.");
+      } else {
+        setGenResult(`Users checked: ${res.users_checked} · Created: ${res.created} · Duplicates skipped: ${res.skipped_duplicates}`);
+      }
+    } catch (e: any) {
+      setGenResult(`Error: ${e?.message ?? "failed"}`);
+    }
+    setGenerating(false);
   };
 
   if (loading) return <div className="text-sm text-muted-foreground">Loading…</div>;
@@ -145,23 +174,95 @@ function SettingsTab() {
         </div>
       </div>
 
-      <div className="border border-line rounded-xl bg-white p-5">
+      <div className="border border-line rounded-xl bg-white p-5 space-y-4">
         <SectionLabel>Reminders</SectionLabel>
-        <div className="mt-3 flex items-start justify-between gap-6">
+
+        <div className="flex items-start justify-between gap-6">
           <div>
-            <div className="font-medium text-[14px]">Daily KPI Reminder</div>
+            <div className="font-medium text-[14px]">Enable Daily KPI Reminders</div>
             <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-              Reminder foundation only. No notifications will be sent yet unless a safe channel is configured later.
+              In-app only. Team members see morning summary, due-soon, overdue, and rejected-feedback reminders on My Today. No email or WhatsApp is sent.
             </p>
           </div>
           <button
             onClick={toggleReminder}
-            disabled={saving === "team_performance_reminder_setting_updated"}
+            disabled={saving === "team_performance_reminder_settings_updated"}
             className={`shrink-0 w-11 h-6 rounded-full transition-colors ${dailyReminder ? "bg-black" : "bg-neutral-300"} relative`}
             aria-pressed={dailyReminder}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${dailyReminder ? "translate-x-5" : ""}`} />
           </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-line">
+          <div>
+            <label className="text-[12px] font-medium">Morning reminder time</label>
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="time"
+                value={morningTime}
+                onChange={(e) => setMorningTime(e.target.value)}
+                className="border border-line rounded px-2 py-1.5 text-[13px] w-32"
+              />
+              <button
+                onClick={saveMorning}
+                disabled={!dailyReminder || saving !== null}
+                className="text-[12px] px-3 py-1.5 rounded border border-line hover:bg-neutral-50 disabled:opacity-50"
+              >Save</button>
+            </div>
+          </div>
+          <div>
+            <label className="text-[12px] font-medium">Due-soon window (minutes)</label>
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="number"
+                min={1}
+                max={1440}
+                value={dueSoonMin}
+                onChange={(e) => setDueSoonMin(Number(e.target.value))}
+                className="border border-line rounded px-2 py-1.5 text-[13px] w-24"
+              />
+              <button
+                onClick={saveDueSoon}
+                disabled={!dailyReminder || saving !== null}
+                className="text-[12px] px-3 py-1.5 rounded border border-line hover:bg-neutral-50 disabled:opacity-50"
+              >Save</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-start justify-between gap-6 pt-2 border-t border-line">
+          <div>
+            <div className="font-medium text-[13px]">Overdue reminders</div>
+            <p className="text-[12px] text-muted-foreground mt-1">Show reminders when a pending KPI has passed its due time.</p>
+          </div>
+          <button
+            onClick={toggleOverdue}
+            disabled={!dailyReminder || saving !== null}
+            className={`shrink-0 w-11 h-6 rounded-full transition-colors ${overdueOn ? "bg-black" : "bg-neutral-300"} relative disabled:opacity-50`}
+            aria-pressed={overdueOn}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${overdueOn ? "translate-x-5" : ""}`} />
+          </button>
+        </div>
+
+        <div className="pt-3 border-t border-line">
+          <div className="font-medium text-[13px]">Generate reminders manually</div>
+          <p className="text-[12px] text-muted-foreground mt-1">Run reminder generation for all users on a given date. Duplicates are skipped automatically.</p>
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              type="date"
+              value={genDate}
+              onChange={(e) => setGenDate(e.target.value)}
+              className="border border-line rounded px-2 py-1.5 text-[13px]"
+            />
+            <button
+              onClick={runGenerate}
+              disabled={generating}
+              className="text-[12px] px-3 py-1.5 rounded bg-black text-white hover:bg-black/90 disabled:opacity-50"
+            >{generating ? "Generating…" : "Generate Reminders"}</button>
+          </div>
+          {genResult && <div className="text-[12px] text-muted-foreground mt-2">{genResult}</div>}
         </div>
       </div>
     </div>
