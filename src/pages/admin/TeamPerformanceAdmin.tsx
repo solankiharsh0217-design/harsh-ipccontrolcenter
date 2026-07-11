@@ -371,11 +371,38 @@ function KpiFormModal({ initial, onClose, onSaved }: { initial: KpiDefinition | 
     weight: 1, reward_points: 0, proof_required: false, approval_required: false, is_active: true,
   });
   const [busy, setBusy] = useState(false);
+  const [roleOpts, setRoleOpts] = useState<string[]>([]);
+  const [catOpts, setCatOpts] = useState<string[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [roles, cats, kpis, profs] = await Promise.all([
+          listRoles(true),
+          listCategories(true),
+          listKpiDefinitions(),
+          (supabase as any).from("profiles").select("role").eq("status", "active"),
+        ]);
+        setRoleOpts(mergeLabels(
+          roles.map((r) => r.role_label),
+          kpis.map((k) => k.owner_role || null),
+          (profs?.data ?? []).map((p: any) => p.role || null),
+        ));
+        setCatOpts(mergeLabels(
+          cats.map((c) => c.category_label),
+          kpis.map((k) => k.category || null),
+        ));
+      } catch { /* non-fatal */ }
+    })();
+  }, []);
 
   const save = async () => {
     if (!form.name?.trim()) return toast({ title: "Name required" });
     setBusy(true);
     try {
+      // Persist any newly typed role/category to the catalogs so future dropdowns show them.
+      if (form.owner_role) ensureRoleLabel(form.owner_role).catch(() => {});
+      if (form.category) ensureCategoryLabel(form.category).catch(() => {});
       if (initial) await updateKpiDefinition(initial.id, form);
       else await createKpiDefinition(form);
       onSaved();
@@ -396,10 +423,28 @@ function KpiFormModal({ initial, onClose, onSaved }: { initial: KpiDefinition | 
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block"><div className="text-muted-foreground mb-1">Owner role</div>
-              <input value={form.owner_role ?? ""} onChange={(e) => setForm({ ...form, owner_role: e.target.value })} className="w-full border border-line rounded-md px-2 py-1.5" />
+              <input
+                list="kpi-role-options"
+                placeholder="Select or type new role"
+                value={form.owner_role ?? ""}
+                onChange={(e) => setForm({ ...form, owner_role: e.target.value })}
+                className="w-full border border-line rounded-md px-2 py-1.5"
+              />
+              <datalist id="kpi-role-options">
+                {roleOpts.map((r) => <option key={r} value={r} />)}
+              </datalist>
             </label>
             <label className="block"><div className="text-muted-foreground mb-1">Category</div>
-              <input value={form.category ?? ""} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full border border-line rounded-md px-2 py-1.5" />
+              <input
+                list="kpi-category-options"
+                placeholder="Select or type new category"
+                value={form.category ?? ""}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="w-full border border-line rounded-md px-2 py-1.5"
+              />
+              <datalist id="kpi-category-options">
+                {catOpts.map((c) => <option key={c} value={c} />)}
+              </datalist>
             </label>
             <label className="block"><div className="text-muted-foreground mb-1">Cadence</div>
               <select value={form.cadence} onChange={(e) => setForm({ ...form, cadence: e.target.value as Cadence })} className="w-full border border-line rounded-md px-2 py-1.5">
@@ -419,6 +464,18 @@ function KpiFormModal({ initial, onClose, onSaved }: { initial: KpiDefinition | 
             </label>
             <label className="block"><div className="text-muted-foreground mb-1">Reward points</div>
               <input type="number" value={form.reward_points ?? 0} onChange={(e) => setForm({ ...form, reward_points: Number(e.target.value) })} className="w-full border border-line rounded-md px-2 py-1.5" />
+            </label>
+            <label className="block"><div className="text-muted-foreground mb-1">Auto-source key (optional)</div>
+              <input
+                list="kpi-autosource-options"
+                placeholder="e.g. active_work_minutes"
+                value={form.auto_source_key ?? ""}
+                onChange={(e) => setForm({ ...form, auto_source_key: e.target.value || null })}
+                className="w-full border border-line rounded-md px-2 py-1.5"
+              />
+              <datalist id="kpi-autosource-options">
+                <option value="active_work_minutes" />
+              </datalist>
             </label>
           </div>
           <div className="flex gap-4">
