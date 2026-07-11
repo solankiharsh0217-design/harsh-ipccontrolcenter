@@ -648,6 +648,8 @@ function AssignTab() {
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState(false);
 
+  const [tplSummary, setTplSummary] = useState<Record<string, { count: number; daily: number; weekly: number; monthly: number; other: number }>>({});
+
   const reload = async () => {
     const [{ data: ps }, t, d, a] = await Promise.all([
       supabase.from("profiles").select("id, full_name, role").eq("status", "active").order("full_name") as any,
@@ -655,6 +657,22 @@ function AssignTab() {
     ]);
     setProfiles((ps ?? []) as Profile[]);
     setTemplates(t); setDefs(d.filter(x => x.is_active)); setAssignments(a);
+    // Template summaries (cadence breakdown, active KPI count)
+    try {
+      const sb: any = supabase;
+      const { data: rows } = await sb.from("kpi_template_items").select("template_id, kpi:kpi_definitions(is_active, cadence)");
+      const acc: typeof tplSummary = {};
+      (rows ?? []).forEach((r: any) => {
+        if (!r.kpi || r.kpi.is_active === false) return;
+        const s = acc[r.template_id] ??= { count: 0, daily: 0, weekly: 0, monthly: 0, other: 0 };
+        s.count++;
+        if (r.kpi.cadence === "daily") s.daily++;
+        else if (r.kpi.cadence === "weekly") s.weekly++;
+        else if (r.kpi.cadence === "monthly") s.monthly++;
+        else s.other++;
+      });
+      setTplSummary(acc);
+    } catch { /* non-fatal */ }
   };
   useEffect(() => { reload(); }, []);
 
