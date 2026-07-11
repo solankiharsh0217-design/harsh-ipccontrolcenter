@@ -102,11 +102,11 @@ function SettingsTab() {
           .not("last_activity_at", "is", null),
       ]);
       const known = new Set<string>((cats ?? []).map((c: any) => (c.role_label || "").toLowerCase()));
-      const unmapped = Array.from(new Set(
+      const unmapped: string[] = Array.from(new Set(
         (profs ?? [])
           .map((p: any) => (p.role || "").trim())
           .filter((r: string) => r && !known.has(r.toLowerCase()))
-      ));
+      )) as string[];
       setDiag({ roles: rc ?? 0, categories: cc ?? 0, unmappedRoles: unmapped, heartbeatsToday: (heartbeats as any) ?? 0 });
     } catch { /* non-fatal */ }
     setLoading(false);
