@@ -245,6 +245,8 @@ export default function Admin() {
               >Add role</button>
             </div>
           </div>
+          <div>
+            <label className="form-label">Department (optional)</label>
             <QuickSaveInput
               fieldKey="department"
               value={mDept}
