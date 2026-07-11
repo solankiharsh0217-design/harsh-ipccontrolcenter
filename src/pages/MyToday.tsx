@@ -294,6 +294,55 @@ export default function MyToday() {
         </Card>
       </div>
 
+      {/* Today's Reminders */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-sans flex items-center gap-2">
+            <Bell className="w-4 h-4" /> Today's Reminders
+            {reminders.filter((r) => r.status === "unread").length > 0 && (
+              <Badge variant="secondary" className="ml-1">{reminders.filter((r) => r.status === "unread").length} unread</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {reminders.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-2">No reminders right now.</div>
+          ) : (
+            <ul className="space-y-2">
+              {reminders.map((r) => {
+                const typeColor =
+                  r.reminder_type === "overdue" ? "bg-rose-50 border-rose-200 text-rose-800" :
+                  r.reminder_type === "due_soon" ? "bg-amber-50 border-amber-200 text-amber-800" :
+                  r.reminder_type === "rejected_feedback" ? "bg-rose-50 border-rose-200 text-rose-800" :
+                  "bg-sky-50 border-sky-200 text-sky-800";
+                const unread = r.status === "unread";
+                return (
+                  <li key={r.id} className={`rounded-md border px-3 py-2 flex items-start justify-between gap-3 ${unread ? typeColor : "bg-muted/30 border-border text-foreground/70"}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium">{r.title}</div>
+                      <div className="text-xs mt-0.5">{r.message}</div>
+                      <div className="text-[10px] text-muted-foreground mt-1">
+                        {format(new Date(r.generated_at), "hh:mm a")} · <span className="capitalize">{r.reminder_type.replace("_", " ")}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {unread && (
+                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => doMarkRead(r)} title="Mark as read">
+                          <Check className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => doDismiss(r)} title="Dismiss">
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
       {/* KPI list */}
       <Card>
         <CardHeader className="pb-2">
