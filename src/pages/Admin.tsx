@@ -33,6 +33,8 @@ export default function Admin() {
   const [logs, setLogs] = useState<any[]>([]);
   const [studentCount, setStudentCount] = useState<number | null>(null);
   const [syncBusy, setSyncBusy] = useState(false);
+  const [roleCatalog, setRoleCatalog] = useState<RoleCatalogRow[]>([]);
+  const [newRoleLabel, setNewRoleLabel] = useState("");
 
   const syncStudents = async () => {
     setSyncBusy(true);
