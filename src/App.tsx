@@ -81,8 +81,7 @@ const Shell = ({ children, admin, moduleKey }: { children: React.ReactNode; admi
   </ProtectedRoute>
 );
 
-import { useAuth } from "@/context/AuthContext";
-// Home gate: admins land on the founder/admin Dashboard; non-admins land on My Today.
+// Home gate: admins land on the admin Dashboard; non-admins land on My Today.
 const HomeGate = () => {
   const { isAdmin, loading, user } = useAuth();
   if (loading) return null;
