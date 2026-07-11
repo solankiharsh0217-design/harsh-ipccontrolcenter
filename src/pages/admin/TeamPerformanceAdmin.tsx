@@ -11,6 +11,7 @@ import {
 } from "@/lib/teamPerformance";
 import { generateKpiEntriesForDate, listGeneratedEntries, GenerationResult, GeneratedEntryRow } from "@/lib/kpiGeneration";
 import { format, addDays } from "date-fns";
+import { listRoles, listCategories, ensureRoleLabel, ensureCategoryLabel, mergeLabels } from "@/lib/roleCategory";
 
 type Tab = "library" | "templates" | "assign" | "generated" | "settings";
 
