@@ -61,6 +61,10 @@ function SettingsTab() {
   const [morningTime, setMorningTime] = useState("10:00");
   const [dueSoonMin, setDueSoonMin] = useState(60);
   const [overdueOn, setOverdueOn] = useState(true);
+  const [activeTracking, setActiveTracking] = useState(false);
+  const [activeTarget, setActiveTarget] = useState(360);
+  const [idleTimeout, setIdleTimeout] = useState(5);
+  const [diag, setDiag] = useState<{ roles: number; categories: number; unmappedRoles: string[]; heartbeatsToday: number } | null>(null);
   const [genDate, setGenDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [genResult, setGenResult] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -70,7 +74,7 @@ function SettingsTab() {
     try {
       const { data, error } = await (supabase as any)
         .from("company_settings")
-        .select("team_performance_auto_checkin_on_login, team_performance_daily_reminder_enabled, team_performance_reminder_morning_time, team_performance_reminder_due_soon_minutes, team_performance_reminder_overdue_enabled")
+        .select("team_performance_auto_checkin_on_login, team_performance_daily_reminder_enabled, team_performance_reminder_morning_time, team_performance_reminder_due_soon_minutes, team_performance_reminder_overdue_enabled, team_performance_active_tracking_enabled, team_performance_active_minutes_daily_target, team_performance_idle_timeout_minutes")
         .eq("workspace", "default")
         .maybeSingle();
       if (error) throw error;
@@ -79,9 +83,32 @@ function SettingsTab() {
       setMorningTime((data?.team_performance_reminder_morning_time ?? "10:00:00").slice(0, 5));
       setDueSoonMin(data?.team_performance_reminder_due_soon_minutes ?? 60);
       setOverdueOn(data?.team_performance_reminder_overdue_enabled ?? true);
+      setActiveTracking(!!data?.team_performance_active_tracking_enabled);
+      setActiveTarget(data?.team_performance_active_minutes_daily_target ?? 360);
+      setIdleTimeout(data?.team_performance_idle_timeout_minutes ?? 5);
     } catch (e: any) {
       toast({ title: "Failed to load settings", description: e.message });
     }
+    // Diagnostics
+    try {
+      const sb: any = supabase;
+      const [{ count: rc }, { count: cc }, { data: profs }, { data: cats }, { data: heartbeats }] = await Promise.all([
+        sb.from("company_role_catalog").select("id", { count: "exact", head: true }).eq("is_active", true),
+        sb.from("kpi_categories").select("id", { count: "exact", head: true }).eq("is_active", true),
+        sb.from("profiles").select("role").eq("status", "active"),
+        sb.from("company_role_catalog").select("role_label").eq("is_active", true),
+        sb.from("attendance_sessions").select("id", { count: "exact", head: true })
+          .eq("work_date", format(new Date(), "yyyy-MM-dd"))
+          .not("last_activity_at", "is", null),
+      ]);
+      const known = new Set<string>((cats ?? []).map((c: any) => (c.role_label || "").toLowerCase()));
+      const unmapped = Array.from(new Set(
+        (profs ?? [])
+          .map((p: any) => (p.role || "").trim())
+          .filter((r: string) => r && !known.has(r.toLowerCase()))
+      ));
+      setDiag({ roles: rc ?? 0, categories: cc ?? 0, unmappedRoles: unmapped, heartbeatsToday: (heartbeats as any) ?? 0 });
+    } catch { /* non-fatal */ }
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
