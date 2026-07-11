@@ -122,24 +122,86 @@ export default function MyToday() {
         setGenError(null);
       }
       setEntries(final);
-      await loadSubmissions(final);
+      const subMap = final.length > 0 ? await (async () => {
+        try {
+          const m = await fetchSubmissionsForEntries(final.map(r => r.id));
+          return m;
+        } catch { return {} as Record<string, KpiSubmission>; }
+      })() : {} as Record<string, KpiSubmission>;
+      setSubmissions(subMap);
       // Reminders + active-tracking settings
+      let settingsLocal: any = null;
       try {
-        const settings = await fetchTpSettings();
-        setTpSettings(settings ? {
-          active_tracking_enabled: !!(settings as any).active_tracking_enabled,
-          active_minutes_daily_target: (settings as any).active_minutes_daily_target ?? 360,
-          idle_timeout_minutes: (settings as any).idle_timeout_minutes ?? 5,
+        settingsLocal = await fetchTpSettings();
+        setTpSettings(settingsLocal ? {
+          active_tracking_enabled: !!settingsLocal.active_tracking_enabled,
+          active_minutes_daily_target: settingsLocal.active_minutes_daily_target ?? 360,
+          idle_timeout_minutes: settingsLocal.idle_timeout_minutes ?? 5,
         } : null);
-        if (settings?.daily_reminder_enabled) {
+        if (settingsLocal?.daily_reminder_enabled) {
           await generateMyReminders(uid, today).catch(() => {});
         }
         const rems = await fetchMyTodayReminders(uid, today);
         setReminders(rems);
       } catch { /* non-fatal */ }
+
+      // Auto-approve active-work KPIs if target already reached
+      if (settingsLocal?.active_tracking_enabled && att) {
+        const activeMinutes = Number((att as any).active_minutes ?? 0);
+        const fallback = Number(settingsLocal.active_minutes_daily_target ?? 360);
+        const res = await evaluateActiveWorkKpis({
+          userId: uid,
+          entries: final,
+          submissions: subMap,
+          activeMinutes,
+          fallbackTarget: fallback,
+          trackingEnabled: true,
+        });
+        if (res.approvedEntryIds.length > 0) {
+          setEntries((prev) => prev.map((e) => res.approvedEntryIds.includes(e.id) ? { ...e, status: "approved" } : e));
+          setSubmissions((prev) => ({ ...prev, ...res.submissionsByEntry }));
+        }
+      }
+
+      // Reviewers (post-approval-aware)
+      try {
+        const currentSubs = { ...subMap };
+        const reviewerIds = Array.from(new Set(Object.values(currentSubs).map((s) => s.reviewed_by).filter(Boolean) as string[]));
+        if (reviewerIds.length > 0) {
+          const { data: profs } = await (await import("@/integrations/supabase/client")).supabase
+            .from("profiles").select("id, full_name, email").in("id", reviewerIds);
+          const rm: Record<string, string> = {};
+          (profs ?? []).forEach((p: any) => { rm[p.id] = p.full_name || p.email || "Reviewer"; });
+          setReviewers(rm);
+        }
+      } catch { /* non-fatal */ }
     } finally {
       setLoading(false);
     }
+  };
+
+  // Lightweight refresh triggered after a heartbeat records a new active minute.
+  const refreshActiveWork = async () => {
+    if (!uid) return;
+    if (!tpSettings?.active_tracking_enabled) return;
+    try {
+      const att = await fetchMyAttendance(uid, today);
+      if (!att) return;
+      setSession(att);
+      const activeMinutes = Number((att as any).active_minutes ?? 0);
+      const res = await evaluateActiveWorkKpis({
+        userId: uid,
+        entries,
+        submissions,
+        activeMinutes,
+        fallbackTarget: tpSettings.active_minutes_daily_target,
+        trackingEnabled: true,
+      });
+      if (res.approvedEntryIds.length > 0) {
+        setEntries((prev) => prev.map((e) => res.approvedEntryIds.includes(e.id) ? { ...e, status: "approved" } : e));
+        setSubmissions((prev) => ({ ...prev, ...res.submissionsByEntry }));
+      }
+    } catch { /* non-fatal */ }
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [uid, today]);
