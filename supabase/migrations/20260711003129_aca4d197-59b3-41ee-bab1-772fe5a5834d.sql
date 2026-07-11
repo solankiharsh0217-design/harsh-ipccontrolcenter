@@ -1,0 +1,2 @@
+DROP POLICY IF EXISTS "kpi_reward_rules read authenticated" ON public.kpi_reward_rules;
+CREATE POLICY "kpi_reward_rules read active" ON public.kpi_reward_rules FOR SELECT TO authenticated USING (public.is_active(auth.uid()));
