@@ -17,6 +17,7 @@ import { fetchSubmissionsForEntries, type KpiSubmission } from "@/lib/kpiSubmiss
 import { logActivity } from "@/lib/auditLog";
 import SubmitKpiModal from "@/components/team-performance/SubmitKpiModal";
 import { fetchMyTodayReminders, generateMyReminders, markReminderRead, dismissReminder, fetchTpSettings, type TpReminder } from "@/lib/tpReminders";
+import { useActivityHeartbeat } from "@/hooks/useActivityHeartbeat";
 
 const MOD = { module_key: "team_performance", module_label: "Team Performance" };
 
@@ -63,6 +64,13 @@ export default function MyToday() {
   const [selected, setSelected] = useState<MyKpiEntry | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
   const [reminders, setReminders] = useState<TpReminder[]>([]);
+  const [tpSettings, setTpSettings] = useState<{ active_tracking_enabled: boolean; active_minutes_daily_target: number; idle_timeout_minutes: number } | null>(null);
+
+  // Heartbeat: only when admin has enabled it and the user has a check-in session for today
+  useActivityHeartbeat({
+    enabled: !!tpSettings?.active_tracking_enabled && !!session && !!session.check_in_at && !session.check_out_at,
+    idleTimeoutMinutes: tpSettings?.idle_timeout_minutes ?? 5,
+  });
 
   useEffect(() => {
     if (!uid) return;
@@ -113,9 +121,14 @@ export default function MyToday() {
       }
       setEntries(final);
       await loadSubmissions(final);
-      // Reminders: only generate if setting ON, then fetch
+      // Reminders + active-tracking settings
       try {
         const settings = await fetchTpSettings();
+        setTpSettings(settings ? {
+          active_tracking_enabled: !!(settings as any).active_tracking_enabled,
+          active_minutes_daily_target: (settings as any).active_minutes_daily_target ?? 360,
+          idle_timeout_minutes: (settings as any).idle_timeout_minutes ?? 5,
+        } : null);
         if (settings?.daily_reminder_enabled) {
           await generateMyReminders(uid, today).catch(() => {});
         }
@@ -254,6 +267,29 @@ export default function MyToday() {
                     <span className="text-xs text-muted-foreground">Day complete</span>
                   )}
                 </div>
+                {tpSettings?.active_tracking_enabled && (
+                  <div className="pt-2 border-t">
+                    {(() => {
+                      const am = (session as any).active_minutes ?? 0;
+                      const target = tpSettings.active_minutes_daily_target ?? 360;
+                      const pct = Math.min(100, Math.round((am / Math.max(1, target)) * 100));
+                      return (
+                        <>
+                          <div className="flex items-baseline justify-between">
+                            <div className="text-xs text-muted-foreground">Active work time</div>
+                            <div className="text-xs text-muted-foreground">{am} / {target} min</div>
+                          </div>
+                          <div className="text-lg font-medium">{Math.floor(am/60)}h {am%60}m <span className="text-xs text-muted-foreground font-normal">active today</span></div>
+                          <Progress value={pct} className="h-1.5 mt-1" />
+                          <div className="text-[10px] text-muted-foreground mt-1">Counts only when this tab is visible and focused. No keystrokes, screenshots, or content are stored.</div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+                {!tpSettings?.active_tracking_enabled && (
+                  <div className="pt-2 border-t text-[10px] text-muted-foreground">Active time tracking is off.</div>
+                )}
               </>
             )}
           </CardContent>

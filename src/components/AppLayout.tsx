@@ -4,6 +4,7 @@ import { initials, formatDateLong } from "@/lib/format";
 import { Search, Bell, LogOut } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useActivityHeartbeat } from "@/hooks/useActivityHeartbeat";
 
 const Icon = ({ d, children }: { d?: string; children?: ReactNode }) => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -73,8 +74,25 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const title = PAGE_TITLES[loc.pathname] ?? "";
   const [unread, setUnread] = useState(0);
   const [overdueTasks, setOverdueTasks] = useState(0);
+  const [trackingCfg, setTrackingCfg] = useState<{ enabled: boolean; idle: number }>({ enabled: false, idle: 5 });
 
   const canSeeNotifications = isAdmin || hasModule("notifications");
+
+  // App-wide activity heartbeat. Guarded server-side too — RPC no-ops unless enabled AND user is checked in.
+  useEffect(() => {
+    if (!user) return;
+    let live = true;
+    (async () => {
+      try {
+        const sb: any = supabase;
+        const { data } = await sb.rpc("get_team_performance_settings");
+        const row = Array.isArray(data) ? data[0] : data;
+        if (live && row) setTrackingCfg({ enabled: !!row.active_tracking_enabled, idle: row.idle_timeout_minutes ?? 5 });
+      } catch { /* noop */ }
+    })();
+    return () => { live = false; };
+  }, [user]);
+  useActivityHeartbeat({ enabled: trackingCfg.enabled && !!user, idleTimeoutMinutes: trackingCfg.idle });
 
   useEffect(() => {
     if (!user || !canSeeNotifications) { setUnread(0); return; }

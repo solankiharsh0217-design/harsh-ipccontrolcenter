@@ -11,6 +11,7 @@ import {
 } from "@/lib/teamPerformance";
 import { generateKpiEntriesForDate, listGeneratedEntries, GenerationResult, GeneratedEntryRow } from "@/lib/kpiGeneration";
 import { format, addDays } from "date-fns";
+import { listRoles, listCategories, ensureRoleLabel, ensureCategoryLabel, mergeLabels } from "@/lib/roleCategory";
 
 type Tab = "library" | "templates" | "assign" | "generated" | "settings";
 
@@ -60,6 +61,10 @@ function SettingsTab() {
   const [morningTime, setMorningTime] = useState("10:00");
   const [dueSoonMin, setDueSoonMin] = useState(60);
   const [overdueOn, setOverdueOn] = useState(true);
+  const [activeTracking, setActiveTracking] = useState(false);
+  const [activeTarget, setActiveTarget] = useState(360);
+  const [idleTimeout, setIdleTimeout] = useState(5);
+  const [diag, setDiag] = useState<{ roles: number; categories: number; unmappedRoles: string[]; heartbeatsToday: number } | null>(null);
   const [genDate, setGenDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [genResult, setGenResult] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -69,7 +74,7 @@ function SettingsTab() {
     try {
       const { data, error } = await (supabase as any)
         .from("company_settings")
-        .select("team_performance_auto_checkin_on_login, team_performance_daily_reminder_enabled, team_performance_reminder_morning_time, team_performance_reminder_due_soon_minutes, team_performance_reminder_overdue_enabled")
+        .select("team_performance_auto_checkin_on_login, team_performance_daily_reminder_enabled, team_performance_reminder_morning_time, team_performance_reminder_due_soon_minutes, team_performance_reminder_overdue_enabled, team_performance_active_tracking_enabled, team_performance_active_minutes_daily_target, team_performance_idle_timeout_minutes")
         .eq("workspace", "default")
         .maybeSingle();
       if (error) throw error;
@@ -78,9 +83,32 @@ function SettingsTab() {
       setMorningTime((data?.team_performance_reminder_morning_time ?? "10:00:00").slice(0, 5));
       setDueSoonMin(data?.team_performance_reminder_due_soon_minutes ?? 60);
       setOverdueOn(data?.team_performance_reminder_overdue_enabled ?? true);
+      setActiveTracking(!!data?.team_performance_active_tracking_enabled);
+      setActiveTarget(data?.team_performance_active_minutes_daily_target ?? 360);
+      setIdleTimeout(data?.team_performance_idle_timeout_minutes ?? 5);
     } catch (e: any) {
       toast({ title: "Failed to load settings", description: e.message });
     }
+    // Diagnostics
+    try {
+      const sb: any = supabase;
+      const [{ count: rc }, { count: cc }, { data: profs }, { data: cats }, { data: heartbeats }] = await Promise.all([
+        sb.from("company_role_catalog").select("id", { count: "exact", head: true }).eq("is_active", true),
+        sb.from("kpi_categories").select("id", { count: "exact", head: true }).eq("is_active", true),
+        sb.from("profiles").select("role").eq("status", "active"),
+        sb.from("company_role_catalog").select("role_label").eq("is_active", true),
+        sb.from("attendance_sessions").select("id", { count: "exact", head: true })
+          .eq("work_date", format(new Date(), "yyyy-MM-dd"))
+          .not("last_activity_at", "is", null),
+      ]);
+      const known = new Set<string>((cats ?? []).map((c: any) => (c.role_label || "").toLowerCase()));
+      const unmapped: string[] = Array.from(new Set(
+        (profs ?? [])
+          .map((p: any) => (p.role || "").trim())
+          .filter((r: string) => r && !known.has(r.toLowerCase()))
+      )) as string[];
+      setDiag({ roles: rc ?? 0, categories: cc ?? 0, unmappedRoles: unmapped, heartbeatsToday: (heartbeats as any) ?? 0 });
+    } catch { /* non-fatal */ }
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -265,6 +293,118 @@ function SettingsTab() {
           {genResult && <div className="text-[12px] text-muted-foreground mt-2">{genResult}</div>}
         </div>
       </div>
+
+      {/* Active Work Tracking */}
+      <div className="border border-line rounded-xl bg-white p-5 space-y-4">
+        <SectionLabel>Active Work Tracking</SectionLabel>
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
+          Privacy-safe. Counts a minute only when the IPC Control Centre tab is <strong>visible and focused</strong>
+          and the user had recent input (mouse, keyboard, scroll) inside the app.
+          No keystrokes, screenshots, mouse coordinates, or page content are ever stored — only per-minute counts.
+          Tracking is disabled by default and only runs after a user has checked in.
+        </p>
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <div className="font-medium text-[14px]">Enable Active Work Tracking</div>
+            <p className="text-[12px] text-muted-foreground mt-1">Users must have a check-in row for today. No tracking outside IPC Control Centre.</p>
+          </div>
+          <button
+            onClick={async () => {
+              const next = !activeTracking;
+              setActiveTracking(next);
+              await save({ team_performance_active_tracking_enabled: next }, "team_performance_active_tracking_setting_updated", "Active Work Tracking", next ? "ON" : "OFF");
+            }}
+            disabled={saving !== null}
+            className={`shrink-0 w-11 h-6 rounded-full transition-colors ${activeTracking ? "bg-black" : "bg-neutral-300"} relative`}
+            aria-pressed={activeTracking}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${activeTracking ? "translate-x-5" : ""}`} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-line">
+          <div>
+            <label className="text-[12px] font-medium">Daily target (minutes)</label>
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="number"
+                min={30}
+                max={1440}
+                value={activeTarget}
+                onChange={(e) => setActiveTarget(Number(e.target.value))}
+                className="border border-line rounded px-2 py-1.5 text-[13px] w-24"
+              />
+              <button
+                onClick={async () => {
+                  const n = Math.max(30, Math.min(1440, Number(activeTarget) || 360));
+                  setActiveTarget(n);
+                  await save({ team_performance_active_minutes_daily_target: n }, "team_performance_active_tracking_setting_updated", "Active daily target", `${n} min`);
+                }}
+                disabled={!activeTracking || saving !== null}
+                className="text-[12px] px-3 py-1.5 rounded border border-line hover:bg-neutral-50 disabled:opacity-50"
+              >Save</button>
+              <span className="text-[11px] text-muted-foreground">{Math.floor(activeTarget/60)}h {activeTarget%60}m</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-[12px] font-medium">Idle timeout (minutes)</label>
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={idleTimeout}
+                onChange={(e) => setIdleTimeout(Number(e.target.value))}
+                className="border border-line rounded px-2 py-1.5 text-[13px] w-20"
+              />
+              <button
+                onClick={async () => {
+                  const n = Math.max(1, Math.min(60, Number(idleTimeout) || 5));
+                  setIdleTimeout(n);
+                  await save({ team_performance_idle_timeout_minutes: n }, "team_performance_active_tracking_setting_updated", "Idle timeout", `${n} min`);
+                }}
+                disabled={!activeTracking || saving !== null}
+                className="text-[12px] px-3 py-1.5 rounded border border-line hover:bg-neutral-50 disabled:opacity-50"
+              >Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Diagnostics */}
+      {diag && (
+        <div className="border border-line rounded-xl bg-white p-5 space-y-3">
+          <SectionLabel>Role &amp; Category Setup</SectionLabel>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[12px]">
+            <div className="border border-line rounded-md px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Active Roles</div>
+              <div className="font-medium text-[15px]">{diag.roles}</div>
+            </div>
+            <div className="border border-line rounded-md px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Active Categories</div>
+              <div className="font-medium text-[15px]">{diag.categories}</div>
+            </div>
+            <div className="border border-line rounded-md px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Unmapped Profile Roles</div>
+              <div className="font-medium text-[15px]">{diag.unmappedRoles.length}</div>
+            </div>
+            <div className="border border-line rounded-md px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Sessions w/ heartbeat today</div>
+              <div className="font-medium text-[15px]">{diag.heartbeatsToday}</div>
+            </div>
+          </div>
+          {diag.unmappedRoles.length > 0 && (
+            <div className="text-[11px] text-muted-foreground">
+              Profile roles not in catalog:{" "}
+              <span className="text-amber-800">{diag.unmappedRoles.join(", ")}</span>
+              . These will still appear in KPI dropdowns; add to the catalog for standardization.
+            </div>
+          )}
+          <div className="text-[11px] text-muted-foreground">
+            Active tracking: <strong>{activeTracking ? "ON" : "OFF"}</strong> · Target {activeTarget} min · Idle timeout {idleTimeout} min
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -370,11 +510,38 @@ function KpiFormModal({ initial, onClose, onSaved }: { initial: KpiDefinition | 
     weight: 1, reward_points: 0, proof_required: false, approval_required: false, is_active: true,
   });
   const [busy, setBusy] = useState(false);
+  const [roleOpts, setRoleOpts] = useState<string[]>([]);
+  const [catOpts, setCatOpts] = useState<string[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [roles, cats, kpis, profs] = await Promise.all([
+          listRoles(true),
+          listCategories(true),
+          listKpiDefinitions(),
+          (supabase as any).from("profiles").select("role").eq("status", "active"),
+        ]);
+        setRoleOpts(mergeLabels(
+          roles.map((r) => r.role_label),
+          kpis.map((k) => k.owner_role || null),
+          (profs?.data ?? []).map((p: any) => p.role || null),
+        ));
+        setCatOpts(mergeLabels(
+          cats.map((c) => c.category_label),
+          kpis.map((k) => k.category || null),
+        ));
+      } catch { /* non-fatal */ }
+    })();
+  }, []);
 
   const save = async () => {
     if (!form.name?.trim()) return toast({ title: "Name required" });
     setBusy(true);
     try {
+      // Persist any newly typed role/category to the catalogs so future dropdowns show them.
+      if (form.owner_role) ensureRoleLabel(form.owner_role).catch(() => {});
+      if (form.category) ensureCategoryLabel(form.category).catch(() => {});
       if (initial) await updateKpiDefinition(initial.id, form);
       else await createKpiDefinition(form);
       onSaved();
@@ -395,10 +562,28 @@ function KpiFormModal({ initial, onClose, onSaved }: { initial: KpiDefinition | 
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block"><div className="text-muted-foreground mb-1">Owner role</div>
-              <input value={form.owner_role ?? ""} onChange={(e) => setForm({ ...form, owner_role: e.target.value })} className="w-full border border-line rounded-md px-2 py-1.5" />
+              <input
+                list="kpi-role-options"
+                placeholder="Select or type new role"
+                value={form.owner_role ?? ""}
+                onChange={(e) => setForm({ ...form, owner_role: e.target.value })}
+                className="w-full border border-line rounded-md px-2 py-1.5"
+              />
+              <datalist id="kpi-role-options">
+                {roleOpts.map((r) => <option key={r} value={r} />)}
+              </datalist>
             </label>
             <label className="block"><div className="text-muted-foreground mb-1">Category</div>
-              <input value={form.category ?? ""} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full border border-line rounded-md px-2 py-1.5" />
+              <input
+                list="kpi-category-options"
+                placeholder="Select or type new category"
+                value={form.category ?? ""}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="w-full border border-line rounded-md px-2 py-1.5"
+              />
+              <datalist id="kpi-category-options">
+                {catOpts.map((c) => <option key={c} value={c} />)}
+              </datalist>
             </label>
             <label className="block"><div className="text-muted-foreground mb-1">Cadence</div>
               <select value={form.cadence} onChange={(e) => setForm({ ...form, cadence: e.target.value as Cadence })} className="w-full border border-line rounded-md px-2 py-1.5">
@@ -418,6 +603,18 @@ function KpiFormModal({ initial, onClose, onSaved }: { initial: KpiDefinition | 
             </label>
             <label className="block"><div className="text-muted-foreground mb-1">Reward points</div>
               <input type="number" value={form.reward_points ?? 0} onChange={(e) => setForm({ ...form, reward_points: Number(e.target.value) })} className="w-full border border-line rounded-md px-2 py-1.5" />
+            </label>
+            <label className="block"><div className="text-muted-foreground mb-1">Auto-source key (optional)</div>
+              <input
+                list="kpi-autosource-options"
+                placeholder="e.g. active_work_minutes"
+                value={form.auto_source_key ?? ""}
+                onChange={(e) => setForm({ ...form, auto_source_key: e.target.value || null })}
+                className="w-full border border-line rounded-md px-2 py-1.5"
+              />
+              <datalist id="kpi-autosource-options">
+                <option value="active_work_minutes" />
+              </datalist>
             </label>
           </div>
           <div className="flex gap-4">
@@ -442,15 +639,41 @@ function TemplatesTab() {
   const [items, setItems] = useState<(KpiTemplateItem & { kpi: KpiDefinition })[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [newForm, setNewForm] = useState<Partial<KpiTemplate>>({ name: "", role_label: "" });
+  const [roleOpts, setRoleOpts] = useState<string[]>([]);
 
   const reload = async () => {
-    const [t, d] = await Promise.all([listKpiTemplates(), listKpiDefinitions()]);
+    const [t, d, roles] = await Promise.all([listKpiTemplates(), listKpiDefinitions(), listRoles(true).catch(() => [])]);
     setTemplates(t); setDefs(d);
+    setRoleOpts(mergeLabels(
+      (roles as any[]).map((r: any) => r.role_label),
+      d.map((k) => k.owner_role || null),
+      t.map((x) => x.role_label || null),
+    ));
   };
   useEffect(() => { reload(); }, []);
   useEffect(() => { if (selected) listTemplateItems(selected.id).then(setItems); else setItems([]); }, [selected]);
 
   const availableToAdd = defs.filter((d) => d.is_active && !items.some(i => i.kpi_id === d.id));
+
+  // Per-template summary: active KPI count + cadence breakdown
+  const [templateSummaries, setTemplateSummaries] = useState<Record<string, { count: number; daily: number; weekly: number; monthly: number; other: number }>>({});
+  useEffect(() => {
+    (async () => {
+      const sb: any = supabase;
+      const { data } = await sb.from("kpi_template_items").select("template_id, kpi:kpi_definitions(is_active, cadence)");
+      const acc: typeof templateSummaries = {};
+      (data ?? []).forEach((row: any) => {
+        if (!row.kpi || row.kpi.is_active === false) return;
+        const s = acc[row.template_id] ??= { count: 0, daily: 0, weekly: 0, monthly: 0, other: 0 };
+        s.count++;
+        if (row.kpi.cadence === "daily") s.daily++;
+        else if (row.kpi.cadence === "weekly") s.weekly++;
+        else if (row.kpi.cadence === "monthly") s.monthly++;
+        else s.other++;
+      });
+      setTemplateSummaries(acc);
+    })();
+  }, [templates]);
 
   return (
     <div className="grid grid-cols-[280px_1fr] gap-6">
@@ -460,22 +683,38 @@ function TemplatesTab() {
           <button onClick={() => setShowNew(true)} className="text-[12px] text-black hover:underline">+ New</button>
         </div>
         <div className="border border-line rounded-xl bg-white divide-y divide-line">
-          {templates.map(t => (
-            <button key={t.id} onClick={() => setSelected(t)} className={`w-full text-left px-3 py-2.5 text-[13px] ${selected?.id === t.id ? "bg-off" : "hover:bg-off/50"}`}>
-              <div className="font-medium">{t.name}</div>
-              <div className="text-[11px] text-muted-foreground">{t.role_label || "—"}</div>
-            </button>
-          ))}
+          {templates.map(t => {
+            const s = templateSummaries[t.id];
+            return (
+              <button key={t.id} onClick={() => setSelected(t)} className={`w-full text-left px-3 py-2.5 text-[13px] ${selected?.id === t.id ? "bg-off" : "hover:bg-off/50"}`}>
+                <div className="font-medium">{t.name}</div>
+                <div className="text-[11px] text-muted-foreground">{t.role_label || "—"}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {s ? `${s.count} KPI${s.count === 1 ? "" : "s"} · D${s.daily}/W${s.weekly}/M${s.monthly}${s.other ? `/+${s.other}` : ""}` : "0 KPIs"}
+                </div>
+              </button>
+            );
+          })}
           {templates.length === 0 && <div className="px-3 py-4 text-[12px] text-muted-foreground">No templates yet.</div>}
         </div>
         {showNew && (
           <div className="mt-3 border border-line rounded-xl bg-white p-3 text-[13px] space-y-2">
             <input placeholder="Template name" value={newForm.name ?? ""} onChange={(e) => setNewForm({ ...newForm, name: e.target.value })} className="w-full border border-line rounded-md px-2 py-1.5" />
-            <input placeholder="Role label" value={newForm.role_label ?? ""} onChange={(e) => setNewForm({ ...newForm, role_label: e.target.value })} className="w-full border border-line rounded-md px-2 py-1.5" />
+            <input
+              list="tpl-role-options"
+              placeholder="Role (e.g. Video Editor)"
+              value={newForm.role_label ?? ""}
+              onChange={(e) => setNewForm({ ...newForm, role_label: e.target.value })}
+              className="w-full border border-line rounded-md px-2 py-1.5"
+            />
+            <datalist id="tpl-role-options">
+              {roleOpts.map((r) => <option key={r} value={r} />)}
+            </datalist>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setShowNew(false)} className="text-[12px] text-muted-foreground">Cancel</button>
               <button onClick={async () => {
                 if (!newForm.name?.trim()) return;
+                if (newForm.role_label) await ensureRoleLabel(newForm.role_label).catch(() => {});
                 const t = await createKpiTemplate(newForm);
                 setShowNew(false); setNewForm({ name: "", role_label: "" });
                 await reload(); setSelected(t);
@@ -484,6 +723,7 @@ function TemplatesTab() {
           </div>
         )}
       </div>
+
 
       <div>
         {!selected ? (
@@ -547,6 +787,8 @@ function AssignTab() {
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [busy, setBusy] = useState(false);
 
+  const [tplSummary, setTplSummary] = useState<Record<string, { count: number; daily: number; weekly: number; monthly: number; other: number }>>({});
+
   const reload = async () => {
     const [{ data: ps }, t, d, a] = await Promise.all([
       supabase.from("profiles").select("id, full_name, role").eq("status", "active").order("full_name") as any,
@@ -554,6 +796,22 @@ function AssignTab() {
     ]);
     setProfiles((ps ?? []) as Profile[]);
     setTemplates(t); setDefs(d.filter(x => x.is_active)); setAssignments(a);
+    // Template summaries (cadence breakdown, active KPI count)
+    try {
+      const sb: any = supabase;
+      const { data: rows } = await sb.from("kpi_template_items").select("template_id, kpi:kpi_definitions(is_active, cadence)");
+      const acc: typeof tplSummary = {};
+      (rows ?? []).forEach((r: any) => {
+        if (!r.kpi || r.kpi.is_active === false) return;
+        const s = acc[r.template_id] ??= { count: 0, daily: 0, weekly: 0, monthly: 0, other: 0 };
+        s.count++;
+        if (r.kpi.cadence === "daily") s.daily++;
+        else if (r.kpi.cadence === "weekly") s.weekly++;
+        else if (r.kpi.cadence === "monthly") s.monthly++;
+        else s.other++;
+      });
+      setTplSummary(acc);
+    } catch { /* non-fatal */ }
   };
   useEffect(() => { reload(); }, []);
 
@@ -598,12 +856,32 @@ function AssignTab() {
             <button onClick={() => setMode("individual")} className={`text-[12px] px-3 py-1.5 rounded-md border ${mode === "individual" ? "bg-black text-white border-black" : "border-line"}`}>Individual KPI</button>
           </div>
           {mode === "template" ? (
-            <label className="block"><div className="text-muted-foreground mb-1">Template</div>
-              <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full border border-line rounded-md px-2 py-1.5">
-                <option value="">Select…</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </label>
+            <div>
+              <label className="block"><div className="text-muted-foreground mb-1">Template</div>
+                <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} className="w-full border border-line rounded-md px-2 py-1.5">
+                  <option value="">Select…</option>
+                  {templates.map(t => {
+                    const s = tplSummary[t.id];
+                    const suffix = s ? ` — ${s.count} KPI${s.count === 1 ? "" : "s"} (D${s.daily}/W${s.weekly}/M${s.monthly})` : " — 0 KPIs";
+                    return <option key={t.id} value={t.id}>{t.name}{t.role_label ? ` · ${t.role_label}` : ""}{suffix}</option>;
+                  })}
+                </select>
+              </label>
+              {templateId && (() => {
+                const s = tplSummary[templateId];
+                const t = templates.find((x) => x.id === templateId);
+                if (!s || s.count === 0) {
+                  return <div className="mt-2 text-[11px] bg-amber-50 border border-amber-200 text-amber-900 rounded px-2.5 py-1.5">
+                    ⚠ This template has no active KPIs. Assigning it will generate no entries.
+                  </div>;
+                }
+                return <div className="mt-2 text-[11px] text-muted-foreground bg-off rounded px-2.5 py-1.5">
+                  {t?.role_label ? <><span className="font-medium">{t.role_label}</span> · </> : null}
+                  {s.count} active KPI{s.count === 1 ? "" : "s"} · Daily {s.daily} · Weekly {s.weekly} · Monthly {s.monthly}
+                  {s.other ? ` · Other ${s.other}` : ""}
+                </div>;
+              })()}
+            </div>
           ) : (
             <label className="block"><div className="text-muted-foreground mb-1">KPI</div>
               <select value={kpiId} onChange={(e) => setKpiId(e.target.value)} className="w-full border border-line rounded-md px-2 py-1.5">

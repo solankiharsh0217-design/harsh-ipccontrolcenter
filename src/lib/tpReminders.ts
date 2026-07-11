@@ -27,6 +27,9 @@ export interface TpReminderSettings {
   reminder_morning_time: string;
   reminder_due_soon_minutes: number;
   reminder_overdue_enabled: boolean;
+  active_tracking_enabled?: boolean;
+  active_minutes_daily_target?: number;
+  idle_timeout_minutes?: number;
 }
 
 export async function fetchTpSettings(): Promise<TpReminderSettings | null> {

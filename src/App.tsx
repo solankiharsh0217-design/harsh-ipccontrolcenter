@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import RouteErrorBoundary from "@/components/RouteErrorBoundary";
@@ -81,6 +81,17 @@ const Shell = ({ children, admin, moduleKey }: { children: React.ReactNode; admi
   </ProtectedRoute>
 );
 
+// Home gate: admins land on the admin Dashboard; non-admins land on My Today.
+const HomeGate = () => {
+  const { isAdmin, loading, user } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isAdmin) return <Navigate to="/my-today" replace />;
+  return <Shell moduleKey="dashboard"><Dashboard /></Shell>;
+};
+
+
+
 const App = () => (
   <QueryClientProvider client={qc}>
     <TooltipProvider>
@@ -96,7 +107,7 @@ const App = () => (
             <Route path="/admin-center/code-of-conduct" element={<Shell admin><CodeOfConductAdmin /></Shell>} />
             <Route path="/code-of-conduct/signed-pdf/:requestId" element={<Shell admin><CodeOfConductSignedPdf /></Shell>} />
             <Route path="/code-of-conduct/receipt/:requestId" element={<Shell admin><CodeOfConductReceipt /></Shell>} />
-            <Route path="/" element={<Shell moduleKey="dashboard"><Dashboard /></Shell>} />
+            <Route path="/" element={<HomeGate />} />
             <Route path="/founder-dashboard" element={<Shell><FounderDashboard /></Shell>} />
             <Route path="/roas-calculator" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />
             <Route path="/roas" element={<Shell moduleKey="roas"><RoasCalculator /></Shell>} />

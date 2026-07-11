@@ -236,10 +236,14 @@ export type Database = {
       }
       attendance_sessions: {
         Row: {
+          active_minutes: number
+          activity_source: string | null
           check_in_at: string | null
           check_out_at: string | null
           created_at: string
           id: string
+          idle_minutes: number
+          last_activity_at: string | null
           notes: string | null
           source: string
           status: string
@@ -249,10 +253,14 @@ export type Database = {
           work_date: string
         }
         Insert: {
+          active_minutes?: number
+          activity_source?: string | null
           check_in_at?: string | null
           check_out_at?: string | null
           created_at?: string
           id?: string
+          idle_minutes?: number
+          last_activity_at?: string | null
           notes?: string | null
           source?: string
           status?: string
@@ -262,10 +270,14 @@ export type Database = {
           work_date: string
         }
         Update: {
+          active_minutes?: number
+          activity_source?: string | null
           check_in_at?: string | null
           check_out_at?: string | null
           created_at?: string
           id?: string
+          idle_minutes?: number
+          last_activity_at?: string | null
           notes?: string | null
           source?: string
           status?: string
@@ -1459,6 +1471,42 @@ export type Database = {
         }
         Relationships: []
       }
+      company_role_catalog: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department: string | null
+          id: string
+          is_active: boolean
+          role_key: string
+          role_label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          id?: string
+          is_active?: boolean
+          role_key: string
+          role_label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          id?: string
+          is_active?: boolean
+          role_key?: string
+          role_label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           accent_color: string | null
@@ -1517,8 +1565,11 @@ export type Database = {
           state: string | null
           state_code: string | null
           support_email: string | null
+          team_performance_active_minutes_daily_target: number
+          team_performance_active_tracking_enabled: boolean
           team_performance_auto_checkin_on_login: boolean
           team_performance_daily_reminder_enabled: boolean
+          team_performance_idle_timeout_minutes: number
           team_performance_reminder_due_soon_minutes: number
           team_performance_reminder_morning_time: string
           team_performance_reminder_overdue_enabled: boolean
@@ -1585,8 +1636,11 @@ export type Database = {
           state?: string | null
           state_code?: string | null
           support_email?: string | null
+          team_performance_active_minutes_daily_target?: number
+          team_performance_active_tracking_enabled?: boolean
           team_performance_auto_checkin_on_login?: boolean
           team_performance_daily_reminder_enabled?: boolean
+          team_performance_idle_timeout_minutes?: number
           team_performance_reminder_due_soon_minutes?: number
           team_performance_reminder_morning_time?: string
           team_performance_reminder_overdue_enabled?: boolean
@@ -1653,8 +1707,11 @@ export type Database = {
           state?: string | null
           state_code?: string | null
           support_email?: string | null
+          team_performance_active_minutes_daily_target?: number
+          team_performance_active_tracking_enabled?: boolean
           team_performance_auto_checkin_on_login?: boolean
           team_performance_daily_reminder_enabled?: boolean
+          team_performance_idle_timeout_minutes?: number
           team_performance_reminder_due_soon_minutes?: number
           team_performance_reminder_morning_time?: string
           team_performance_reminder_overdue_enabled?: boolean
@@ -2861,6 +2918,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      kpi_categories: {
+        Row: {
+          category_key: string
+          category_label: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category_key: string
+          category_label: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category_key?: string
+          category_label?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       kpi_definitions: {
         Row: {
@@ -9080,8 +9173,11 @@ export type Database = {
       get_team_performance_settings: {
         Args: never
         Returns: {
+          active_minutes_daily_target: number
+          active_tracking_enabled: boolean
           auto_checkin_on_login: boolean
           daily_reminder_enabled: boolean
+          idle_timeout_minutes: number
           reminder_due_soon_minutes: number
           reminder_morning_time: string
           reminder_overdue_enabled: boolean
@@ -9130,6 +9226,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      record_active_minute: { Args: never; Returns: undefined }
       search_students: {
         Args: { _limit?: number; _q: string }
         Returns: {
