@@ -129,6 +129,7 @@ export async function runAutoAttribution(
       sheet: { rows: [...salesRes.rows], columnMapping: input.salesTab.columnOverride || null },
     },
     dealValue: DEAL_VALUE,
+    revenueConfig: input.revenueConfig ?? null,
   };
 
   onProgress?.("Calculating attribution…");
