@@ -118,7 +118,11 @@ export type NormalizedSale = {
   normalizedEmail: string;
   normalizedPhone: string;
   phoneWeak: boolean;
-  revenue: number;
+  revenue: number;         // basis-preferred revenue used for aggregation & ROAS
+  revenueGross: number;
+  revenueNet: number;
+  revenueGst: number;
+  tokenCollected: number;  // parsed from mapped amount col regardless of mode (display only)
   rowHash: string;
 };
 
@@ -142,7 +146,11 @@ export type AuditRow = {
   confidenceScore: number;
   matchReason: string;
   needsReview: boolean;
-  revenue: number;
+  revenue: number;           // basis-preferred
+  revenueGross: number;
+  revenueNet: number;
+  revenueGst: number;
+  tokenCollected: number;
   webinarDate: string;
 };
 
@@ -161,7 +169,11 @@ export type MediaBuyerBreakdown = {
   mediaBuyerName: string;       // displayName
   leads: number;
   salesAttributed: number;
-  revenue: number;
+  revenue: number;              // basis-preferred (kept for legacy consumers)
+  revenueGross: number;
+  revenueNet: number;
+  revenueGst: number;
+  tokenCollected: number;
   adSpend: number;
   cpl: number;
   conversionRate: number;
