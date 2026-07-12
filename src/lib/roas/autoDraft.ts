@@ -2,6 +2,7 @@
 // Mirrors the localStorage draft to roas_calculation_drafts (per user).
 
 import { supabase } from "@/integrations/supabase/client";
+import type { RevenueConfig } from "./attributionEngine";
 
 export type DraftPayload = {
   step: number;
@@ -15,6 +16,7 @@ export type DraftPayload = {
   results: any;
   resultsStatus: "fresh" | "outdated" | null;
   savedSessionId: string | null;
+  revenueConfig?: RevenueConfig | null;
 };
 
 const stepLabel = (n: number) =>
