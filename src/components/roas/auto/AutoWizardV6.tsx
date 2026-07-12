@@ -766,10 +766,18 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
 
       <div className="wiz-body">
         {step === 1 && (
-          <Step1Webinar
-            value={webinar} onChange={setWebinar}
-            showOptional={showOptional} setShowOptional={setShowOptional}
-          />
+          <>
+            <Step1Webinar
+              value={webinar} onChange={setWebinar}
+              showOptional={showOptional} setShowOptional={setShowOptional}
+            />
+            <RevenueSettingsSection
+              value={revenueConfig}
+              onChange={setRevenueConfig}
+              open={showRevenue}
+              setOpen={setShowRevenue}
+            />
+          </>
         )}
         {step === 2 && (
           <Step2Connect
@@ -793,6 +801,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             taxMode={taxMode} setTaxMode={setTaxMode}
             gstRate={gstRate} setGstRate={setGstRate}
             spendBasis={spendBasis} setSpendBasis={setSpendBasis}
+            revenueConfig={revenueConfig}
           />
         )}
         {step === 4 && results && (
@@ -810,6 +819,8 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             tabRoles={tabRoles} adSpends={adSpends}
             consistency={consistency}
             taxMode={taxMode} gstRate={gstRate} spendBasis={spendBasis}
+            revenueConfig={revenueConfig}
+            onEditRevenue={() => { setStep(1); setShowRevenue(true); }}
           />
         )}
       </div>
