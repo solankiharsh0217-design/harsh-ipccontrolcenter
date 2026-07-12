@@ -40,7 +40,10 @@ export type AutoAttribInput = {
   revenueConfig?: RevenueConfig | null;
 };
 
-export type AttrRow = { name: string; spend: number; leads: number; matched: number; revenue: number };
+export type AttrRow = {
+  name: string; spend: number; leads: number; matched: number; revenue: number;
+  revenueGross?: number; revenueNet?: number; revenueGst?: number; tokenCollected?: number;
+};
 
 export type AutoAttribResult = {
   rows: AttrRow[];
