@@ -9,7 +9,7 @@ import {
 
 export const DEAL_VALUE = 118000;
 export const NAME_MATCH_THRESHOLD = 0.85;
-export const ENGINE_VERSION = "deterministic_v1";
+export const ENGINE_VERSION = "deterministic_v2_revenue";
 
 export type ColumnMapping = {
   name?: string | null;
@@ -34,6 +34,30 @@ export type SnapshotMediaBuyer = {
   sheet: RawSheet;
 };
 
+// Revenue / Product Price configuration. Optional for backward compat.
+// When absent, engine falls back to legacy behavior (uses parsed amount col with dealValue fallback).
+export type RevenueMode = "fixed_product_price" | "deal_value_from_sheet" | "token_from_sheet";
+export type ProductGstMode = "inclusive" | "exclusive";
+export type RoasRevenueBasis = "gross" | "net";
+
+export type RevenueConfig = {
+  mode: RevenueMode;
+  productPrice?: number;              // required when mode === "fixed_product_price"
+  productName?: string;
+  productGstMode: ProductGstMode;     // default "inclusive"
+  productGstPercent: number;          // default 18
+  roasRevenueBasis: RoasRevenueBasis; // default "gross"
+};
+
+export const DEFAULT_REVENUE_CONFIG: RevenueConfig = {
+  mode: "fixed_product_price",
+  productPrice: 0,
+  productName: "",
+  productGstMode: "inclusive",
+  productGstPercent: 18,
+  roasRevenueBasis: "gross",
+};
+
 export type AttributionSnapshot = {
   calculationId: string;
   calculationMethod: "manual" | "automatic_master_sheet";
@@ -47,7 +71,25 @@ export type AttributionSnapshot = {
     sheet: RawSheet;
   };
   dealValue: number;
+  revenueConfig?: RevenueConfig | null;
 };
+
+// Break gross <-> net based on GST mode/rate.
+export function splitRevenueByGst(
+  amount: number,
+  gstMode: ProductGstMode,
+  gstPercent: number,
+): { gross: number; net: number; gst: number } {
+  const a = Number.isFinite(amount) && amount > 0 ? amount : 0;
+  const r = Number.isFinite(gstPercent) && gstPercent > 0 ? gstPercent : 0;
+  if (r === 0) return { gross: a, net: a, gst: 0 };
+  if (gstMode === "inclusive") {
+    const net = a / (1 + r / 100);
+    return { gross: a, net, gst: a - net };
+  }
+  const gst = (a * r) / 100;
+  return { gross: a + gst, net: a, gst };
+}
 
 export type NormalizedLead = {
   leadId: string;
