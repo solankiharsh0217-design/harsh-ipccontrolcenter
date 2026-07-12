@@ -197,10 +197,15 @@ export type AttributionResult = {
     totalSales: number;
     totalMatchedSales: number;
     totalUnmatchedSales: number;
-    totalRevenue: number;
+    totalRevenue: number;          // basis-preferred (kept for legacy consumers)
+    totalGrossRevenue: number;
+    totalNetRevenue: number;
+    totalRevenueGst: number;
+    totalTokenCollected: number;
     totalAdSpend: number;
     overallRoas: number;
   };
+  revenueConfig: RevenueConfig | null;
   mediaBuyerBreakdown: MediaBuyerBreakdown[];
   salesAttribution: AuditRow[];   // every sale, including unmatched
   unmatchedSales: AuditRow[];
