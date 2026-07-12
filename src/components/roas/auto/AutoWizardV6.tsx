@@ -422,6 +422,18 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         return;
       }
     }
+    // Revenue config validation
+    if (revenueConfig.mode === "fixed_product_price") {
+      const pp = Number(revenueConfig.productPrice || 0);
+      if (!Number.isFinite(pp) || pp <= 0) {
+        setStepErr("Please enter product/program price for ROAS calculation.");
+        setStep(1); setShowRevenue(true);
+        return;
+      }
+    }
+    if (revenueConfig.mode === "token_from_sheet") {
+      if (!confirm("This will calculate ROAS on collected/token amount, not full product price. Continue?")) return;
+    }
 
     setCalculating(true);
     setCalcMsg("Reading master sheet…");
@@ -460,6 +472,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         salesTab: salesMap,
         mediaBuyerTabs: mbMaps,
         adSpends: spendNumbers,
+        revenueConfig,
       }, (msg) => setCalcMsg(msg));
 
       const er = r.engineResult;
