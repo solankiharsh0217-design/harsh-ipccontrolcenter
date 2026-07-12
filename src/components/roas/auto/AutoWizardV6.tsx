@@ -238,6 +238,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       setResults(sanitizeResults(rd.results));
       setResultsStatus(sanitizeResults(rd.results) ? (rd.resultsStatus || null) : null);
       setSavedSessionId(rd.savedSessionId || null);
+      if ((rd as any).revenueConfig) setRevenueConfig({ ...DEFAULT_REVENUE_CONFIG, ...(rd as any).revenueConfig });
       setShowRestored(true);
       if (!sanitizeResults(rd.results) && (rd.step || 1) >= 4) setStep(3);
     });
@@ -249,7 +250,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     if (firstRender.current) { firstRender.current = false; return; }
     if (results && resultsStatus === "fresh") setResultsStatus("outdated");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(webinar), masterUrl, JSON.stringify(tabRoles), JSON.stringify(adSpends)]);
+  }, [JSON.stringify(webinar), masterUrl, JSON.stringify(tabRoles), JSON.stringify(adSpends), JSON.stringify(revenueConfig)]);
 
   // Derived
   const selectedSales = tabRoles.find((t) => t.role === "sales");
