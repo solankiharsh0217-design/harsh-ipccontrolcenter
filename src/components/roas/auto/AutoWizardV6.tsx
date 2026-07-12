@@ -1382,6 +1382,8 @@ function Step4Results(p: {
   taxMode: AdSpendTaxMode;
   gstRate: number;
   spendBasis: RoasSpendBasis;
+  revenueConfig: RevenueConfig;
+  onEditRevenue: () => void;
 }) {
   const w = p.webinar;
   const fmtD = (d: string) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
