@@ -1513,3 +1513,174 @@ function Step4Results(p: {
     </>
   );
 }
+
+// ============================================================
+// Revenue / Product Price Settings section (used in Step 1)
+// ============================================================
+function RevenueSettingsSection({
+  value, onChange, open, setOpen,
+}: {
+  value: RevenueConfig;
+  onChange: (v: RevenueConfig) => void;
+  open: boolean;
+  setOpen: (b: boolean) => void;
+}) {
+  const set = (patch: Partial<RevenueConfig>) => onChange({ ...value, ...patch });
+  const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
+  const previewPrice = Number(value.productPrice || 0);
+  const split = splitRevenueByGst(previewPrice, value.productGstMode, value.productGstPercent);
+  const priceMissing = value.mode === "fixed_product_price" && previewPrice <= 0;
+
+  return (
+    <div style={{ marginTop: 20, border: "1px solid #E8D49A", background: "#FBF6E9", borderRadius: 12, padding: 16 }}>
+      <button onClick={() => setOpen(!open)}
+        style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "flex", justifyContent: "space-between", width: "100%", fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 500 }}>
+        <span>Revenue / Product Price Settings</span>
+        <span style={{ color: "#7A5E10" }}>{open ? "▲" : "▼"}</span>
+      </button>
+      <div style={{ fontSize: 11.5, color: "#7A5E10", marginTop: 4 }}>
+        These settings decide how each attributed sale is valued for ROAS. Token / advance amount is never used unless explicitly selected.
+      </div>
+      {open && (
+        <>
+          <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 0.8fr", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>Revenue Calculation Mode</div>
+              <select className="fsel" style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+                value={value.mode} onChange={(e) => set({ mode: e.target.value as RevenueConfig["mode"] })}>
+                <option value="fixed_product_price">Fixed Product Price per Sale</option>
+                <option value="deal_value_from_sheet">Use Deal Value from Sales Sheet</option>
+                <option value="token_from_sheet">Use Collected / Token Amount from Sales Sheet</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>
+                Product / Program Price {value.mode === "fixed_product_price" && <span style={{ color: "#DC2626" }}>*</span>}
+              </div>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 10, top: 9, fontSize: 13, color: "#888" }}>₹</span>
+                <input type="number" min={0} step={1}
+                  disabled={value.mode !== "fixed_product_price"}
+                  value={value.productPrice ?? ""}
+                  onChange={(e) => set({ productPrice: Number(e.target.value || 0) })}
+                  placeholder="30000"
+                  style={{ width: "100%", height: 38, padding: "0 10px 0 24px", border: "1px solid #E8E5DE", borderRadius: 8, background: value.mode === "fixed_product_price" ? "#fff" : "#F5F5F0" }} />
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>Product Price GST Mode</div>
+              <select className="fsel" style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+                value={value.productGstMode} onChange={(e) => set({ productGstMode: e.target.value as any })}>
+                <option value="inclusive">Product Price Includes GST</option>
+                <option value="exclusive">Product Price Excludes GST</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>Product GST %</div>
+              <input type="number" min={0} step={0.5}
+                value={value.productGstPercent}
+                onChange={(e) => set({ productGstPercent: Number(e.target.value || 0) })}
+                style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8 }} />
+            </div>
+          </div>
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 2fr", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>ROAS Revenue Basis</div>
+              <select className="fsel" style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+                value={value.roasRevenueBasis} onChange={(e) => set({ roasRevenueBasis: e.target.value as any })}>
+                <option value="gross">Gross Revenue (recommended)</option>
+                <option value="net">Net Revenue</option>
+              </select>
+              <div style={{ fontSize: 10.5, color: "#7A5E10", marginTop: 4, lineHeight: 1.4 }}>
+                Use Gross with Gross Ad Spend, Net with Net Ad Spend. Do not mix.
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>Product Name (optional)</div>
+              <input type="text" value={value.productName || ""}
+                onChange={(e) => set({ productName: e.target.value })}
+                placeholder="e.g. IPC Diamond Membership"
+                style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8 }} />
+            </div>
+          </div>
+          {priceMissing && (
+            <div style={{ marginTop: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+              Please enter product/program price for ROAS calculation.
+            </div>
+          )}
+          {value.mode === "token_from_sheet" && (
+            <div style={{ marginTop: 10, background: "#FFF7ED", border: "1px solid #FED7AA", color: "#B45309", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+              This mode uses collected/token amount as revenue. Use only for cash-collected ROAS, not full product ROAS.
+            </div>
+          )}
+          {value.mode === "fixed_product_price" && previewPrice > 0 && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "#7A5E10", lineHeight: 1.6 }}>
+              Preview per sale — Gross <strong>{inr(split.gross)}</strong> · Net <strong>{inr(split.net)}</strong> · GST <strong>{inr(split.gst)}</strong>
+              {" · "}ROAS basis: <strong>{value.roasRevenueBasis === "gross" ? "Gross" : "Net"} Revenue</strong>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Results-page revenue summary card
+// ============================================================
+function RevenueSummaryCard({
+  cfg, summary, spendBasis, totalSales, onEdit,
+}: {
+  cfg: RevenueConfig;
+  summary?: { totalGrossRevenue: number; totalNetRevenue: number; totalRevenueGst: number; totalTokenCollected: number };
+  spendBasis: RoasSpendBasis;
+  totalSales: number;
+  onEdit: () => void;
+}) {
+  const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
+  const perSaleGross = totalSales > 0 && summary ? summary.totalGrossRevenue / totalSales : 0;
+  const perSaleNet = totalSales > 0 && summary ? summary.totalNetRevenue / totalSales : 0;
+  const usedForRoas = cfg.roasRevenueBasis === "net" ? perSaleNet : perSaleGross;
+  const modeLabel = cfg.mode === "fixed_product_price" ? "Fixed Product Price per Sale"
+    : cfg.mode === "deal_value_from_sheet" ? "Use Deal Value from Sales Sheet"
+    : "Use Collected/Token Amount from Sales Sheet";
+  const basisMismatch =
+    (cfg.roasRevenueBasis === "gross" && spendBasis === "net") ||
+    (cfg.roasRevenueBasis === "net" && spendBasis === "gross");
+  return (
+    <div style={{ border: "1px solid #E8D49A", background: "#FBF6E9", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 500 }}>Revenue Settings</div>
+        <button className="btn btn-g btn-sm" onClick={onEdit}>Edit Revenue Settings</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, fontSize: 12 }}>
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Revenue Mode</div><div>{modeLabel}</div></div>
+        {cfg.productName ? <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Product Name</div><div>{cfg.productName}</div></div> : null}
+        {cfg.mode === "fixed_product_price" && (
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Product Price</div><div>{inr(cfg.productPrice || 0)}</div></div>
+        )}
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>GST Mode</div><div>{cfg.productGstMode === "inclusive" ? "Includes GST" : "Excludes GST"}</div></div>
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>GST %</div><div>{cfg.productGstPercent}%</div></div>
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Revenue Basis</div><div>{cfg.roasRevenueBasis === "gross" ? "Gross Revenue" : "Net Revenue"}</div></div>
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Revenue per Sale (ROAS)</div><div><strong>{inr(usedForRoas)}</strong></div></div>
+      </div>
+      {summary && (
+        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, fontSize: 12 }}>
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Gross Revenue</div><div><strong>{inr(summary.totalGrossRevenue)}</strong></div></div>
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Net Revenue</div><div>{inr(summary.totalNetRevenue)}</div></div>
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Revenue GST</div><div>{inr(summary.totalRevenueGst)}</div></div>
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Token / Advance Collected</div><div>{inr(summary.totalTokenCollected)}</div></div>
+        </div>
+      )}
+      <div style={{ marginTop: 10, fontSize: 11.5, color: "#7A5E10" }}>
+        ROAS is calculated using <strong>{cfg.roasRevenueBasis === "gross" ? "Gross Revenue" : "Net Revenue"}</strong>
+        {" and "}<strong>{spendBasis === "gross" ? "Gross Ad Spend" : "Net Ad Spend"}</strong>.
+      </div>
+      {basisMismatch && (
+        <div style={{ marginTop: 8, background: "#FFF7ED", border: "1px solid #FED7AA", color: "#B45309", borderRadius: 8, padding: "6px 10px", fontSize: 11.5 }}>
+          Revenue basis and ad spend basis should normally both be Gross or both be Net.
+        </div>
+      )}
+    </div>
+  );
+}
