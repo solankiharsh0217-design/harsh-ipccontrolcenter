@@ -20,6 +20,11 @@ import {
   computeSpend, effectiveSpendForBasis, loadGstDefaults, saveGstDefaults,
   type AdSpendTaxMode, type RoasSpendBasis,
 } from "@/lib/roas/gst";
+import {
+  DEFAULT_REVENUE_CONFIG,
+  splitRevenueByGst,
+  type RevenueConfig,
+} from "@/lib/roas/attributionEngine";
 
 // ---------- Types & storage ----------
 type DateMode = "single" | "range" | "multiple";
