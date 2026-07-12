@@ -9,6 +9,7 @@ import {
   type AttributionResult,
   type AttributionSnapshot,
   type ColumnMapping as EngineColumnMapping,
+  type RevenueConfig,
 } from "./attributionEngine";
 import type { SaleDetail } from "@/lib/roasExport";
 
@@ -36,6 +37,7 @@ export type AutoAttribInput = {
   adSpendTab?: TabMapping | null;
   // optional: caller may override the priority order; otherwise insertion order
   mediaBuyerOrder?: string[];
+  revenueConfig?: RevenueConfig | null;
 };
 
 export type AttrRow = { name: string; spend: number; leads: number; matched: number; revenue: number };
