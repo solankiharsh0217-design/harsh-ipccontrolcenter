@@ -634,6 +634,10 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         gross_ad_spend: b.gross,
         ad_spend_tax_mode: taxMode,
         gst_rate: gstRate,
+        revenue_gross: r.revenueGross ?? r.revenue,
+        revenue_net: r.revenueNet ?? r.revenue,
+        revenue_gst: r.revenueGst ?? 0,
+        token_collected: r.tokenCollected ?? 0,
       };
     });
     const saleRows = results.salesDetail.map((s, i) => {
@@ -656,6 +660,10 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         competing_matches: a ? (a.competingMatches as any) : null,
         match_reason: a?.matchReason || null,
         needs_review: a?.needsReview || false,
+        revenue_gross: s.revenueGross ?? s.revenue,
+        revenue_net: s.revenueNet ?? s.revenue,
+        revenue_gst: s.revenueGst ?? 0,
+        token_collected: s.tokenCollected ?? 0,
       };
     });
     await supabase.from("attribution_media_buyers").insert(buyerRows as any);
