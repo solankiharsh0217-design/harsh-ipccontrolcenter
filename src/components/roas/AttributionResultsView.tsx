@@ -153,6 +153,14 @@ export default function AttributionResultsView({
           Legacy report — GST not captured. Ad spend shown as entered.
         </div>
       )}
+      {payload.meta?.legacyRevenue && (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", color: "#7A5E10", borderRadius: 8, padding: "8px 12px", fontSize: 11.5, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span>This report was created before revenue settings were added. Please review product price before recalculating.</span>
+          {payload.onEditRevenueSettings && (
+            <button className="btn btn-g btn-sm" onClick={payload.onEditRevenueSettings}>Review Revenue Settings</button>
+          )}
+        </div>
+      )}
 
       {unmatched.length > 0 && (
         <div className="unmatched-box">
