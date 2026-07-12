@@ -1423,9 +1423,19 @@ function Step4Results(p: {
           <button className="btn btn-g btn-sm" onClick={() => p.goEdit(1)}>Edit Webinar Details</button>
           <button className="btn btn-g btn-sm" onClick={() => p.goEdit(2)}>Edit Tab Roles</button>
           <button className="btn btn-g btn-sm" onClick={() => p.goEdit(3)}>Edit Ad Spends</button>
+          <button className="btn btn-g btn-sm" onClick={p.onEditRevenue}>Edit Revenue Settings</button>
           <button className="btn btn-k btn-sm" onClick={p.onRecalc}>Recalculate</button>
         </div>
       </div>
+
+      {/* Revenue Settings Summary */}
+      <RevenueSummaryCard
+        cfg={p.revenueConfig}
+        summary={p.results.engineResult?.summary}
+        spendBasis={p.spendBasis}
+        totalSales={p.results.totals.sales}
+        onEdit={p.onEditRevenue}
+      />
 
       {p.resultsStatus === "outdated" && (
         <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", color: "#7A5E10", borderRadius: 8, padding: "10px 12px", fontSize: 12, marginBottom: 12 }}>
@@ -1450,7 +1460,18 @@ function Step4Results(p: {
             inputSnapshotHash: p.results.engineResult?.inputSnapshotHash,
             outputHash: p.results.engineResult?.outputHash,
             engineVersion: p.results.engineResult?.engineVersion,
+            revenueMode: p.revenueConfig.mode,
+            productName: p.revenueConfig.productName,
+            productPrice: p.revenueConfig.productPrice,
+            productGstMode: p.revenueConfig.productGstMode,
+            productGstPercent: p.revenueConfig.productGstPercent,
+            roasRevenueBasis: p.revenueConfig.roasRevenueBasis,
+            totalGrossRevenue: p.results.engineResult?.summary.totalGrossRevenue,
+            totalNetRevenue: p.results.engineResult?.summary.totalNetRevenue,
+            totalRevenueGst: p.results.engineResult?.summary.totalRevenueGst,
+            totalTokenCollected: p.results.engineResult?.summary.totalTokenCollected,
           },
+          onEditRevenueSettings: p.onEditRevenue,
         }}
         onSave={p.onSave}
         savedHist={p.savedHist}
