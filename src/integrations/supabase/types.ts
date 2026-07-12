@@ -376,12 +376,16 @@ export type Database = {
           media_buyer_name: string
           net_ad_spend: number | null
           revenue: number
+          revenue_gross: number | null
+          revenue_gst: number | null
+          revenue_net: number | null
           roas_value: number
           session_id: string
           source_sheet_id: string | null
           source_tab_gid: string | null
           source_tab_name: string | null
           source_type: string
+          token_collected: number | null
           total_leads: number
         }
         Insert: {
@@ -399,12 +403,16 @@ export type Database = {
           media_buyer_name: string
           net_ad_spend?: number | null
           revenue?: number
+          revenue_gross?: number | null
+          revenue_gst?: number | null
+          revenue_net?: number | null
           roas_value?: number
           session_id: string
           source_sheet_id?: string | null
           source_tab_gid?: string | null
           source_tab_name?: string | null
           source_type?: string
+          token_collected?: number | null
           total_leads?: number
         }
         Update: {
@@ -422,12 +430,16 @@ export type Database = {
           media_buyer_name?: string
           net_ad_spend?: number | null
           revenue?: number
+          revenue_gross?: number | null
+          revenue_gst?: number | null
+          revenue_net?: number | null
           roas_value?: number
           session_id?: string
           source_sheet_id?: string | null
           source_tab_gid?: string | null
           source_tab_name?: string | null
           source_type?: string
+          token_collected?: number | null
           total_leads?: number
         }
         Relationships: [
@@ -458,6 +470,9 @@ export type Database = {
           needs_review: boolean | null
           phone: string | null
           revenue: number
+          revenue_gross: number | null
+          revenue_gst: number | null
+          revenue_net: number | null
           sale_id: string | null
           session_id: string
           source_media_buyer: string | null
@@ -466,6 +481,7 @@ export type Database = {
           source_sales_tab_gid: string | null
           source_sales_tab_name: string | null
           source_type: string
+          token_collected: number | null
           webinar_date: string | null
         }
         Insert: {
@@ -485,6 +501,9 @@ export type Database = {
           needs_review?: boolean | null
           phone?: string | null
           revenue?: number
+          revenue_gross?: number | null
+          revenue_gst?: number | null
+          revenue_net?: number | null
           sale_id?: string | null
           session_id: string
           source_media_buyer?: string | null
@@ -493,6 +512,7 @@ export type Database = {
           source_sales_tab_gid?: string | null
           source_sales_tab_name?: string | null
           source_type?: string
+          token_collected?: number | null
           webinar_date?: string | null
         }
         Update: {
@@ -512,6 +532,9 @@ export type Database = {
           needs_review?: boolean | null
           phone?: string | null
           revenue?: number
+          revenue_gross?: number | null
+          revenue_gst?: number | null
+          revenue_net?: number | null
           sale_id?: string | null
           session_id?: string
           source_media_buyer?: string | null
@@ -520,6 +543,7 @@ export type Database = {
           source_sales_tab_gid?: string | null
           source_sales_tab_name?: string | null
           source_type?: string
+          token_collected?: number | null
           webinar_date?: string | null
         }
         Relationships: [
@@ -557,18 +581,30 @@ export type Database = {
           media_buyer_order: Json | null
           output_hash: string | null
           overall_roas: number
+          product_gst_mode: string | null
+          product_gst_percent: number | null
+          product_name: string | null
+          product_price: number | null
           result_status: string | null
+          revenue_mode: string | null
+          revenue_per_sale_gross: number | null
+          revenue_per_sale_net: number | null
+          roas_revenue_basis: string | null
           roas_spend_basis: string | null
           saved_from_draft_id: string | null
           session_slot: string | null
           tab_role_mapping: Json | null
           total_ad_spend: number
           total_gross_ad_spend: number | null
+          total_gross_revenue: number | null
           total_gst_amount: number | null
           total_leads: number
           total_net_ad_spend: number | null
+          total_net_revenue: number | null
           total_revenue: number
+          total_revenue_gst: number | null
           total_sales: number
+          total_token_collected: number | null
           unmatched_count: number
           updated_at: string | null
           webinar_date: string | null
@@ -610,18 +646,30 @@ export type Database = {
           media_buyer_order?: Json | null
           output_hash?: string | null
           overall_roas?: number
+          product_gst_mode?: string | null
+          product_gst_percent?: number | null
+          product_name?: string | null
+          product_price?: number | null
           result_status?: string | null
+          revenue_mode?: string | null
+          revenue_per_sale_gross?: number | null
+          revenue_per_sale_net?: number | null
+          roas_revenue_basis?: string | null
           roas_spend_basis?: string | null
           saved_from_draft_id?: string | null
           session_slot?: string | null
           tab_role_mapping?: Json | null
           total_ad_spend?: number
           total_gross_ad_spend?: number | null
+          total_gross_revenue?: number | null
           total_gst_amount?: number | null
           total_leads?: number
           total_net_ad_spend?: number | null
+          total_net_revenue?: number | null
           total_revenue?: number
+          total_revenue_gst?: number | null
           total_sales?: number
+          total_token_collected?: number | null
           unmatched_count?: number
           updated_at?: string | null
           webinar_date?: string | null
@@ -663,18 +711,30 @@ export type Database = {
           media_buyer_order?: Json | null
           output_hash?: string | null
           overall_roas?: number
+          product_gst_mode?: string | null
+          product_gst_percent?: number | null
+          product_name?: string | null
+          product_price?: number | null
           result_status?: string | null
+          revenue_mode?: string | null
+          revenue_per_sale_gross?: number | null
+          revenue_per_sale_net?: number | null
+          roas_revenue_basis?: string | null
           roas_spend_basis?: string | null
           saved_from_draft_id?: string | null
           session_slot?: string | null
           tab_role_mapping?: Json | null
           total_ad_spend?: number
           total_gross_ad_spend?: number | null
+          total_gross_revenue?: number | null
           total_gst_amount?: number | null
           total_leads?: number
           total_net_ad_spend?: number | null
+          total_net_revenue?: number | null
           total_revenue?: number
+          total_revenue_gst?: number | null
           total_sales?: number
+          total_token_collected?: number | null
           unmatched_count?: number
           updated_at?: string | null
           webinar_date?: string | null
@@ -7299,6 +7359,7 @@ export type Database = {
           master_sheet_url: string | null
           result_snapshot: Json | null
           result_status: string | null
+          revenue_config: Json | null
           saved_attribution_session_id: string | null
           spreadsheet_id: string | null
           tab_roles: Json | null
@@ -7320,6 +7381,7 @@ export type Database = {
           master_sheet_url?: string | null
           result_snapshot?: Json | null
           result_status?: string | null
+          revenue_config?: Json | null
           saved_attribution_session_id?: string | null
           spreadsheet_id?: string | null
           tab_roles?: Json | null
@@ -7341,6 +7403,7 @@ export type Database = {
           master_sheet_url?: string | null
           result_snapshot?: Json | null
           result_status?: string | null
+          revenue_config?: Json | null
           saved_attribution_session_id?: string | null
           spreadsheet_id?: string | null
           tab_roles?: Json | null
