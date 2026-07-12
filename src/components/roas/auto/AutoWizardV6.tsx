@@ -596,6 +596,21 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       total_net_ad_spend: totalNet,
       total_gst_amount: totalGst,
       total_gross_ad_spend: totalGross,
+      // Revenue / Product Price settings
+      revenue_mode: revenueConfig.mode,
+      product_name: revenueConfig.productName || null,
+      product_price: Number(revenueConfig.productPrice || 0),
+      product_gst_mode: revenueConfig.productGstMode,
+      product_gst_percent: revenueConfig.productGstPercent,
+      roas_revenue_basis: revenueConfig.roasRevenueBasis,
+      revenue_per_sale_gross: er?.mediaBuyerBreakdown && totals.sales > 0
+        ? Number((er.summary.totalGrossRevenue / totals.sales).toFixed(2)) : null,
+      revenue_per_sale_net: er?.mediaBuyerBreakdown && totals.sales > 0
+        ? Number((er.summary.totalNetRevenue / totals.sales).toFixed(2)) : null,
+      total_gross_revenue: er?.summary.totalGrossRevenue ?? null,
+      total_net_revenue: er?.summary.totalNetRevenue ?? null,
+      total_revenue_gst: er?.summary.totalRevenueGst ?? null,
+      total_token_collected: er?.summary.totalTokenCollected ?? null,
     } as any).select().single();
     if (error || !sess) { toast.error("Save failed: " + (error?.message || "")); return; }
 
