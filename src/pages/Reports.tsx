@@ -1596,11 +1596,19 @@ async function loadPayload(s: SessionRow): Promise<AttributionPayload | null> {
     rows: (bs || []).map((b: any) => ({
       name: b.media_buyer_name, spend: Number(b.ad_spend),
       leads: b.total_leads, matched: b.matched_sales, revenue: Number(b.revenue),
+      revenueGross: Number(b.revenue_gross ?? b.revenue ?? 0),
+      revenueNet: Number(b.revenue_net ?? b.revenue ?? 0),
+      revenueGst: Number(b.revenue_gst ?? 0),
+      tokenCollected: Number(b.token_collected ?? 0),
     })),
     salesDetail: (sd || []).map((x: any) => ({
       name: x.buyer_name || "", email: x.email || "", phone: x.phone || "",
       attributedTo: x.attributed_to, matchMethod: (x.match_method as SaleDetail["matchMethod"]) || "unmatched",
       revenue: Number(x.revenue), webinarDate: x.webinar_date || s.webinar_date || "",
+      revenueGross: Number(x.revenue_gross ?? x.revenue ?? 0),
+      revenueNet: Number(x.revenue_net ?? x.revenue ?? 0),
+      revenueGst: Number(x.revenue_gst ?? 0),
+      tokenCollected: Number(x.token_collected ?? 0),
     })),
     meta: {
       createdOn: s.created_at ? fmtDateTime(s.created_at) : "",
@@ -1616,6 +1624,17 @@ async function loadPayload(s: SessionRow): Promise<AttributionPayload | null> {
       inputSnapshotHash: sx.input_snapshot_hash || "",
       outputHash: sx.output_hash || "",
       engineVersion: sx.attribution_engine_version || "",
+      revenueMode: sx.revenue_mode || undefined,
+      productName: sx.product_name || undefined,
+      productPrice: sx.product_price != null ? Number(sx.product_price) : undefined,
+      productGstMode: sx.product_gst_mode || undefined,
+      productGstPercent: sx.product_gst_percent != null ? Number(sx.product_gst_percent) : undefined,
+      roasRevenueBasis: sx.roas_revenue_basis || undefined,
+      totalGrossRevenue: sx.total_gross_revenue != null ? Number(sx.total_gross_revenue) : undefined,
+      totalNetRevenue: sx.total_net_revenue != null ? Number(sx.total_net_revenue) : undefined,
+      totalRevenueGst: sx.total_revenue_gst != null ? Number(sx.total_revenue_gst) : undefined,
+      totalTokenCollected: sx.total_token_collected != null ? Number(sx.total_token_collected) : undefined,
+      legacyRevenue: !sx.revenue_mode,
     },
   };
 }
