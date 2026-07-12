@@ -78,6 +78,7 @@ type DraftV6 = {
   results: AutoAttribResult | null;
   resultsStatus: "fresh" | "outdated" | null;
   savedSessionId: string | null;
+  revenueConfig: RevenueConfig;
 };
 
 const DRAFT_KEY = "ipc_roas_auto_draft";
@@ -95,6 +96,7 @@ const EMPTY: DraftV6 = {
   masterUrl: "", spreadsheetId: "", spreadsheetTitle: "",
   detectedTabs: [], tabRoles: [],
   adSpends: {}, results: null, resultsStatus: null, savedSessionId: null,
+  revenueConfig: { ...DEFAULT_REVENUE_CONFIG },
 };
 
 function sanitizeResults(r: any): AutoAttribResult | null {
