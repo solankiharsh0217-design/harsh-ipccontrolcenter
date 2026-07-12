@@ -9,7 +9,7 @@ import {
 
 export const DEAL_VALUE = 118000;
 export const NAME_MATCH_THRESHOLD = 0.85;
-export const ENGINE_VERSION = "deterministic_v1";
+export const ENGINE_VERSION = "deterministic_v2_revenue";
 
 export type ColumnMapping = {
   name?: string | null;
@@ -34,6 +34,30 @@ export type SnapshotMediaBuyer = {
   sheet: RawSheet;
 };
 
+// Revenue / Product Price configuration. Optional for backward compat.
+// When absent, engine falls back to legacy behavior (uses parsed amount col with dealValue fallback).
+export type RevenueMode = "fixed_product_price" | "deal_value_from_sheet" | "token_from_sheet";
+export type ProductGstMode = "inclusive" | "exclusive";
+export type RoasRevenueBasis = "gross" | "net";
+
+export type RevenueConfig = {
+  mode: RevenueMode;
+  productPrice?: number;              // required when mode === "fixed_product_price"
+  productName?: string;
+  productGstMode: ProductGstMode;     // default "inclusive"
+  productGstPercent: number;          // default 18
+  roasRevenueBasis: RoasRevenueBasis; // default "gross"
+};
+
+export const DEFAULT_REVENUE_CONFIG: RevenueConfig = {
+  mode: "fixed_product_price",
+  productPrice: 0,
+  productName: "",
+  productGstMode: "inclusive",
+  productGstPercent: 18,
+  roasRevenueBasis: "gross",
+};
+
 export type AttributionSnapshot = {
   calculationId: string;
   calculationMethod: "manual" | "automatic_master_sheet";
@@ -47,7 +71,25 @@ export type AttributionSnapshot = {
     sheet: RawSheet;
   };
   dealValue: number;
+  revenueConfig?: RevenueConfig | null;
 };
+
+// Break gross <-> net based on GST mode/rate.
+export function splitRevenueByGst(
+  amount: number,
+  gstMode: ProductGstMode,
+  gstPercent: number,
+): { gross: number; net: number; gst: number } {
+  const a = Number.isFinite(amount) && amount > 0 ? amount : 0;
+  const r = Number.isFinite(gstPercent) && gstPercent > 0 ? gstPercent : 0;
+  if (r === 0) return { gross: a, net: a, gst: 0 };
+  if (gstMode === "inclusive") {
+    const net = a / (1 + r / 100);
+    return { gross: a, net, gst: a - net };
+  }
+  const gst = (a * r) / 100;
+  return { gross: a + gst, net: a, gst };
+}
 
 export type NormalizedLead = {
   leadId: string;
@@ -76,7 +118,11 @@ export type NormalizedSale = {
   normalizedEmail: string;
   normalizedPhone: string;
   phoneWeak: boolean;
-  revenue: number;
+  revenue: number;         // basis-preferred revenue used for aggregation & ROAS
+  revenueGross: number;
+  revenueNet: number;
+  revenueGst: number;
+  tokenCollected: number;  // parsed from mapped amount col regardless of mode (display only)
   rowHash: string;
 };
 
@@ -100,7 +146,11 @@ export type AuditRow = {
   confidenceScore: number;
   matchReason: string;
   needsReview: boolean;
-  revenue: number;
+  revenue: number;           // basis-preferred
+  revenueGross: number;
+  revenueNet: number;
+  revenueGst: number;
+  tokenCollected: number;
   webinarDate: string;
 };
 
@@ -119,7 +169,11 @@ export type MediaBuyerBreakdown = {
   mediaBuyerName: string;       // displayName
   leads: number;
   salesAttributed: number;
-  revenue: number;
+  revenue: number;              // basis-preferred (kept for legacy consumers)
+  revenueGross: number;
+  revenueNet: number;
+  revenueGst: number;
+  tokenCollected: number;
   adSpend: number;
   cpl: number;
   conversionRate: number;
@@ -143,10 +197,15 @@ export type AttributionResult = {
     totalSales: number;
     totalMatchedSales: number;
     totalUnmatchedSales: number;
-    totalRevenue: number;
+    totalRevenue: number;          // basis-preferred (kept for legacy consumers)
+    totalGrossRevenue: number;
+    totalNetRevenue: number;
+    totalRevenueGst: number;
+    totalTokenCollected: number;
     totalAdSpend: number;
     overallRoas: number;
   };
+  revenueConfig: RevenueConfig | null;
   mediaBuyerBreakdown: MediaBuyerBreakdown[];
   salesAttribution: AuditRow[];   // every sale, including unmatched
   unmatchedSales: AuditRow[];
@@ -227,11 +286,51 @@ function normalizeMBLeads(mb: SnapshotMediaBuyer): NormalizedLead[] {
   return out;
 }
 
+function computeSaleRevenue(
+  rawAmount: string,
+  fallback: number,
+  cfg: RevenueConfig | null | undefined,
+): { revenue: number; revenueGross: number; revenueNet: number; revenueGst: number; tokenCollected: number } {
+  // Token/collected is always the parsed amount col (0 if missing) — for display separation.
+  const parsedAmount = parseRevenue(rawAmount, 0);
+  const tokenCollected = parsedAmount > 0 ? parsedAmount : 0;
+
+  if (!cfg) {
+    // Legacy behavior: use parsed amount col with dealValue fallback; treat as gross.
+    const legacy = parseRevenue(rawAmount, fallback);
+    return { revenue: legacy, revenueGross: legacy, revenueNet: legacy, revenueGst: 0, tokenCollected };
+  }
+
+  const gstPct = Number.isFinite(cfg.productGstPercent) ? cfg.productGstPercent : 18;
+  const gstMode = cfg.productGstMode || "inclusive";
+
+  let sourceAmount = 0;
+  if (cfg.mode === "fixed_product_price") {
+    sourceAmount = Number.isFinite(cfg.productPrice as number) && (cfg.productPrice as number) > 0
+      ? (cfg.productPrice as number) : 0;
+  } else if (cfg.mode === "deal_value_from_sheet") {
+    sourceAmount = parsedAmount;
+  } else { // token_from_sheet
+    sourceAmount = parsedAmount;
+  }
+
+  const split = splitRevenueByGst(sourceAmount, gstMode, gstPct);
+  const revenue = cfg.roasRevenueBasis === "net" ? split.net : split.gross;
+  return {
+    revenue,
+    revenueGross: split.gross,
+    revenueNet: split.net,
+    revenueGst: split.gst,
+    tokenCollected,
+  };
+}
+
 function normalizeSales(snap: AttributionSnapshot): NormalizedSale[] {
   const rows = snap.sales.sheet.rows || [];
   if (rows.length === 0) return [];
   const { idx, headers } = findHeaderRow(rows);
   const cols = resolveColumns(headers, snap.sales.sheet.columnMapping);
+  const cfg = snap.revenueConfig ?? null;
   const out: NormalizedSale[] = [];
   for (let i = idx + 1; i < rows.length; i++) {
     const r = rows[i] || [];
@@ -241,6 +340,7 @@ function normalizeSales(snap: AttributionSnapshot): NormalizedSale[] {
     const rawAmount = cols.amountCol >= 0 ? (r[cols.amountCol] || "") : "";
     if (!rawName && !rawEmail && !rawPhone) continue;
     const ph = normalizePhone(rawPhone);
+    const rev = computeSaleRevenue(rawAmount, snap.dealValue, cfg);
     out.push({
       saleId: `sale:${i}`,
       rowIndex: i,
@@ -249,7 +349,11 @@ function normalizeSales(snap: AttributionSnapshot): NormalizedSale[] {
       normalizedEmail: normalizeEmail(rawEmail),
       normalizedPhone: ph.phone,
       phoneWeak: ph.weak,
-      revenue: parseRevenue(rawAmount, snap.dealValue),
+      revenue: rev.revenue,
+      revenueGross: rev.revenueGross,
+      revenueNet: rev.revenueNet,
+      revenueGst: rev.revenueGst,
+      tokenCollected: rev.tokenCollected,
       rowHash: hashString(`sale|${i}|${rawName}|${rawEmail}|${rawPhone}|${rawAmount}`),
     });
   }
@@ -449,6 +553,10 @@ export function calculateAttribution(snapshot: AttributionSnapshot): Attribution
       matchReason: "No email, phone, or valid name match found in any media buyer tab.",
       needsReview: false,
       revenue: 0,
+      revenueGross: 0,
+      revenueNet: 0,
+      revenueGst: 0,
+      tokenCollected: s.tokenCollected,
       webinarDate: snapshot.webinarDate,
     };
   }
@@ -456,27 +564,55 @@ export function calculateAttribution(snapshot: AttributionSnapshot): Attribution
   // 5) Aggregate per media buyer
   const leadCountByMB: Record<string, number> = {};
   for (const l of allLeads) leadCountByMB[l.mediaBuyerId] = (leadCountByMB[l.mediaBuyerId] || 0) + 1;
+  // sale index → audit index. audits[i] already aligned to sales[i].
+  const salesByIndex = sales;
   const breakdown: MediaBuyerBreakdown[] = snapshot.mediaBuyerOrder.map((mbId) => {
     const mb = snapshot.mediaBuyers.find((m) => m.id === mbId)!;
-    const matched = audits.filter((a) => a.attributedToMediaBuyerId === mbId);
-    const sales = matched.length;
-    const revenue = matched.reduce((acc, a) => acc + a.revenue, 0);
+    let salesCount = 0, revenue = 0, revenueGross = 0, revenueNet = 0, revenueGst = 0, tokenCollected = 0;
+    audits.forEach((a, i) => {
+      if (a.attributedToMediaBuyerId !== mbId) return;
+      salesCount++;
+      const s = salesByIndex[i];
+      revenue += s?.revenue ?? a.revenue;
+      revenueGross += s?.revenueGross ?? 0;
+      revenueNet += s?.revenueNet ?? 0;
+      revenueGst += s?.revenueGst ?? 0;
+      tokenCollected += s?.tokenCollected ?? 0;
+    });
     const leads = leadCountByMB[mbId] || 0;
     const adSpend = mb.adSpend || 0;
     return {
       mediaBuyerId: mbId,
       mediaBuyerName: mb.displayName,
-      leads, salesAttributed: sales, revenue, adSpend,
+      leads, salesAttributed: salesCount, revenue,
+      revenueGross, revenueNet, revenueGst, tokenCollected,
+      adSpend,
       cpl: leads > 0 ? adSpend / leads : 0,
-      conversionRate: leads > 0 ? (sales / leads) * 100 : 0,
+      conversionRate: leads > 0 ? (salesCount / leads) * 100 : 0,
       roas: adSpend > 0 ? revenue / adSpend : 0,
     };
+  });
+
+  // Backfill per-audit revenue breakdown from parallel sales array so consumers see numbers.
+  audits.forEach((a, i) => {
+    const s = salesByIndex[i];
+    if (!s) return;
+    if (a.matchMethod === "unmatched") return;
+    a.revenue = s.revenue;
+    a.revenueGross = s.revenueGross;
+    a.revenueNet = s.revenueNet;
+    a.revenueGst = s.revenueGst;
+    a.tokenCollected = s.tokenCollected;
   });
 
   const totalLeads = breakdown.reduce((a, b) => a + b.leads, 0);
   const totalSales = audits.length;
   const totalMatched = audits.filter((a) => a.matchMethod !== "unmatched").length;
   const totalRevenue = breakdown.reduce((a, b) => a + b.revenue, 0);
+  const totalGrossRevenue = breakdown.reduce((a, b) => a + b.revenueGross, 0);
+  const totalNetRevenue = breakdown.reduce((a, b) => a + b.revenueNet, 0);
+  const totalRevenueGst = breakdown.reduce((a, b) => a + b.revenueGst, 0);
+  const totalTokenCollected = audits.reduce((a, x) => a + (x.tokenCollected || 0), 0);
   const totalAdSpend = breakdown.reduce((a, b) => a + b.adSpend, 0);
 
   // 6) Hashes
@@ -504,9 +640,14 @@ export function calculateAttribution(snapshot: AttributionSnapshot): Attribution
       totalMatchedSales: totalMatched,
       totalUnmatchedSales: totalSales - totalMatched,
       totalRevenue,
+      totalGrossRevenue,
+      totalNetRevenue,
+      totalRevenueGst,
+      totalTokenCollected,
       totalAdSpend,
       overallRoas: totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0,
     },
+    revenueConfig: snapshot.revenueConfig ?? null,
     mediaBuyerBreakdown: breakdown,
     salesAttribution: audits,
     unmatchedSales: audits.filter((a) => a.matchMethod === "unmatched"),
@@ -545,6 +686,10 @@ function makeAudit(
     matchReason: reason,
     needsReview,
     revenue: s.revenue,
+    revenueGross: s.revenueGross,
+    revenueNet: s.revenueNet,
+    revenueGst: s.revenueGst,
+    tokenCollected: s.tokenCollected,
     webinarDate,
   };
 }
@@ -563,11 +708,19 @@ export function toLegacyPayload(
     leads: b.leads,
     matched: b.salesAttributed,
     revenue: b.revenue,
+    revenueGross: b.revenueGross,
+    revenueNet: b.revenueNet,
+    revenueGst: b.revenueGst,
+    tokenCollected: b.tokenCollected,
   }));
   const salesDetail: SaleDetail[] = result.auditLog.map((a) => ({
     name: a.buyerName, email: a.buyerEmail, phone: a.buyerPhone,
     attributedTo: a.attributedTo, matchMethod: a.matchMethod,
     revenue: a.revenue, webinarDate: a.webinarDate,
+    revenueGross: a.revenueGross,
+    revenueNet: a.revenueNet,
+    revenueGst: a.revenueGst,
+    tokenCollected: a.tokenCollected,
   }));
   return {
     webinarName: meta.webinarName,

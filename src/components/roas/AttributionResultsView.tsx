@@ -153,6 +153,14 @@ export default function AttributionResultsView({
           Legacy report — GST not captured. Ad spend shown as entered.
         </div>
       )}
+      {payload.meta?.legacyRevenue && (
+        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", color: "#7A5E10", borderRadius: 8, padding: "8px 12px", fontSize: 11.5, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span>This report was created before revenue settings were added. Please review product price before recalculating.</span>
+          {payload.onEditRevenueSettings && (
+            <button className="btn btn-g btn-sm" onClick={payload.onEditRevenueSettings}>Review Revenue Settings</button>
+          )}
+        </div>
+      )}
 
       {unmatched.length > 0 && (
         <div className="unmatched-box">
@@ -165,41 +173,56 @@ export default function AttributionResultsView({
       )}
 
       <div className="sl">Per media buyer breakdown</div>
-      <table className="attr-table">
-        <thead><tr><th>Media Buyer</th><th>Leads</th><th>Sales Attributed</th><th>Revenue</th><th>Ad Spend</th><th>CPL</th><th>Conv. Rate</th><th>ROAS</th></tr></thead>
-        <tbody>
-          {rows.map((r, i) => {
-            const roasN = r.spend > 0 ? r.revenue / r.spend : 0;
-            const cpl = r.leads > 0 ? "₹" + Math.round(r.spend / r.leads).toLocaleString("en-IN") : "—";
-            const cvr = r.leads > 0 ? ((r.matched / r.leads) * 100).toFixed(1) + "%" : "—";
-            const barPct = totals.sales > 0 ? (r.matched / totals.sales) * 100 : 0;
-            const lbl = roasN >= 10 ? "Excellent" : roasN >= 5 ? "Good" : "Below target";
-            return (
-              <tr key={i}>
-                <td>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div className="spend-av">{initials(r.name)}</div>
-                    <div>
-                      <div className="mb-name-cell">{r.name}</div>
-                      <div className="mb-sub2">{r.leads} leads · {inr(r.spend)} spent</div>
-                    </div>
-                  </div>
-                </td>
-                <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.leads}</td>
-                <td><div className="mini-bar-wrap"><div className="mini-bar"><div className="mini-bar-fill" style={{ width: barPct + "%" }} /></div><span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.matched}</span></div></td>
-                <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500, color: "#16A34A" }}>{inr(r.revenue)}</td>
-                <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{inr(r.spend)}</td>
-                <td style={{ fontSize: 13, color: "#888" }}>{cpl}</td>
-                <td style={{ fontSize: 13, color: "#888" }}>{cvr}</td>
-                <td>
-                  <span className={"roas-val " + roasClass(roasN)}>{r.spend > 0 ? roasN.toFixed(2) + "×" : "—"}</span>
-                  {r.spend > 0 && <div style={{ fontSize: 10, marginTop: 2 }} className={roasClass(roasN)}>{lbl}</div>}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      {(() => {
+        const showToken = rows.some((r) => (r.tokenCollected || 0) > 0);
+        return (
+          <table className="attr-table">
+            <thead><tr><th>Media Buyer</th><th>Leads</th><th>Sales Attributed</th><th>Revenue</th>{showToken && <th>Token Collected</th>}<th>Ad Spend</th><th>CPL</th><th>Conv. Rate</th><th>ROAS</th></tr></thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const roasN = r.spend > 0 ? r.revenue / r.spend : 0;
+                const cpl = r.leads > 0 ? "₹" + Math.round(r.spend / r.leads).toLocaleString("en-IN") : "—";
+                const cvr = r.leads > 0 ? ((r.matched / r.leads) * 100).toFixed(1) + "%" : "—";
+                const barPct = totals.sales > 0 ? (r.matched / totals.sales) * 100 : 0;
+                const lbl = roasN >= 10 ? "Excellent" : roasN >= 5 ? "Good" : "Below target";
+                return (
+                  <tr key={i}>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div className="spend-av">{initials(r.name)}</div>
+                        <div>
+                          <div className="mb-name-cell">{r.name}</div>
+                          <div className="mb-sub2">{r.leads} leads · {inr(r.spend)} spent</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.leads}</td>
+                    <td><div className="mini-bar-wrap"><div className="mini-bar"><div className="mini-bar-fill" style={{ width: barPct + "%" }} /></div><span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{r.matched}</span></div></td>
+                    <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500, color: "#16A34A" }}>
+                      {inr(r.revenue)}
+                      {(r.revenueGross != null && r.revenueNet != null && r.revenueGross !== r.revenueNet) && (
+                        <div style={{ fontSize: 10, color: "#888", fontFamily: "Jost" }}>
+                          Gross {inr(r.revenueGross || 0)} · Net {inr(r.revenueNet || 0)}
+                        </div>
+                      )}
+                    </td>
+                    {showToken && (
+                      <td style={{ fontSize: 12, color: "#7A5E10" }}>{(r.tokenCollected || 0) > 0 ? inr(r.tokenCollected || 0) : "—"}</td>
+                    )}
+                    <td style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 500 }}>{inr(r.spend)}</td>
+                    <td style={{ fontSize: 13, color: "#888" }}>{cpl}</td>
+                    <td style={{ fontSize: 13, color: "#888" }}>{cvr}</td>
+                    <td>
+                      <span className={"roas-val " + roasClass(roasN)}>{r.spend > 0 ? roasN.toFixed(2) + "×" : "—"}</span>
+                      {r.spend > 0 && <div style={{ fontSize: 10, marginTop: 2 }} className={roasClass(roasN)}>{lbl}</div>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        );
+      })()}
 
       <div style={{ fontSize: 11.5, color: "#888", lineHeight: 1.6, padding: "12px 16px", background: "#F7F6F3", borderRadius: 8, marginTop: 12 }}>
         <strong style={{ color: "#0a0a0a" }}>Matching method:</strong> Email → Phone → Name (fuzzy).

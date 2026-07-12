@@ -7,6 +7,10 @@ export type AttrRow = {
   leads: number;
   matched: number;
   revenue: number;
+  revenueGross?: number;
+  revenueNet?: number;
+  revenueGst?: number;
+  tokenCollected?: number;
 };
 export type SaleDetail = {
   name: string;
@@ -16,6 +20,10 @@ export type SaleDetail = {
   matchMethod: "email" | "phone" | "name" | "unmatched";
   revenue: number;
   webinarDate: string;
+  revenueGross?: number;
+  revenueNet?: number;
+  revenueGst?: number;
+  tokenCollected?: number;
 };
 export type AttributionMeta = {
   createdOn?: string;
@@ -39,6 +47,20 @@ export type AttributionMeta = {
   totalGstAmount?: number;
   totalGrossAdSpend?: number;
   legacy?: boolean; // true when GST fields were not captured
+  // Revenue / Product Price settings (optional — absent on old reports)
+  revenueMode?: "fixed_product_price" | "deal_value_from_sheet" | "token_from_sheet";
+  productName?: string;
+  productPrice?: number;
+  productGstMode?: "inclusive" | "exclusive";
+  productGstPercent?: number;
+  roasRevenueBasis?: "gross" | "net";
+  totalGrossRevenue?: number;
+  totalNetRevenue?: number;
+  totalRevenueGst?: number;
+  totalTokenCollected?: number;
+  revenuePerSaleGross?: number;
+  revenuePerSaleNet?: number;
+  legacyRevenue?: boolean; // true when report predates revenue settings
 };
 export type AttrRowGst = {
   entered?: number;
@@ -54,6 +76,7 @@ export type AttributionPayload = {
   rows: (AttrRow & { gst?: AttrRowGst })[];
   salesDetail: SaleDetail[];
   meta?: AttributionMeta;
+  onEditRevenueSettings?: () => void;
 };
 
 export const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
@@ -86,11 +109,22 @@ export function downloadCSV(p: AttributionPayload) {
       ["Total Net Ad Spend", m.totalNetAdSpend != null ? String(m.totalNetAdSpend) : ""],
       ["Total GST Amount", m.totalGstAmount != null ? String(m.totalGstAmount) : ""],
       ["Total Gross Ad Spend", m.totalGrossAdSpend != null ? String(m.totalGrossAdSpend) : ""],
+      ["Revenue Mode", m.revenueMode || ""],
+      ["Product Name", m.productName || ""],
+      ["Product Price", m.productPrice != null ? String(m.productPrice) : ""],
+      ["Product GST Mode", m.productGstMode || ""],
+      ["Product GST %", m.productGstPercent != null ? `${m.productGstPercent}%` : ""],
+      ["ROAS Revenue Basis", m.roasRevenueBasis ? (m.roasRevenueBasis === "gross" ? "Gross Revenue" : "Net Revenue") : ""],
+      ["Total Gross Revenue", m.totalGrossRevenue != null ? String(m.totalGrossRevenue) : ""],
+      ["Total Net Revenue", m.totalNetRevenue != null ? String(m.totalNetRevenue) : ""],
+      ["Total Revenue GST", m.totalRevenueGst != null ? String(m.totalRevenueGst) : ""],
+      ["Total Token Collected", m.totalTokenCollected != null ? String(m.totalTokenCollected) : ""],
       ["Calculation ID", m.calculationId || ""],
       ["Engine Version", m.engineVersion || ""],
       ["Input Hash", m.inputSnapshotHash || ""],
       ["Output Hash", m.outputHash || ""],
       ["Legacy Report (GST not captured)", m.legacy ? "Yes" : ""],
+      ["Legacy Report (Revenue settings not captured)", m.legacyRevenue ? "Yes" : ""],
     ].filter(([, v]) => v).map(([k, v]) => [q(k), q(String(v))].join(",")),
     "",
   ];

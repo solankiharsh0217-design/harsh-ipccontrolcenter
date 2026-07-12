@@ -9,6 +9,7 @@ import {
   type AttributionResult,
   type AttributionSnapshot,
   type ColumnMapping as EngineColumnMapping,
+  type RevenueConfig,
 } from "./attributionEngine";
 import type { SaleDetail } from "@/lib/roasExport";
 
@@ -36,9 +37,13 @@ export type AutoAttribInput = {
   adSpendTab?: TabMapping | null;
   // optional: caller may override the priority order; otherwise insertion order
   mediaBuyerOrder?: string[];
+  revenueConfig?: RevenueConfig | null;
 };
 
-export type AttrRow = { name: string; spend: number; leads: number; matched: number; revenue: number };
+export type AttrRow = {
+  name: string; spend: number; leads: number; matched: number; revenue: number;
+  revenueGross?: number; revenueNet?: number; revenueGst?: number; tokenCollected?: number;
+};
 
 export type AutoAttribResult = {
   rows: AttrRow[];
@@ -127,6 +132,7 @@ export async function runAutoAttribution(
       sheet: { rows: [...salesRes.rows], columnMapping: input.salesTab.columnOverride || null },
     },
     dealValue: DEAL_VALUE,
+    revenueConfig: input.revenueConfig ?? null,
   };
 
   onProgress?.("Calculating attribution…");

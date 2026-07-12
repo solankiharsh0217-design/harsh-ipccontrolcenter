@@ -2,6 +2,7 @@
 // Mirrors the localStorage draft to roas_calculation_drafts (per user).
 
 import { supabase } from "@/integrations/supabase/client";
+import type { RevenueConfig } from "./attributionEngine";
 
 export type DraftPayload = {
   step: number;
@@ -15,6 +16,7 @@ export type DraftPayload = {
   results: any;
   resultsStatus: "fresh" | "outdated" | null;
   savedSessionId: string | null;
+  revenueConfig?: RevenueConfig | null;
 };
 
 const stepLabel = (n: number) =>
@@ -65,6 +67,7 @@ export async function pushDraft(userId: string, p: DraftPayload) {
       result_status: p.resultsStatus,
       saved_attribution_session_id: p.savedSessionId,
       is_completed: !!p.savedSessionId,
+      revenue_config: p.revenueConfig ?? null,
       updated_at: new Date().toISOString(),
     };
     if (existing?.id) {
@@ -105,6 +108,7 @@ export async function loadRemoteDraft(userId: string): Promise<DraftPayload | nu
       results: data.result_snapshot,
       resultsStatus: (data.result_status as any) || null,
       savedSessionId: data.saved_attribution_session_id || null,
+      revenueConfig: ((data as any).revenue_config as RevenueConfig | null) || null,
     };
   } catch {
     return null;

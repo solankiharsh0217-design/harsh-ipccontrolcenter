@@ -20,6 +20,11 @@ import {
   computeSpend, effectiveSpendForBasis, loadGstDefaults, saveGstDefaults,
   type AdSpendTaxMode, type RoasSpendBasis,
 } from "@/lib/roas/gst";
+import {
+  DEFAULT_REVENUE_CONFIG,
+  splitRevenueByGst,
+  type RevenueConfig,
+} from "@/lib/roas/attributionEngine";
 
 // ---------- Types & storage ----------
 type DateMode = "single" | "range" | "multiple";
@@ -73,6 +78,7 @@ type DraftV6 = {
   results: AutoAttribResult | null;
   resultsStatus: "fresh" | "outdated" | null;
   savedSessionId: string | null;
+  revenueConfig: RevenueConfig;
 };
 
 const DRAFT_KEY = "ipc_roas_auto_draft";
@@ -90,6 +96,7 @@ const EMPTY: DraftV6 = {
   masterUrl: "", spreadsheetId: "", spreadsheetTitle: "",
   detectedTabs: [], tabRoles: [],
   adSpends: {}, results: null, resultsStatus: null, savedSessionId: null,
+  revenueConfig: { ...DEFAULT_REVENUE_CONFIG },
 };
 
 function sanitizeResults(r: any): AutoAttribResult | null {
@@ -178,6 +185,9 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [savedSessionId, setSavedSessionId] = useState<string | null>(initial.current.savedSessionId);
   const [savedHist, setSavedHist] = useState(false);
   const [attendeeSlots, setAttendeeSlots] = useState<AttendeeSlot[]>([]);
+  const [revenueConfig, setRevenueConfig] = useState<RevenueConfig>(
+    initial.current.revenueConfig || { ...DEFAULT_REVENUE_CONFIG }
+  );
 
   const [detecting, setDetecting] = useState(false);
   const [detectErr, setDetectErr] = useState<string | null>(null);
@@ -187,6 +197,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     !!(initial.current.webinar.name || initial.current.masterUrl || initial.current.results)
   );
   const [showOptional, setShowOptional] = useState(false);
+  const [showRevenue, setShowRevenue] = useState(true);
   const [showFormat, setShowFormat] = useState(false);
   const [showDataUsed, setShowDataUsed] = useState(false);
   const [stepErr, setStepErr] = useState<string | null>(null);
@@ -200,10 +211,11 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     const d: DraftV6 = {
       step, webinar, masterUrl, spreadsheetId, spreadsheetTitle,
       detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId,
+      revenueConfig,
     };
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* */ }
     if (user?.id) scheduleDraftSync(user.id, d as unknown as DraftPayload);
-  }, [step, webinar, masterUrl, spreadsheetId, spreadsheetTitle, detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId, user?.id]);
+  }, [step, webinar, masterUrl, spreadsheetId, spreadsheetTitle, detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId, revenueConfig, user?.id]);
 
   // One-time remote draft restore if local is empty
   const remoteTried = useRef(false);
@@ -226,6 +238,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       setResults(sanitizeResults(rd.results));
       setResultsStatus(sanitizeResults(rd.results) ? (rd.resultsStatus || null) : null);
       setSavedSessionId(rd.savedSessionId || null);
+      if ((rd as any).revenueConfig) setRevenueConfig({ ...DEFAULT_REVENUE_CONFIG, ...(rd as any).revenueConfig });
       setShowRestored(true);
       if (!sanitizeResults(rd.results) && (rd.step || 1) >= 4) setStep(3);
     });
@@ -237,7 +250,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     if (firstRender.current) { firstRender.current = false; return; }
     if (results && resultsStatus === "fresh") setResultsStatus("outdated");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(webinar), masterUrl, JSON.stringify(tabRoles), JSON.stringify(adSpends)]);
+  }, [JSON.stringify(webinar), masterUrl, JSON.stringify(tabRoles), JSON.stringify(adSpends), JSON.stringify(revenueConfig)]);
 
   // Derived
   const selectedSales = tabRoles.find((t) => t.role === "sales");
@@ -409,6 +422,18 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         return;
       }
     }
+    // Revenue config validation
+    if (revenueConfig.mode === "fixed_product_price") {
+      const pp = Number(revenueConfig.productPrice || 0);
+      if (!Number.isFinite(pp) || pp <= 0) {
+        setStepErr("Please enter product/program price for ROAS calculation.");
+        setStep(1); setShowRevenue(true);
+        return;
+      }
+    }
+    if (revenueConfig.mode === "token_from_sheet") {
+      if (!confirm("This will calculate ROAS on collected/token amount, not full product price. Continue?")) return;
+    }
 
     setCalculating(true);
     setCalcMsg("Reading master sheet…");
@@ -447,6 +472,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         salesTab: salesMap,
         mediaBuyerTabs: mbMaps,
         adSpends: spendNumbers,
+        revenueConfig,
       }, (msg) => setCalcMsg(msg));
 
       const er = r.engineResult;
@@ -570,6 +596,21 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
       total_net_ad_spend: totalNet,
       total_gst_amount: totalGst,
       total_gross_ad_spend: totalGross,
+      // Revenue / Product Price settings
+      revenue_mode: revenueConfig.mode,
+      product_name: revenueConfig.productName || null,
+      product_price: Number(revenueConfig.productPrice || 0),
+      product_gst_mode: revenueConfig.productGstMode,
+      product_gst_percent: revenueConfig.productGstPercent,
+      roas_revenue_basis: revenueConfig.roasRevenueBasis,
+      revenue_per_sale_gross: er?.mediaBuyerBreakdown && totals.sales > 0
+        ? Number((er.summary.totalGrossRevenue / totals.sales).toFixed(2)) : null,
+      revenue_per_sale_net: er?.mediaBuyerBreakdown && totals.sales > 0
+        ? Number((er.summary.totalNetRevenue / totals.sales).toFixed(2)) : null,
+      total_gross_revenue: er?.summary.totalGrossRevenue ?? null,
+      total_net_revenue: er?.summary.totalNetRevenue ?? null,
+      total_revenue_gst: er?.summary.totalRevenueGst ?? null,
+      total_token_collected: er?.summary.totalTokenCollected ?? null,
     } as any).select().single();
     if (error || !sess) { toast.error("Save failed: " + (error?.message || "")); return; }
 
@@ -593,6 +634,10 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         gross_ad_spend: b.gross,
         ad_spend_tax_mode: taxMode,
         gst_rate: gstRate,
+        revenue_gross: r.revenueGross ?? r.revenue,
+        revenue_net: r.revenueNet ?? r.revenue,
+        revenue_gst: r.revenueGst ?? 0,
+        token_collected: r.tokenCollected ?? 0,
       };
     });
     const saleRows = results.salesDetail.map((s, i) => {
@@ -615,6 +660,10 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
         competing_matches: a ? (a.competingMatches as any) : null,
         match_reason: a?.matchReason || null,
         needs_review: a?.needsReview || false,
+        revenue_gross: s.revenueGross ?? s.revenue,
+        revenue_net: s.revenueNet ?? s.revenue,
+        revenue_gst: s.revenueGst ?? 0,
+        token_collected: s.tokenCollected ?? 0,
       };
     });
     await supabase.from("attribution_media_buyers").insert(buyerRows as any);
@@ -717,10 +766,18 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
 
       <div className="wiz-body">
         {step === 1 && (
-          <Step1Webinar
-            value={webinar} onChange={setWebinar}
-            showOptional={showOptional} setShowOptional={setShowOptional}
-          />
+          <>
+            <Step1Webinar
+              value={webinar} onChange={setWebinar}
+              showOptional={showOptional} setShowOptional={setShowOptional}
+            />
+            <RevenueSettingsSection
+              value={revenueConfig}
+              onChange={setRevenueConfig}
+              open={showRevenue}
+              setOpen={setShowRevenue}
+            />
+          </>
         )}
         {step === 2 && (
           <Step2Connect
@@ -761,6 +818,8 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             tabRoles={tabRoles} adSpends={adSpends}
             consistency={consistency}
             taxMode={taxMode} gstRate={gstRate} spendBasis={spendBasis}
+            revenueConfig={revenueConfig}
+            onEditRevenue={() => { setStep(1); setShowRevenue(true); }}
           />
         )}
       </div>
@@ -1323,6 +1382,8 @@ function Step4Results(p: {
   taxMode: AdSpendTaxMode;
   gstRate: number;
   spendBasis: RoasSpendBasis;
+  revenueConfig: RevenueConfig;
+  onEditRevenue: () => void;
 }) {
   const w = p.webinar;
   const fmtD = (d: string) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
@@ -1362,9 +1423,19 @@ function Step4Results(p: {
           <button className="btn btn-g btn-sm" onClick={() => p.goEdit(1)}>Edit Webinar Details</button>
           <button className="btn btn-g btn-sm" onClick={() => p.goEdit(2)}>Edit Tab Roles</button>
           <button className="btn btn-g btn-sm" onClick={() => p.goEdit(3)}>Edit Ad Spends</button>
+          <button className="btn btn-g btn-sm" onClick={p.onEditRevenue}>Edit Revenue Settings</button>
           <button className="btn btn-k btn-sm" onClick={p.onRecalc}>Recalculate</button>
         </div>
       </div>
+
+      {/* Revenue Settings Summary */}
+      <RevenueSummaryCard
+        cfg={p.revenueConfig}
+        summary={p.results.engineResult?.summary}
+        spendBasis={p.spendBasis}
+        totalSales={p.results.totals.sales}
+        onEdit={p.onEditRevenue}
+      />
 
       {p.resultsStatus === "outdated" && (
         <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", color: "#7A5E10", borderRadius: 8, padding: "10px 12px", fontSize: 12, marginBottom: 12 }}>
@@ -1389,7 +1460,18 @@ function Step4Results(p: {
             inputSnapshotHash: p.results.engineResult?.inputSnapshotHash,
             outputHash: p.results.engineResult?.outputHash,
             engineVersion: p.results.engineResult?.engineVersion,
+            revenueMode: p.revenueConfig.mode,
+            productName: p.revenueConfig.productName,
+            productPrice: p.revenueConfig.productPrice,
+            productGstMode: p.revenueConfig.productGstMode,
+            productGstPercent: p.revenueConfig.productGstPercent,
+            roasRevenueBasis: p.revenueConfig.roasRevenueBasis,
+            totalGrossRevenue: p.results.engineResult?.summary.totalGrossRevenue,
+            totalNetRevenue: p.results.engineResult?.summary.totalNetRevenue,
+            totalRevenueGst: p.results.engineResult?.summary.totalRevenueGst,
+            totalTokenCollected: p.results.engineResult?.summary.totalTokenCollected,
           },
+          onEditRevenueSettings: p.onEditRevenue,
         }}
         onSave={p.onSave}
         savedHist={p.savedHist}
@@ -1429,5 +1511,176 @@ function Step4Results(p: {
         )}
       </div>
     </>
+  );
+}
+
+// ============================================================
+// Revenue / Product Price Settings section (used in Step 1)
+// ============================================================
+function RevenueSettingsSection({
+  value, onChange, open, setOpen,
+}: {
+  value: RevenueConfig;
+  onChange: (v: RevenueConfig) => void;
+  open: boolean;
+  setOpen: (b: boolean) => void;
+}) {
+  const set = (patch: Partial<RevenueConfig>) => onChange({ ...value, ...patch });
+  const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
+  const previewPrice = Number(value.productPrice || 0);
+  const split = splitRevenueByGst(previewPrice, value.productGstMode, value.productGstPercent);
+  const priceMissing = value.mode === "fixed_product_price" && previewPrice <= 0;
+
+  return (
+    <div style={{ marginTop: 20, border: "1px solid #E8D49A", background: "#FBF6E9", borderRadius: 12, padding: 16 }}>
+      <button onClick={() => setOpen(!open)}
+        style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "flex", justifyContent: "space-between", width: "100%", fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 500 }}>
+        <span>Revenue / Product Price Settings</span>
+        <span style={{ color: "#7A5E10" }}>{open ? "▲" : "▼"}</span>
+      </button>
+      <div style={{ fontSize: 11.5, color: "#7A5E10", marginTop: 4 }}>
+        These settings decide how each attributed sale is valued for ROAS. Token / advance amount is never used unless explicitly selected.
+      </div>
+      {open && (
+        <>
+          <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 0.8fr", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>Revenue Calculation Mode</div>
+              <select className="fsel" style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+                value={value.mode} onChange={(e) => set({ mode: e.target.value as RevenueConfig["mode"] })}>
+                <option value="fixed_product_price">Fixed Product Price per Sale</option>
+                <option value="deal_value_from_sheet">Use Deal Value from Sales Sheet</option>
+                <option value="token_from_sheet">Use Collected / Token Amount from Sales Sheet</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>
+                Product / Program Price {value.mode === "fixed_product_price" && <span style={{ color: "#DC2626" }}>*</span>}
+              </div>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 10, top: 9, fontSize: 13, color: "#888" }}>₹</span>
+                <input type="number" min={0} step={1}
+                  disabled={value.mode !== "fixed_product_price"}
+                  value={value.productPrice ?? ""}
+                  onChange={(e) => set({ productPrice: Number(e.target.value || 0) })}
+                  placeholder="30000"
+                  style={{ width: "100%", height: 38, padding: "0 10px 0 24px", border: "1px solid #E8E5DE", borderRadius: 8, background: value.mode === "fixed_product_price" ? "#fff" : "#F5F5F0" }} />
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>Product Price GST Mode</div>
+              <select className="fsel" style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+                value={value.productGstMode} onChange={(e) => set({ productGstMode: e.target.value as any })}>
+                <option value="inclusive">Product Price Includes GST</option>
+                <option value="exclusive">Product Price Excludes GST</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>Product GST %</div>
+              <input type="number" min={0} step={0.5}
+                value={value.productGstPercent}
+                onChange={(e) => set({ productGstPercent: Number(e.target.value || 0) })}
+                style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8 }} />
+            </div>
+          </div>
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 2fr", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>ROAS Revenue Basis</div>
+              <select className="fsel" style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8, background: "#fff" }}
+                value={value.roasRevenueBasis} onChange={(e) => set({ roasRevenueBasis: e.target.value as any })}>
+                <option value="gross">Gross Revenue (recommended)</option>
+                <option value="net">Net Revenue</option>
+              </select>
+              <div style={{ fontSize: 10.5, color: "#7A5E10", marginTop: 4, lineHeight: 1.4 }}>
+                Use Gross with Gross Ad Spend, Net with Net Ad Spend. Do not mix.
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#7A5E10", marginBottom: 4 }}>Product Name (optional)</div>
+              <input type="text" value={value.productName || ""}
+                onChange={(e) => set({ productName: e.target.value })}
+                placeholder="e.g. IPC Diamond Membership"
+                style={{ width: "100%", height: 38, padding: "0 10px", border: "1px solid #E8E5DE", borderRadius: 8 }} />
+            </div>
+          </div>
+          {priceMissing && (
+            <div style={{ marginTop: 10, background: "#FEF2F2", border: "1px solid #FECACA", color: "#DC2626", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+              Please enter product/program price for ROAS calculation.
+            </div>
+          )}
+          {value.mode === "token_from_sheet" && (
+            <div style={{ marginTop: 10, background: "#FFF7ED", border: "1px solid #FED7AA", color: "#B45309", borderRadius: 8, padding: "8px 12px", fontSize: 12 }}>
+              This mode uses collected/token amount as revenue. Use only for cash-collected ROAS, not full product ROAS.
+            </div>
+          )}
+          {value.mode === "fixed_product_price" && previewPrice > 0 && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "#7A5E10", lineHeight: 1.6 }}>
+              Preview per sale — Gross <strong>{inr(split.gross)}</strong> · Net <strong>{inr(split.net)}</strong> · GST <strong>{inr(split.gst)}</strong>
+              {" · "}ROAS basis: <strong>{value.roasRevenueBasis === "gross" ? "Gross" : "Net"} Revenue</strong>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Results-page revenue summary card
+// ============================================================
+function RevenueSummaryCard({
+  cfg, summary, spendBasis, totalSales, onEdit,
+}: {
+  cfg: RevenueConfig;
+  summary?: { totalGrossRevenue: number; totalNetRevenue: number; totalRevenueGst: number; totalTokenCollected: number };
+  spendBasis: RoasSpendBasis;
+  totalSales: number;
+  onEdit: () => void;
+}) {
+  const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
+  const perSaleGross = totalSales > 0 && summary ? summary.totalGrossRevenue / totalSales : 0;
+  const perSaleNet = totalSales > 0 && summary ? summary.totalNetRevenue / totalSales : 0;
+  const usedForRoas = cfg.roasRevenueBasis === "net" ? perSaleNet : perSaleGross;
+  const modeLabel = cfg.mode === "fixed_product_price" ? "Fixed Product Price per Sale"
+    : cfg.mode === "deal_value_from_sheet" ? "Use Deal Value from Sales Sheet"
+    : "Use Collected/Token Amount from Sales Sheet";
+  const basisMismatch =
+    (cfg.roasRevenueBasis === "gross" && spendBasis === "net") ||
+    (cfg.roasRevenueBasis === "net" && spendBasis === "gross");
+  return (
+    <div style={{ border: "1px solid #E8D49A", background: "#FBF6E9", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 500 }}>Revenue Settings</div>
+        <button className="btn btn-g btn-sm" onClick={onEdit}>Edit Revenue Settings</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, fontSize: 12 }}>
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Revenue Mode</div><div>{modeLabel}</div></div>
+        {cfg.productName ? <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Product Name</div><div>{cfg.productName}</div></div> : null}
+        {cfg.mode === "fixed_product_price" && (
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Product Price</div><div>{inr(cfg.productPrice || 0)}</div></div>
+        )}
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>GST Mode</div><div>{cfg.productGstMode === "inclusive" ? "Includes GST" : "Excludes GST"}</div></div>
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>GST %</div><div>{cfg.productGstPercent}%</div></div>
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Revenue Basis</div><div>{cfg.roasRevenueBasis === "gross" ? "Gross Revenue" : "Net Revenue"}</div></div>
+        <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Revenue per Sale (ROAS)</div><div><strong>{inr(usedForRoas)}</strong></div></div>
+      </div>
+      {summary && (
+        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, fontSize: 12 }}>
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Gross Revenue</div><div><strong>{inr(summary.totalGrossRevenue)}</strong></div></div>
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Net Revenue</div><div>{inr(summary.totalNetRevenue)}</div></div>
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Revenue GST</div><div>{inr(summary.totalRevenueGst)}</div></div>
+          <div><div style={{ fontSize: 10.5, color: "#7A5E10", textTransform: "uppercase", letterSpacing: ".08em" }}>Token / Advance Collected</div><div>{inr(summary.totalTokenCollected)}</div></div>
+        </div>
+      )}
+      <div style={{ marginTop: 10, fontSize: 11.5, color: "#7A5E10" }}>
+        ROAS is calculated using <strong>{cfg.roasRevenueBasis === "gross" ? "Gross Revenue" : "Net Revenue"}</strong>
+        {" and "}<strong>{spendBasis === "gross" ? "Gross Ad Spend" : "Net Ad Spend"}</strong>.
+      </div>
+      {basisMismatch && (
+        <div style={{ marginTop: 8, background: "#FFF7ED", border: "1px solid #FED7AA", color: "#B45309", borderRadius: 8, padding: "6px 10px", fontSize: 11.5 }}>
+          Revenue basis and ad spend basis should normally both be Gross or both be Net.
+        </div>
+      )}
+    </div>
   );
 }
