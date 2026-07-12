@@ -564,27 +564,55 @@ export function calculateAttribution(snapshot: AttributionSnapshot): Attribution
   // 5) Aggregate per media buyer
   const leadCountByMB: Record<string, number> = {};
   for (const l of allLeads) leadCountByMB[l.mediaBuyerId] = (leadCountByMB[l.mediaBuyerId] || 0) + 1;
+  // sale index → audit index. audits[i] already aligned to sales[i].
+  const salesByIndex = sales;
   const breakdown: MediaBuyerBreakdown[] = snapshot.mediaBuyerOrder.map((mbId) => {
     const mb = snapshot.mediaBuyers.find((m) => m.id === mbId)!;
-    const matched = audits.filter((a) => a.attributedToMediaBuyerId === mbId);
-    const sales = matched.length;
-    const revenue = matched.reduce((acc, a) => acc + a.revenue, 0);
+    let salesCount = 0, revenue = 0, revenueGross = 0, revenueNet = 0, revenueGst = 0, tokenCollected = 0;
+    audits.forEach((a, i) => {
+      if (a.attributedToMediaBuyerId !== mbId) return;
+      salesCount++;
+      const s = salesByIndex[i];
+      revenue += s?.revenue ?? a.revenue;
+      revenueGross += s?.revenueGross ?? 0;
+      revenueNet += s?.revenueNet ?? 0;
+      revenueGst += s?.revenueGst ?? 0;
+      tokenCollected += s?.tokenCollected ?? 0;
+    });
     const leads = leadCountByMB[mbId] || 0;
     const adSpend = mb.adSpend || 0;
     return {
       mediaBuyerId: mbId,
       mediaBuyerName: mb.displayName,
-      leads, salesAttributed: sales, revenue, adSpend,
+      leads, salesAttributed: salesCount, revenue,
+      revenueGross, revenueNet, revenueGst, tokenCollected,
+      adSpend,
       cpl: leads > 0 ? adSpend / leads : 0,
-      conversionRate: leads > 0 ? (sales / leads) * 100 : 0,
+      conversionRate: leads > 0 ? (salesCount / leads) * 100 : 0,
       roas: adSpend > 0 ? revenue / adSpend : 0,
     };
+  });
+
+  // Backfill per-audit revenue breakdown from parallel sales array so consumers see numbers.
+  audits.forEach((a, i) => {
+    const s = salesByIndex[i];
+    if (!s) return;
+    if (a.matchMethod === "unmatched") return;
+    a.revenue = s.revenue;
+    a.revenueGross = s.revenueGross;
+    a.revenueNet = s.revenueNet;
+    a.revenueGst = s.revenueGst;
+    a.tokenCollected = s.tokenCollected;
   });
 
   const totalLeads = breakdown.reduce((a, b) => a + b.leads, 0);
   const totalSales = audits.length;
   const totalMatched = audits.filter((a) => a.matchMethod !== "unmatched").length;
   const totalRevenue = breakdown.reduce((a, b) => a + b.revenue, 0);
+  const totalGrossRevenue = breakdown.reduce((a, b) => a + b.revenueGross, 0);
+  const totalNetRevenue = breakdown.reduce((a, b) => a + b.revenueNet, 0);
+  const totalRevenueGst = breakdown.reduce((a, b) => a + b.revenueGst, 0);
+  const totalTokenCollected = audits.reduce((a, x) => a + (x.tokenCollected || 0), 0);
   const totalAdSpend = breakdown.reduce((a, b) => a + b.adSpend, 0);
 
   // 6) Hashes
@@ -612,9 +640,14 @@ export function calculateAttribution(snapshot: AttributionSnapshot): Attribution
       totalMatchedSales: totalMatched,
       totalUnmatchedSales: totalSales - totalMatched,
       totalRevenue,
+      totalGrossRevenue,
+      totalNetRevenue,
+      totalRevenueGst,
+      totalTokenCollected,
       totalAdSpend,
       overallRoas: totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0,
     },
+    revenueConfig: snapshot.revenueConfig ?? null,
     mediaBuyerBreakdown: breakdown,
     salesAttribution: audits,
     unmatchedSales: audits.filter((a) => a.matchMethod === "unmatched"),
