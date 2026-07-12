@@ -281,11 +281,51 @@ function normalizeMBLeads(mb: SnapshotMediaBuyer): NormalizedLead[] {
   return out;
 }
 
+function computeSaleRevenue(
+  rawAmount: string,
+  fallback: number,
+  cfg: RevenueConfig | null | undefined,
+): { revenue: number; revenueGross: number; revenueNet: number; revenueGst: number; tokenCollected: number } {
+  // Token/collected is always the parsed amount col (0 if missing) — for display separation.
+  const parsedAmount = parseRevenue(rawAmount, 0);
+  const tokenCollected = parsedAmount > 0 ? parsedAmount : 0;
+
+  if (!cfg) {
+    // Legacy behavior: use parsed amount col with dealValue fallback; treat as gross.
+    const legacy = parseRevenue(rawAmount, fallback);
+    return { revenue: legacy, revenueGross: legacy, revenueNet: legacy, revenueGst: 0, tokenCollected };
+  }
+
+  const gstPct = Number.isFinite(cfg.productGstPercent) ? cfg.productGstPercent : 18;
+  const gstMode = cfg.productGstMode || "inclusive";
+
+  let sourceAmount = 0;
+  if (cfg.mode === "fixed_product_price") {
+    sourceAmount = Number.isFinite(cfg.productPrice as number) && (cfg.productPrice as number) > 0
+      ? (cfg.productPrice as number) : 0;
+  } else if (cfg.mode === "deal_value_from_sheet") {
+    sourceAmount = parsedAmount;
+  } else { // token_from_sheet
+    sourceAmount = parsedAmount;
+  }
+
+  const split = splitRevenueByGst(sourceAmount, gstMode, gstPct);
+  const revenue = cfg.roasRevenueBasis === "net" ? split.net : split.gross;
+  return {
+    revenue,
+    revenueGross: split.gross,
+    revenueNet: split.net,
+    revenueGst: split.gst,
+    tokenCollected,
+  };
+}
+
 function normalizeSales(snap: AttributionSnapshot): NormalizedSale[] {
   const rows = snap.sales.sheet.rows || [];
   if (rows.length === 0) return [];
   const { idx, headers } = findHeaderRow(rows);
   const cols = resolveColumns(headers, snap.sales.sheet.columnMapping);
+  const cfg = snap.revenueConfig ?? null;
   const out: NormalizedSale[] = [];
   for (let i = idx + 1; i < rows.length; i++) {
     const r = rows[i] || [];
@@ -295,6 +335,7 @@ function normalizeSales(snap: AttributionSnapshot): NormalizedSale[] {
     const rawAmount = cols.amountCol >= 0 ? (r[cols.amountCol] || "") : "";
     if (!rawName && !rawEmail && !rawPhone) continue;
     const ph = normalizePhone(rawPhone);
+    const rev = computeSaleRevenue(rawAmount, snap.dealValue, cfg);
     out.push({
       saleId: `sale:${i}`,
       rowIndex: i,
@@ -303,7 +344,11 @@ function normalizeSales(snap: AttributionSnapshot): NormalizedSale[] {
       normalizedEmail: normalizeEmail(rawEmail),
       normalizedPhone: ph.phone,
       phoneWeak: ph.weak,
-      revenue: parseRevenue(rawAmount, snap.dealValue),
+      revenue: rev.revenue,
+      revenueGross: rev.revenueGross,
+      revenueNet: rev.revenueNet,
+      revenueGst: rev.revenueGst,
+      tokenCollected: rev.tokenCollected,
       rowHash: hashString(`sale|${i}|${rawName}|${rawEmail}|${rawPhone}|${rawAmount}`),
     });
   }
