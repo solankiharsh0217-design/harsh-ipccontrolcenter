@@ -686,6 +686,10 @@ function makeAudit(
     matchReason: reason,
     needsReview,
     revenue: s.revenue,
+    revenueGross: s.revenueGross,
+    revenueNet: s.revenueNet,
+    revenueGst: s.revenueGst,
+    tokenCollected: s.tokenCollected,
     webinarDate,
   };
 }
