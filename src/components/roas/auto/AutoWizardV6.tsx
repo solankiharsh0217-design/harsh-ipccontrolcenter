@@ -801,7 +801,6 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
             taxMode={taxMode} setTaxMode={setTaxMode}
             gstRate={gstRate} setGstRate={setGstRate}
             spendBasis={spendBasis} setSpendBasis={setSpendBasis}
-            revenueConfig={revenueConfig}
           />
         )}
         {step === 4 && results && (
