@@ -108,6 +108,7 @@ export async function loadRemoteDraft(userId: string): Promise<DraftPayload | nu
       results: data.result_snapshot,
       resultsStatus: (data.result_status as any) || null,
       savedSessionId: data.saved_attribution_session_id || null,
+      revenueConfig: ((data as any).revenue_config as RevenueConfig | null) || null,
     };
   } catch {
     return null;
