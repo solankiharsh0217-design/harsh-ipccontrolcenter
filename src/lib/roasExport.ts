@@ -7,6 +7,10 @@ export type AttrRow = {
   leads: number;
   matched: number;
   revenue: number;
+  revenueGross?: number;
+  revenueNet?: number;
+  revenueGst?: number;
+  tokenCollected?: number;
 };
 export type SaleDetail = {
   name: string;
@@ -16,6 +20,10 @@ export type SaleDetail = {
   matchMethod: "email" | "phone" | "name" | "unmatched";
   revenue: number;
   webinarDate: string;
+  revenueGross?: number;
+  revenueNet?: number;
+  revenueGst?: number;
+  tokenCollected?: number;
 };
 export type AttributionMeta = {
   createdOn?: string;
@@ -39,6 +47,20 @@ export type AttributionMeta = {
   totalGstAmount?: number;
   totalGrossAdSpend?: number;
   legacy?: boolean; // true when GST fields were not captured
+  // Revenue / Product Price settings (optional — absent on old reports)
+  revenueMode?: "fixed_product_price" | "deal_value_from_sheet" | "token_from_sheet";
+  productName?: string;
+  productPrice?: number;
+  productGstMode?: "inclusive" | "exclusive";
+  productGstPercent?: number;
+  roasRevenueBasis?: "gross" | "net";
+  totalGrossRevenue?: number;
+  totalNetRevenue?: number;
+  totalRevenueGst?: number;
+  totalTokenCollected?: number;
+  revenuePerSaleGross?: number;
+  revenuePerSaleNet?: number;
+  legacyRevenue?: boolean; // true when report predates revenue settings
 };
 export type AttrRowGst = {
   entered?: number;
@@ -54,6 +76,7 @@ export type AttributionPayload = {
   rows: (AttrRow & { gst?: AttrRowGst })[];
   salesDetail: SaleDetail[];
   meta?: AttributionMeta;
+  onEditRevenueSettings?: () => void;
 };
 
 export const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
