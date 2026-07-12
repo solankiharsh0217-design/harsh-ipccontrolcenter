@@ -67,6 +67,7 @@ export async function pushDraft(userId: string, p: DraftPayload) {
       result_status: p.resultsStatus,
       saved_attribution_session_id: p.savedSessionId,
       is_completed: !!p.savedSessionId,
+      revenue_config: p.revenueConfig ?? null,
       updated_at: new Date().toISOString(),
     };
     if (existing?.id) {
