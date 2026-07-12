@@ -185,6 +185,9 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
   const [savedSessionId, setSavedSessionId] = useState<string | null>(initial.current.savedSessionId);
   const [savedHist, setSavedHist] = useState(false);
   const [attendeeSlots, setAttendeeSlots] = useState<AttendeeSlot[]>([]);
+  const [revenueConfig, setRevenueConfig] = useState<RevenueConfig>(
+    initial.current.revenueConfig || { ...DEFAULT_REVENUE_CONFIG }
+  );
 
   const [detecting, setDetecting] = useState(false);
   const [detectErr, setDetectErr] = useState<string | null>(null);
@@ -194,6 +197,7 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     !!(initial.current.webinar.name || initial.current.masterUrl || initial.current.results)
   );
   const [showOptional, setShowOptional] = useState(false);
+  const [showRevenue, setShowRevenue] = useState(true);
   const [showFormat, setShowFormat] = useState(false);
   const [showDataUsed, setShowDataUsed] = useState(false);
   const [stepErr, setStepErr] = useState<string | null>(null);
@@ -207,10 +211,11 @@ export default function AutoWizardV6({ onBackToMethod }: { onBackToMethod: () =>
     const d: DraftV6 = {
       step, webinar, masterUrl, spreadsheetId, spreadsheetTitle,
       detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId,
+      revenueConfig,
     };
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* */ }
     if (user?.id) scheduleDraftSync(user.id, d as unknown as DraftPayload);
-  }, [step, webinar, masterUrl, spreadsheetId, spreadsheetTitle, detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId, user?.id]);
+  }, [step, webinar, masterUrl, spreadsheetId, spreadsheetTitle, detectedTabs, tabRoles, adSpends, results, resultsStatus, savedSessionId, revenueConfig, user?.id]);
 
   // One-time remote draft restore if local is empty
   const remoteTried = useRef(false);
