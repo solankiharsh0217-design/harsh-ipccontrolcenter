@@ -708,11 +708,19 @@ export function toLegacyPayload(
     leads: b.leads,
     matched: b.salesAttributed,
     revenue: b.revenue,
+    revenueGross: b.revenueGross,
+    revenueNet: b.revenueNet,
+    revenueGst: b.revenueGst,
+    tokenCollected: b.tokenCollected,
   }));
   const salesDetail: SaleDetail[] = result.auditLog.map((a) => ({
     name: a.buyerName, email: a.buyerEmail, phone: a.buyerPhone,
     attributedTo: a.attributedTo, matchMethod: a.matchMethod,
     revenue: a.revenue, webinarDate: a.webinarDate,
+    revenueGross: a.revenueGross,
+    revenueNet: a.revenueNet,
+    revenueGst: a.revenueGst,
+    tokenCollected: a.tokenCollected,
   }));
   return {
     webinarName: meta.webinarName,
