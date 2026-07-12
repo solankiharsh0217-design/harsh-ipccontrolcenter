@@ -553,6 +553,10 @@ export function calculateAttribution(snapshot: AttributionSnapshot): Attribution
       matchReason: "No email, phone, or valid name match found in any media buyer tab.",
       needsReview: false,
       revenue: 0,
+      revenueGross: 0,
+      revenueNet: 0,
+      revenueGst: 0,
+      tokenCollected: s.tokenCollected,
       webinarDate: snapshot.webinarDate,
     };
   }
