@@ -405,6 +405,95 @@ function SettingsTab() {
           </div>
         </div>
       )}
+
+      <DemoDataSection />
+    </div>
+  );
+}
+
+// ─────────────────────── DEMO DATA ───────────────────────
+function DemoDataSection() {
+  const [busy, setBusy] = useState<"seed" | "reset" | null>(null);
+  const [result, setResult] = useState<any>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [showReset, setShowReset] = useState(false);
+
+  async function run(action: "seed" | "reset") {
+    setBusy(action);
+    setResult(null);
+    try {
+      const { data, error } = await (supabase as any).functions.invoke("team-performance-demo", { body: { action } });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.message || data?.error || "Failed");
+      setResult(data);
+      toast({ title: action === "seed" ? "Demo data created" : "Demo data removed", description: data.message });
+    } catch (e: any) {
+      toast({ title: "Failed", description: e.message || String(e) });
+    } finally {
+      setBusy(null);
+      setShowReset(false);
+      setConfirmText("");
+    }
+  }
+
+  return (
+    <div className="mt-8 border border-line rounded-xl bg-white p-5">
+      <SectionLabel>Demo Data</SectionLabel>
+      <p className="text-[12px] text-muted-foreground mt-2 mb-4">
+        Demo data is for presentation/testing only. It will not modify real team members unless explicitly selected.
+        Demo users use the <code className="px-1 bg-off rounded">@ipc-demo.local</code> email domain and demo KPIs are prefixed with <code className="px-1 bg-off rounded">[DEMO]</code>.
+      </p>
+      <div className="flex gap-2 flex-wrap">
+        <button
+          onClick={() => run("seed")}
+          disabled={busy !== null}
+          className="bg-black text-white text-[12px] font-medium rounded-md px-4 py-2 disabled:opacity-50"
+        >
+          {busy === "seed" ? "Creating…" : "Create Team Performance Demo Data"}
+        </button>
+        <button
+          onClick={() => setShowReset(true)}
+          disabled={busy !== null}
+          className="border border-line text-[12px] font-medium rounded-md px-4 py-2 disabled:opacity-50"
+        >
+          Reset Team Performance Demo Data
+        </button>
+      </div>
+
+      {showReset && (
+        <div className="mt-4 border border-amber-300 bg-amber-50 rounded-md p-3">
+          <div className="text-[12px] mb-2">
+            This deletes all demo users, demo KPIs, demo attendance, demo submissions, and demo rewards. Real data is not affected.
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Type RESET DEMO DATA"
+              className="border border-line rounded-md px-2 py-1.5 font-sans text-[12px] flex-1 max-w-[280px]"
+            />
+            <button
+              onClick={() => run("reset")}
+              disabled={busy !== null || confirmText !== "RESET DEMO DATA"}
+              className="bg-red-600 text-white text-[12px] font-medium rounded-md px-3 py-1.5 disabled:opacity-40"
+            >
+              {busy === "reset" ? "Resetting…" : "Confirm Reset"}
+            </button>
+            <button
+              onClick={() => { setShowReset(false); setConfirmText(""); }}
+              className="text-[12px] text-muted-foreground px-2"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-4 border border-line rounded-md p-3 bg-off text-[11px] font-mono whitespace-pre-wrap overflow-auto max-h-[300px]">
+          {JSON.stringify(result, null, 2)}
+        </div>
+      )}
     </div>
   );
 }
