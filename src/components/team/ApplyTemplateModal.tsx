@@ -55,6 +55,15 @@ export default function ApplyTemplateModal({ memberId, memberName, actorId, onCl
     try {
       await applyAccessTemplate({ memberId, memberName, template: selected, mode, removeAdmin, actorId });
       toast.success(`Template "${selected.name}" applied to ${memberName}`);
+      // Compute effective new state to hand back to the parent Manage Member modal so its
+      // stale editModules Set doesn't overwrite the freshly applied template on Save.
+      const finalMods = preview?.finalModules ?? selected.module_keys ?? [];
+      const finalAdmin = selected.grants_admin
+        ? true
+        : preview?.willRemoveAdmin
+          ? false
+          : !!preview?.currentIsAdmin;
+      onApplied?.({ moduleKeys: finalMods, isAdmin: finalAdmin });
       onDone?.();
       onClose();
     } catch (e: any) {
