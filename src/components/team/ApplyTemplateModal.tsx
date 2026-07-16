@@ -13,6 +13,9 @@ interface Props {
   actorId: string;
   onClose: () => void;
   onDone?: () => void;
+  /** Called with new module keys + admin flag right after a successful apply, so the parent
+   *  Manage Member modal can refresh its state and not overwrite the applied template on Save. */
+  onApplied?: (result: { moduleKeys: string[]; isAdmin: boolean }) => void;
 }
 
 const moduleLabel = (key: string) => MODULES.find((m) => m.key === (key as any))?.label ?? key;
