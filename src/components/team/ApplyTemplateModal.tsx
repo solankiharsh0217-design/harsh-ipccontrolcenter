@@ -13,11 +13,14 @@ interface Props {
   actorId: string;
   onClose: () => void;
   onDone?: () => void;
+  /** Called with new module keys + admin flag right after a successful apply, so the parent
+   *  Manage Member modal can refresh its state and not overwrite the applied template on Save. */
+  onApplied?: (result: { moduleKeys: string[]; isAdmin: boolean }) => void;
 }
 
 const moduleLabel = (key: string) => MODULES.find((m) => m.key === (key as any))?.label ?? key;
 
-export default function ApplyTemplateModal({ memberId, memberName, actorId, onClose, onDone }: Props) {
+export default function ApplyTemplateModal({ memberId, memberName, actorId, onClose, onDone, onApplied }: Props) {
   const [templates, setTemplates] = useState<AccessTemplate[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [mode, setMode] = useState<"replace" | "additive">("replace");
@@ -52,6 +55,15 @@ export default function ApplyTemplateModal({ memberId, memberName, actorId, onCl
     try {
       await applyAccessTemplate({ memberId, memberName, template: selected, mode, removeAdmin, actorId });
       toast.success(`Template "${selected.name}" applied to ${memberName}`);
+      // Compute effective new state to hand back to the parent Manage Member modal so its
+      // stale editModules Set doesn't overwrite the freshly applied template on Save.
+      const finalMods = preview?.finalModules ?? selected.module_keys ?? [];
+      const finalAdmin = selected.grants_admin
+        ? true
+        : preview?.willRemoveAdmin
+          ? false
+          : !!preview?.currentIsAdmin;
+      onApplied?.({ moduleKeys: finalMods, isAdmin: finalAdmin });
       onDone?.();
       onClose();
     } catch (e: any) {

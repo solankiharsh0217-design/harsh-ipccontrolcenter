@@ -549,6 +549,15 @@ export default function Team() {
           actorId={user.id}
           onClose={() => setApplyTplMember(null)}
           onDone={load}
+          onApplied={({ moduleKeys, isAdmin: newAdmin }) => {
+            // If the Manage Member modal is open for this same member, sync its local
+            // state so a subsequent "Save changes" won't overwrite the applied template.
+            if (editing && editing.id === applyTplMember.id) {
+              setEditModules(new Set(moduleKeys as ModuleKey[]));
+              setEditAdmin(newAdmin);
+              toast.success("Access refreshed in this dialog. Click Save changes to keep other edits.");
+            }
+          }}
         />
       )}
 
@@ -694,6 +703,56 @@ export default function Team() {
                   Apply template
                 </button>
               </div>
+
+              {/* Access Health */}
+              {(() => {
+                const has = (k: string) => hasModuleChecked(k as ModuleKey);
+                const rows: [string, boolean][] = [
+                  ["Admin role", editAdmin],
+                  ["Calling CRM", editAdmin || has("calling_crm") || has("crm")],
+                  ["Paid Pipeline", editAdmin || has("paid_pipeline") || has("paid-pipeline")],
+                  ["Operations CRM", editAdmin || has("operations_crm")],
+                  ["Team Performance", editAdmin || has("team_performance")],
+                  ["Resource Library", editAdmin || has("resource_library" as any)],
+                ];
+                const eligRows: [string, boolean][] = [
+                  ["Eligible: Operations CRM", editEligibility.can_receive_operations_leads],
+                  ["Eligible: Media Buyer cases", editEligibility.can_receive_media_buyer_cases],
+                ];
+                const hasCallingCrm = rows[1][1];
+                const hasPaid = rows[2][1];
+                const eligNoModuleWarn = (editEligibility.can_receive_paid_pipeline_leads && !hasPaid)
+                  || (editEligibility.can_receive_calling_crm_leads && !hasCallingCrm)
+                  || (editEligibility.can_receive_operations_leads && !(editAdmin || has("operations_crm")));
+                return (
+                  <div className="mb-3 rounded-md border border-line bg-off/40 p-3">
+                    <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Access health</div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-1 text-[11.5px] font-sans">
+                      {[...rows, ...eligRows].map(([label, on]) => (
+                        <div key={label} className="flex items-center justify-between gap-2">
+                          <span className="text-black truncate">{label}</span>
+                          <span className={on ? "text-emerald-700 font-medium" : "text-muted-foreground"}>{on ? "Yes" : "No"}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {!hasCallingCrm && !hasPaid && !editAdmin && (
+                      <div className="mt-2 text-[11px] text-amber-800">
+                        Linked Records may show restricted because Calling CRM and Paid Pipeline modules are not enabled.
+                      </div>
+                    )}
+                    {eligNoModuleWarn && (
+                      <div className="mt-1 text-[11px] text-amber-800">
+                        Assignment eligible but module access is off — this user can receive assignments but cannot open the module.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div className="mb-2 text-[11px] text-muted-foreground font-sans">
+                Module access controls what pages this person can <span className="font-medium text-black">open</span>. Assignment eligibility (above) controls whether they can <span className="font-medium text-black">receive</span> leads/tasks.
+              </div>
+
               {accessError && (
                 <div className="mb-3 p-3 rounded-md border border-line bg-off flex items-center justify-between">
                   <span className="font-sans text-[12px] text-black">{accessError}</span>

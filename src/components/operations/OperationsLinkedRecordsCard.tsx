@@ -29,7 +29,8 @@ interface PaidMini {
   payment_status?: "fully_paid" | "partial" | "pending" | null;
 }
 
-type LoadState = "idle" | "loading" | "linked" | "missing" | "restricted";
+type LoadState = "idle" | "loading" | "linked" | "missing" | "restricted" | "not_found";
+type ReasonCode = "missing_id" | "module_missing" | "not_assigned" | "not_found" | null;
 
 function StatusPill({ state }: { state: LoadState }) {
   const map: Record<LoadState, { label: string; cls: string }> = {
@@ -38,9 +39,20 @@ function StatusPill({ state }: { state: LoadState }) {
     linked:     { label: "Linked",           cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
     missing:    { label: "Not linked",       cls: "bg-slate-50 text-slate-600 border-slate-200" },
     restricted: { label: "Access restricted",cls: "bg-amber-50 text-amber-800 border-amber-200" },
+    not_found:  { label: "Record missing",   cls: "bg-red-50 text-red-700 border-red-200" },
   };
   const m = map[state];
   return <span className={`text-[9.5px] px-1.5 py-0.5 rounded-full border ${m.cls}`}>{m.label}</span>;
+}
+
+function restrictedMessage(kind: "crm" | "paid", reason: ReasonCode): string {
+  if (reason === "module_missing") {
+    return kind === "crm"
+      ? "Access restricted — Calling CRM access is not enabled for you."
+      : "Access restricted — Paid Pipeline access is not enabled for you.";
+  }
+  if (reason === "not_assigned") return "Access restricted — this record is not assigned to you.";
+  return "Access restricted.";
 }
 
 function paidStatusLabel(s?: string | null) {
@@ -59,6 +71,8 @@ export default function OperationsLinkedRecordsCard({
   const [paid, setPaid] = useState<PaidMini | null>(null);
   const [crmState, setCrmState] = useState<LoadState>(crmLeadId ? "loading" : "missing");
   const [paidState, setPaidState] = useState<LoadState>(paidPipelineLeadId ? "loading" : "missing");
+  const [crmReason, setCrmReason] = useState<ReasonCode>(crmLeadId ? null : "missing_id");
+  const [paidReason, setPaidReason] = useState<ReasonCode>(paidPipelineLeadId ? null : "missing_id");
 
   useEffect(() => {
     let cancelled = false;
@@ -111,24 +125,43 @@ export default function OperationsLinkedRecordsCard({
     async function loadViaRpc() {
       const { data, error } = await sb.rpc("get_operations_linked_record_summary", { _ops_lead_id: operationsLeadId });
       if (cancelled) return;
-      if (error || !data || (data as any).error) {
-        // Fall back to restricted / missing based on ID presence
-        if (crmLeadId) setCrmState("restricted");
-        if (paidPipelineLeadId) setPaidState("restricted");
+      if (error || !data) {
+        if (crmLeadId) { setCrmState("restricted"); setCrmReason("not_assigned"); }
+        if (paidPipelineLeadId) { setPaidState("restricted"); setPaidReason("not_assigned"); }
         return;
       }
       const d = data as any;
-      if (d.crm) {
-        setCrm(d.crm as CrmMini);
-        setCrmState("linked");
-      } else if (crmLeadId) {
-        setCrmState("restricted");
+      // RPC returned top-level error (unauthenticated / forbidden / not_found)
+      if (d.error) {
+        if (crmLeadId) { setCrmState("restricted"); setCrmReason("not_assigned"); }
+        if (paidPipelineLeadId) { setPaidState("restricted"); setPaidReason("not_assigned"); }
+        return;
       }
-      if (d.paid) {
-        setPaid(d.paid as PaidMini);
-        setPaidState("linked");
-      } else if (paidPipelineLeadId) {
-        setPaidState("restricted");
+      // New structured shape
+      if (d.crm && typeof d.crm === "object" && "status" in d.crm) {
+        const c = d.crm as { status: string; reason_code: ReasonCode; data: CrmMini | null };
+        setCrmReason(c.reason_code ?? null);
+        if (c.status === "linked" && c.data) { setCrm(c.data); setCrmState("linked"); }
+        else if (c.status === "access_restricted") setCrmState("restricted");
+        else if (c.status === "not_found") setCrmState("not_found");
+        else setCrmState("missing");
+      } else if (d.crm_legacy || d.crm) {
+        // Legacy shape (data object directly)
+        const legacy = (d.crm_legacy ?? d.crm) as CrmMini | null;
+        if (legacy) { setCrm(legacy); setCrmState("linked"); }
+        else if (crmLeadId) { setCrmState("restricted"); setCrmReason("not_assigned"); }
+      }
+      if (d.paid && typeof d.paid === "object" && "status" in d.paid) {
+        const p = d.paid as { status: string; reason_code: ReasonCode; data: PaidMini | null };
+        setPaidReason(p.reason_code ?? null);
+        if (p.status === "linked" && p.data) { setPaid(p.data); setPaidState("linked"); }
+        else if (p.status === "access_restricted") setPaidState("restricted");
+        else if (p.status === "not_found") setPaidState("not_found");
+        else setPaidState("missing");
+      } else if (d.paid_legacy || d.paid) {
+        const legacy = (d.paid_legacy ?? d.paid) as PaidMini | null;
+        if (legacy) { setPaid(legacy); setPaidState("linked"); }
+        else if (paidPipelineLeadId) { setPaidState("restricted"); setPaidReason("not_assigned"); }
       }
     }
 
@@ -182,10 +215,12 @@ export default function OperationsLinkedRecordsCard({
               </button>
             </>
           ) : crmState === "missing" ? (
-            <div className="text-[11px] text-muted-foreground mt-1">CRM lead not linked.</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Not linked.</div>
+          ) : crmState === "not_found" ? (
+            <div className="text-[11px] text-red-700 mt-1">Linked record not found.</div>
           ) : crmState === "restricted" ? (
             <div className="text-[11px] text-amber-800 mt-1 flex items-start gap-1">
-              <Lock className="w-3 h-3 mt-0.5" /> Access restricted. Ask an admin for Calling CRM access.
+              <Lock className="w-3 h-3 mt-0.5" /> {restrictedMessage("crm", crmReason)}
             </div>
           ) : (
             <div className="text-[11px] text-muted-foreground mt-1">Loading…</div>
@@ -226,10 +261,12 @@ export default function OperationsLinkedRecordsCard({
               </button>
             </>
           ) : paidState === "missing" ? (
-            <div className="text-[11px] text-muted-foreground mt-1">Paid Pipeline record not linked.</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Not linked.</div>
+          ) : paidState === "not_found" ? (
+            <div className="text-[11px] text-red-700 mt-1">Linked record not found.</div>
           ) : paidState === "restricted" ? (
             <div className="text-[11px] text-amber-800 mt-1 flex items-start gap-1">
-              <Lock className="w-3 h-3 mt-0.5" /> Access restricted. Ask an admin for Paid Pipeline access.
+              <Lock className="w-3 h-3 mt-0.5" /> {restrictedMessage("paid", paidReason)}
             </div>
           ) : (
             <div className="text-[11px] text-muted-foreground mt-1">Loading…</div>
@@ -237,10 +274,16 @@ export default function OperationsLinkedRecordsCard({
         </div>
       </div>
 
-      {isAdmin && (!crmLeadId || !paidPipelineLeadId) && (
-        <div className="mt-2 text-[10.5px] text-muted-foreground italic">
-          Admin diagnostic: {crmLeadId ? "" : "CRM link missing. "}{paidPipelineLeadId ? "" : "Paid Pipeline link missing."}
-        </div>
+      {isAdmin && (
+        <details className="mt-2 text-[10.5px] text-muted-foreground">
+          <summary className="cursor-pointer italic">Admin diagnostic</summary>
+          <div className="mt-1 space-y-0.5">
+            <div>crm_lead_id: {crmLeadId ? "present" : "missing"}</div>
+            <div>paid_pipeline_lead_id: {paidPipelineLeadId ? "present" : "missing"}</div>
+            <div>Calling CRM: state={crmState}{crmReason ? ` · reason=${crmReason}` : ""}</div>
+            <div>Paid Pipeline: state={paidState}{paidReason ? ` · reason=${paidReason}` : ""}</div>
+          </div>
+        </details>
       )}
     </div>
   );
