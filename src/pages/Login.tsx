@@ -41,49 +41,7 @@ export default function Login() {
           full_name: prof.full_name,
           role: prof.role,
         });
-
-        // Auto check-in on login (Team Performance) — admin-controlled, off by default
-        try {
-          const sb: any = supabase;
-          const { data: settingsRows } = await sb.rpc("get_team_performance_settings");
-          const settings = Array.isArray(settingsRows) ? settingsRows[0] : settingsRows;
-          if (settings?.auto_checkin_on_login) {
-            const today = new Date();
-            const workDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-            const { data: existing } = await sb
-              .from("attendance_sessions")
-              .select("id, check_in_at, check_out_at")
-              .eq("user_id", data.user.id)
-              .eq("work_date", workDate)
-              .maybeSingle();
-            if (!existing) {
-              const { data: inserted, error: insErr } = await sb
-                .from("attendance_sessions")
-                .insert({
-                  user_id: data.user.id,
-                  work_date: workDate,
-                  check_in_at: new Date().toISOString(),
-                  source: "login",
-                  status: "present",
-                })
-                .select("id")
-                .maybeSingle();
-              if (!insErr && inserted) {
-                await supabase.from("activity_logs").insert({
-                  module_key: "team_performance",
-                  module_label: "Team Performance",
-                  action_type: "attendance_auto_check_in",
-                  entity_type: "attendance_session",
-                  entity_id: inserted.id,
-                  actor_user_id: data.user.id,
-                  metadata: { work_date: workDate, source: "login" },
-                  summary: "Auto checked-in on login",
-                } as any);
-              }
-            }
-            // if row exists, do nothing — preserves original check_in_at and check_out_at
-          }
-        } catch { /* non-fatal — never block login */ }
+        // Auto check-in is handled centrally by AuthContext → ensureAutoCheckInForCurrentUser
       }
     }
     setLoginTime(t);

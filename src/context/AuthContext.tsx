@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import type { ModuleKey } from "@/lib/modules";
 import { moduleAliases } from "@/lib/eligibleAssignees";
+import { ensureAutoCheckInForCurrentUser } from "@/lib/ensureAutoCheckIn";
 
 export interface Profile {
   id: string;
@@ -49,11 +50,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    const runAutoCheckIn = (uid: string) => {
+      // Defer to avoid blocking auth callback; helper is idempotent per session
+      setTimeout(() => { ensureAutoCheckInForCurrentUser(uid); }, 250);
+    };
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
         setTimeout(() => loadProfile(s.user.id).finally(() => setLoading(false)), 0);
+        runAutoCheckIn(s.user.id);
       } else {
         setProfile(null); setIsAdmin(false); setModules(new Set()); setLoading(false);
       }
@@ -61,8 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
-      if (s?.user) loadProfile(s.user.id).finally(() => setLoading(false));
-      else setLoading(false);
+      if (s?.user) {
+        loadProfile(s.user.id).finally(() => setLoading(false));
+        runAutoCheckIn(s.user.id);
+      } else setLoading(false);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
