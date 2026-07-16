@@ -274,10 +274,16 @@ export default function OperationsLinkedRecordsCard({
         </div>
       </div>
 
-      {isAdmin && (!crmLeadId || !paidPipelineLeadId) && (
-        <div className="mt-2 text-[10.5px] text-muted-foreground italic">
-          Admin diagnostic: {crmLeadId ? "" : "CRM link missing. "}{paidPipelineLeadId ? "" : "Paid Pipeline link missing."}
-        </div>
+      {isAdmin && (
+        <details className="mt-2 text-[10.5px] text-muted-foreground">
+          <summary className="cursor-pointer italic">Admin diagnostic</summary>
+          <div className="mt-1 space-y-0.5">
+            <div>crm_lead_id: {crmLeadId ? "present" : "missing"}</div>
+            <div>paid_pipeline_lead_id: {paidPipelineLeadId ? "present" : "missing"}</div>
+            <div>Calling CRM: state={crmState}{crmReason ? ` · reason=${crmReason}` : ""}</div>
+            <div>Paid Pipeline: state={paidState}{paidReason ? ` · reason=${paidReason}` : ""}</div>
+          </div>
+        </details>
       )}
     </div>
   );
