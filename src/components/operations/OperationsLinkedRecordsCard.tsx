@@ -158,10 +158,18 @@ export default function OperationsLinkedRecordsCard({
         return;
       }
       const d = data as any;
+      setDiag({
+        allowed_by: d.allowed_by ?? null,
+        operations_assignment_match: !!d.operations_assignment_match,
+        has_calling_crm_module: !!d.has_calling_crm_module,
+        has_paid_pipeline_module: !!d.has_paid_pipeline_module,
+        assigned_media_buyer_id: d.assigned_media_buyer_id ?? null,
+        assigned_media_buyer_name: d.assigned_media_buyer_name ?? null,
+      });
       // RPC returned top-level error (unauthenticated / forbidden / not_found)
       if (d.error) {
-        if (crmLeadId) { setCrmState("restricted"); setCrmReason("not_assigned"); }
-        if (paidPipelineLeadId) { setPaidState("restricted"); setPaidReason("not_assigned"); }
+        if (crmLeadId) { setCrmState("restricted"); setCrmReason("not_assigned_to_operations_lead"); }
+        if (paidPipelineLeadId) { setPaidState("restricted"); setPaidReason("not_assigned_to_operations_lead"); }
         return;
       }
       // New structured shape
