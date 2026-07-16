@@ -9233,6 +9233,10 @@ export type Database = {
       get_finance_dead_stage_ids: { Args: never; Returns: string[] }
       get_finance_success_stage_ids: { Args: never; Returns: string[] }
       get_invoice_assets_storage_diagnostics: { Args: never; Returns: Json }
+      get_operations_linked_record_summary: {
+        Args: { _ops_lead_id: string }
+        Returns: Json
+      }
       get_team_performance_settings: {
         Args: never
         Returns: {
