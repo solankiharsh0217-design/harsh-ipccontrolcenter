@@ -215,10 +215,12 @@ export default function OperationsLinkedRecordsCard({
               </button>
             </>
           ) : crmState === "missing" ? (
-            <div className="text-[11px] text-muted-foreground mt-1">CRM lead not linked.</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Not linked.</div>
+          ) : crmState === "not_found" ? (
+            <div className="text-[11px] text-red-700 mt-1">Linked record not found.</div>
           ) : crmState === "restricted" ? (
             <div className="text-[11px] text-amber-800 mt-1 flex items-start gap-1">
-              <Lock className="w-3 h-3 mt-0.5" /> Access restricted. Ask an admin for Calling CRM access.
+              <Lock className="w-3 h-3 mt-0.5" /> {restrictedMessage("crm", crmReason)}
             </div>
           ) : (
             <div className="text-[11px] text-muted-foreground mt-1">Loading…</div>
