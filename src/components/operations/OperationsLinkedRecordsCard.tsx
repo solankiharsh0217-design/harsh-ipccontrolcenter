@@ -23,14 +23,26 @@ interface CrmMini {
 interface PaidMini {
   id: string; name: string | null; email: string | null; phone: string | null;
   pipeline_stage: string | null;
-  deal_value_including_gst: number | null;
+  deal_value_including_gst?: number | null;
+  deal_value?: number | null;
   total_collected?: number | null;
+  collected_amount?: number | null;
   balance?: number | null;
-  payment_status?: "fully_paid" | "partial" | "pending" | null;
+  balance_amount?: number | null;
+  token_amount_collected?: number | null;
+  finance_status?: string | null;
+  fully_paid?: boolean | null;
+  payment_status?: "fully_paid" | "partial" | "token_only" | "pending" | null;
 }
 
 type LoadState = "idle" | "loading" | "linked" | "missing" | "restricted" | "not_found";
-type ReasonCode = "missing_id" | "module_missing" | "not_assigned" | "not_found" | null;
+type ReasonCode =
+  | "missing_id"
+  | "module_missing"
+  | "not_assigned"
+  | "not_assigned_to_operations_lead"
+  | "not_found"
+  | null;
 
 function StatusPill({ state }: { state: LoadState }) {
   const map: Record<LoadState, { label: string; cls: string }> = {
@@ -51,13 +63,16 @@ function restrictedMessage(kind: "crm" | "paid", reason: ReasonCode): string {
       ? "Access restricted — Calling CRM access is not enabled for you."
       : "Access restricted — Paid Pipeline access is not enabled for you.";
   }
-  if (reason === "not_assigned") return "Access restricted — this record is not assigned to you.";
+  if (reason === "not_assigned_to_operations_lead" || reason === "not_assigned") {
+    return "Access restricted — this Operations record is not assigned to you.";
+  }
   return "Access restricted.";
 }
 
 function paidStatusLabel(s?: string | null) {
   if (s === "fully_paid") return "Fully paid";
-  if (s === "partial") return "Partial · balance pending";
+  if (s === "partial") return "Partial payment · balance pending";
+  if (s === "token_only") return "Token paid only";
   if (s === "pending") return "Payment pending";
   return null;
 }
