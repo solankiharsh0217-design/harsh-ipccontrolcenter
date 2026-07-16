@@ -88,6 +88,14 @@ export default function OperationsLinkedRecordsCard({
   const [paidState, setPaidState] = useState<LoadState>(paidPipelineLeadId ? "loading" : "missing");
   const [crmReason, setCrmReason] = useState<ReasonCode>(crmLeadId ? null : "missing_id");
   const [paidReason, setPaidReason] = useState<ReasonCode>(paidPipelineLeadId ? null : "missing_id");
+  const [diag, setDiag] = useState<{
+    allowed_by?: string | null;
+    operations_assignment_match?: boolean;
+    has_calling_crm_module?: boolean;
+    has_paid_pipeline_module?: boolean;
+    assigned_media_buyer_id?: string | null;
+    assigned_media_buyer_name?: string | null;
+  }>({});
 
   useEffect(() => {
     let cancelled = false;
