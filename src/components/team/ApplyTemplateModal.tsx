@@ -20,7 +20,7 @@ interface Props {
 
 const moduleLabel = (key: string) => MODULES.find((m) => m.key === (key as any))?.label ?? key;
 
-export default function ApplyTemplateModal({ memberId, memberName, actorId, onClose, onDone }: Props) {
+export default function ApplyTemplateModal({ memberId, memberName, actorId, onClose, onDone, onApplied }: Props) {
   const [templates, setTemplates] = useState<AccessTemplate[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [mode, setMode] = useState<"replace" | "additive">("replace");
