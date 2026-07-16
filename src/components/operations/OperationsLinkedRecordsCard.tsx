@@ -273,27 +273,31 @@ export default function OperationsLinkedRecordsCard({
               <div className="text-[12.5px] font-medium truncate mt-0.5">{paid.name || "(no name)"}</div>
               <div className="text-[11px] text-muted-foreground truncate">
                 {paid.pipeline_stage || "—"}
-                {paid.deal_value_including_gst != null ? ` · ₹${Math.round(paid.deal_value_including_gst).toLocaleString("en-IN")}` : ""}
+                {(paid.deal_value ?? paid.deal_value_including_gst) != null
+                  ? ` · Deal ₹${Math.round(Number(paid.deal_value ?? paid.deal_value_including_gst)).toLocaleString("en-IN")}`
+                  : ""}
               </div>
-              {(paid.payment_status || paid.balance != null) && (
-                <div className="text-[10.5px] mt-0.5">
-                  <span className={
-                    paid.payment_status === "fully_paid"
-                      ? "text-emerald-700"
-                      : paid.payment_status === "partial"
-                      ? "text-amber-800"
-                      : "text-red-700"
-                  }>
-                    {paidStatusLabel(paid.payment_status) || "Payment status —"}
-                  </span>
-                  {paid.balance != null && paid.payment_status !== "fully_paid" && (
-                    <span className="text-muted-foreground"> · Balance ₹{Math.round(Number(paid.balance)).toLocaleString("en-IN")}</span>
-                  )}
-                </div>
+              <div className="text-[10.5px] mt-0.5">
+                <span className={
+                  paid.payment_status === "fully_paid" ? "text-emerald-700 font-medium"
+                    : paid.payment_status === "partial" ? "text-amber-800 font-medium"
+                    : paid.payment_status === "token_only" ? "text-blue-700 font-medium"
+                    : "text-red-700 font-medium"
+                }>
+                  {paidStatusLabel(paid.payment_status) || "Payment status —"}
+                </span>
+              </div>
+              <div className="text-[10.5px] text-muted-foreground mt-0.5">
+                Collected ₹{Math.round(Number(paid.collected_amount ?? paid.total_collected ?? 0)).toLocaleString("en-IN")}
+                {" · "}
+                Balance ₹{Math.round(Number(paid.balance_amount ?? paid.balance ?? 0)).toLocaleString("en-IN")}
+                {paid.finance_status ? ` · Finance: ${paid.finance_status}` : ""}
+              </div>
+              {(isAdmin || diag.has_paid_pipeline_module) && (
+                <button onClick={openPaid} className="mt-1.5 self-start inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] border border-line bg-white hover:bg-off">
+                  <ExternalLink className="w-3 h-3" /> {isAdmin ? "Open Paid Record" : "View in Paid Pipeline"}
+                </button>
               )}
-              <button onClick={openPaid} className="mt-1.5 self-start inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] border border-line bg-white hover:bg-off">
-                <ExternalLink className="w-3 h-3" /> Open Paid Record
-              </button>
             </>
           ) : paidState === "missing" ? (
             <div className="text-[11px] text-muted-foreground mt-1">Not linked.</div>
