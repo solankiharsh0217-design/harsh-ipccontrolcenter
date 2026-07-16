@@ -677,9 +677,22 @@ export default function Team() {
             </div>
 
             <div className="px-7 py-5">
-              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center justify-between">
-                <span>Module access</span>
-                {accessLoading && <span className="text-[10px] normal-case tracking-normal">Loading…</span>}
+              <div className="font-sans text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <span>Module access</span>
+                  <span className="normal-case tracking-normal text-[11px] text-black">
+                    {editAdmin ? "All (admin)" : `${editModules.size} selected`}
+                  </span>
+                  {accessLoading && <span className="text-[10px] normal-case tracking-normal">Loading…</span>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => editing && setApplyTplMember(editing)}
+                  disabled={!editing}
+                  className="h-7 px-2.5 rounded-md border border-line bg-white hover:bg-off font-sans text-[11px] normal-case tracking-normal disabled:opacity-50"
+                >
+                  Apply template
+                </button>
               </div>
               {accessError && (
                 <div className="mb-3 p-3 rounded-md border border-line bg-off flex items-center justify-between">
@@ -687,29 +700,78 @@ export default function Team() {
                   <button onClick={() => editing && fetchMemberAccess(editing)} className="h-7 px-2 rounded-md border border-line bg-white text-[11px] font-sans hover:bg-off">Retry</button>
                 </div>
               )}
-              {Array.from(new Set(MODULES.map(m => m.group))).map(group => (
-                <div key={group} className="mb-4">
-                  <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{group}</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {MODULES.filter(m => m.group === group).map(mod => {
-                      const checked = hasModuleChecked(mod.key);
-                      return (
-                      <label key={mod.key} className={`flex items-center gap-3 px-3 py-2 rounded-md border cursor-pointer transition-colors ${editAdmin ? "opacity-50 bg-off border-line" : checked ? "bg-off border-line" : "border-line hover:bg-off"}`}>
-                        <input
-                          type="checkbox"
-                          checked={editAdmin || checked}
-                          disabled={editAdmin}
-                          onChange={() => toggleModule(mod.key)}
-                          className="w-4 h-4"
-                        />
-                        <span className="font-serif text-[14px] text-black">{mod.label}</span>
-                      </label>
-                      );
-                    })}
+              {Array.from(new Set(MODULES.map(m => m.group))).map(group => {
+                const groupMods = MODULES.filter(m => m.group === group);
+                const groupChecked = groupMods.filter(m => hasModuleChecked(m.key)).length;
+                const allSelected = groupChecked === groupMods.length;
+                return (
+                  <div key={group} className="mb-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {group} <span className="normal-case tracking-normal text-black">· {groupChecked}/{groupMods.length}</span>
+                      </div>
+                      {!editAdmin && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditModules(prev => {
+                                const n = new Set(prev);
+                                groupMods.forEach(m => {
+                                  if (!hasModuleChecked(m.key)) n.add(m.key);
+                                });
+                                return n;
+                              })
+                            }
+                            className="h-6 px-2 rounded border border-line bg-white hover:bg-off font-sans text-[10.5px]"
+                          >
+                            {allSelected ? "All selected" : "Select all"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditModules(prev => {
+                                const n = new Set(prev);
+                                groupMods.forEach(m => {
+                                  (moduleAliases(m.key as string) as ModuleKey[]).forEach(a => n.delete(a));
+                                });
+                                return n;
+                              })
+                            }
+                            className="h-6 px-2 rounded border border-line bg-white hover:bg-off font-sans text-[10.5px]"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5">
+                      {groupMods.map(mod => {
+                        const checked = hasModuleChecked(mod.key);
+                        return (
+                          <label
+                            key={mod.key}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded-md border cursor-pointer transition-colors text-[12.5px] ${
+                              editAdmin ? "opacity-50 bg-off border-line" : checked ? "bg-off border-black" : "border-line hover:bg-off"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editAdmin || checked}
+                              disabled={editAdmin}
+                              onChange={() => toggleModule(mod.key)}
+                              className="w-3.5 h-3.5"
+                            />
+                            <span className="font-sans text-black truncate">{mod.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
 
             {isAdmin && (
               <div className="px-7 py-5 border-t border-line">
