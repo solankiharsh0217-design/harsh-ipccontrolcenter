@@ -549,6 +549,15 @@ export default function Team() {
           actorId={user.id}
           onClose={() => setApplyTplMember(null)}
           onDone={load}
+          onApplied={({ moduleKeys, isAdmin: newAdmin }) => {
+            // If the Manage Member modal is open for this same member, sync its local
+            // state so a subsequent "Save changes" won't overwrite the applied template.
+            if (editing && editing.id === applyTplMember.id) {
+              setEditModules(new Set(moduleKeys as ModuleKey[]));
+              setEditAdmin(newAdmin);
+              toast.success("Access refreshed in this dialog. Click Save changes to keep other edits.");
+            }
+          }}
         />
       )}
 
