@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import type { ModuleKey } from "@/lib/modules";
 import { moduleAliases } from "@/lib/eligibleAssignees";
+import { ensureAutoCheckInForCurrentUser } from "@/lib/ensureAutoCheckIn";
 
 export interface Profile {
   id: string;
