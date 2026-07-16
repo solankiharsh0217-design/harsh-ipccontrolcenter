@@ -125,24 +125,43 @@ export default function OperationsLinkedRecordsCard({
     async function loadViaRpc() {
       const { data, error } = await sb.rpc("get_operations_linked_record_summary", { _ops_lead_id: operationsLeadId });
       if (cancelled) return;
-      if (error || !data || (data as any).error) {
-        // Fall back to restricted / missing based on ID presence
-        if (crmLeadId) setCrmState("restricted");
-        if (paidPipelineLeadId) setPaidState("restricted");
+      if (error || !data) {
+        if (crmLeadId) { setCrmState("restricted"); setCrmReason("not_assigned"); }
+        if (paidPipelineLeadId) { setPaidState("restricted"); setPaidReason("not_assigned"); }
         return;
       }
       const d = data as any;
-      if (d.crm) {
-        setCrm(d.crm as CrmMini);
-        setCrmState("linked");
-      } else if (crmLeadId) {
-        setCrmState("restricted");
+      // RPC returned top-level error (unauthenticated / forbidden / not_found)
+      if (d.error) {
+        if (crmLeadId) { setCrmState("restricted"); setCrmReason("not_assigned"); }
+        if (paidPipelineLeadId) { setPaidState("restricted"); setPaidReason("not_assigned"); }
+        return;
       }
-      if (d.paid) {
-        setPaid(d.paid as PaidMini);
-        setPaidState("linked");
-      } else if (paidPipelineLeadId) {
-        setPaidState("restricted");
+      // New structured shape
+      if (d.crm && typeof d.crm === "object" && "status" in d.crm) {
+        const c = d.crm as { status: string; reason_code: ReasonCode; data: CrmMini | null };
+        setCrmReason(c.reason_code ?? null);
+        if (c.status === "linked" && c.data) { setCrm(c.data); setCrmState("linked"); }
+        else if (c.status === "access_restricted") setCrmState("restricted");
+        else if (c.status === "not_found") setCrmState("not_found");
+        else setCrmState("missing");
+      } else if (d.crm_legacy || d.crm) {
+        // Legacy shape (data object directly)
+        const legacy = (d.crm_legacy ?? d.crm) as CrmMini | null;
+        if (legacy) { setCrm(legacy); setCrmState("linked"); }
+        else if (crmLeadId) { setCrmState("restricted"); setCrmReason("not_assigned"); }
+      }
+      if (d.paid && typeof d.paid === "object" && "status" in d.paid) {
+        const p = d.paid as { status: string; reason_code: ReasonCode; data: PaidMini | null };
+        setPaidReason(p.reason_code ?? null);
+        if (p.status === "linked" && p.data) { setPaid(p.data); setPaidState("linked"); }
+        else if (p.status === "access_restricted") setPaidState("restricted");
+        else if (p.status === "not_found") setPaidState("not_found");
+        else setPaidState("missing");
+      } else if (d.paid_legacy || d.paid) {
+        const legacy = (d.paid_legacy ?? d.paid) as PaidMini | null;
+        if (legacy) { setPaid(legacy); setPaidState("linked"); }
+        else if (paidPipelineLeadId) { setPaidState("restricted"); setPaidReason("not_assigned"); }
       }
     }
 
