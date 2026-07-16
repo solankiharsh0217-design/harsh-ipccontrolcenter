@@ -313,8 +313,15 @@ export default function OperationsLinkedRecordsCard({
         <details className="mt-2 text-[10.5px] text-muted-foreground">
           <summary className="cursor-pointer italic">Admin diagnostic</summary>
           <div className="mt-1 space-y-0.5">
-            <div>crm_lead_id: {crmLeadId ? "present" : "missing"}</div>
-            <div>paid_pipeline_lead_id: {paidPipelineLeadId ? "present" : "missing"}</div>
+            <div>operations_lead_id: {operationsLeadId}</div>
+            <div>crm_lead_id: {crmLeadId || "—"}</div>
+            <div>paid_pipeline_lead_id: {paidPipelineLeadId || "—"}</div>
+            <div>assigned_media_buyer_id: {diag.assigned_media_buyer_id || "—"}</div>
+            <div>assigned_media_buyer_name: {diag.assigned_media_buyer_name || "—"}</div>
+            <div>operations_assignment_match: {diag.operations_assignment_match ? "yes" : "no"}</div>
+            <div>allowed_by: {diag.allowed_by || "—"}</div>
+            <div>has Calling CRM module: {diag.has_calling_crm_module ? "yes" : "no"}</div>
+            <div>has Paid Pipeline module: {diag.has_paid_pipeline_module ? "yes" : "no"}</div>
             <div>Calling CRM: state={crmState}{crmReason ? ` · reason=${crmReason}` : ""}</div>
             <div>Paid Pipeline: state={paidState}{paidReason ? ` · reason=${paidReason}` : ""}</div>
           </div>
