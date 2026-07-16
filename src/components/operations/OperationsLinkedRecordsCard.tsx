@@ -261,10 +261,12 @@ export default function OperationsLinkedRecordsCard({
               </button>
             </>
           ) : paidState === "missing" ? (
-            <div className="text-[11px] text-muted-foreground mt-1">Paid Pipeline record not linked.</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Not linked.</div>
+          ) : paidState === "not_found" ? (
+            <div className="text-[11px] text-red-700 mt-1">Linked record not found.</div>
           ) : paidState === "restricted" ? (
             <div className="text-[11px] text-amber-800 mt-1 flex items-start gap-1">
-              <Lock className="w-3 h-3 mt-0.5" /> Access restricted. Ask an admin for Paid Pipeline access.
+              <Lock className="w-3 h-3 mt-0.5" /> {restrictedMessage("paid", paidReason)}
             </div>
           ) : (
             <div className="text-[11px] text-muted-foreground mt-1">Loading…</div>
