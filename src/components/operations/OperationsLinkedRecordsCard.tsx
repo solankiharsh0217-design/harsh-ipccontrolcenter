@@ -29,7 +29,8 @@ interface PaidMini {
   payment_status?: "fully_paid" | "partial" | "pending" | null;
 }
 
-type LoadState = "idle" | "loading" | "linked" | "missing" | "restricted";
+type LoadState = "idle" | "loading" | "linked" | "missing" | "restricted" | "not_found";
+type ReasonCode = "missing_id" | "module_missing" | "not_assigned" | "not_found" | null;
 
 function StatusPill({ state }: { state: LoadState }) {
   const map: Record<LoadState, { label: string; cls: string }> = {
@@ -38,9 +39,20 @@ function StatusPill({ state }: { state: LoadState }) {
     linked:     { label: "Linked",           cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
     missing:    { label: "Not linked",       cls: "bg-slate-50 text-slate-600 border-slate-200" },
     restricted: { label: "Access restricted",cls: "bg-amber-50 text-amber-800 border-amber-200" },
+    not_found:  { label: "Record missing",   cls: "bg-red-50 text-red-700 border-red-200" },
   };
   const m = map[state];
   return <span className={`text-[9.5px] px-1.5 py-0.5 rounded-full border ${m.cls}`}>{m.label}</span>;
+}
+
+function restrictedMessage(kind: "crm" | "paid", reason: ReasonCode): string {
+  if (reason === "module_missing") {
+    return kind === "crm"
+      ? "Access restricted — Calling CRM access is not enabled for you."
+      : "Access restricted — Paid Pipeline access is not enabled for you.";
+  }
+  if (reason === "not_assigned") return "Access restricted — this record is not assigned to you.";
+  return "Access restricted.";
 }
 
 function paidStatusLabel(s?: string | null) {
