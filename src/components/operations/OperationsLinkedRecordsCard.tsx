@@ -71,6 +71,8 @@ export default function OperationsLinkedRecordsCard({
   const [paid, setPaid] = useState<PaidMini | null>(null);
   const [crmState, setCrmState] = useState<LoadState>(crmLeadId ? "loading" : "missing");
   const [paidState, setPaidState] = useState<LoadState>(paidPipelineLeadId ? "loading" : "missing");
+  const [crmReason, setCrmReason] = useState<ReasonCode>(crmLeadId ? null : "missing_id");
+  const [paidReason, setPaidReason] = useState<ReasonCode>(paidPipelineLeadId ? null : "missing_id");
 
   useEffect(() => {
     let cancelled = false;
