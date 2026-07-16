@@ -121,14 +121,18 @@ export default function OperationsLinkedRecordsCard({
 
       if (paidPipelineLeadId) {
         const { data } = await sb.from("paid_pipeline_leads")
-          .select("id, name, email, phone, pipeline_stage, deal_value_including_gst, total_collected, balance")
+          .select("id, name, email, phone, pipeline_stage, finance_status, deal_value_including_gst, token_amount_collected, total_collected, balance_pending")
           .eq("id", paidPipelineLeadId).maybeSingle();
         if (!cancelled && data) {
-          const bal = Number(data.balance ?? 0);
+          const bal = Number(data.balance_pending ?? 0);
           const col = Number(data.total_collected ?? 0);
+          const tok = Number(data.token_amount_collected ?? 0);
           const payment_status: PaidMini["payment_status"] =
-            bal <= 0 && col > 0 ? "fully_paid" : col > 0 ? "partial" : "pending";
-          setPaid({ ...(data as any), payment_status });
+            bal <= 0 && col > 0 ? "fully_paid"
+              : col > 0 && bal > 0 ? "partial"
+              : tok > 0 ? "token_only"
+              : "pending";
+          setPaid({ ...(data as any), balance: bal, balance_amount: bal, deal_value: data.deal_value_including_gst, collected_amount: col, fully_paid: payment_status === "fully_paid", payment_status });
           setPaidState("linked");
           paidLoaded = true;
         }
