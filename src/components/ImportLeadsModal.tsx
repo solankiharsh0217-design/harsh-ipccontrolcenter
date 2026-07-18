@@ -715,7 +715,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [step, rows, mapping, pipelines, stages, duplicatePolicy]);
+  }, [step, rows, mapping, pipelines, stages, duplicatePolicy, dealValue]);
 
 
 
