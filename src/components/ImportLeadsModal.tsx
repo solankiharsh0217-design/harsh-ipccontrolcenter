@@ -937,7 +937,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           assigned_agent_id: agentId,
           lead_type: leadType,
           program_name: productName,
-          deal_value: dealValue,
+          deal_value: r.deal_value > 0 ? r.deal_value : dealValue,
           program_id: finalProgramId,
           offer_id: finalOfferId,
           source_segment_name: segmentName || null,
