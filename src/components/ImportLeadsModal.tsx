@@ -655,6 +655,33 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
         const rowsWithEmail = parsed.filter((p) => p.emailValid).length;
 
+        // Financial totals — parse Token / Deal Value columns for every row and separately
+        // tally the subset that will actually be imported. Existing-match rows are only counted
+        // when the current duplicate policy would import them (update / promote).
+        let sumToken = 0;
+        let sumDealValue = 0;
+        let rowsWithToken = 0;
+        let rowsWithDealValue = 0;
+        let projectedRevenue = 0;
+        let projectedTokenRevenue = 0;
+        rowDetails.forEach((rd, i) => {
+          const raw = rows[i] || {};
+          const tk = mapping.token ? parseAmount(raw[mapping.token]) : 0;
+          const dv = mapping.deal_value ? parseAmount(raw[mapping.deal_value]) : 0;
+          if (tk > 0) { sumToken += tk; rowsWithToken++; }
+          if (dv > 0) { sumDealValue += dv; rowsWithDealValue++; }
+          const willBeImported =
+            rd.status === "new" ||
+            rd.status === "phone_only" ||
+            rd.status === "name_only" ||
+            ((rd.status === "existing_by_email" || rd.status === "existing_by_phone")
+              && (duplicatePolicy === "update" || duplicatePolicy === "promote"));
+          if (willBeImported) {
+            projectedRevenue += dv > 0 ? dv : (Number(dealValue) || 0);
+            projectedTokenRevenue += tk;
+          }
+        });
+
         if (!cancelled) {
           setPreflight({
             total: rows.length,
@@ -672,6 +699,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             invalid,
             willImport,
             willSkip,
+            sumToken,
+            sumDealValue,
+            rowsWithToken,
+            rowsWithDealValue,
+            projectedRevenue,
+            projectedTokenRevenue,
             existingByEmail,
             existingByPhone,
             rowDetails,
