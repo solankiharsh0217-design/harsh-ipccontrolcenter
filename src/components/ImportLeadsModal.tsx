@@ -1846,6 +1846,38 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                     </div>
                   </div>
 
+                  {(mapping.token || mapping.deal_value) && (
+                    <div className="mt-2 rounded-md border border-line bg-white p-3">
+                      <div className="uppercase-label mb-1.5 text-[10px] tracking-wider text-muted-foreground">Financial totals (from mapped columns)</div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-mono">
+                        {mapping.deal_value && (
+                          <>
+                            <div><span className="text-muted-foreground">Rows with deal value:</span> <b>{preflight.rowsWithDealValue}</b></div>
+                            <div><span className="text-muted-foreground">Sum of deal values:</span> <b>₹{preflight.sumDealValue.toLocaleString("en-IN")}</b></div>
+                          </>
+                        )}
+                        {mapping.token && (
+                          <>
+                            <div><span className="text-muted-foreground">Rows with token:</span> <b>{preflight.rowsWithToken}</b></div>
+                            <div><span className="text-muted-foreground">Sum of tokens:</span> <b>₹{preflight.sumToken.toLocaleString("en-IN")}</b></div>
+                          </>
+                        )}
+                        <div className="col-span-2 pt-1 mt-1 border-t border-line flex items-center justify-between">
+                          <span><span className="text-muted-foreground">Projected revenue (import-eligible rows):</span> <b className="text-emerald-700">₹{preflight.projectedRevenue.toLocaleString("en-IN")}</b></span>
+                          {mapping.token && (
+                            <span><span className="text-muted-foreground">Token collected:</span> <b className="text-emerald-700">₹{preflight.projectedTokenRevenue.toLocaleString("en-IN")}</b></span>
+                          )}
+                        </div>
+                      </div>
+                      {leadType !== "paid" && mapping.token && preflight.projectedTokenRevenue > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+                          Tokens are mapped but the lead type is <b>Unpaid</b>. Token payments are only recorded when importing into a <b>Paid</b> pipeline.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+
                   {preflight.missingEmail > 0 && (preflight.phoneOnlyCount + preflight.nameOnlyCount) > 0 && (
                     <div className="mt-2 px-2.5 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800">
                       <b>{preflight.missingEmail}</b> row{preflight.missingEmail === 1 ? "" : "s"} {preflight.missingEmail === 1 ? "is" : "are"} missing email but will still be imported because phone/name is available
