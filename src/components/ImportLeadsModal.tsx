@@ -1612,38 +1612,114 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               </div>
             )}
 
-            {headers.length > 0 && (
-              <>
-                <div className="text-xs text-muted-foreground">{validRows} rows detected · map your columns:</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {ALL_FIELDS.map((k) => (
-                    <div key={k}>
-                      <label className="form-label">{FIELD_LABEL[k]}{(k === "full_name" || k === "email" || k === "phone") ? "" : <span className="text-muted-foreground font-normal"> (optional)</span>}</label>
-                      <select className="ipc-input" value={mapping[k]} onChange={(e) => setMapping({ ...mapping, [k]: e.target.value })}>
-                        <option value="">— none —</option>
-                        {headers.map((h) => <option key={h} value={h}>{h}</option>)}
-                      </select>
+            {headers.length > 0 && (() => {
+              const requiredKeys = new Set<FieldKey>(["full_name", "email", "phone"]);
+              const firstSample = (h: string): string => {
+                for (const r of rows) { const v = String(r?.[h] ?? "").trim(); if (v) return v; }
+                return "";
+              };
+              const renderField = (k: FieldKey) => (
+                <div key={k} className="space-y-1">
+                  <label className="form-label">
+                    {FIELD_LABEL[k]}
+                    {requiredKeys.has(k)
+                      ? <span className="text-rose-600 font-normal"> *</span>
+                      : <span className="text-muted-foreground font-normal"> (optional)</span>}
+                  </label>
+                  <select className="ipc-input" value={mapping[k]} onChange={(e) => setMapping({ ...mapping, [k]: e.target.value })}>
+                    <option value="">— none —</option>
+                    {headers.map((h) => <option key={h} value={h}>{h || "(blank header)"}</option>)}
+                  </select>
+                  {mapping[k] && (
+                    <div className="text-[10px] text-muted-foreground truncate" title={firstSample(mapping[k])}>
+                      e.g. <b className="text-foreground">{firstSample(mapping[k]) || "—"}</b>
                     </div>
-                  ))}
+                  )}
                 </div>
-                {rows[0] && (
-                  <div className="p-3 rounded-md bg-off border border-line text-xs space-y-1">
-                    <div className="uppercase-label">Preview row 1</div>
-                    <div>
-                      {mapping.full_name && <>Name: <b>{rows[0][mapping.full_name]}</b> · </>}
-                      {mapping.email && <>Email: <b>{rows[0][mapping.email]}</b> · </>}
-                      {mapping.phone && <>Phone: <b>{rows[0][mapping.phone]}</b></>}
-                    </div>
-                    {(mapping.token || mapping.deal_value) && (
-                      <div className="text-muted-foreground">
-                        {mapping.deal_value && <>Deal value: <b className="text-foreground">₹{parseAmount(rows[0][mapping.deal_value]).toLocaleString("en-IN")}</b> · </>}
-                        {mapping.token && <>Token: <b className="text-foreground">₹{parseAmount(rows[0][mapping.token]).toLocaleString("en-IN")}</b></>}
-                      </div>
-                    )}
+              );
+              const mappedHeaders = new Set(Object.values(mapping).filter(Boolean));
+              const unmapped = headers.filter((h) => !mappedHeaders.has(h));
+              const previewRows = rows.slice(0, 5);
+              const amt = (h: string, r: Row) => h ? parseAmount(r[h]) : 0;
+              const dsp = (n: number) => n > 0 ? `₹${n.toLocaleString("en-IN")}` : "—";
+              return (
+                <>
+                  <div className="text-xs text-muted-foreground">{validRows} rows · {headers.length} columns detected · map your columns:</div>
+
+                  <div className="space-y-3">
+                    <div className="uppercase-label">Identity</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{IDENTITY_FIELDS.map(renderField)}</div>
                   </div>
-                )}
-              </>
-            )}
+                  <div className="space-y-3">
+                    <div className="uppercase-label">Financials</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{FINANCIAL_FIELDS.map(renderField)}</div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="uppercase-label">Optional</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{OPTIONAL_FIELDS.map(renderField)}</div>
+                  </div>
+
+                  {unmapped.length > 0 && (
+                    <div className="p-3 rounded-md bg-off border border-line text-xs space-y-1.5">
+                      <div className="uppercase-label">Unmapped source columns ({unmapped.length})</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        These headers were detected but not selected above. They will be ignored unless mapped.
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {unmapped.map((h) => (
+                          <span key={h || Math.random()} className="px-2 py-0.5 rounded bg-white border border-line text-[11px]">
+                            {h || "(blank header)"}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {previewRows.length > 0 && (
+                    <div className="border border-line rounded-md overflow-hidden">
+                      <div className="px-3 py-1.5 bg-off border-b border-line uppercase-label">Preview (first {previewRows.length} rows)</div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[11px]">
+                          <thead className="bg-off/50 text-muted-foreground">
+                            <tr>
+                              <th className="text-left px-2 py-1">Name</th>
+                              <th className="text-left px-2 py-1">Email</th>
+                              <th className="text-left px-2 py-1">Phone</th>
+                              <th className="text-left px-2 py-1">Date</th>
+                              <th className="text-right px-2 py-1">Deal Value</th>
+                              <th className="text-right px-2 py-1">Token</th>
+                              <th className="text-right px-2 py-1">Collected</th>
+                              <th className="text-right px-2 py-1">Balance</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {previewRows.map((r, i) => {
+                              const dv = amt(mapping.deal_value, r);
+                              const tk = amt(mapping.token, r);
+                              const cl = mapping.collected ? amt(mapping.collected, r) : tk;
+                              const bl = mapping.balance ? amt(mapping.balance, r) : Math.max(dv - cl, 0);
+                              const tooBig = tk > dv && dv > 0;
+                              return (
+                                <tr key={i} className="border-t border-line">
+                                  <td className="px-2 py-1">{mapping.full_name ? r[mapping.full_name] : "—"}</td>
+                                  <td className="px-2 py-1">{mapping.email ? r[mapping.email] : "—"}</td>
+                                  <td className="px-2 py-1">{mapping.phone ? r[mapping.phone] : "—"}</td>
+                                  <td className="px-2 py-1">{mapping.payment_date ? (parseDate(r[mapping.payment_date]) || r[mapping.payment_date] || "—") : "—"}</td>
+                                  <td className="px-2 py-1 text-right">{dsp(dv)}</td>
+                                  <td className={"px-2 py-1 text-right " + (tooBig ? "text-rose-700 font-medium" : "")} title={tooBig ? "Token exceeds Deal Value" : undefined}>{dsp(tk)}{tooBig ? " ⚠" : ""}</td>
+                                  <td className="px-2 py-1 text-right">{dsp(cl)}</td>
+                                  <td className="px-2 py-1 text-right">{dsp(bl)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
