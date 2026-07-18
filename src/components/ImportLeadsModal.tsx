@@ -985,13 +985,31 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
 
       // ── Auto-sync paid leads to Paid Pipeline ─────────────────────────────
+      // Build a lookup from records to recover per-row Token / Deal Value once the
+      // CRM lead is created. Records may have both email + phone or only one.
+      const rowMetaByEmail = new Map<string, { token: number; deal_value: number }>();
+      const rowMetaByPhone = new Map<string, { token: number; deal_value: number }>();
+      for (const r of records) {
+        if (r.token > 0 || r.deal_value > 0) {
+          const meta = { token: r.token, deal_value: r.deal_value };
+          if (r.email && !rowMetaByEmail.has(r.email)) rowMetaByEmail.set(r.email, meta);
+          if (r.phone && !rowMetaByPhone.has(r.phone)) rowMetaByPhone.set(r.phone, meta);
+        }
+      }
+      const resolveRowMeta = (email: string | null, phone: string | null) => {
+        if (email && rowMetaByEmail.has(email)) return rowMetaByEmail.get(email)!;
+        if (phone && rowMetaByPhone.has(phone)) return rowMetaByPhone.get(phone)!;
+        return { token: 0, deal_value: 0 };
+      };
+
       let paidSynced = 0;
       let paidLinked = 0;
       let paidUnlinked = 0;
+      let paymentRowsCreated = 0;
+      let paymentRowsFailed = 0;
+      let totalTokenCollected = 0;
       if (pipelineType === "paid") {
         try {
-          // Sync only CRM leads created in this import. Existing matches are intentionally skipped so
-          // their paid-pipeline status/stage/source tracking cannot be rewritten by an import.
           const syncIds = new Set<string>([...createdCrmLeadIds, ...promotedCrmLeadIds]);
           const { data: crmRows } = syncIds.size > 0
             ? await supabase
@@ -1001,8 +1019,20 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             : { data: [] as any[] };
 
           for (const lead of (crmRows || []) as any[]) {
-            if (lead.paid_pipeline_lead_id) { paidLinked++; continue; }
-            // Match priority: email → phone. Linking only; never rewrite existing paid status/stage/source.
+            const rowMeta = resolveRowMeta(normEmail(lead.email), normPhone(lead.phone));
+            const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || dealValue || 0);
+            const rowToken = rowMeta.token > 0 ? rowMeta.token : 0;
+
+            if (lead.paid_pipeline_lead_id) {
+              paidLinked++;
+              if (rowToken > 0) {
+                totalTokenCollected += rowToken;
+                await recordTokenPayment(lead.paid_pipeline_lead_id, rowToken, segmentName, profile?.id ?? null)
+                  .then(() => paymentRowsCreated++)
+                  .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+              }
+              continue;
+            }
             let existing: any = null;
             if (!existing && lead.email) {
               const { data } = await supabase.from("paid_pipeline_leads")
@@ -1020,10 +1050,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               email: lead.email,
               phone: lead.phone,
               product_name_snapshot: lead.program_name || productName || null,
-              deal_value_including_gst: Number(lead.deal_value || dealValue || 0),
+              deal_value_including_gst: rowDeal,
+              token_amount_collected: rowToken,
               source_webinar: segmentName,
               pipeline_stage: "Payment Confirmed",
-              payment_status: "No Payment",
+              payment_status: rowToken > 0 ? "Partial Payment" : "No Payment",
               crm_lead_id: lead.id,
               service_package_id: servicePackageId || null,
               service_package_snapshot: packageSnapshot,
@@ -1033,9 +1064,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               source_segment_name: segmentName || null,
             };
 
+            let paidLeadId: string | null = null;
             if (existing) {
               const updatePatch: any = { crm_lead_id: lead.id };
-              // Only overwrite service package on existing buyer when admin opted in
+              if (rowDeal > 0) updatePatch.deal_value_including_gst = rowDeal;
               if (overwriteServicePackage && servicePackageId) {
                 updatePatch.service_package_id = servicePackageId;
                 updatePatch.service_package_snapshot = packageSnapshot;
@@ -1044,6 +1076,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               if (lead.paid_pipeline_lead_id !== existing.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: existing.id } as any).eq("id", lead.id);
               }
+              paidLeadId = existing.id;
               paidLinked++;
             } else {
               payload.created_by = profile?.id;
@@ -1052,7 +1085,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               if (!insErr && ins?.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: ins.id } as any).eq("id", lead.id);
                 paidSynced++;
-                // Optionally seed Operations Intake immediately
+                paidLeadId = ins.id;
                 if (sendToOperations) {
                   try {
                     await supabase.from("operations_leads" as any).insert({
@@ -1062,7 +1095,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                       email: lead.email,
                       phone: lead.phone,
                       program_name: lead.program_name || productName || null,
-                      deal_value: Number(lead.deal_value || dealValue || 0),
+                      deal_value: rowDeal,
                       process_template_id: resolvedProcessTemplateId,
                       service_package_id: servicePackageId || null,
                       service_package_snapshot: packageSnapshot,
@@ -1082,9 +1115,16 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 if (!errors.includes(insErr.message)) errors.push(insErr.message);
               }
             }
+
+            // Token payment row — only when the row has a positive token amount.
+            if (paidLeadId && rowToken > 0) {
+              totalTokenCollected += rowToken;
+              await recordTokenPayment(paidLeadId, rowToken, segmentName, profile?.id ?? null)
+                .then(() => paymentRowsCreated++)
+                .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+            }
           }
 
-          // Recount unlinked by re-querying — authoritative diagnostic
           const { data: linkCheck } = await supabase
             .from("leads")
             .select("id, paid_pipeline_lead_id")
@@ -1098,14 +1138,20 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               action_type: "paid_pipeline_record_created_from_crm",
               entity_type: "crm_batch",
               entity_label: segmentName,
-              metadata: { batch_name: segmentName, paid_created: paidSynced, paid_linked: paidLinked, paid_unlinked: paidUnlinked, pipeline_id: pipelineId },
-              summary: `Paid Pipeline auto-sync: ${paidSynced} created · ${paidLinked} linked · ${paidUnlinked} unlinked from batch "${segmentName}".`,
+              metadata: {
+                batch_name: segmentName, paid_created: paidSynced, paid_linked: paidLinked,
+                paid_unlinked: paidUnlinked, pipeline_id: pipelineId,
+                token_payments_created: paymentRowsCreated, token_payments_failed: paymentRowsFailed,
+                total_token_collected: totalTokenCollected,
+              },
+              summary: `Paid Pipeline auto-sync: ${paidSynced} created · ${paidLinked} linked · ${paidUnlinked} unlinked · ${paymentRowsCreated} token payments (₹${totalTokenCollected.toLocaleString("en-IN")}) from batch "${segmentName}".`,
             });
           }
         } catch (syncErr: any) {
           console.error("[ImportLeadsModal] paid pipeline sync failed", syncErr);
         }
       }
+
 
       // ── Persist batch-level metadata (Service Package, Process Template, etc.) ──
       try {
