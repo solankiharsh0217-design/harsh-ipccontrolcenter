@@ -999,6 +999,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               crm_lead_id: lead.id,
               service_package_id: servicePackageId || null,
               service_package_snapshot: packageSnapshot,
+              program_id: finalProgramId,
+              offer_id: finalOfferId,
+              product_id: finalOfferId,
+              source_segment_name: segmentName || null,
             };
 
             if (existing) {
