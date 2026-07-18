@@ -1038,6 +1038,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                       process_template_id: resolvedProcessTemplateId,
                       service_package_id: servicePackageId || null,
                       service_package_snapshot: packageSnapshot,
+                      program_id: finalProgramId,
+                      offer_id: finalOfferId,
                       source_type: "crm_import",
                       source_batch_name: segmentName,
                       created_by: profile?.id,
