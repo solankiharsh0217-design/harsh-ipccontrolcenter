@@ -855,16 +855,25 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
       const firstStageId = stageList[0]?.id ?? null;
 
-      // Build normalized rows
+      // Build normalized rows. Preserve source row index so we can create idempotent payment references.
       const get = (r: Row, k: FieldKey) => (mapping[k] ? String(r[mapping[k]] || "").trim() : "");
-      type N = { full_name: string | null; email: string | null; phone: string | null; country: string | null; token: number; deal_value: number };
-      const records: N[] = rows.map((r) => ({
+      type N = {
+        full_name: string | null; email: string | null; phone: string | null; country: string | null;
+        token: number; deal_value: number; collected: number; balance: number;
+        payment_date: string | null; notes: string | null; source_row: number;
+      };
+      const records: N[] = rows.map((r, idx) => ({
         full_name: get(r, "full_name") || null,
         email: normEmail(get(r, "email")) || null,
         phone: normPhone(get(r, "phone")) || null,
         country: get(r, "country") || null,
         token: mapping.token ? parseAmount(r[mapping.token]) : 0,
         deal_value: mapping.deal_value ? parseAmount(r[mapping.deal_value]) : 0,
+        collected: mapping.collected ? parseAmount(r[mapping.collected]) : 0,
+        balance: mapping.balance ? parseAmount(r[mapping.balance]) : 0,
+        payment_date: mapping.payment_date ? parseDate(r[mapping.payment_date]) : null,
+        notes: mapping.notes ? (get(r, "notes") || null) : null,
+        source_row: idx + 2, // +2 = 1-based + header row
       })).filter((r) => r.full_name || r.email || r.phone);
 
       // Fresh duplicate maps — match by email AND by phone (phone is a fallback
