@@ -2047,7 +2047,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                     </div>
                   </div>
 
-                  {(mapping.token || mapping.deal_value) && (
+                  {(mapping.token || mapping.deal_value || mapping.collected || mapping.balance) && (
                     <div className="mt-2 rounded-md border border-line bg-white p-3">
                       <div className="uppercase-label mb-1.5 text-[10px] tracking-wider text-muted-foreground">Financial totals (from mapped columns)</div>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-mono">
@@ -2063,6 +2063,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                             <div><span className="text-muted-foreground">Sum of tokens:</span> <b>₹{preflight.sumToken.toLocaleString("en-IN")}</b></div>
                           </>
                         )}
+                        {mapping.collected && (
+                          <div className="col-span-2"><span className="text-muted-foreground">Sum of collected:</span> <b>₹{preflight.sumCollected.toLocaleString("en-IN")}</b></div>
+                        )}
+                        {mapping.balance && (
+                          <div className="col-span-2"><span className="text-muted-foreground">Sum of balance pending:</span> <b>₹{preflight.sumBalance.toLocaleString("en-IN")}</b></div>
+                        )}
                         <div className="col-span-2 pt-1 mt-1 border-t border-line flex items-center justify-between">
                           <span><span className="text-muted-foreground">Projected revenue (import-eligible rows):</span> <b className="text-emerald-700">₹{preflight.projectedRevenue.toLocaleString("en-IN")}</b></span>
                           {mapping.token && (
@@ -2070,6 +2076,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                           )}
                         </div>
                       </div>
+                      {preflight.rowsTokenExceedsDeal > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                          ⚠ {preflight.rowsTokenExceedsDeal} row(s) have a Token amount greater than the Deal Value. Review your column mapping — Token should be the advance, not the full price.
+                        </div>
+                      )}
                       {leadType !== "paid" && mapping.token && preflight.projectedTokenRevenue > 0 && (
                         <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
                           Tokens are mapped but the lead type is <b>Unpaid</b>. Token payments are only recorded when importing into a <b>Paid</b> pipeline.
