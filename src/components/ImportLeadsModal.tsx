@@ -163,16 +163,23 @@ const parseAmount = (v: any): number => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
-// Insert a single Token payment row for a paid pipeline lead. Idempotency guard:
-// skip if an identical token payment (same amount + reference) already exists for this lead.
-const recordTokenPayment = async (
-  paidLeadId: string,
-  amount: number,
-  segmentName: string,
-  createdBy: string | null,
-): Promise<void> => {
-  if (!paidLeadId || !(amount > 0)) return;
-  const reference = `Import · ${segmentName}`;
+// Insert a single Token payment row for a paid pipeline lead.
+// Idempotent by (paid_pipeline_lead_id, payment_reference): each source row gets a unique
+// reference (`Import · {segment} · row {rowRef}`), so re-importing the same sheet is safe.
+const recordTokenPayment = async (args: {
+  paidLeadId: string;
+  amount: number;
+  segmentName: string;
+  createdBy: string | null;
+  paymentDate?: string | null;
+  rowRef?: string | null;
+  sourceLabel?: string | null;
+}): Promise<"created" | "duplicate" | "skipped"> => {
+  const { paidLeadId, amount, segmentName, createdBy, paymentDate, rowRef, sourceLabel } = args;
+  if (!paidLeadId || !(amount > 0)) return "skipped";
+  const reference = rowRef
+    ? `Import · ${segmentName} · row ${rowRef}`
+    : `Import · ${segmentName}`;
   const { data: existing } = await supabase
     .from("paid_pipeline_payments" as any)
     .select("id")
@@ -180,22 +187,23 @@ const recordTokenPayment = async (
     .eq("payment_reference", reference)
     .eq("is_deleted", false)
     .maybeSingle();
-  if ((existing as any)?.id) return;
+  if ((existing as any)?.id) return "duplicate";
   const { error } = await supabase.from("paid_pipeline_payments" as any).insert({
     paid_pipeline_lead_id: paidLeadId,
     payment_type: "Token",
     payment_category: "token",
     amount,
     payment_mode: "Import",
-    payment_date: new Date().toISOString().slice(0, 10),
+    payment_date: paymentDate || new Date().toISOString().slice(0, 10),
     payment_reference: reference,
     is_token: true,
     is_final_payment: false,
-    payment_description: `Token collected on CSV/Sheet import from segment "${segmentName}"`,
+    payment_description: `Token collected on import from ${sourceLabel || `segment "${segmentName}"`}`,
     is_deleted: false,
     created_by: createdBy,
   } as any);
   if (error) throw error;
+  return "created";
 };
 
 
