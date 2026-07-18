@@ -44,19 +44,32 @@ interface Props {
 }
 
 type Row = Record<string, string>;
-type FieldKey = "full_name" | "email" | "phone" | "country";
+type FieldKey = "full_name" | "email" | "phone" | "country" | "token" | "deal_value";
 
 const FIELD_GUESS: Record<FieldKey, RegExp> = {
   full_name: /^(name|full[\s_-]?name|first[\s_-]?name|attendee|user)/i,
   email: /e[\s_-]?mail/i,
   phone: /(phone|mobile|whatsapp|contact|number)/i,
   country: /country/i,
+  token: /(token|advance|collected|paid[\s_-]?amount|amount[\s_-]?paid|down[\s_-]?payment)/i,
+  deal_value: /(deal[\s_-]?value|product[\s_-]?price|total[\s_-]?fee|program[\s_-]?fee|price[\s_-]?incl|deal[\s_-]?amount|total[\s_-]?amount|fees?)/i,
 };
 
+const FIELD_LABEL: Record<FieldKey, string> = {
+  full_name: "Full name",
+  email: "Email",
+  phone: "Phone",
+  country: "Country",
+  token: "Token / Advance",
+  deal_value: "Deal value / Product price",
+};
+
+const ALL_FIELDS: FieldKey[] = ["full_name", "email", "phone", "country", "token", "deal_value"];
+
 function autoMap(headers: string[]): Record<FieldKey, string> {
-  const out: any = { full_name: "", email: "", phone: "", country: "" };
+  const out: any = { full_name: "", email: "", phone: "", country: "", token: "", deal_value: "" };
   for (const h of headers) {
-    for (const k of Object.keys(FIELD_GUESS) as FieldKey[]) {
+    for (const k of ALL_FIELDS) {
       if (!out[k] && FIELD_GUESS[k].test(h)) out[k] = h;
     }
   }
@@ -74,6 +87,54 @@ const normPhone = (v: any) => {
   if (s.length > 10) s = s.slice(s.length - 10);
   return s;
 };
+// Parse currency-ish numbers from CSVs. Handles "₹1,18,000", "1.18L", "1,18,000.00", "-", "".
+const parseAmount = (v: any): number => {
+  if (v === null || v === undefined) return 0;
+  let s = String(v).trim();
+  if (!s || s === "-" || s === "—" || /^n\/?a$/i.test(s)) return 0;
+  const lakh = /(\d+(?:\.\d+)?)\s*l(akh)?\b/i.exec(s);
+  if (lakh) return Math.round(parseFloat(lakh[1]) * 100000);
+  const cr = /(\d+(?:\.\d+)?)\s*cr\b/i.exec(s);
+  if (cr) return Math.round(parseFloat(cr[1]) * 10000000);
+  s = s.replace(/[₹$,\s]/g, "");
+  const n = parseFloat(s);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+// Insert a single Token payment row for a paid pipeline lead. Idempotency guard:
+// skip if an identical token payment (same amount + reference) already exists for this lead.
+const recordTokenPayment = async (
+  paidLeadId: string,
+  amount: number,
+  segmentName: string,
+  createdBy: string | null,
+): Promise<void> => {
+  if (!paidLeadId || !(amount > 0)) return;
+  const reference = `Import · ${segmentName}`;
+  const { data: existing } = await supabase
+    .from("paid_pipeline_payments" as any)
+    .select("id")
+    .eq("paid_pipeline_lead_id", paidLeadId)
+    .eq("payment_reference", reference)
+    .eq("is_deleted", false)
+    .maybeSingle();
+  if ((existing as any)?.id) return;
+  const { error } = await supabase.from("paid_pipeline_payments" as any).insert({
+    paid_pipeline_lead_id: paidLeadId,
+    payment_type: "Token",
+    payment_category: "token",
+    amount,
+    payment_mode: "Import",
+    payment_date: new Date().toISOString().slice(0, 10),
+    payment_reference: reference,
+    is_token: true,
+    is_final_payment: false,
+    payment_description: `Token collected on CSV/Sheet import from segment "${segmentName}"`,
+    is_deleted: false,
+    created_by: createdBy,
+  } as any);
+  if (error) throw error;
+};
 
 
 export default function ImportLeadsModal({ onClose, onDone }: Props) {
@@ -86,7 +147,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
-  const [mapping, setMapping] = useState<Record<FieldKey, string>>({ full_name: "", email: "", phone: "", country: "" });
+  const [mapping, setMapping] = useState<Record<FieldKey, string>>({ full_name: "", email: "", phone: "", country: "", token: "", deal_value: "" });
 
   // Google Sheet sub-state
   const [gsUrl, setGsUrl] = useState("");
@@ -170,6 +231,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     invalid: number;
     willImport: number;
     willSkip: number;
+    // Financial totals derived from the mapped Token / Deal Value columns.
+    sumToken: number;
+    sumDealValue: number;
+    rowsWithToken: number;
+    rowsWithDealValue: number;
+    projectedRevenue: number;   // Sum of deal_value (fallback to global dealValue) for import-eligible rows
+    projectedTokenRevenue: number; // Sum of tokens for import-eligible rows
     existingByEmail: Map<string, any>;
     existingByPhone: Map<string, any>;
     rowDetails: {
@@ -587,6 +655,33 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
         const rowsWithEmail = parsed.filter((p) => p.emailValid).length;
 
+        // Financial totals — parse Token / Deal Value columns for every row and separately
+        // tally the subset that will actually be imported. Existing-match rows are only counted
+        // when the current duplicate policy would import them (update / promote).
+        let sumToken = 0;
+        let sumDealValue = 0;
+        let rowsWithToken = 0;
+        let rowsWithDealValue = 0;
+        let projectedRevenue = 0;
+        let projectedTokenRevenue = 0;
+        rowDetails.forEach((rd, i) => {
+          const raw = rows[i] || {};
+          const tk = mapping.token ? parseAmount(raw[mapping.token]) : 0;
+          const dv = mapping.deal_value ? parseAmount(raw[mapping.deal_value]) : 0;
+          if (tk > 0) { sumToken += tk; rowsWithToken++; }
+          if (dv > 0) { sumDealValue += dv; rowsWithDealValue++; }
+          const willBeImported =
+            rd.status === "new" ||
+            rd.status === "phone_only" ||
+            rd.status === "name_only" ||
+            ((rd.status === "existing_by_email" || rd.status === "existing_by_phone")
+              && (duplicatePolicy === "update" || duplicatePolicy === "promote"));
+          if (willBeImported) {
+            projectedRevenue += dv > 0 ? dv : (Number(dealValue) || 0);
+            projectedTokenRevenue += tk;
+          }
+        });
+
         if (!cancelled) {
           setPreflight({
             total: rows.length,
@@ -604,6 +699,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             invalid,
             willImport,
             willSkip,
+            sumToken,
+            sumDealValue,
+            rowsWithToken,
+            rowsWithDealValue,
+            projectedRevenue,
+            projectedTokenRevenue,
             existingByEmail,
             existingByPhone,
             rowDetails,
@@ -614,7 +715,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [step, rows, mapping, pipelines, stages, duplicatePolicy]);
+  }, [step, rows, mapping, pipelines, stages, duplicatePolicy, dealValue]);
 
 
 
@@ -686,12 +787,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
       // Build normalized rows
       const get = (r: Row, k: FieldKey) => (mapping[k] ? String(r[mapping[k]] || "").trim() : "");
-      type N = { full_name: string | null; email: string | null; phone: string | null; country: string | null };
+      type N = { full_name: string | null; email: string | null; phone: string | null; country: string | null; token: number; deal_value: number };
       const records: N[] = rows.map((r) => ({
         full_name: get(r, "full_name") || null,
         email: normEmail(get(r, "email")) || null,
         phone: normPhone(get(r, "phone")) || null,
         country: get(r, "country") || null,
+        token: mapping.token ? parseAmount(r[mapping.token]) : 0,
+        deal_value: mapping.deal_value ? parseAmount(r[mapping.deal_value]) : 0,
       })).filter((r) => r.full_name || r.email || r.phone);
 
       // Fresh duplicate maps — match by email AND by phone (phone is a fallback
@@ -909,7 +1012,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           assigned_agent_id: agentId,
           lead_type: leadType,
           program_name: productName,
-          deal_value: dealValue,
+          deal_value: r.deal_value > 0 ? r.deal_value : dealValue,
           program_id: finalProgramId,
           offer_id: finalOfferId,
           source_segment_name: segmentName || null,
@@ -957,13 +1060,31 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
 
       // ── Auto-sync paid leads to Paid Pipeline ─────────────────────────────
+      // Build a lookup from records to recover per-row Token / Deal Value once the
+      // CRM lead is created. Records may have both email + phone or only one.
+      const rowMetaByEmail = new Map<string, { token: number; deal_value: number }>();
+      const rowMetaByPhone = new Map<string, { token: number; deal_value: number }>();
+      for (const r of records) {
+        if (r.token > 0 || r.deal_value > 0) {
+          const meta = { token: r.token, deal_value: r.deal_value };
+          if (r.email && !rowMetaByEmail.has(r.email)) rowMetaByEmail.set(r.email, meta);
+          if (r.phone && !rowMetaByPhone.has(r.phone)) rowMetaByPhone.set(r.phone, meta);
+        }
+      }
+      const resolveRowMeta = (email: string | null, phone: string | null) => {
+        if (email && rowMetaByEmail.has(email)) return rowMetaByEmail.get(email)!;
+        if (phone && rowMetaByPhone.has(phone)) return rowMetaByPhone.get(phone)!;
+        return { token: 0, deal_value: 0 };
+      };
+
       let paidSynced = 0;
       let paidLinked = 0;
       let paidUnlinked = 0;
+      let paymentRowsCreated = 0;
+      let paymentRowsFailed = 0;
+      let totalTokenCollected = 0;
       if (pipelineType === "paid") {
         try {
-          // Sync only CRM leads created in this import. Existing matches are intentionally skipped so
-          // their paid-pipeline status/stage/source tracking cannot be rewritten by an import.
           const syncIds = new Set<string>([...createdCrmLeadIds, ...promotedCrmLeadIds]);
           const { data: crmRows } = syncIds.size > 0
             ? await supabase
@@ -973,8 +1094,20 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             : { data: [] as any[] };
 
           for (const lead of (crmRows || []) as any[]) {
-            if (lead.paid_pipeline_lead_id) { paidLinked++; continue; }
-            // Match priority: email → phone. Linking only; never rewrite existing paid status/stage/source.
+            const rowMeta = resolveRowMeta(normEmail(lead.email), normPhone(lead.phone));
+            const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || dealValue || 0);
+            const rowToken = rowMeta.token > 0 ? rowMeta.token : 0;
+
+            if (lead.paid_pipeline_lead_id) {
+              paidLinked++;
+              if (rowToken > 0) {
+                totalTokenCollected += rowToken;
+                await recordTokenPayment(lead.paid_pipeline_lead_id, rowToken, segmentName, profile?.id ?? null)
+                  .then(() => paymentRowsCreated++)
+                  .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+              }
+              continue;
+            }
             let existing: any = null;
             if (!existing && lead.email) {
               const { data } = await supabase.from("paid_pipeline_leads")
@@ -992,10 +1125,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               email: lead.email,
               phone: lead.phone,
               product_name_snapshot: lead.program_name || productName || null,
-              deal_value_including_gst: Number(lead.deal_value || dealValue || 0),
+              deal_value_including_gst: rowDeal,
+              token_amount_collected: rowToken,
               source_webinar: segmentName,
               pipeline_stage: "Payment Confirmed",
-              payment_status: "No Payment",
+              payment_status: rowToken > 0 ? "Partial Payment" : "No Payment",
               crm_lead_id: lead.id,
               service_package_id: servicePackageId || null,
               service_package_snapshot: packageSnapshot,
@@ -1005,9 +1139,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               source_segment_name: segmentName || null,
             };
 
+            let paidLeadId: string | null = null;
             if (existing) {
               const updatePatch: any = { crm_lead_id: lead.id };
-              // Only overwrite service package on existing buyer when admin opted in
+              if (rowDeal > 0) updatePatch.deal_value_including_gst = rowDeal;
               if (overwriteServicePackage && servicePackageId) {
                 updatePatch.service_package_id = servicePackageId;
                 updatePatch.service_package_snapshot = packageSnapshot;
@@ -1016,6 +1151,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               if (lead.paid_pipeline_lead_id !== existing.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: existing.id } as any).eq("id", lead.id);
               }
+              paidLeadId = existing.id;
               paidLinked++;
             } else {
               payload.created_by = profile?.id;
@@ -1024,7 +1160,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               if (!insErr && ins?.id) {
                 await supabase.from("leads").update({ paid_pipeline_lead_id: ins.id } as any).eq("id", lead.id);
                 paidSynced++;
-                // Optionally seed Operations Intake immediately
+                paidLeadId = ins.id;
                 if (sendToOperations) {
                   try {
                     await supabase.from("operations_leads" as any).insert({
@@ -1034,7 +1170,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                       email: lead.email,
                       phone: lead.phone,
                       program_name: lead.program_name || productName || null,
-                      deal_value: Number(lead.deal_value || dealValue || 0),
+                      deal_value: rowDeal,
                       process_template_id: resolvedProcessTemplateId,
                       service_package_id: servicePackageId || null,
                       service_package_snapshot: packageSnapshot,
@@ -1054,9 +1190,16 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 if (!errors.includes(insErr.message)) errors.push(insErr.message);
               }
             }
+
+            // Token payment row — only when the row has a positive token amount.
+            if (paidLeadId && rowToken > 0) {
+              totalTokenCollected += rowToken;
+              await recordTokenPayment(paidLeadId, rowToken, segmentName, profile?.id ?? null)
+                .then(() => paymentRowsCreated++)
+                .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+            }
           }
 
-          // Recount unlinked by re-querying — authoritative diagnostic
           const { data: linkCheck } = await supabase
             .from("leads")
             .select("id, paid_pipeline_lead_id")
@@ -1070,14 +1213,20 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               action_type: "paid_pipeline_record_created_from_crm",
               entity_type: "crm_batch",
               entity_label: segmentName,
-              metadata: { batch_name: segmentName, paid_created: paidSynced, paid_linked: paidLinked, paid_unlinked: paidUnlinked, pipeline_id: pipelineId },
-              summary: `Paid Pipeline auto-sync: ${paidSynced} created · ${paidLinked} linked · ${paidUnlinked} unlinked from batch "${segmentName}".`,
+              metadata: {
+                batch_name: segmentName, paid_created: paidSynced, paid_linked: paidLinked,
+                paid_unlinked: paidUnlinked, pipeline_id: pipelineId,
+                token_payments_created: paymentRowsCreated, token_payments_failed: paymentRowsFailed,
+                total_token_collected: totalTokenCollected,
+              },
+              summary: `Paid Pipeline auto-sync: ${paidSynced} created · ${paidLinked} linked · ${paidUnlinked} unlinked · ${paymentRowsCreated} token payments (₹${totalTokenCollected.toLocaleString("en-IN")}) from batch "${segmentName}".`,
             });
           }
         } catch (syncErr: any) {
           console.error("[ImportLeadsModal] paid pipeline sync failed", syncErr);
         }
       }
+
 
       // ── Persist batch-level metadata (Service Package, Process Template, etc.) ──
       try {
@@ -1356,9 +1505,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               <>
                 <div className="text-xs text-muted-foreground">{validRows} rows detected · map your columns:</div>
                 <div className="grid grid-cols-2 gap-3">
-                  {(["full_name", "email", "phone", "country"] as FieldKey[]).map((k) => (
+                  {ALL_FIELDS.map((k) => (
                     <div key={k}>
-                      <label className="form-label capitalize">{k.replace("_", " ")}</label>
+                      <label className="form-label">{FIELD_LABEL[k]}{(k === "full_name" || k === "email" || k === "phone") ? "" : <span className="text-muted-foreground font-normal"> (optional)</span>}</label>
                       <select className="ipc-input" value={mapping[k]} onChange={(e) => setMapping({ ...mapping, [k]: e.target.value })}>
                         <option value="">— none —</option>
                         {headers.map((h) => <option key={h} value={h}>{h}</option>)}
@@ -1367,9 +1516,19 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   ))}
                 </div>
                 {rows[0] && (
-                  <div className="p-3 rounded-md bg-off border border-line text-xs">
-                    <div className="uppercase-label mb-1">Preview row 1</div>
-                    <div>{mapping.full_name && <>Name: <b>{rows[0][mapping.full_name]}</b> · </>}{mapping.email && <>Email: <b>{rows[0][mapping.email]}</b> · </>}{mapping.phone && <>Phone: <b>{rows[0][mapping.phone]}</b></>}</div>
+                  <div className="p-3 rounded-md bg-off border border-line text-xs space-y-1">
+                    <div className="uppercase-label">Preview row 1</div>
+                    <div>
+                      {mapping.full_name && <>Name: <b>{rows[0][mapping.full_name]}</b> · </>}
+                      {mapping.email && <>Email: <b>{rows[0][mapping.email]}</b> · </>}
+                      {mapping.phone && <>Phone: <b>{rows[0][mapping.phone]}</b></>}
+                    </div>
+                    {(mapping.token || mapping.deal_value) && (
+                      <div className="text-muted-foreground">
+                        {mapping.deal_value && <>Deal value: <b className="text-foreground">₹{parseAmount(rows[0][mapping.deal_value]).toLocaleString("en-IN")}</b> · </>}
+                        {mapping.token && <>Token: <b className="text-foreground">₹{parseAmount(rows[0][mapping.token]).toLocaleString("en-IN")}</b></>}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -1686,6 +1845,38 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                       <span><span className="text-muted-foreground">Will be skipped:</span> <b className={preflight.willSkip ? "text-amber-700" : ""}>{preflight.willSkip}</b></span>
                     </div>
                   </div>
+
+                  {(mapping.token || mapping.deal_value) && (
+                    <div className="mt-2 rounded-md border border-line bg-white p-3">
+                      <div className="uppercase-label mb-1.5 text-[10px] tracking-wider text-muted-foreground">Financial totals (from mapped columns)</div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-mono">
+                        {mapping.deal_value && (
+                          <>
+                            <div><span className="text-muted-foreground">Rows with deal value:</span> <b>{preflight.rowsWithDealValue}</b></div>
+                            <div><span className="text-muted-foreground">Sum of deal values:</span> <b>₹{preflight.sumDealValue.toLocaleString("en-IN")}</b></div>
+                          </>
+                        )}
+                        {mapping.token && (
+                          <>
+                            <div><span className="text-muted-foreground">Rows with token:</span> <b>{preflight.rowsWithToken}</b></div>
+                            <div><span className="text-muted-foreground">Sum of tokens:</span> <b>₹{preflight.sumToken.toLocaleString("en-IN")}</b></div>
+                          </>
+                        )}
+                        <div className="col-span-2 pt-1 mt-1 border-t border-line flex items-center justify-between">
+                          <span><span className="text-muted-foreground">Projected revenue (import-eligible rows):</span> <b className="text-emerald-700">₹{preflight.projectedRevenue.toLocaleString("en-IN")}</b></span>
+                          {mapping.token && (
+                            <span><span className="text-muted-foreground">Token collected:</span> <b className="text-emerald-700">₹{preflight.projectedTokenRevenue.toLocaleString("en-IN")}</b></span>
+                          )}
+                        </div>
+                      </div>
+                      {leadType !== "paid" && mapping.token && preflight.projectedTokenRevenue > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+                          Tokens are mapped but the lead type is <b>Unpaid</b>. Token payments are only recorded when importing into a <b>Paid</b> pipeline.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
 
                   {preflight.missingEmail > 0 && (preflight.phoneOnlyCount + preflight.nameOnlyCount) > 0 && (
                     <div className="mt-2 px-2.5 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800">
