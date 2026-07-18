@@ -44,15 +44,39 @@ interface Props {
 }
 
 type Row = Record<string, string>;
-type FieldKey = "full_name" | "email" | "phone" | "country" | "token" | "deal_value";
+type FieldKey =
+  | "full_name" | "email" | "phone" | "country"
+  | "token" | "deal_value" | "collected" | "balance"
+  | "payment_date" | "notes";
 
-const FIELD_GUESS: Record<FieldKey, RegExp> = {
-  full_name: /^(name|full[\s_-]?name|first[\s_-]?name|attendee|user)/i,
-  email: /e[\s_-]?mail/i,
-  phone: /(phone|mobile|whatsapp|contact|number)/i,
-  country: /country/i,
-  token: /(token|advance|collected|paid[\s_-]?amount|amount[\s_-]?paid|down[\s_-]?payment)/i,
-  deal_value: /(deal[\s_-]?value|product[\s_-]?price|total[\s_-]?fee|program[\s_-]?fee|price[\s_-]?incl|deal[\s_-]?amount|total[\s_-]?amount|fees?)/i,
+// Normalize a header string for alias matching: lower, strip punctuation, drop "(with gst)" metadata,
+// collapse whitespace/underscores/hyphens.
+const normHeader = (h: string): string =>
+  String(h || "")
+    .toLowerCase()
+    .replace(/[₹$]/g, "")
+    .replace(/\(.*?\)/g, " ")           // drop "(with gst)" etc.
+    .replace(/[_\-]+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Field alias tables — each entry is a normalized header substring/regex the header must contain.
+const FIELD_ALIASES: Record<FieldKey, RegExp[]> = {
+  full_name: [/^(?:full\s*)?name$/, /\bmember\s*name\b/, /\bcustomer\s*name\b/, /\bdiamond\s*member\b/, /\battendee\b/, /\bfirst\s*name\b/],
+  email: [/\bemail\b/, /\bemail\s*id\b/, /\bemail\s*address\b/],
+  phone: [/^number$/, /\bphone\b/, /\bmobile\b/, /\bwhatsapp\b/, /\bcontact\s*(?:number)?\b/],
+  country: [/\bcountry\b/],
+  payment_date: [/^date$/, /\bpayment\s*date\b/, /\bpaid\s*date\b/, /\btoken\s*date\b/, /\bregistration\s*date\b/, /\btxn\s*date\b/],
+  deal_value: [
+    /\bdiamond\s*amount\b/, /\bdeal\s*value\b/, /\bproduct\s*price\b/, /\bprogramme?\s*price\b/,
+    /\bpackage\s*price\b/, /\bfinal\s*amount\b/, /\btotal\s*fee\b/, /\bsale\s*value\b/,
+    /\bdeal\s*amount\b/, /\btotal\s*amount\b/, /\bprice\s*incl\b/, /\bfees?\b/,
+  ],
+  token: [/^token$/, /\btoken\s*amount\b/, /\btoken\s*paid\b/, /\badvance(?:\s*amount)?\b/, /\bbooking\s*amount\b/, /\binitial\s*payment\b/, /\bdown\s*payment\b/],
+  collected: [/^collected$/, /\bcollected\s*amount\b/, /\btotal\s*paid\b/, /\bamount\s*received\b/, /\bpayment\s*received\b/, /\bamount\s*paid\b/, /\bpaid\s*amount\b/],
+  balance: [/^balance$/, /\bpending\s*amount\b/, /\bremaining\s*amount\b/, /\bamount\s*pending\b/, /\bbalance\s*amount\b/],
+  notes: [/^notes?$/, /\bremarks?\b/, /\bcomments?\b/],
 };
 
 const FIELD_LABEL: Record<FieldKey, string> = {
@@ -60,21 +84,59 @@ const FIELD_LABEL: Record<FieldKey, string> = {
   email: "Email",
   phone: "Phone",
   country: "Country",
+  payment_date: "Payment Date",
+  deal_value: "Deal Value / Product Price",
   token: "Token / Advance",
-  deal_value: "Deal value / Product price",
+  collected: "Total Collected",
+  balance: "Balance Amount",
+  notes: "Notes",
 };
 
-const ALL_FIELDS: FieldKey[] = ["full_name", "email", "phone", "country", "token", "deal_value"];
+const IDENTITY_FIELDS: FieldKey[] = ["full_name", "email", "phone", "country"];
+const FINANCIAL_FIELDS: FieldKey[] = ["payment_date", "deal_value", "token", "collected", "balance"];
+const OPTIONAL_FIELDS: FieldKey[] = ["notes"];
+const ALL_FIELDS: FieldKey[] = [...IDENTITY_FIELDS, ...FINANCIAL_FIELDS, ...OPTIONAL_FIELDS];
+
+const emptyMapping = (): Record<FieldKey, string> =>
+  ALL_FIELDS.reduce((acc, k) => { acc[k] = ""; return acc; }, {} as Record<FieldKey, string>);
 
 function autoMap(headers: string[]): Record<FieldKey, string> {
-  const out: any = { full_name: "", email: "", phone: "", country: "", token: "", deal_value: "" };
-  for (const h of headers) {
-    for (const k of ALL_FIELDS) {
-      if (!out[k] && FIELD_GUESS[k].test(h)) out[k] = h;
+  const out = emptyMapping();
+  // Iterate fields in ALL_FIELDS order so first matching header wins per field.
+  // Reserve headers already taken by a stronger field so "Token Amount" cannot map as Deal Value.
+  const taken = new Set<string>();
+  for (const k of ALL_FIELDS) {
+    for (const h of headers) {
+      if (taken.has(h)) continue;
+      const nh = normHeader(h);
+      if (!nh) continue;
+      if (FIELD_ALIASES[k].some((re) => re.test(nh))) {
+        out[k] = h;
+        taken.add(h);
+        break;
+      }
     }
   }
   return out;
 }
+
+// Parse a source cell into an ISO date string (yyyy-mm-dd) or null.
+const parseDate = (v: any): string | null => {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmy = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/.exec(s);
+  if (dmy) {
+    let [, d, m, y] = dmy;
+    if (y.length === 2) y = (Number(y) > 50 ? "19" : "20") + y;
+    const iso = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    return Number.isNaN(Date.parse(iso)) ? null : iso;
+  }
+  const t = Date.parse(s);
+  if (!Number.isNaN(t)) return new Date(t).toISOString().slice(0, 10);
+  return null;
+};
 
 const normEmail = (v: any) => {
   const s = String(v ?? "").replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\s+/g, "").trim().toLowerCase();
