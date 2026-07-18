@@ -1450,6 +1450,79 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               <p className="text-[11px] text-muted-foreground mt-1">Existing-email matches will be auto-tagged ★ Super Hot regardless.</p>
             </div>
 
+            {/* Phase 1 — Programme + Offer identity */}
+            <div className="p-3 rounded-lg border border-line bg-off/60 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="font-serif text-sm">Programme &amp; Offer</div>
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-gold/20 text-black">Required for IPC / IWC separation</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Programme</label>
+                  <select
+                    className="ipc-input"
+                    value={programId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setProgramId(id);
+                      // Clear offer if it doesn't belong to the new programme
+                      if (id && offerId) {
+                        const cur = offers.find((o) => o.id === offerId);
+                        const prog = programs.find((p) => p.id === id);
+                        const belongs = cur && (cur.program_id === id || (!!prog && !!cur.business_unit && cur.business_unit.toUpperCase() === prog.name.toUpperCase()));
+                        if (!belongs) setOfferId("");
+                      }
+                    }}
+                  >
+                    <option value="">— Select programme —</option>
+                    {programs.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  {programs.length === 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-1">No programmes defined. Ask an admin to add IPC / IWC in Master Settings.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="form-label">Offer / Product</label>
+                  <select
+                    className="ipc-input"
+                    value={offerId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setOfferId(id);
+                      const o = offers.find((x) => x.id === id) || null;
+                      applyOfferDefaults(o);
+                    }}
+                  >
+                    <option value="">— Select offer —</option>
+                    {filteredOffers.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.product_name}{o.product_price_including_gst ? ` · ₹${Number(o.product_price_including_gst).toLocaleString("en-IN")}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {offerId && (() => {
+                const o = offers.find((x) => x.id === offerId);
+                if (!o) return null;
+                const lockedPipelineName = o.default_pipeline_id
+                  ? (pipelines.find((p) => p.id === o.default_pipeline_id)?.name || "—")
+                  : null;
+                return (
+                  <div className="text-[11px] text-muted-foreground space-y-0.5">
+                    {lockedPipelineName ? (
+                      <div>🔒 Destination pipeline locked by offer: <b className="text-black">{lockedPipelineName}</b>. Change it in Master Settings → Offers.</div>
+                    ) : (
+                      <div>⚠️ This offer has no default pipeline set — imports may land in the wrong programme. Ask an admin to set a default pipeline for this offer.</div>
+                    )}
+                    <div>Programme tag, offer id, and batch will be stamped on every imported lead for reporting isolation.</div>
+                  </div>
+                );
+              })()}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="form-label">Product / Program name</label>
