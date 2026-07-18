@@ -1139,22 +1139,33 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
 
       // ── Auto-sync paid leads to Paid Pipeline ─────────────────────────────
-      // Build a lookup from records to recover per-row Token / Deal Value once the
-      // CRM lead is created. Records may have both email + phone or only one.
-      const rowMetaByEmail = new Map<string, { token: number; deal_value: number }>();
-      const rowMetaByPhone = new Map<string, { token: number; deal_value: number }>();
+      // Build a lookup from records to recover per-row financials + source_row
+      // once the CRM lead is created. Records may have both email + phone or only one.
+      type RowMeta = {
+        token: number; deal_value: number; collected: number; balance: number;
+        payment_date: string | null; notes: string | null; source_row: number;
+      };
+      const rowMetaByEmail = new Map<string, RowMeta>();
+      const rowMetaByPhone = new Map<string, RowMeta>();
       for (const r of records) {
-        if (r.token > 0 || r.deal_value > 0) {
-          const meta = { token: r.token, deal_value: r.deal_value };
-          if (r.email && !rowMetaByEmail.has(r.email)) rowMetaByEmail.set(r.email, meta);
-          if (r.phone && !rowMetaByPhone.has(r.phone)) rowMetaByPhone.set(r.phone, meta);
-        }
+        const meta: RowMeta = {
+          token: r.token, deal_value: r.deal_value, collected: r.collected, balance: r.balance,
+          payment_date: r.payment_date, notes: r.notes, source_row: r.source_row,
+        };
+        if (r.email && !rowMetaByEmail.has(r.email)) rowMetaByEmail.set(r.email, meta);
+        if (r.phone && !rowMetaByPhone.has(r.phone)) rowMetaByPhone.set(r.phone, meta);
       }
-      const resolveRowMeta = (email: string | null, phone: string | null) => {
+      const emptyMeta: RowMeta = { token: 0, deal_value: 0, collected: 0, balance: 0, payment_date: null, notes: null, source_row: 0 };
+      const resolveRowMeta = (email: string | null, phone: string | null): RowMeta => {
         if (email && rowMetaByEmail.has(email)) return rowMetaByEmail.get(email)!;
         if (phone && rowMetaByPhone.has(phone)) return rowMetaByPhone.get(phone)!;
-        return { token: 0, deal_value: 0 };
+        return emptyMeta;
       };
+
+      // Stable source label for payment metadata + idempotency scope.
+      const sourceLabel = sourceType === "google_sheet"
+        ? `sheet:${gsSpreadsheetId || "unknown"}::${gsSelectedTab || "tab"}`
+        : `csv:${fileName || "upload"}`;
 
       let paidSynced = 0;
       let paidLinked = 0;
