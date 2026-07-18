@@ -712,12 +712,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
       // Build normalized rows
       const get = (r: Row, k: FieldKey) => (mapping[k] ? String(r[mapping[k]] || "").trim() : "");
-      type N = { full_name: string | null; email: string | null; phone: string | null; country: string | null };
+      type N = { full_name: string | null; email: string | null; phone: string | null; country: string | null; token: number; deal_value: number };
       const records: N[] = rows.map((r) => ({
         full_name: get(r, "full_name") || null,
         email: normEmail(get(r, "email")) || null,
         phone: normPhone(get(r, "phone")) || null,
         country: get(r, "country") || null,
+        token: mapping.token ? parseAmount(r[mapping.token]) : 0,
+        deal_value: mapping.deal_value ? parseAmount(r[mapping.deal_value]) : 0,
       })).filter((r) => r.full_name || r.email || r.phone);
 
       // Fresh duplicate maps — match by email AND by phone (phone is a fallback
