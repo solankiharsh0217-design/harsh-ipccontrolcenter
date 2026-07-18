@@ -112,7 +112,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
-  const [mapping, setMapping] = useState<Record<FieldKey, string>>({ full_name: "", email: "", phone: "", country: "" });
+  const [mapping, setMapping] = useState<Record<FieldKey, string>>({ full_name: "", email: "", phone: "", country: "", token: "", deal_value: "" });
 
   // Google Sheet sub-state
   const [gsUrl, setGsUrl] = useState("");
