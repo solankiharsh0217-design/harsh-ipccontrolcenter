@@ -304,8 +304,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     // Financial totals derived from the mapped Token / Deal Value columns.
     sumToken: number;
     sumDealValue: number;
+    sumCollected: number;
+    sumBalance: number;
     rowsWithToken: number;
     rowsWithDealValue: number;
+    rowsTokenExceedsDeal: number;
     projectedRevenue: number;   // Sum of deal_value (fallback to global dealValue) for import-eligible rows
     projectedTokenRevenue: number; // Sum of tokens for import-eligible rows
     existingByEmail: Map<string, any>;
