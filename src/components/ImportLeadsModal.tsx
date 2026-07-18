@@ -126,6 +126,20 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [sendToOperations, setSendToOperations] = useState<boolean>(false);
   const [overwriteServicePackage, setOverwriteServicePackage] = useState<boolean>(false);
 
+  // Phase 1 — Programme + Offer identity
+  type ProgramRow = { id: string; name: string; program_key: string | null; is_active: boolean; sort_order: number };
+  type OfferRow = {
+    id: string; product_name: string; program_id: string | null; business_unit: string | null;
+    product_price_including_gst: number; default_token_amount: number;
+    default_pipeline_id: string | null; default_service_package_id: string | null;
+    default_operations_template_id: string | null; default_grade: string | null;
+    is_active: boolean; is_deleted: boolean;
+  };
+  const [programs, setPrograms] = useState<ProgramRow[]>([]);
+  const [offers, setOffers] = useState<OfferRow[]>([]);
+  const [programId, setProgramId] = useState<string>("");
+  const [offerId, setOfferId] = useState<string>("");
+
   // Step 4
   const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
   const [assignment, setAssignment] = useState<AssignmentMode>("unassigned");
@@ -187,7 +201,52 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
   useEffect(() => {
     supabase.from("webinars").select("id, name").order("name").then(({ data }) => setWebinars((data || []) as any));
+    // Load Programmes (business_units) and Offers (program_products) for Phase 1
+    supabase
+      .from("business_units" as any)
+      .select("id, name, program_key, is_active, sort_order")
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("name")
+      .then(({ data }) => setPrograms((data as any) || []));
+    supabase
+      .from("program_products" as any)
+      .select("id, product_name, program_id, business_unit, product_price_including_gst, default_token_amount, default_pipeline_id, default_service_package_id, default_operations_template_id, default_grade, is_active, is_deleted")
+      .eq("is_active", true)
+      .eq("is_deleted", false)
+      .order("product_name")
+      .then(({ data }) => setOffers((data as any) || []));
   }, []);
+
+  const filteredOffers = useMemo(() => {
+    if (!programId) return offers;
+    const prog = programs.find((p) => p.id === programId);
+    return offers.filter((o) =>
+      o.program_id === programId ||
+      (!!prog && !!o.business_unit && o.business_unit.toUpperCase() === prog.name.toUpperCase()),
+    );
+  }, [offers, programs, programId]);
+
+  // When an offer is picked, prefill product/deal/package/template/grade and lock destination pipeline.
+  const applyOfferDefaults = (offer: OfferRow | null) => {
+    if (!offer) return;
+    setProductName(offer.product_name || productName);
+    if (Number(offer.product_price_including_gst) > 0) setDealValue(Number(offer.product_price_including_gst));
+    if (offer.default_service_package_id) setServicePackageId(offer.default_service_package_id);
+    if (offer.default_operations_template_id) setProcessTemplateId(offer.default_operations_template_id);
+    if (offer.default_grade && ["hot","warm","cold","non-attendee"].includes(offer.default_grade)) {
+      setDefaultGrade(offer.default_grade as LeadGrade);
+    }
+    if (offer.default_pipeline_id) {
+      setCreatingPipeline(false);
+      setTargetPipelineId(offer.default_pipeline_id);
+      const pipe = pipelines.find((p) => p.id === offer.default_pipeline_id);
+      if (pipe?.type === "paid") setLeadType("paid");
+      else if (pipe?.type === "unpaid") setLeadType("unpaid");
+    }
+    if (offer.program_id && offer.program_id !== programId) setProgramId(offer.program_id);
+  };
+
 
   const handleFile = async (file: File) => {
     setFileName(file.name);
@@ -593,6 +652,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         return;
       }
 
+      // Phase 1 hard guard — Programme + Offer identity.
+      // Prevents IWC leads from silently landing in IPC pipelines (or vice-versa).
+      const selectedOffer = offerId ? offers.find((o) => o.id === offerId) : null;
+      if (selectedOffer && selectedOffer.default_pipeline_id && selectedOffer.default_pipeline_id !== pipelineId) {
+        const lockedName = pipelines.find((p) => p.id === selectedOffer.default_pipeline_id)?.name || "the offer's default pipeline";
+        toast.error(`This offer is locked to "${lockedName}". Change the target pipeline to that, or pick a different offer.`);
+        setImporting(false);
+        return;
+      }
+      if (programs.length > 0 && !programId && !selectedOffer) {
+        toast.error("Please pick a Programme (IPC / IWC / …) so this batch stays isolated in reports.");
+        setImporting(false);
+        return;
+      }
+      // Resolve final program_id — offer wins over dropdown to avoid mismatches.
+      const finalProgramId: string | null = (selectedOffer?.program_id) || programId || null;
+      const finalOfferId: string | null = selectedOffer?.id || null;
+
       // Load stages for chosen pipeline; auto-seed if empty
       const { data: pStages } = await supabase.from("stages").select("*").eq("pipeline_id", pipelineId).order("position");
       let stageList = pStages || [];
@@ -725,6 +802,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             webinar_name: webinarName || segmentName,
             program_name: productName || null,
             deal_value: dealValue,
+            program_id: finalProgramId,
+            offer_id: finalOfferId,
+            source_segment_name: segmentName || null,
             service_package_id: servicePackageId || null,
             service_package_snapshot: packageSnapshotForDup,
             hide_from_sales_workload: true,
@@ -830,6 +910,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           lead_type: leadType,
           program_name: productName,
           deal_value: dealValue,
+          program_id: finalProgramId,
+          offer_id: finalOfferId,
+          source_segment_name: segmentName || null,
           total_minutes: 0,
           attendance_pct: 0,
           sessions_count: 0,
@@ -916,6 +999,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               crm_lead_id: lead.id,
               service_package_id: servicePackageId || null,
               service_package_snapshot: packageSnapshot,
+              program_id: finalProgramId,
+              offer_id: finalOfferId,
+              product_id: finalOfferId,
+              source_segment_name: segmentName || null,
             };
 
             if (existing) {
@@ -951,6 +1038,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                       process_template_id: resolvedProcessTemplateId,
                       service_package_id: servicePackageId || null,
                       service_package_snapshot: packageSnapshot,
+                      program_id: finalProgramId,
+                      offer_id: finalOfferId,
                       source_type: "crm_import",
                       source_batch_name: segmentName,
                       created_by: profile?.id,
@@ -1002,6 +1091,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           service_package_id: servicePackageId || null,
           service_package_snapshot: packageSnapshot,
           process_template_id: resolvedProcessTemplateId,
+          program_id: finalProgramId,
+          business_unit: (programs.find((p) => p.id === finalProgramId)?.name) || undefined,
           imported_lead_count: newImported,
           created_by: profile?.id,
           is_deleted: false,
@@ -1389,6 +1480,79 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 <option value="non-attendee">No Show</option>
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">Existing-email matches will be auto-tagged ★ Super Hot regardless.</p>
+            </div>
+
+            {/* Phase 1 — Programme + Offer identity */}
+            <div className="p-3 rounded-lg border border-line bg-off/60 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="font-serif text-sm">Programme &amp; Offer</div>
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-gold/20 text-black">Required for IPC / IWC separation</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Programme</label>
+                  <select
+                    className="ipc-input"
+                    value={programId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setProgramId(id);
+                      // Clear offer if it doesn't belong to the new programme
+                      if (id && offerId) {
+                        const cur = offers.find((o) => o.id === offerId);
+                        const prog = programs.find((p) => p.id === id);
+                        const belongs = cur && (cur.program_id === id || (!!prog && !!cur.business_unit && cur.business_unit.toUpperCase() === prog.name.toUpperCase()));
+                        if (!belongs) setOfferId("");
+                      }
+                    }}
+                  >
+                    <option value="">— Select programme —</option>
+                    {programs.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  {programs.length === 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-1">No programmes defined. Ask an admin to add IPC / IWC in Master Settings.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="form-label">Offer / Product</label>
+                  <select
+                    className="ipc-input"
+                    value={offerId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setOfferId(id);
+                      const o = offers.find((x) => x.id === id) || null;
+                      applyOfferDefaults(o);
+                    }}
+                  >
+                    <option value="">— Select offer —</option>
+                    {filteredOffers.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.product_name}{o.product_price_including_gst ? ` · ₹${Number(o.product_price_including_gst).toLocaleString("en-IN")}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {offerId && (() => {
+                const o = offers.find((x) => x.id === offerId);
+                if (!o) return null;
+                const lockedPipelineName = o.default_pipeline_id
+                  ? (pipelines.find((p) => p.id === o.default_pipeline_id)?.name || "—")
+                  : null;
+                return (
+                  <div className="text-[11px] text-muted-foreground space-y-0.5">
+                    {lockedPipelineName ? (
+                      <div>🔒 Destination pipeline locked by offer: <b className="text-black">{lockedPipelineName}</b>. Change it in Master Settings → Offers.</div>
+                    ) : (
+                      <div>⚠️ This offer has no default pipeline set — imports may land in the wrong programme. Ask an admin to set a default pipeline for this offer.</div>
+                    )}
+                    <div>Programme tag, offer id, and batch will be stamped on every imported lead for reporting isolation.</div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="grid grid-cols-2 gap-3">

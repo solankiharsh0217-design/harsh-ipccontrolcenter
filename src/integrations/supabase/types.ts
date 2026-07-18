@@ -844,21 +844,36 @@ export type Database = {
       business_units: {
         Row: {
           created_at: string
+          created_by: string | null
+          description: string | null
           id: string
           is_active: boolean
           name: string
+          program_key: string | null
+          sort_order: number
+          updated_at: string
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
+          description?: string | null
           id?: string
           is_active?: boolean
           name: string
+          program_key?: string | null
+          sort_order?: number
+          updated_at?: string
         }
         Update: {
           created_at?: string
+          created_by?: string | null
+          description?: string | null
           id?: string
           is_active?: boolean
           name?: string
+          program_key?: string | null
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -3790,15 +3805,18 @@ export type Database = {
           is_super_hot: boolean
           lead_source_type: string | null
           lead_type: Database["public"]["Enums"]["lead_type"]
+          offer_id: string | null
           paid_pipeline_lead_id: string | null
           phone: string | null
           pipeline_id: string | null
+          program_id: string | null
           program_name: string
           score: number
           service_package_id: string | null
           service_package_snapshot: Json | null
           sessions_count: number
           sort_order: number
+          source_segment_name: string | null
           stage_id: string | null
           total_minutes: number
           updated_at: string
@@ -3836,15 +3854,18 @@ export type Database = {
           is_super_hot?: boolean
           lead_source_type?: string | null
           lead_type?: Database["public"]["Enums"]["lead_type"]
+          offer_id?: string | null
           paid_pipeline_lead_id?: string | null
           phone?: string | null
           pipeline_id?: string | null
+          program_id?: string | null
           program_name?: string
           score?: number
           service_package_id?: string | null
           service_package_snapshot?: Json | null
           sessions_count?: number
           sort_order?: number
+          source_segment_name?: string | null
           stage_id?: string | null
           total_minutes?: number
           updated_at?: string
@@ -3882,15 +3903,18 @@ export type Database = {
           is_super_hot?: boolean
           lead_source_type?: string | null
           lead_type?: Database["public"]["Enums"]["lead_type"]
+          offer_id?: string | null
           paid_pipeline_lead_id?: string | null
           phone?: string | null
           pipeline_id?: string | null
+          program_id?: string | null
           program_name?: string
           score?: number
           service_package_id?: string | null
           service_package_snapshot?: Json | null
           sessions_count?: number
           sort_order?: number
+          source_segment_name?: string | null
           stage_id?: string | null
           total_minutes?: number
           updated_at?: string
@@ -3908,10 +3932,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "program_products"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "leads_pipeline_id_fkey"
             columns: ["pipeline_id"]
             isOneToOne: false
             referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
             referencedColumns: ["id"]
           },
           {
@@ -5130,6 +5168,7 @@ export type Database = {
           last_resumed_at: string | null
           name: string
           notes: string | null
+          offer_id: string | null
           onboarding_batch: string | null
           paid_pipeline_lead_id: string | null
           phone: string | null
@@ -5137,6 +5176,7 @@ export type Database = {
           priority: string | null
           process_template_id: string | null
           product_name: string | null
+          program_id: string | null
           program_name: string | null
           readiness_override_at: string | null
           readiness_override_by: string | null
@@ -5176,6 +5216,7 @@ export type Database = {
           last_resumed_at?: string | null
           name: string
           notes?: string | null
+          offer_id?: string | null
           onboarding_batch?: string | null
           paid_pipeline_lead_id?: string | null
           phone?: string | null
@@ -5183,6 +5224,7 @@ export type Database = {
           priority?: string | null
           process_template_id?: string | null
           product_name?: string | null
+          program_id?: string | null
           program_name?: string | null
           readiness_override_at?: string | null
           readiness_override_by?: string | null
@@ -5222,6 +5264,7 @@ export type Database = {
           last_resumed_at?: string | null
           name?: string
           notes?: string | null
+          offer_id?: string | null
           onboarding_batch?: string | null
           paid_pipeline_lead_id?: string | null
           phone?: string | null
@@ -5229,6 +5272,7 @@ export type Database = {
           priority?: string | null
           process_template_id?: string | null
           product_name?: string | null
+          program_id?: string | null
           program_name?: string | null
           readiness_override_at?: string | null
           readiness_override_by?: string | null
@@ -5271,6 +5315,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "operations_leads_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "program_products"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "operations_leads_pipeline_id_fkey"
             columns: ["pipeline_id"]
             isOneToOne: false
@@ -5282,6 +5333,13 @@ export type Database = {
             columns: ["process_template_id"]
             isOneToOne: false
             referencedRelation: "operations_process_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operations_leads_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
             referencedColumns: ["id"]
           },
           {
@@ -6214,6 +6272,7 @@ export type Database = {
           next_follow_up_date: string | null
           next_follow_up_time: string | null
           notes: string | null
+          offer_id: string | null
           onboarding_batch_name: string | null
           paid_batch_id: string | null
           paid_batch_name: string | null
@@ -6223,6 +6282,7 @@ export type Database = {
           pipeline_stage: string | null
           product_id: string | null
           product_name_snapshot: string | null
+          program_id: string | null
           revenue_recognition_rule: string | null
           revenue_to_be_realized: number | null
           sent_to_crm: boolean | null
@@ -6230,6 +6290,7 @@ export type Database = {
           service_package_id: string | null
           service_package_snapshot: Json | null
           source_report_date: string | null
+          source_segment_name: string | null
           source_unpaid_lead_id: string | null
           source_webinar: string | null
           source_webinar_batch_id: string | null
@@ -6301,6 +6362,7 @@ export type Database = {
           next_follow_up_date?: string | null
           next_follow_up_time?: string | null
           notes?: string | null
+          offer_id?: string | null
           onboarding_batch_name?: string | null
           paid_batch_id?: string | null
           paid_batch_name?: string | null
@@ -6310,6 +6372,7 @@ export type Database = {
           pipeline_stage?: string | null
           product_id?: string | null
           product_name_snapshot?: string | null
+          program_id?: string | null
           revenue_recognition_rule?: string | null
           revenue_to_be_realized?: number | null
           sent_to_crm?: boolean | null
@@ -6317,6 +6380,7 @@ export type Database = {
           service_package_id?: string | null
           service_package_snapshot?: Json | null
           source_report_date?: string | null
+          source_segment_name?: string | null
           source_unpaid_lead_id?: string | null
           source_webinar?: string | null
           source_webinar_batch_id?: string | null
@@ -6388,6 +6452,7 @@ export type Database = {
           next_follow_up_date?: string | null
           next_follow_up_time?: string | null
           notes?: string | null
+          offer_id?: string | null
           onboarding_batch_name?: string | null
           paid_batch_id?: string | null
           paid_batch_name?: string | null
@@ -6397,6 +6462,7 @@ export type Database = {
           pipeline_stage?: string | null
           product_id?: string | null
           product_name_snapshot?: string | null
+          program_id?: string | null
           revenue_recognition_rule?: string | null
           revenue_to_be_realized?: number | null
           sent_to_crm?: boolean | null
@@ -6404,6 +6470,7 @@ export type Database = {
           service_package_id?: string | null
           service_package_snapshot?: Json | null
           source_report_date?: string | null
+          source_segment_name?: string | null
           source_unpaid_lead_id?: string | null
           source_webinar?: string | null
           source_webinar_batch_id?: string | null
@@ -6414,10 +6481,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "paid_pipeline_leads_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "program_products"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "paid_pipeline_leads_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "program_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paid_pipeline_leads_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
             referencedColumns: ["id"]
           },
           {
@@ -6962,6 +7043,10 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          default_grade: string | null
+          default_operations_template_id: string | null
+          default_pipeline_id: string | null
+          default_service_package_id: string | null
           default_token_amount: number
           gst_applicable: boolean
           gst_rate: number
@@ -6971,7 +7056,9 @@ export type Database = {
           notes: string | null
           product_name: string
           product_price_including_gst: number
+          program_id: string | null
           revenue_recognition_rule: string
+          support_duration_months: number | null
           updated_at: string
         }
         Insert: {
@@ -6979,6 +7066,10 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          default_grade?: string | null
+          default_operations_template_id?: string | null
+          default_pipeline_id?: string | null
+          default_service_package_id?: string | null
           default_token_amount?: number
           gst_applicable?: boolean
           gst_rate?: number
@@ -6988,7 +7079,9 @@ export type Database = {
           notes?: string | null
           product_name: string
           product_price_including_gst?: number
+          program_id?: string | null
           revenue_recognition_rule?: string
+          support_duration_months?: number | null
           updated_at?: string
         }
         Update: {
@@ -6996,6 +7089,10 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          default_grade?: string | null
+          default_operations_template_id?: string | null
+          default_pipeline_id?: string | null
+          default_service_package_id?: string | null
           default_token_amount?: number
           gst_applicable?: boolean
           gst_rate?: number
@@ -7005,10 +7102,41 @@ export type Database = {
           notes?: string | null
           product_name?: string
           product_price_including_gst?: number
+          program_id?: string | null
           revenue_recognition_rule?: string
+          support_duration_months?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "program_products_default_operations_template_id_fkey"
+            columns: ["default_operations_template_id"]
+            isOneToOne: false
+            referencedRelation: "operations_process_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_products_default_pipeline_id_fkey"
+            columns: ["default_pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_products_default_service_package_id_fkey"
+            columns: ["default_service_package_id"]
+            isOneToOne: false
+            referencedRelation: "service_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_products_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quick_save_entries: {
         Row: {
@@ -9025,6 +9153,7 @@ export type Database = {
           pipeline_id: string | null
           process_template_id: string | null
           product_name: string | null
+          program_id: string | null
           service_package_id: string | null
           service_package_snapshot: Json | null
           source_attribution_report_id: string | null
@@ -9050,6 +9179,7 @@ export type Database = {
           pipeline_id?: string | null
           process_template_id?: string | null
           product_name?: string | null
+          program_id?: string | null
           service_package_id?: string | null
           service_package_snapshot?: Json | null
           source_attribution_report_id?: string | null
@@ -9075,6 +9205,7 @@ export type Database = {
           pipeline_id?: string | null
           process_template_id?: string | null
           product_name?: string | null
+          program_id?: string | null
           service_package_id?: string | null
           service_package_snapshot?: Json | null
           source_attribution_report_id?: string | null
@@ -9102,6 +9233,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "webinar_batches_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "webinar_batches_service_package_id_fkey"
             columns: ["service_package_id"]
             isOneToOne: false
@@ -9116,20 +9254,31 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          program_id: string | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           id?: string
           name: string
+          program_id?: string | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
           id?: string
           name?: string
+          program_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "webinar_templates_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webinars: {
         Row: {
