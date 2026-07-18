@@ -652,6 +652,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         return;
       }
 
+      // Phase 1 hard guard — Programme + Offer identity.
+      // Prevents IWC leads from silently landing in IPC pipelines (or vice-versa).
+      const selectedOffer = offerId ? offers.find((o) => o.id === offerId) : null;
+      if (selectedOffer && selectedOffer.default_pipeline_id && selectedOffer.default_pipeline_id !== pipelineId) {
+        const lockedName = pipelines.find((p) => p.id === selectedOffer.default_pipeline_id)?.name || "the offer's default pipeline";
+        toast.error(`This offer is locked to "${lockedName}". Change the target pipeline to that, or pick a different offer.`);
+        setImporting(false);
+        return;
+      }
+      if (programs.length > 0 && !programId && !selectedOffer) {
+        toast.error("Please pick a Programme (IPC / IWC / …) so this batch stays isolated in reports.");
+        setImporting(false);
+        return;
+      }
+      // Resolve final program_id — offer wins over dropdown to avoid mismatches.
+      const finalProgramId: string | null = (selectedOffer?.program_id) || programId || null;
+      const finalOfferId: string | null = selectedOffer?.id || null;
+
       // Load stages for chosen pipeline; auto-seed if empty
       const { data: pStages } = await supabase.from("stages").select("*").eq("pipeline_id", pipelineId).order("position");
       let stageList = pStages || [];
