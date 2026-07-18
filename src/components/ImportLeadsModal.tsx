@@ -126,6 +126,20 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const [sendToOperations, setSendToOperations] = useState<boolean>(false);
   const [overwriteServicePackage, setOverwriteServicePackage] = useState<boolean>(false);
 
+  // Phase 1 — Programme + Offer identity
+  type ProgramRow = { id: string; name: string; program_key: string | null; is_active: boolean; sort_order: number };
+  type OfferRow = {
+    id: string; product_name: string; program_id: string | null; business_unit: string | null;
+    product_price_including_gst: number; default_token_amount: number;
+    default_pipeline_id: string | null; default_service_package_id: string | null;
+    default_operations_template_id: string | null; default_grade: string | null;
+    is_active: boolean; is_deleted: boolean;
+  };
+  const [programs, setPrograms] = useState<ProgramRow[]>([]);
+  const [offers, setOffers] = useState<OfferRow[]>([]);
+  const [programId, setProgramId] = useState<string>("");
+  const [offerId, setOfferId] = useState<string>("");
+
   // Step 4
   const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
   const [assignment, setAssignment] = useState<AssignmentMode>("unassigned");
