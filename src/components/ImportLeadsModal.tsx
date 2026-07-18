@@ -44,19 +44,32 @@ interface Props {
 }
 
 type Row = Record<string, string>;
-type FieldKey = "full_name" | "email" | "phone" | "country";
+type FieldKey = "full_name" | "email" | "phone" | "country" | "token" | "deal_value";
 
 const FIELD_GUESS: Record<FieldKey, RegExp> = {
   full_name: /^(name|full[\s_-]?name|first[\s_-]?name|attendee|user)/i,
   email: /e[\s_-]?mail/i,
   phone: /(phone|mobile|whatsapp|contact|number)/i,
   country: /country/i,
+  token: /(token|advance|collected|paid[\s_-]?amount|amount[\s_-]?paid|down[\s_-]?payment)/i,
+  deal_value: /(deal[\s_-]?value|product[\s_-]?price|total[\s_-]?fee|program[\s_-]?fee|price[\s_-]?incl|deal[\s_-]?amount|total[\s_-]?amount|fees?)/i,
 };
 
+const FIELD_LABEL: Record<FieldKey, string> = {
+  full_name: "Full name",
+  email: "Email",
+  phone: "Phone",
+  country: "Country",
+  token: "Token / Advance",
+  deal_value: "Deal value / Product price",
+};
+
+const ALL_FIELDS: FieldKey[] = ["full_name", "email", "phone", "country", "token", "deal_value"];
+
 function autoMap(headers: string[]): Record<FieldKey, string> {
-  const out: any = { full_name: "", email: "", phone: "", country: "" };
+  const out: any = { full_name: "", email: "", phone: "", country: "", token: "", deal_value: "" };
   for (const h of headers) {
-    for (const k of Object.keys(FIELD_GUESS) as FieldKey[]) {
+    for (const k of ALL_FIELDS) {
       if (!out[k] && FIELD_GUESS[k].test(h)) out[k] = h;
     }
   }
@@ -73,6 +86,19 @@ const normPhone = (v: any) => {
   if (s.length > 10 && s.startsWith("91")) s = s.slice(s.length - 10);
   if (s.length > 10) s = s.slice(s.length - 10);
   return s;
+};
+// Parse currency-ish numbers from CSVs. Handles "₹1,18,000", "1.18L", "1,18,000.00", "-", "".
+const parseAmount = (v: any): number => {
+  if (v === null || v === undefined) return 0;
+  let s = String(v).trim();
+  if (!s || s === "-" || s === "—" || /^n\/?a$/i.test(s)) return 0;
+  const lakh = /(\d+(?:\.\d+)?)\s*l(akh)?\b/i.exec(s);
+  if (lakh) return Math.round(parseFloat(lakh[1]) * 100000);
+  const cr = /(\d+(?:\.\d+)?)\s*cr\b/i.exec(s);
+  if (cr) return Math.round(parseFloat(cr[1]) * 10000000);
+  s = s.replace(/[₹$,\s]/g, "");
+  const n = parseFloat(s);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
 
