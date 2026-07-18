@@ -1183,17 +1183,36 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               .in("id", Array.from(syncIds))
             : { data: [] as any[] };
 
+          let paymentRowsDuplicate = 0;
           for (const lead of (crmRows || []) as any[]) {
             const rowMeta = resolveRowMeta(normEmail(lead.email), normPhone(lead.phone));
             const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || dealValue || 0);
             const rowToken = rowMeta.token > 0 ? rowMeta.token : 0;
+            const rowCollected = rowMeta.collected > 0 ? rowMeta.collected : rowToken;
+            const rowBalance = rowMeta.balance > 0
+              ? rowMeta.balance
+              : Math.max((rowDeal || 0) - (rowCollected || 0), 0);
+            const rowPaymentDate = rowMeta.payment_date;
+            const rowRef = rowMeta.source_row ? `${sourceLabel}#${rowMeta.source_row}` : null;
+            const tokenPaymentArgs = {
+              amount: rowToken,
+              segmentName,
+              createdBy: profile?.id ?? null,
+              paymentDate: rowPaymentDate,
+              rowRef,
+              sourceLabel,
+            };
+            const handleTokenResult = (result: "created" | "duplicate" | "skipped") => {
+              if (result === "created") paymentRowsCreated++;
+              else if (result === "duplicate") paymentRowsDuplicate++;
+            };
 
             if (lead.paid_pipeline_lead_id) {
               paidLinked++;
               if (rowToken > 0) {
                 totalTokenCollected += rowToken;
-                await recordTokenPayment(lead.paid_pipeline_lead_id, rowToken, segmentName, profile?.id ?? null)
-                  .then(() => paymentRowsCreated++)
+                await recordTokenPayment({ paidLeadId: lead.paid_pipeline_lead_id, ...tokenPaymentArgs })
+                  .then(handleTokenResult)
                   .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
               }
               continue;
@@ -1216,10 +1235,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               phone: lead.phone,
               product_name_snapshot: lead.program_name || productName || null,
               deal_value_including_gst: rowDeal,
-              token_amount_collected: rowToken,
+              token_amount_collected: rowCollected,
               source_webinar: segmentName,
               pipeline_stage: "Payment Confirmed",
-              payment_status: rowToken > 0 ? "Partial Payment" : "No Payment",
+              payment_status: rowCollected > 0
+                ? (rowBalance <= 0 ? "Fully Paid" : "Partial Payment")
+                : "No Payment",
               crm_lead_id: lead.id,
               service_package_id: servicePackageId || null,
               service_package_snapshot: packageSnapshot,
@@ -1284,8 +1305,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             // Token payment row — only when the row has a positive token amount.
             if (paidLeadId && rowToken > 0) {
               totalTokenCollected += rowToken;
-              await recordTokenPayment(paidLeadId, rowToken, segmentName, profile?.id ?? null)
-                .then(() => paymentRowsCreated++)
+              await recordTokenPayment({ paidLeadId, ...tokenPaymentArgs })
+                .then(handleTokenResult)
                 .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
             }
           }
