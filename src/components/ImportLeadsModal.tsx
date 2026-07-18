@@ -101,6 +101,41 @@ const parseAmount = (v: any): number => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
+// Insert a single Token payment row for a paid pipeline lead. Idempotency guard:
+// skip if an identical token payment (same amount + reference) already exists for this lead.
+const recordTokenPayment = async (
+  paidLeadId: string,
+  amount: number,
+  segmentName: string,
+  createdBy: string | null,
+): Promise<void> => {
+  if (!paidLeadId || !(amount > 0)) return;
+  const reference = `Import · ${segmentName}`;
+  const { data: existing } = await supabase
+    .from("paid_pipeline_payments" as any)
+    .select("id")
+    .eq("paid_pipeline_lead_id", paidLeadId)
+    .eq("payment_reference", reference)
+    .eq("is_deleted", false)
+    .maybeSingle();
+  if ((existing as any)?.id) return;
+  const { error } = await supabase.from("paid_pipeline_payments" as any).insert({
+    paid_pipeline_lead_id: paidLeadId,
+    payment_type: "Token",
+    payment_category: "token",
+    amount,
+    payment_mode: "Import",
+    payment_date: new Date().toISOString().slice(0, 10),
+    payment_reference: reference,
+    is_token: true,
+    is_final_payment: false,
+    payment_description: `Token collected on CSV/Sheet import from segment "${segmentName}"`,
+    is_deleted: false,
+    created_by: createdBy,
+  } as any);
+  if (error) throw error;
+};
+
 
 export default function ImportLeadsModal({ onClose, onDone }: Props) {
   const { profile } = useAuth();
