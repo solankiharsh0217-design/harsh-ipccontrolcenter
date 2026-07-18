@@ -201,7 +201,52 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
   useEffect(() => {
     supabase.from("webinars").select("id, name").order("name").then(({ data }) => setWebinars((data || []) as any));
+    // Load Programmes (business_units) and Offers (program_products) for Phase 1
+    supabase
+      .from("business_units" as any)
+      .select("id, name, program_key, is_active, sort_order")
+      .eq("is_active", true)
+      .order("sort_order")
+      .order("name")
+      .then(({ data }) => setPrograms((data as any) || []));
+    supabase
+      .from("program_products" as any)
+      .select("id, product_name, program_id, business_unit, product_price_including_gst, default_token_amount, default_pipeline_id, default_service_package_id, default_operations_template_id, default_grade, is_active, is_deleted")
+      .eq("is_active", true)
+      .eq("is_deleted", false)
+      .order("product_name")
+      .then(({ data }) => setOffers((data as any) || []));
   }, []);
+
+  const filteredOffers = useMemo(() => {
+    if (!programId) return offers;
+    const prog = programs.find((p) => p.id === programId);
+    return offers.filter((o) =>
+      o.program_id === programId ||
+      (!!prog && !!o.business_unit && o.business_unit.toUpperCase() === prog.name.toUpperCase()),
+    );
+  }, [offers, programs, programId]);
+
+  // When an offer is picked, prefill product/deal/package/template/grade and lock destination pipeline.
+  const applyOfferDefaults = (offer: OfferRow | null) => {
+    if (!offer) return;
+    setProductName(offer.product_name || productName);
+    if (Number(offer.product_price_including_gst) > 0) setDealValue(Number(offer.product_price_including_gst));
+    if (offer.default_service_package_id) setServicePackageId(offer.default_service_package_id);
+    if (offer.default_operations_template_id) setProcessTemplateId(offer.default_operations_template_id);
+    if (offer.default_grade && ["hot","warm","cold","non-attendee"].includes(offer.default_grade)) {
+      setDefaultGrade(offer.default_grade as LeadGrade);
+    }
+    if (offer.default_pipeline_id) {
+      setCreatingPipeline(false);
+      setTargetPipelineId(offer.default_pipeline_id);
+      const pipe = pipelines.find((p) => p.id === offer.default_pipeline_id);
+      if (pipe?.type === "paid") setLeadType("paid");
+      else if (pipe?.type === "unpaid") setLeadType("unpaid");
+    }
+    if (offer.program_id && offer.program_id !== programId) setProgramId(offer.program_id);
+  };
+
 
   const handleFile = async (file: File) => {
     setFileName(file.name);
