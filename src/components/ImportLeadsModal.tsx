@@ -733,16 +733,24 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         // when the current duplicate policy would import them (update / promote).
         let sumToken = 0;
         let sumDealValue = 0;
+        let sumCollected = 0;
+        let sumBalance = 0;
         let rowsWithToken = 0;
         let rowsWithDealValue = 0;
+        let rowsTokenExceedsDeal = 0;
         let projectedRevenue = 0;
         let projectedTokenRevenue = 0;
         rowDetails.forEach((rd, i) => {
           const raw = rows[i] || {};
           const tk = mapping.token ? parseAmount(raw[mapping.token]) : 0;
           const dv = mapping.deal_value ? parseAmount(raw[mapping.deal_value]) : 0;
+          const cl = mapping.collected ? parseAmount(raw[mapping.collected]) : tk;
+          const bl = mapping.balance ? parseAmount(raw[mapping.balance]) : Math.max(dv - cl, 0);
           if (tk > 0) { sumToken += tk; rowsWithToken++; }
           if (dv > 0) { sumDealValue += dv; rowsWithDealValue++; }
+          if (cl > 0) sumCollected += cl;
+          if (bl > 0) sumBalance += bl;
+          if (tk > 0 && dv > 0 && tk > dv) rowsTokenExceedsDeal++;
           const willBeImported =
             rd.status === "new" ||
             rd.status === "phone_only" ||
