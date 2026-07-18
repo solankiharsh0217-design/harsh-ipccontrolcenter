@@ -1382,9 +1382,9 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               <>
                 <div className="text-xs text-muted-foreground">{validRows} rows detected · map your columns:</div>
                 <div className="grid grid-cols-2 gap-3">
-                  {(["full_name", "email", "phone", "country"] as FieldKey[]).map((k) => (
+                  {ALL_FIELDS.map((k) => (
                     <div key={k}>
-                      <label className="form-label capitalize">{k.replace("_", " ")}</label>
+                      <label className="form-label">{FIELD_LABEL[k]}{(k === "full_name" || k === "email" || k === "phone") ? "" : <span className="text-muted-foreground font-normal"> (optional)</span>}</label>
                       <select className="ipc-input" value={mapping[k]} onChange={(e) => setMapping({ ...mapping, [k]: e.target.value })}>
                         <option value="">— none —</option>
                         {headers.map((h) => <option key={h} value={h}>{h}</option>)}
@@ -1393,9 +1393,19 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   ))}
                 </div>
                 {rows[0] && (
-                  <div className="p-3 rounded-md bg-off border border-line text-xs">
-                    <div className="uppercase-label mb-1">Preview row 1</div>
-                    <div>{mapping.full_name && <>Name: <b>{rows[0][mapping.full_name]}</b> · </>}{mapping.email && <>Email: <b>{rows[0][mapping.email]}</b> · </>}{mapping.phone && <>Phone: <b>{rows[0][mapping.phone]}</b></>}</div>
+                  <div className="p-3 rounded-md bg-off border border-line text-xs space-y-1">
+                    <div className="uppercase-label">Preview row 1</div>
+                    <div>
+                      {mapping.full_name && <>Name: <b>{rows[0][mapping.full_name]}</b> · </>}
+                      {mapping.email && <>Email: <b>{rows[0][mapping.email]}</b> · </>}
+                      {mapping.phone && <>Phone: <b>{rows[0][mapping.phone]}</b></>}
+                    </div>
+                    {(mapping.token || mapping.deal_value) && (
+                      <div className="text-muted-foreground">
+                        {mapping.deal_value && <>Deal value: <b className="text-foreground">₹{parseAmount(rows[0][mapping.deal_value]).toLocaleString("en-IN")}</b> · </>}
+                        {mapping.token && <>Token: <b className="text-foreground">₹{parseAmount(rows[0][mapping.token]).toLocaleString("en-IN")}</b></>}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
