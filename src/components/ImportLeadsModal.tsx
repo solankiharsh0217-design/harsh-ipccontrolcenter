@@ -1091,6 +1091,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           service_package_id: servicePackageId || null,
           service_package_snapshot: packageSnapshot,
           process_template_id: resolvedProcessTemplateId,
+          program_id: finalProgramId,
+          business_unit: (programs.find((p) => p.id === finalProgramId)?.name) || undefined,
           imported_lead_count: newImported,
           created_by: profile?.id,
           is_deleted: false,
