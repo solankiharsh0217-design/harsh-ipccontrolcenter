@@ -438,7 +438,7 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
                 <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap" title={r.ownerName || ""}>
                   <div className="truncate max-w-[120px]">{r.ownerName || "—"}</div>
                 </td>
-                <td className="px-3 py-2 border-t border-border text-right align-middle" style={{ minWidth: 270 }}>
+                <td className="px-3 py-2 border-t border-border text-right align-middle sticky right-0 bg-background z-[1] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.12)]" style={{ minWidth: 280 }}>
                   <AccessRowActions
                     phone={r.phone}
                     crmLeadId={r.crmLeadId}
