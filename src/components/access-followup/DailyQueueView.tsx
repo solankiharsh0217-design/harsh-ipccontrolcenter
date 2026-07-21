@@ -357,40 +357,61 @@ export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember }: 
                           </div>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-1.5 justify-end items-center">
+                      <div className="flex flex-nowrap gap-1 justify-end items-center shrink-0">
                         {r.phone ? (
                           <>
-                            <a href={`tel:${r.phone}`} className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-muted font-medium">Call</a>
-                            <button onClick={() => copyPhone(r.phone)} className="text-[11.5px] px-2 py-1.5 rounded-md border border-border bg-background hover:bg-muted">Copy</button>
+                            <a
+                              href={`tel:${r.phone}`}
+                              title={`Call ${r.phone}`}
+                              className="inline-flex items-center justify-center h-8 px-2 rounded-md border border-border bg-background hover:bg-muted text-[11.5px] font-medium whitespace-nowrap"
+                            >
+                              Call
+                            </a>
+                            <button
+                              onClick={() => copyPhone(r.phone)}
+                              title="Copy phone"
+                              className="inline-flex items-center justify-center h-8 px-2 rounded-md border border-border bg-background hover:bg-muted text-[11.5px] whitespace-nowrap"
+                            >
+                              Copy
+                            </button>
                           </>
                         ) : (
-                          <span className="text-[11px] text-muted-foreground italic">Phone not recorded</span>
+                          <span className="text-[11px] text-muted-foreground italic whitespace-nowrap">No phone</span>
                         )}
                         <button
                           disabled={busyRow === r.paidLeadId}
                           onClick={() => quickNoAnswer(r)}
-                          className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-muted disabled:opacity-50"
+                          title="Mark no answer and schedule follow-up for tomorrow"
+                          className="inline-flex items-center justify-center h-8 px-2 rounded-md border border-border bg-background hover:bg-muted text-[11.5px] whitespace-nowrap disabled:opacity-50"
                         >
-                          {busyRow === r.paidLeadId ? "…" : "No Answer"}
+                          {busyRow === r.paidLeadId ? "…" : "No Ans"}
                         </button>
                         {r.crmLeadId ? (
                           <Link
                             to={`/crm?lead=${r.crmLeadId}&focus=code-of-conduct`}
-                            className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-amber-400/70 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium"
+                            title="Open CRM drawer and Code of Conduct panel"
+                            className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-amber-400/70 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium text-[11.5px] whitespace-nowrap"
                           >
-                            Open CRM / CoC
+                            CoC
                           </Link>
                         ) : (
-                          <span className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-dashed border-slate-300 text-slate-500 bg-slate-50">CRM not linked</span>
+                          <span className="inline-flex items-center h-8 px-2 rounded-md border border-dashed border-slate-300 text-slate-500 bg-slate-50 text-[11.5px] whitespace-nowrap">Not linked</span>
                         )}
                         {isAdmin && (
-                          <button onClick={() => setAssignFor(r)} className="text-[11.5px] px-2 py-1.5 rounded-md border border-border bg-background hover:bg-muted">Assign</button>
+                          <button
+                            onClick={() => setAssignFor(r)}
+                            title="Assign owner"
+                            className="inline-flex items-center justify-center h-8 px-2 rounded-md border border-border bg-background hover:bg-muted text-[11.5px] whitespace-nowrap"
+                          >
+                            Assign
+                          </button>
                         )}
                         <button
                           onClick={() => onOpenMember(r)}
-                          className="text-[11.5px] px-3 py-1.5 rounded-md bg-foreground text-background hover:opacity-90 font-semibold shadow-sm"
+                          title="Update Access Follow-up"
+                          className="inline-flex items-center justify-center h-8 px-3 rounded-md bg-foreground text-background hover:opacity-90 font-semibold shadow-sm text-[11.5px] whitespace-nowrap"
                         >
-                          Update Follow-up
+                          Update
                         </button>
                       </div>
                     </div>
