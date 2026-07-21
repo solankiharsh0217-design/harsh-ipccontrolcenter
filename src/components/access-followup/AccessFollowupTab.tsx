@@ -297,6 +297,21 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
         </div>
       </div>
 
+      {/* Awaiting initial CoC send — informational, admin-only. Access Follow-up
+          never initiates the first CoC email; those members remain with the
+          initiator/CRM process owner. */}
+      {isAdmin && awaitingInitialSendCount > 0 && (
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[11.5px] text-slate-700 flex items-center justify-between gap-2">
+          <div>
+            <span className="font-medium">Awaiting initial CoC send:</span>{" "}
+            {awaitingInitialSendCount} member{awaitingInitialSendCount === 1 ? "" : "s"} not shown here.
+            <span className="text-slate-500"> Access Follow-up begins after the first Code of Conduct email is successfully sent.</span>
+          </div>
+          <a href="/finance-success?tab=incomplete" className="underline hover:no-underline whitespace-nowrap">Open Incomplete Members</a>
+        </div>
+      )}
+
+
       {view === "daily" ? (
         <DailyQueueView
           rows={scopedRows}
