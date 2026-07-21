@@ -144,6 +144,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
   const [ownerFilter, setOwnerFilter] = useState<string[]>([]);
   const [batchFilter, setBatchFilter] = useState<string[]>([]);
   const [selected, setSelected] = useState<Row | null>(null);
+  const [view, setView] = useState<"members" | "daily">("members");
 
   const nowMs = Date.now();
 
