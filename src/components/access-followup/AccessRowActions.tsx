@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Phone, Copy } from "lucide-react";
-import { cocActionLabel } from "@/lib/cocStatus";
+import { cocActionLabel, cocActionTooltip } from "@/lib/cocStatus";
 
 interface Props {
   phone: string | null;
@@ -13,6 +13,7 @@ interface Props {
 
 export default function AccessRowActions({ phone, crmLeadId, cocStatus, onUpdate, fullWidthPrimary }: Props) {
   const cocLabel = cocActionLabel(cocStatus, !!crmLeadId);
+  const cocTip = cocActionTooltip(cocStatus, !!crmLeadId);
   const cocDisabled = !crmLeadId;
   const crmHref = crmLeadId ? `/crm?lead=${crmLeadId}&focus=code-of-conduct` : "#";
 
@@ -66,7 +67,7 @@ export default function AccessRowActions({ phone, crmLeadId, cocStatus, onUpdate
         <Link
           to={crmHref}
           className="inline-flex items-center h-8 px-2.5 rounded-md border border-amber-400/70 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium text-[11.5px] whitespace-nowrap"
-          title="Open CRM drawer and Code of Conduct panel"
+          title={cocTip}
         >
           {cocLabel}
         </Link>

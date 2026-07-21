@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { upsertVerification, AccessVerification, OverallStatus, CALL_LABELS, WHATSAPP_LABELS, APP_LOGIN_LABELS } from "@/lib/accessVerification";
+import { cocActionLabel, cocActionTooltip } from "@/lib/cocStatus";
 import { logActivity } from "@/lib/auditLog";
 
 export type QueueRow = {
@@ -389,10 +390,10 @@ export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember }: 
                         {r.crmLeadId ? (
                           <Link
                             to={`/crm?lead=${r.crmLeadId}&focus=code-of-conduct`}
-                            title="Open CRM drawer and Code of Conduct panel"
+                            title={cocActionTooltip(r.cocStatus, true)}
                             className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-amber-400/70 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium text-[11.5px] whitespace-nowrap"
                           >
-                            CoC
+                            {cocActionLabel(r.cocStatus, true)}
                           </Link>
                         ) : (
                           <span className="inline-flex items-center h-8 px-2 rounded-md border border-dashed border-slate-300 text-slate-500 bg-slate-50 text-[11.5px] whitespace-nowrap">Not linked</span>

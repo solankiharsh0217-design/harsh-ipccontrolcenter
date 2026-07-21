@@ -7,7 +7,7 @@ import {
 import AccessVerificationModal from "./AccessVerificationModal";
 import DailyQueueView from "./DailyQueueView";
 import AccessRowActions from "./AccessRowActions";
-import { CoCStatusChip } from "@/lib/cocStatus";
+import { CoCStatusChip, hasSuccessfulCocSend } from "@/lib/cocStatus";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
@@ -109,7 +109,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
   const crmById = useMemo(() => new Map(crmLeads.map((l) => [l.id, l])), [crmLeads]);
   const ownerById = useMemo(() => new Map(owners.map((o) => [o.id, o])), [owners]);
 
-  const rows: Row[] = useMemo(() => {
+  const allRows: Row[] = useMemo(() => {
     return paidLeads.map((p) => {
       const crm = p.crm_lead_id ? crmById.get(p.crm_lead_id) : undefined;
       const v = (verifications as Map<string, AccessVerification>).get(p.id) || null;
@@ -140,6 +140,15 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
       };
     });
   }, [paidLeads, crmById, verifications, ownerById]);
+
+  // Access Follow-up eligibility: initial Code of Conduct email must have been
+  // successfully sent at least once. First-send is the initiator's / CRM
+  // process owner's responsibility — Access Follow-up never initiates it.
+  const rows: Row[] = useMemo(
+    () => allRows.filter((r) => hasSuccessfulCocSend(r.cocStatus, !!r.crmLeadId)),
+    [allRows],
+  );
+  const awaitingInitialSendCount = allRows.length - rows.length;
 
   const [quick, setQuick] = useState<QuickFilter>("all");
   const [search, setSearch] = useState("");
@@ -288,6 +297,21 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
         </div>
       </div>
 
+      {/* Awaiting initial CoC send — informational, admin-only. Access Follow-up
+          never initiates the first CoC email; those members remain with the
+          initiator/CRM process owner. */}
+      {isAdmin && awaitingInitialSendCount > 0 && (
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[11.5px] text-slate-700 flex items-center justify-between gap-2">
+          <div>
+            <span className="font-medium">Awaiting initial CoC send:</span>{" "}
+            {awaitingInitialSendCount} member{awaitingInitialSendCount === 1 ? "" : "s"} not shown here.
+            <span className="text-slate-500"> Access Follow-up begins after the first Code of Conduct email is successfully sent.</span>
+          </div>
+          <a href="/finance-success?tab=incomplete" className="underline hover:no-underline whitespace-nowrap">Open Incomplete Members</a>
+        </div>
+      )}
+
+
       {view === "daily" ? (
         <DailyQueueView
           rows={scopedRows}
@@ -369,7 +393,7 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
               <th className="text-left px-3 py-2">CoC</th>
               <th className="text-left px-3 py-2">Webinar / Batch</th>
               <th className="text-left px-3 py-2">Owner</th>
-              <th className="text-right px-3 py-2">Actions</th>
+              <th className="text-right px-3 py-2 sticky right-0 bg-muted/95 backdrop-blur z-10 border-l border-border shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.12)] min-w-[280px]">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -414,7 +438,7 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
                 <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap" title={r.ownerName || ""}>
                   <div className="truncate max-w-[120px]">{r.ownerName || "—"}</div>
                 </td>
-                <td className="px-3 py-2 border-t border-border text-right align-middle" style={{ minWidth: 270 }}>
+                <td className="px-3 py-2 border-t border-border text-right align-middle sticky right-0 bg-background z-[1] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.12)]" style={{ minWidth: 280 }}>
                   <AccessRowActions
                     phone={r.phone}
                     crmLeadId={r.crmLeadId}
