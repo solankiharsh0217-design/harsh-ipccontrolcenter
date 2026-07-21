@@ -13,6 +13,7 @@ interface Props {
 
 export default function AccessRowActions({ phone, crmLeadId, cocStatus, onUpdate, fullWidthPrimary }: Props) {
   const cocLabel = cocActionLabel(cocStatus, !!crmLeadId);
+  const cocTip = cocActionTooltip(cocStatus, !!crmLeadId);
   const cocDisabled = !crmLeadId;
   const crmHref = crmLeadId ? `/crm?lead=${crmLeadId}&focus=code-of-conduct` : "#";
 
