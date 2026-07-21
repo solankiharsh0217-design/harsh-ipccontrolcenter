@@ -868,6 +868,7 @@ export default function FinanceSuccessDashboard() {
           <TabsTrigger value="incomplete">
             Incomplete Members {incompleteAll.length > 0 && <span className="ml-1.5 rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px]">{incompleteAll.length}</span>}
           </TabsTrigger>
+          <TabsTrigger value="access">Access Follow-up</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary" className="mt-0">
