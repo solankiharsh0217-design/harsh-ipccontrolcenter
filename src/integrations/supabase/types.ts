@@ -9471,6 +9471,14 @@ export type Database = {
         Args: { _ops_lead_id: string }
         Returns: Json
       }
+      get_profile_deactivation_details: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          deactivated_by: string
+          deactivation_reason: string
+          id: string
+        }[]
+      }
       get_team_performance_settings: {
         Args: never
         Returns: {
