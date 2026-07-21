@@ -1177,6 +1177,10 @@ export default function FinanceSuccessDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="access" className="mt-0">
+          <AccessFollowupTab paidLeads={paidLeads} crmLeads={crmLeads} owners={owners as any} />
+        </TabsContent>
       </Tabs>
 
 
