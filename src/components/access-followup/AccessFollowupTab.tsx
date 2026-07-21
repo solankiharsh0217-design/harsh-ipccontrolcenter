@@ -95,6 +95,7 @@ function matchesQuick(r: Row, f: QuickFilter, nowMs: number): boolean {
 
 export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props) {
   const qc = useQueryClient();
+  const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const paidIds = useMemo(() => paidLeads.map((p) => p.id), [paidLeads]);
   const { data: verifications = new Map() } = useQuery({
