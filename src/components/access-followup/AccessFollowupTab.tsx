@@ -376,49 +376,51 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
             {rows.length === 0 ? (
               <tr><td colSpan={13} className="px-3 py-6 text-center text-muted-foreground">No members match these filters.</td></tr>
             ) : rows.map((r) => (
-              <tr key={r.paidLeadId} className="hover:bg-muted/30">
-                <td className="px-3 py-2 sticky left-0 bg-background border-t border-r border-border z-[1]">
-                  <div className="font-medium truncate max-w-[220px]">{r.name}</div>
-                  <div className="text-[11.5px] truncate max-w-[220px]">
+              <tr key={r.paidLeadId} className="hover:bg-muted/30 align-middle">
+                <td className="px-3 py-2 sticky left-0 bg-background border-t border-r border-border z-[1] align-middle">
+                  <div className="font-medium truncate max-w-[220px] leading-tight">{r.name}</div>
+                  <div className="text-[11.5px] truncate max-w-[220px] leading-tight">
                     {r.phone ? (
                       <a href={`tel:${r.phone}`} className="text-foreground hover:underline font-medium">{r.phone}</a>
                     ) : (
                       <span className="text-muted-foreground italic">Phone not recorded</span>
                     )}
                   </div>
-                  <div className="text-[11px] text-muted-foreground truncate max-w-[220px]">{r.email || "—"}</div>
+                  <div className="text-[11px] text-muted-foreground truncate max-w-[220px] leading-tight">{r.email || "—"}</div>
                 </td>
-                <td className="px-3 py-2 border-t border-border">
+                <td className="px-3 py-2 border-t border-border align-middle whitespace-nowrap">
                   <span className={`text-[11px] px-2 py-0.5 rounded-full ${OVERALL_STYLES[r.overall]}`}>{OVERALL_LABEL[r.overall]}</span>
                 </td>
-                <td className="px-3 py-2 border-t border-border text-xs">{WHATSAPP_LABELS[r.verification?.whatsapp_group_status || "unknown"]}</td>
-                <td className="px-3 py-2 border-t border-border text-xs">{APP_LOGIN_LABELS[r.verification?.app_login_status || "unknown"]}</td>
-                <td className="px-3 py-2 border-t border-border text-xs">{CALL_LABELS[r.verification?.call_status || "not_called"]}</td>
-                <td className="px-3 py-2 border-t border-border text-xs">{r.verification?.call_attempt_count || 0}</td>
-                <td className="px-3 py-2 border-t border-border text-xs">
+                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">{WHATSAPP_LABELS[r.verification?.whatsapp_group_status || "unknown"]}</td>
+                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">{APP_LOGIN_LABELS[r.verification?.app_login_status || "unknown"]}</td>
+                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">{CALL_LABELS[r.verification?.call_status || "not_called"]}</td>
+                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">{r.verification?.call_attempt_count || 0}</td>
+                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">
                   {r.verification?.last_called_at ? new Date(r.verification.last_called_at).toLocaleDateString() : "—"}
                 </td>
-                <td className="px-3 py-2 border-t border-border text-xs">
+                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">
                   {r.verification?.next_follow_up_at ? new Date(r.verification.next_follow_up_at).toLocaleDateString() : "—"}
                 </td>
-                <td className="px-3 py-2 border-t border-border text-xs">{r.crmStage || "—"}</td>
-                <td className="px-3 py-2 border-t border-border text-xs">
+                <td className="px-3 py-2 border-t border-border text-xs align-middle" title={r.crmStage || ""}>
+                  <div className="truncate max-w-[140px]">{r.crmStage || "—"}</div>
+                </td>
+                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">
                   <CoCStatusChip status={r.cocStatus} hasCrmLink={!!r.crmLeadId} />
                 </td>
-                <td className="px-3 py-2 border-t border-border text-xs">
-                  <div className="truncate max-w-[200px]">{r.batch || "—"}</div>
-                  {r.webinarDate && <div className="text-[10px] text-muted-foreground">{r.webinarDate}</div>}
+                <td className="px-3 py-2 border-t border-border text-xs align-middle" title={r.batch || ""}>
+                  <div className="truncate max-w-[180px] leading-tight">{r.batch || "—"}</div>
+                  {r.webinarDate && <div className="text-[10px] text-muted-foreground leading-tight">{r.webinarDate}</div>}
                 </td>
-                <td className="px-3 py-2 border-t border-border text-xs">{r.ownerName || "—"}</td>
-                <td className="px-3 py-2 border-t border-border text-right">
-                  <div className="flex justify-end">
-                    <AccessRowActions
-                      phone={r.phone}
-                      crmLeadId={r.crmLeadId}
-                      cocStatus={r.cocStatus}
-                      onUpdate={() => onSelect(r)}
-                    />
-                  </div>
+                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap" title={r.ownerName || ""}>
+                  <div className="truncate max-w-[120px]">{r.ownerName || "—"}</div>
+                </td>
+                <td className="px-3 py-2 border-t border-border text-right align-middle" style={{ minWidth: 270 }}>
+                  <AccessRowActions
+                    phone={r.phone}
+                    crmLeadId={r.crmLeadId}
+                    cocStatus={r.cocStatus}
+                    onUpdate={() => onSelect(r)}
+                  />
                 </td>
               </tr>
             ))}
