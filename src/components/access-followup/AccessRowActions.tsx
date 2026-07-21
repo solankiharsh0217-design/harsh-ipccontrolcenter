@@ -22,49 +22,61 @@ export default function AccessRowActions({ phone, crmLeadId, cocStatus, onUpdate
     toast.success(`Copied ${phone}`);
   };
 
+  // Mobile: allow wrapping / full-width primary. Desktop (default): single-line compact toolbar.
+  const wrapCls = fullWidthPrimary
+    ? "flex flex-wrap items-center gap-1.5 w-full"
+    : "flex flex-nowrap items-center gap-1 justify-end";
+
+  const btnBase = "inline-flex items-center justify-center h-8 rounded-md border border-border bg-background hover:bg-muted whitespace-nowrap";
+
   return (
-    <div className={`flex flex-wrap items-center gap-1.5 ${fullWidthPrimary ? "w-full" : ""}`}>
+    <div className={wrapCls}>
       {phone ? (
         <>
           <a
             href={`tel:${phone}`}
-            className="inline-flex items-center gap-1 text-[11.5px] px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-muted font-medium"
+            className={`${btnBase} px-2 text-[11.5px] font-medium`}
             title={`Call ${phone}`}
+            aria-label="Call member"
           >
-            <Phone className="w-3 h-3" /> Call
+            <Phone className="w-3.5 h-3.5" />
+            {fullWidthPrimary && <span className="ml-1">Call</span>}
           </a>
           <button
             onClick={copyPhone}
-            className="inline-flex items-center gap-1 text-[11.5px] px-2 py-1.5 rounded-md border border-border bg-background hover:bg-muted"
+            className={`${btnBase} px-2`}
             title="Copy phone number"
+            aria-label="Copy phone"
           >
-            <Copy className="w-3 h-3" />
+            <Copy className="w-3.5 h-3.5" />
+            {fullWidthPrimary && <span className="ml-1 text-[11.5px]">Copy</span>}
           </button>
         </>
       ) : (
-        <span className="text-[11px] text-muted-foreground italic px-1">Phone not recorded</span>
+        <span className="text-[11px] text-muted-foreground italic px-1 whitespace-nowrap">No phone</span>
       )}
       {cocDisabled ? (
         <span
-          className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-dashed border-slate-300 text-slate-500 bg-slate-50"
+          className="inline-flex items-center h-8 px-2 rounded-md border border-dashed border-slate-300 text-slate-500 bg-slate-50 text-[11.5px] whitespace-nowrap"
           title="No CRM lead linked"
         >
-          CRM not linked
+          Not linked
         </span>
       ) : (
         <Link
           to={crmHref}
-          className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-amber-400/70 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium"
-          title="Open the linked CRM lead and its Code of Conduct panel"
+          className="inline-flex items-center h-8 px-2.5 rounded-md border border-amber-400/70 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium text-[11.5px] whitespace-nowrap"
+          title="Open CRM drawer and Code of Conduct panel"
         >
-          Open CRM · {cocLabel}
+          {cocLabel}
         </Link>
       )}
       <button
         onClick={onUpdate}
-        className={`text-[11.5px] px-3 py-1.5 rounded-md bg-foreground text-background hover:opacity-90 font-semibold shadow-sm ${fullWidthPrimary ? "flex-1 min-w-[140px] justify-center" : ""}`}
+        title="Update Access Follow-up"
+        className={`inline-flex items-center justify-center h-8 px-3 rounded-md bg-foreground text-background hover:opacity-90 font-semibold shadow-sm text-[11.5px] whitespace-nowrap ${fullWidthPrimary ? "flex-1 min-w-[140px]" : ""}`}
       >
-        Update Follow-up
+        {fullWidthPrimary ? "Update Follow-up" : "Update"}
       </button>
     </div>
   );
