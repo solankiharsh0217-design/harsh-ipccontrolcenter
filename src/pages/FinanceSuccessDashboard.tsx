@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { Link, useSearchParams } from "react-router-dom";
 import { logActivity } from "@/lib/auditLog";
 import { downloadCsv, toCsv } from "@/lib/operationsExport";
+import AccessFollowupTab from "@/components/access-followup/AccessFollowupTab";
 
 type CrmLead = {
   id: string;
