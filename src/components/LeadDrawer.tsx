@@ -49,6 +49,25 @@ const channelStyle: Record<string, string> = {
 };
 
 export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged, onStageChanged }: Props) {
+  // Focus the Code of Conduct panel when navigated via `?focus=code-of-conduct`.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("focus") !== "code-of-conduct") return;
+    const start = Date.now();
+    const timer = window.setInterval(() => {
+      const el = document.getElementById("code-of-conduct-panel");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add("ring-2", "ring-amber-400", "rounded-lg");
+        window.setTimeout(() => el.classList.remove("ring-2", "ring-amber-400", "rounded-lg"), 2400);
+        window.clearInterval(timer);
+      } else if (Date.now() - start > 4000) {
+        window.clearInterval(timer);
+      }
+    }, 150);
+    return () => window.clearInterval(timer);
+  }, [leadId]);
   const { profile, isAdmin } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
