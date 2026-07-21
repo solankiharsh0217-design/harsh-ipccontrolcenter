@@ -476,6 +476,15 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
               onChanged={onChanged}
             />
           </div>
+          <div className="mt-3">
+            <AccessVerificationPanel
+              memberLabel={lead.full_name || undefined}
+              crmLeadId={lead.id}
+              paidPipelineLeadId={(lead as any).paid_pipeline_lead_id || null}
+              cocStatus={(lead as any).code_of_conduct_status || null}
+              currentStageName={(lead as any).stage_name || null}
+            />
+          </div>
           {moveModalOpen && (
             <MoveCopyLinkPipelineModal
               open={moveModalOpen}
