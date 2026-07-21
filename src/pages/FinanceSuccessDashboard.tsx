@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { Link, useSearchParams } from "react-router-dom";
 import { logActivity } from "@/lib/auditLog";
 import { downloadCsv, toCsv } from "@/lib/operationsExport";
+import AccessFollowupTab from "@/components/access-followup/AccessFollowupTab";
 
 type CrmLead = {
   id: string;
@@ -867,6 +868,7 @@ export default function FinanceSuccessDashboard() {
           <TabsTrigger value="incomplete">
             Incomplete Members {incompleteAll.length > 0 && <span className="ml-1.5 rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px]">{incompleteAll.length}</span>}
           </TabsTrigger>
+          <TabsTrigger value="access">Access Follow-up</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary" className="mt-0">
@@ -1174,6 +1176,10 @@ export default function FinanceSuccessDashboard() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="access" className="mt-0">
+          <AccessFollowupTab paidLeads={paidLeads} crmLeads={crmLeads} owners={owners as any} />
         </TabsContent>
       </Tabs>
 

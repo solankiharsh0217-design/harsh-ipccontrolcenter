@@ -25,6 +25,7 @@ import ConversionHistoryDrawer from "@/components/crm/ConversionHistoryDrawer";
 import { loadActiveConversionRules, isConvertedStage, DEFAULT_TRIGGER_STAGES, type ConversionRule } from "@/lib/conversionRules";
 import SessionAttendanceTimeline from "@/components/crm/SessionAttendanceTimeline";
 import LinkedRecordsPanel from "@/components/crm/LinkedRecordsPanel";
+import AccessVerificationPanel from "@/components/access-followup/AccessVerificationPanel";
 import LeadNotesSection from "@/components/crm/LeadNotesSection";
 import MoveCopyLinkPipelineModal from "@/components/crm/MoveCopyLinkPipelineModal";
 import SendToPaidOnboardingModal from "@/components/crm/SendToPaidOnboardingModal";
@@ -474,6 +475,15 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
               email={lead.email}
               phone={lead.phone}
               onChanged={onChanged}
+            />
+          </div>
+          <div className="mt-3">
+            <AccessVerificationPanel
+              memberLabel={lead.full_name || undefined}
+              crmLeadId={lead.id}
+              paidPipelineLeadId={(lead as any).paid_pipeline_lead_id || null}
+              cocStatus={(lead as any).code_of_conduct_status || null}
+              currentStageName={(lead as any).stage_name || null}
             />
           </div>
           {moveModalOpen && (

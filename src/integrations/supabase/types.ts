@@ -4385,6 +4385,87 @@ export type Database = {
           },
         ]
       }
+      member_access_verifications: {
+        Row: {
+          app_last_login_at: string | null
+          app_login_status: string
+          app_login_verified_at: string | null
+          app_login_verified_by: string | null
+          call_attempt_count: number
+          call_status: string
+          contact_notes: string | null
+          created_at: string
+          crm_lead_id: string | null
+          id: string
+          last_called_at: string | null
+          last_called_by: string | null
+          next_follow_up_at: string | null
+          paid_pipeline_lead_id: string | null
+          updated_at: string
+          user_id: string | null
+          whatsapp_group_status: string
+          whatsapp_verified_at: string | null
+          whatsapp_verified_by: string | null
+        }
+        Insert: {
+          app_last_login_at?: string | null
+          app_login_status?: string
+          app_login_verified_at?: string | null
+          app_login_verified_by?: string | null
+          call_attempt_count?: number
+          call_status?: string
+          contact_notes?: string | null
+          created_at?: string
+          crm_lead_id?: string | null
+          id?: string
+          last_called_at?: string | null
+          last_called_by?: string | null
+          next_follow_up_at?: string | null
+          paid_pipeline_lead_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          whatsapp_group_status?: string
+          whatsapp_verified_at?: string | null
+          whatsapp_verified_by?: string | null
+        }
+        Update: {
+          app_last_login_at?: string | null
+          app_login_status?: string
+          app_login_verified_at?: string | null
+          app_login_verified_by?: string | null
+          call_attempt_count?: number
+          call_status?: string
+          contact_notes?: string | null
+          created_at?: string
+          crm_lead_id?: string | null
+          id?: string
+          last_called_at?: string | null
+          last_called_by?: string | null
+          next_follow_up_at?: string | null
+          paid_pipeline_lead_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+          whatsapp_group_status?: string
+          whatsapp_verified_at?: string | null
+          whatsapp_verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_access_verifications_crm_lead_id_fkey"
+            columns: ["crm_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_access_verifications_paid_pipeline_lead_id_fkey"
+            columns: ["paid_pipeline_lead_id"]
+            isOneToOne: false
+            referencedRelation: "paid_pipeline_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           created_at: string
@@ -9337,6 +9418,10 @@ export type Database = {
         Returns: string
       }
       assign_next_invoice_number: { Args: never; Returns: string }
+      can_access_member_verification: {
+        Args: { _crm_lead_id: string; _paid_pipeline_lead_id: string }
+        Returns: boolean
+      }
       can_access_unassigned_leads: {
         Args: { _user_id: string }
         Returns: boolean
