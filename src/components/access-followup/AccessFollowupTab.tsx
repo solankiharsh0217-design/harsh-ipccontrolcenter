@@ -6,6 +6,8 @@ import {
 } from "@/lib/accessVerification";
 import AccessVerificationModal from "./AccessVerificationModal";
 import DailyQueueView from "./DailyQueueView";
+import AccessRowActions from "./AccessRowActions";
+import { CoCStatusChip } from "@/lib/cocStatus";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
