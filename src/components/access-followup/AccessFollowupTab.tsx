@@ -229,34 +229,30 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
 
   return (
     <div className="space-y-4">
-      {/* Primary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-        {primaryCards.map((c) => (
+      {/* View switch */}
+      <div className="flex items-center gap-2">
+        <div className="inline-flex rounded-md border border-border bg-background p-0.5">
           <button
-            key={c.key}
-            onClick={() => setQuick(isActive(c.key) ? "all" : c.key)}
-            className={`text-left border rounded-lg px-3 py-2.5 transition ${c.tone} ${isActive(c.key) ? "ring-2 ring-primary border-primary" : "hover:border-primary/60"}`}
+            onClick={() => setView("members")}
+            className={`text-xs px-3 py-1.5 rounded ${view === "members" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
           >
-            <div className="text-[10px] uppercase tracking-wide opacity-70">{c.label}</div>
-            <div className="text-lg font-semibold">{counts[c.key]}</div>
+            All Members
           </button>
-        ))}
+          <button
+            onClick={() => setView("daily")}
+            className={`text-xs px-3 py-1.5 rounded ${view === "daily" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+          >
+            Daily Queue
+          </button>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {view === "daily"
+            ? "Focused calling list for today, sorted by urgency"
+            : "Full verification list with granular filters"}
+        </div>
       </div>
 
-      {/* Secondary compact chips */}
-      <div className="flex flex-wrap gap-1.5">
-        {secondaryCards.map((c) => (
-          <button
-            key={c.key}
-            onClick={() => setQuick(isActive(c.key) ? "all" : c.key)}
-            className={`text-[11px] px-2.5 py-1 rounded-full border transition ${c.tone} ${isActive(c.key) ? "ring-2 ring-primary" : "opacity-90 hover:opacity-100"}`}
-          >
-            {c.label} · <span className="font-semibold">{counts[c.key]}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Filters row */}
+      {/* Shared filters row */}
       <div className="flex flex-wrap gap-2 items-center">
         <input
           value={search}
@@ -283,16 +279,56 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
           <button onClick={reset} className="text-xs px-2 py-1 rounded-md border border-border hover:bg-muted">Reset</button>
         ) : null}
         <div className="text-xs text-muted-foreground ml-auto">
-          Showing <span className="font-medium text-foreground">{filtered.length}</span> of {scopedRows.length} members
-          {scopedRows.length !== rows.length && <span className="text-muted-foreground"> · {rows.length} total</span>}
+          {view === "members"
+            ? <>Showing <span className="font-medium text-foreground">{filtered.length}</span> of {scopedRows.length} members
+              {scopedRows.length !== rows.length && <span className="text-muted-foreground"> · {rows.length} total</span>}</>
+            : <>{scopedRows.length} member{scopedRows.length === 1 ? "" : "s"} in scope</>}
         </div>
       </div>
 
-      {/* Content */}
-      {isMobile ? (
-        <MobileCards rows={filtered} onSelect={setSelected} />
+      {view === "daily" ? (
+        <DailyQueueView
+          rows={scopedRows}
+          owners={owners}
+          isAdmin={isAdmin}
+          onOpenMember={(r) => setSelected(r as Row)}
+        />
       ) : (
-        <DesktopTable rows={filtered} onSelect={setSelected} />
+        <>
+          {/* Primary cards */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {primaryCards.map((c) => (
+              <button
+                key={c.key}
+                onClick={() => setQuick(isActive(c.key) ? "all" : c.key)}
+                className={`text-left border rounded-lg px-3 py-2.5 transition ${c.tone} ${isActive(c.key) ? "ring-2 ring-primary border-primary" : "hover:border-primary/60"}`}
+              >
+                <div className="text-[10px] uppercase tracking-wide opacity-70">{c.label}</div>
+                <div className="text-lg font-semibold">{counts[c.key]}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Secondary compact chips */}
+          <div className="flex flex-wrap gap-1.5">
+            {secondaryCards.map((c) => (
+              <button
+                key={c.key}
+                onClick={() => setQuick(isActive(c.key) ? "all" : c.key)}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition ${c.tone} ${isActive(c.key) ? "ring-2 ring-primary" : "opacity-90 hover:opacity-100"}`}
+              >
+                {c.label} · <span className="font-semibold">{counts[c.key]}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          {isMobile ? (
+            <MobileCards rows={filtered} onSelect={setSelected} />
+          ) : (
+            <DesktopTable rows={filtered} onSelect={setSelected} />
+          )}
+        </>
       )}
 
       {selected && (
