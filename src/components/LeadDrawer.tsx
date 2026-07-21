@@ -25,6 +25,7 @@ import ConversionHistoryDrawer from "@/components/crm/ConversionHistoryDrawer";
 import { loadActiveConversionRules, isConvertedStage, DEFAULT_TRIGGER_STAGES, type ConversionRule } from "@/lib/conversionRules";
 import SessionAttendanceTimeline from "@/components/crm/SessionAttendanceTimeline";
 import LinkedRecordsPanel from "@/components/crm/LinkedRecordsPanel";
+import AccessVerificationPanel from "@/components/access-followup/AccessVerificationPanel";
 import LeadNotesSection from "@/components/crm/LeadNotesSection";
 import MoveCopyLinkPipelineModal from "@/components/crm/MoveCopyLinkPipelineModal";
 import SendToPaidOnboardingModal from "@/components/crm/SendToPaidOnboardingModal";
