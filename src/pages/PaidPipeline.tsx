@@ -32,6 +32,7 @@ import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHand
 import { auditPaidPipelineVisibility, type VisibilityAudit } from "@/lib/paidPipelineVisibility";
 import CrmStagePicker, { type CrmStagePickerStage } from "@/components/crm/CrmStagePicker";
 import CodeOfConductPanel from "@/components/paid-pipeline/CodeOfConductPanel";
+import AccessVerificationPanel from "@/components/access-followup/AccessVerificationPanel";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import CompactPaidRow from "@/components/paid-pipeline/CompactPaidRow";
 import { getPaymentStatus, type PayStatusKey } from "@/lib/paidPaymentStatus";
