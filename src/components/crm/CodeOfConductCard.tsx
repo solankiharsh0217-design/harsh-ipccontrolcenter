@@ -60,7 +60,8 @@ export default function CodeOfConductCard(props: Props) {
   const showRequiredHint = rule && rule.mode === "auto_send" && !hasActiveReq;
 
   return (
-    <div className="px-6 py-4 border-b border-line">
+    <div id="code-of-conduct-panel" className="px-6 py-4 border-b border-line scroll-mt-20">
+
       {showSuggested && (
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <div className="flex items-start justify-between gap-2 flex-wrap">

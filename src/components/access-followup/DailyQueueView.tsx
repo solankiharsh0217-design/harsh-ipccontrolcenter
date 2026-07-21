@@ -357,29 +357,41 @@ export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember }: 
                           </div>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-1 justify-end">
-                        {r.phone && (
+                      <div className="flex flex-wrap gap-1.5 justify-end items-center">
+                        {r.phone ? (
                           <>
-                            <a href={`tel:${r.phone}`} className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted">Call</a>
-                            <button onClick={() => copyPhone(r.phone)} className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted">Copy</button>
+                            <a href={`tel:${r.phone}`} className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-muted font-medium">Call</a>
+                            <button onClick={() => copyPhone(r.phone)} className="text-[11.5px] px-2 py-1.5 rounded-md border border-border bg-background hover:bg-muted">Copy</button>
                           </>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground italic">Phone not recorded</span>
                         )}
                         <button
                           disabled={busyRow === r.paidLeadId}
                           onClick={() => quickNoAnswer(r)}
-                          className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted disabled:opacity-50"
+                          className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-border bg-background hover:bg-muted disabled:opacity-50"
                         >
                           {busyRow === r.paidLeadId ? "…" : "No Answer"}
                         </button>
-                        <button onClick={() => onOpenMember(r)} className="text-[11px] px-2 py-1 rounded-md border border-primary/60 bg-primary/10 text-primary hover:bg-primary/20">Connected</button>
-                        <button onClick={() => onOpenMember(r)} className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted">Update</button>
+                        {r.crmLeadId ? (
+                          <Link
+                            to={`/crm?lead=${r.crmLeadId}&focus=code-of-conduct`}
+                            className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-amber-400/70 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium"
+                          >
+                            Open CRM / CoC
+                          </Link>
+                        ) : (
+                          <span className="text-[11.5px] px-2.5 py-1.5 rounded-md border border-dashed border-slate-300 text-slate-500 bg-slate-50">CRM not linked</span>
+                        )}
                         {isAdmin && (
-                          <button onClick={() => setAssignFor(r)} className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted">Assign</button>
+                          <button onClick={() => setAssignFor(r)} className="text-[11.5px] px-2 py-1.5 rounded-md border border-border bg-background hover:bg-muted">Assign</button>
                         )}
-                        {r.crmLeadId && (
-                          <Link to={`/crm?lead=${r.crmLeadId}`} className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted">CRM</Link>
-                        )}
-                        <Link to={`/paid-pipeline?lead=${r.paidLeadId}`} className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-muted">Paid</Link>
+                        <button
+                          onClick={() => onOpenMember(r)}
+                          className="text-[11.5px] px-3 py-1.5 rounded-md bg-foreground text-background hover:opacity-90 font-semibold shadow-sm"
+                        >
+                          Update Follow-up
+                        </button>
                       </div>
                     </div>
                   </div>

@@ -6,6 +6,8 @@ import {
 } from "@/lib/accessVerification";
 import AccessVerificationModal from "./AccessVerificationModal";
 import DailyQueueView from "./DailyQueueView";
+import AccessRowActions from "./AccessRowActions";
+import { CoCStatusChip } from "@/lib/cocStatus";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
@@ -377,7 +379,13 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
               <tr key={r.paidLeadId} className="hover:bg-muted/30">
                 <td className="px-3 py-2 sticky left-0 bg-background border-t border-r border-border z-[1]">
                   <div className="font-medium truncate max-w-[220px]">{r.name}</div>
-                  <div className="text-[11px] text-muted-foreground truncate max-w-[220px]">{r.phone || "—"}</div>
+                  <div className="text-[11.5px] truncate max-w-[220px]">
+                    {r.phone ? (
+                      <a href={`tel:${r.phone}`} className="text-foreground hover:underline font-medium">{r.phone}</a>
+                    ) : (
+                      <span className="text-muted-foreground italic">Phone not recorded</span>
+                    )}
+                  </div>
                   <div className="text-[11px] text-muted-foreground truncate max-w-[220px]">{r.email || "—"}</div>
                 </td>
                 <td className="px-3 py-2 border-t border-border">
@@ -394,14 +402,23 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
                   {r.verification?.next_follow_up_at ? new Date(r.verification.next_follow_up_at).toLocaleDateString() : "—"}
                 </td>
                 <td className="px-3 py-2 border-t border-border text-xs">{r.crmStage || "—"}</td>
-                <td className="px-3 py-2 border-t border-border text-xs">{r.cocStatus || "—"}</td>
+                <td className="px-3 py-2 border-t border-border text-xs">
+                  <CoCStatusChip status={r.cocStatus} hasCrmLink={!!r.crmLeadId} />
+                </td>
                 <td className="px-3 py-2 border-t border-border text-xs">
                   <div className="truncate max-w-[200px]">{r.batch || "—"}</div>
                   {r.webinarDate && <div className="text-[10px] text-muted-foreground">{r.webinarDate}</div>}
                 </td>
                 <td className="px-3 py-2 border-t border-border text-xs">{r.ownerName || "—"}</td>
                 <td className="px-3 py-2 border-t border-border text-right">
-                  <button onClick={() => onSelect(r)} className="text-xs px-2 py-1 rounded-md border border-border hover:bg-muted">Update</button>
+                  <div className="flex justify-end">
+                    <AccessRowActions
+                      phone={r.phone}
+                      crmLeadId={r.crmLeadId}
+                      cocStatus={r.cocStatus}
+                      onUpdate={() => onSelect(r)}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -423,7 +440,13 @@ function MobileCards({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => vo
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="font-medium truncate">{r.name}</div>
-              <div className="text-[11px] text-muted-foreground truncate">{r.phone || "—"}</div>
+              <div className="text-[12px] truncate">
+                {r.phone ? (
+                  <a href={`tel:${r.phone}`} className="text-foreground hover:underline font-medium">{r.phone}</a>
+                ) : (
+                  <span className="text-muted-foreground italic">Phone not recorded</span>
+                )}
+              </div>
               <div className="text-[11px] text-muted-foreground truncate">{r.email || "—"}</div>
             </div>
             <span className={`text-[11px] px-2 py-0.5 rounded-full flex-shrink-0 ${OVERALL_STYLES[r.overall]}`}>{OVERALL_LABEL[r.overall]}</span>
@@ -432,15 +455,19 @@ function MobileCards({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => vo
             <div><span className="text-muted-foreground">WhatsApp:</span> {WHATSAPP_LABELS[r.verification?.whatsapp_group_status || "unknown"]}</div>
             <div><span className="text-muted-foreground">App:</span> {APP_LOGIN_LABELS[r.verification?.app_login_status || "unknown"]}</div>
             <div><span className="text-muted-foreground">Call:</span> {CALL_LABELS[r.verification?.call_status || "not_called"]} · {r.verification?.call_attempt_count || 0}</div>
-            <div><span className="text-muted-foreground">CoC:</span> {r.cocStatus || "—"}</div>
+            <div className="flex items-center gap-1"><span className="text-muted-foreground">CoC:</span> <CoCStatusChip status={r.cocStatus} hasCrmLink={!!r.crmLeadId} /></div>
             <div><span className="text-muted-foreground">Last:</span> {r.verification?.last_called_at ? new Date(r.verification.last_called_at).toLocaleDateString() : "—"}</div>
             <div><span className="text-muted-foreground">Next:</span> {r.verification?.next_follow_up_at ? new Date(r.verification.next_follow_up_at).toLocaleDateString() : "—"}</div>
             <div className="col-span-2"><span className="text-muted-foreground">Batch:</span> {r.batch || "—"}{r.webinarDate ? ` · ${r.webinarDate}` : ""}</div>
             <div className="col-span-2"><span className="text-muted-foreground">Stage:</span> {r.crmStage || "—"} · <span className="text-muted-foreground">Owner:</span> {r.ownerName || "—"}</div>
           </div>
-          <div className="flex justify-end">
-            <button onClick={() => onSelect(r)} className="text-xs px-2.5 py-1 rounded-md border border-border hover:bg-muted">Update Access Follow-up</button>
-          </div>
+          <AccessRowActions
+            phone={r.phone}
+            crmLeadId={r.crmLeadId}
+            cocStatus={r.cocStatus}
+            onUpdate={() => onSelect(r)}
+            fullWidthPrimary
+          />
         </div>
       ))}
     </div>
