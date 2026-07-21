@@ -5,8 +5,10 @@ import {
   WHATSAPP_LABELS, APP_LOGIN_LABELS, CALL_LABELS,
 } from "@/lib/accessVerification";
 import AccessVerificationModal from "./AccessVerificationModal";
+import DailyQueueView from "./DailyQueueView";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/context/AuthContext";
 
 type Row = {
   paidLeadId: string;
