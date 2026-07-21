@@ -863,12 +863,30 @@ export default function FinanceSuccessDashboard() {
       )}
 
       <Tabs defaultValue="summary" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="summary">Webinar Summary</TabsTrigger>
-          <TabsTrigger value="incomplete">
-            Incomplete Members {incompleteAll.length > 0 && <span className="ml-1.5 rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px]">{incompleteAll.length}</span>}
+        <TabsList className="mb-4 h-auto bg-transparent p-0 border-b border-border rounded-none w-full justify-start gap-1">
+          <TabsTrigger
+            value="summary"
+            className="rounded-none rounded-t-md px-4 py-2 text-sm text-muted-foreground border-b-2 border-transparent hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-950 data-[state=active]:font-semibold data-[state=active]:border-amber-500 data-[state=active]:shadow-none"
+          >
+            Webinar Summary
           </TabsTrigger>
-          <TabsTrigger value="access">Access Follow-up</TabsTrigger>
+          <TabsTrigger
+            value="incomplete"
+            className="rounded-none rounded-t-md px-4 py-2 text-sm text-muted-foreground border-b-2 border-transparent hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-950 data-[state=active]:font-semibold data-[state=active]:border-amber-500 data-[state=active]:shadow-none"
+          >
+            Incomplete Members
+            {incompleteAll.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-amber-200 text-amber-950 px-1.5 py-0.5 text-[10px] font-semibold">
+                {incompleteAll.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="access"
+            className="rounded-none rounded-t-md px-4 py-2 text-sm text-muted-foreground border-b-2 border-transparent hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-950 data-[state=active]:font-semibold data-[state=active]:border-amber-500 data-[state=active]:shadow-none"
+          >
+            Access Follow-up
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary" className="mt-0">
