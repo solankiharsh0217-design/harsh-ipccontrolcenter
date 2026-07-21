@@ -109,7 +109,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
   const crmById = useMemo(() => new Map(crmLeads.map((l) => [l.id, l])), [crmLeads]);
   const ownerById = useMemo(() => new Map(owners.map((o) => [o.id, o])), [owners]);
 
-  const rows: Row[] = useMemo(() => {
+  const allRows: Row[] = useMemo(() => {
     return paidLeads.map((p) => {
       const crm = p.crm_lead_id ? crmById.get(p.crm_lead_id) : undefined;
       const v = (verifications as Map<string, AccessVerification>).get(p.id) || null;
@@ -140,6 +140,15 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
       };
     });
   }, [paidLeads, crmById, verifications, ownerById]);
+
+  // Access Follow-up eligibility: initial Code of Conduct email must have been
+  // successfully sent at least once. First-send is the initiator's / CRM
+  // process owner's responsibility — Access Follow-up never initiates it.
+  const rows: Row[] = useMemo(
+    () => allRows.filter((r) => hasSuccessfulCocSend(r.cocStatus, !!r.crmLeadId)),
+    [allRows],
+  );
+  const awaitingInitialSendCount = allRows.length - rows.length;
 
   const [quick, setQuick] = useState<QuickFilter>("all");
   const [search, setSearch] = useState("");
