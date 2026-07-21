@@ -379,7 +379,13 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
               <tr key={r.paidLeadId} className="hover:bg-muted/30">
                 <td className="px-3 py-2 sticky left-0 bg-background border-t border-r border-border z-[1]">
                   <div className="font-medium truncate max-w-[220px]">{r.name}</div>
-                  <div className="text-[11px] text-muted-foreground truncate max-w-[220px]">{r.phone || "—"}</div>
+                  <div className="text-[11.5px] truncate max-w-[220px]">
+                    {r.phone ? (
+                      <a href={`tel:${r.phone}`} className="text-foreground hover:underline font-medium">{r.phone}</a>
+                    ) : (
+                      <span className="text-muted-foreground italic">Phone not recorded</span>
+                    )}
+                  </div>
                   <div className="text-[11px] text-muted-foreground truncate max-w-[220px]">{r.email || "—"}</div>
                 </td>
                 <td className="px-3 py-2 border-t border-border">
@@ -396,14 +402,23 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
                   {r.verification?.next_follow_up_at ? new Date(r.verification.next_follow_up_at).toLocaleDateString() : "—"}
                 </td>
                 <td className="px-3 py-2 border-t border-border text-xs">{r.crmStage || "—"}</td>
-                <td className="px-3 py-2 border-t border-border text-xs">{r.cocStatus || "—"}</td>
+                <td className="px-3 py-2 border-t border-border text-xs">
+                  <CoCStatusChip status={r.cocStatus} hasCrmLink={!!r.crmLeadId} />
+                </td>
                 <td className="px-3 py-2 border-t border-border text-xs">
                   <div className="truncate max-w-[200px]">{r.batch || "—"}</div>
                   {r.webinarDate && <div className="text-[10px] text-muted-foreground">{r.webinarDate}</div>}
                 </td>
                 <td className="px-3 py-2 border-t border-border text-xs">{r.ownerName || "—"}</td>
                 <td className="px-3 py-2 border-t border-border text-right">
-                  <button onClick={() => onSelect(r)} className="text-xs px-2 py-1 rounded-md border border-border hover:bg-muted">Update</button>
+                  <div className="flex justify-end">
+                    <AccessRowActions
+                      phone={r.phone}
+                      crmLeadId={r.crmLeadId}
+                      cocStatus={r.cocStatus}
+                      onUpdate={() => onSelect(r)}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}
