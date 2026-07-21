@@ -89,11 +89,20 @@ export default function Team() {
   };
 
   const load = async () => {
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department, email, deactivated_at, deactivation_reason").neq("status","pending").order("full_name");
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, role, department, email, deactivated_at").neq("status","pending").order("full_name");
     const { data: logs } = await supabase.from("attendance_logs").select("user_id, login_time").order("login_time", { ascending: false });
     const lastByUser = new Map<string, string>();
     logs?.forEach(l => { if (!lastByUser.has(l.user_id)) lastByUser.set(l.user_id, l.login_time); });
-    const next = (profiles ?? []).map((p: any) => ({ ...p, last_login: lastByUser.get(p.id) ?? null }));
+    // Admin-only: fetch deactivation reasons via SECURITY DEFINER RPC (non-admins get an empty result).
+    const deactivatedIds = (profiles ?? []).filter((p: any) => p.deactivated_at).map((p: any) => p.id);
+    const reasonMap = new Map<string, string | null>();
+    if (deactivatedIds.length) {
+      const { data: details } = await (supabase as any).rpc("get_profile_deactivation_details", { _user_ids: deactivatedIds });
+      for (const r of (details ?? []) as Array<{ id: string; deactivation_reason: string | null }>) {
+        reasonMap.set(r.id, r.deactivation_reason);
+      }
+    }
+    const next = (profiles ?? []).map((p: any) => ({ ...p, deactivation_reason: reasonMap.get(p.id) ?? null, last_login: lastByUser.get(p.id) ?? null }));
     setMembers(next);
     loadAuthStatus(next);
   };
