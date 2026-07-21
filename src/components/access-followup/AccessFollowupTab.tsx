@@ -21,6 +21,7 @@ type Row = {
   batchLabel: string;
   webinarDate: string | null;
   cocStatus: string | null;
+  ownerId: string | null;
   ownerName: string | null;
   ownerKey: string;
   crmStage: string | null;
