@@ -1663,6 +1663,14 @@ function LeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; 
             evalStageId={crmStageId}
           />
 
+          <AccessVerificationPanel
+            memberLabel={lead.name || undefined}
+            crmLeadId={lead.crm_lead_id || null}
+            paidPipelineLeadId={lead.id}
+            cocStatus={(lead as any).code_of_conduct_status || null}
+            currentStageName={stage || null}
+          />
+
           {/* 2. Next Follow-up — high-visibility, daily-use card */}
           {(() => {
             const todayStr = new Date().toISOString().slice(0, 10);
