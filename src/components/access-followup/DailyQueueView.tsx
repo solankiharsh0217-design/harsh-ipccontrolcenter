@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { upsertVerification, AccessVerification, OverallStatus, CALL_LABELS, WHATSAPP_LABELS, APP_LOGIN_LABELS } from "@/lib/accessVerification";
+import { cocActionLabel, cocActionTooltip } from "@/lib/cocStatus";
 import { logActivity } from "@/lib/auditLog";
 
 export type QueueRow = {
