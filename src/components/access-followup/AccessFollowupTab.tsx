@@ -393,7 +393,7 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
               <th className="text-left px-3 py-2">CoC</th>
               <th className="text-left px-3 py-2">Webinar / Batch</th>
               <th className="text-left px-3 py-2">Owner</th>
-              <th className="text-right px-3 py-2">Actions</th>
+              <th className="text-right px-3 py-2 sticky right-0 bg-muted/95 backdrop-blur z-10 border-l border-border shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.12)] min-w-[280px]">Actions</th>
             </tr>
           </thead>
           <tbody>
