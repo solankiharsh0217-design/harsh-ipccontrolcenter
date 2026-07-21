@@ -128,6 +128,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
         batchLabel,
         webinarDate: webDate,
         cocStatus: p.code_of_conduct_status || null,
+        ownerId: crm?.assigned_agent_id || null,
         ownerName: owner?.full_name || null,
         ownerKey: owner?.full_name || "__unassigned__",
         crmStage: (crm as any)?.stage_name || null,
