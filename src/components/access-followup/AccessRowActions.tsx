@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Phone, Copy } from "lucide-react";
-import { cocActionLabel } from "@/lib/cocStatus";
+import { cocActionLabel, cocActionTooltip } from "@/lib/cocStatus";
 
 interface Props {
   phone: string | null;
