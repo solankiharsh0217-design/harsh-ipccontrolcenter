@@ -149,17 +149,23 @@ const normPhone = (v: any) => {
   if (s.length > 10) s = s.slice(s.length - 10);
   return s;
 };
-// Parse currency-ish numbers from CSVs. Handles "₹1,18,000", "1.18L", "1,18,000.00", "-", "".
+// Parse currency-ish numbers from CSVs. Handles "₹1,18,000", "1.18L", "1,18,000.00",
+// "125700 OTP", "OTP 125700", "Rs. 1,18,000", "-", "".
 const parseAmount = (v: any): number => {
   if (v === null || v === undefined) return 0;
-  let s = String(v).trim();
-  if (!s || s === "-" || s === "—" || /^n\/?a$/i.test(s)) return 0;
-  const lakh = /(\d+(?:\.\d+)?)\s*l(akh)?\b/i.exec(s);
+  const raw = String(v).trim();
+  if (!raw || raw === "-" || raw === "—" || /^n\/?a$/i.test(raw)) return 0;
+  const lakh = /(\d+(?:\.\d+)?)\s*l(akh)?\b/i.exec(raw);
   if (lakh) return Math.round(parseFloat(lakh[1]) * 100000);
-  const cr = /(\d+(?:\.\d+)?)\s*cr\b/i.exec(s);
+  const cr = /(\d+(?:\.\d+)?)\s*cr\b/i.exec(raw);
   if (cr) return Math.round(parseFloat(cr[1]) * 10000000);
-  s = s.replace(/[₹$,\s]/g, "");
-  const n = parseFloat(s);
+  // Extract the first numeric sequence (allowing Indian-format commas + optional decimal),
+  // ignoring surrounding currency symbols, labels ("Rs.", "OTP") and whitespace.
+  const m = raw.match(/(\d[\d,]*)(?:\.(\d+))?/);
+  if (!m) return 0;
+  const digits = m[1].replace(/,/g, "");
+  const frac = m[2] ? `.${m[2]}` : "";
+  const n = parseFloat(digits + frac);
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
