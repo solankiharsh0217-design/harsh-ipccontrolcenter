@@ -465,7 +465,10 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     watchPct >= 1 && watchPct <= 100 &&
     salesDay >= 1 && salesDay <= totalDays &&
     Number(adCostExGst) >= 0 &&
-    products.some((p) => p.type.trim() && Number(p.units) > 0);
+    (legacyReport
+      ? products.some((p) => p.type.trim() && Number(p.units) > 0)
+      : productTotals.perProduct.length > 0 && productTotals.totalUnits > 0);
+
 
   const buildWhatsApp = () => {
     const lines: string[] = [];
