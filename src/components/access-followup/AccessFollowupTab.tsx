@@ -360,6 +360,8 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
           owners={owners}
           isAdmin={isAdmin}
           onOpenMember={(r) => setSelected(r as Row)}
+          returnTo={returnTo}
+          onBeforeCrmNav={captureState}
         />
       ) : (
         <>
@@ -392,9 +394,9 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
 
           {/* Content */}
           {isMobile ? (
-            <MobileCards rows={filtered} onSelect={setSelected} />
+            <MobileCards rows={filtered} onSelect={setSelected} returnTo={returnTo} onBeforeCrmNav={captureState} />
           ) : (
-            <DesktopTable rows={filtered} onSelect={setSelected} />
+            <DesktopTable rows={filtered} onSelect={setSelected} returnTo={returnTo} onBeforeCrmNav={captureState} />
           )}
         </>
       )}
