@@ -221,10 +221,13 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   // Products / Offers (Step 1 — foundation) + ROAS revenue basis
   const gstDefaults = loadGstDefaults();
   const [seminarProducts, setSeminarProducts] = useState<SeminarProductRow[]>([emptySeminarProductRow()]);
+  const [seminarSales, setSeminarSales] = useState<Record<string, SeminarSalesRow>>({});
   const [roasRevenueBasis, setRoasRevenueBasis] = useState<SeminarRevenueBasis>("gross_revenue");
   const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
   const [managerOpen, setManagerOpen] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
+  const [legacyReport, setLegacyReport] = useState(false);
+  const [catalogDrift, setCatalogDrift] = useState<Array<{ name: string; oldPrice: number; newPrice: number }>>([]);
 
   const [editingId, setEditingId] = useState<string | null>(loadReportId || null);
   const [saving, setSaving] = useState(false);
@@ -236,6 +239,19 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     try { setCatalog(await listActiveCatalogProducts()); } catch { /* toast handled elsewhere */ }
   }, []);
   useEffect(() => { void refreshCatalog(); }, [refreshCatalog]);
+
+  // Keep sales rows aligned with product rows.
+  useEffect(() => {
+    setSeminarSales((prev) => syncSalesToProducts(seminarProducts, prev));
+  }, [seminarProducts]);
+
+  const updateSale = useCallback((productKey: string, patch: Partial<SeminarSalesRow>) => {
+    setSeminarSales((prev) => ({
+      ...prev,
+      [productKey]: { ...(prev[productKey] || emptySeminarSalesRow(productKey)), ...patch },
+    }));
+  }, []);
+
 
 
   // ----- derived: keep days array sized to totalDays. Do NOT auto-pick salesDay. -----
