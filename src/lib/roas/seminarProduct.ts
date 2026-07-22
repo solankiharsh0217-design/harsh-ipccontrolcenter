@@ -223,3 +223,177 @@ export function validateSeminarProducts(rows: SeminarProductRow[]): string | nul
   if (dup >= 0) return "Resolve the duplicate product before continuing.";
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Sales rows (Step 4) + per-product & multi-product totals
+// ─────────────────────────────────────────────────────────────
+
+export type SeminarSalesRow = {
+  productKey: string;            // matches SeminarProductRow.rowKey
+  unitsSold: number;
+  fullPaymentCount: number;
+  tokenSalesCount: number;
+  commonTokenAmount: number;     // per-sale
+  directTokenCollected: number;  // absolute total; takes precedence when > 0
+  otherCollected: number;
+  refundCount: number;
+  refundAmount: number;
+  notes: string;
+};
+
+export function emptySeminarSalesRow(productKey: string): SeminarSalesRow {
+  return {
+    productKey,
+    unitsSold: 0,
+    fullPaymentCount: 0,
+    tokenSalesCount: 0,
+    commonTokenAmount: 0,
+    directTokenCollected: 0,
+    otherCollected: 0,
+    refundCount: 0,
+    refundAmount: 0,
+    notes: "",
+  };
+}
+
+/** Keep the sales record aligned with the current products list. */
+export function syncSalesToProducts(
+  products: SeminarProductRow[],
+  sales: Record<string, SeminarSalesRow>,
+): Record<string, SeminarSalesRow> {
+  const next: Record<string, SeminarSalesRow> = {};
+  for (const p of products) {
+    next[p.rowKey] = sales[p.rowKey] ?? emptySeminarSalesRow(p.rowKey);
+  }
+  return next;
+}
+
+export type PerProductTotals = {
+  productKey: string;
+  productName: string;
+  unitPrice: number;
+  gstMode: ProductGstMode;
+  gstPercent: number;
+  grossPerSale: number;
+  netPerSale: number;
+  gstPerSale: number;
+  unitsSold: number;
+  grossBooked: number;
+  netBooked: number;
+  revenueGst: number;
+  tokenCollected: number;
+  tokenSource: "direct" | "computed" | "none";
+  fullPaymentCollected: number;
+  otherCollected: number;
+  refundAmount: number;
+  cashCollected: number;
+  outstanding: number;
+  warnings: string[];
+};
+
+/** Choose token amount by precedence: direct > count × common > 0. */
+export function resolveTokenCollected(sale: SeminarSalesRow): { value: number; source: "direct" | "computed" | "none" } {
+  const direct = Number(sale.directTokenCollected) || 0;
+  if (direct > 0) return { value: direct, source: "direct" };
+  const count = Number(sale.tokenSalesCount) || 0;
+  const common = Number(sale.commonTokenAmount) || 0;
+  if (count > 0 && common > 0) return { value: count * common, source: "computed" };
+  return { value: 0, source: "none" };
+}
+
+export function computeProductTotals(product: SeminarProductRow, sale: SeminarSalesRow): PerProductTotals {
+  const per = computeProductGst(Number(product.unitPrice) || 0, product.gstMode, Number(product.gstPercent) || 0);
+  const units = Math.max(0, Number(sale.unitsSold) || 0);
+  const grossBooked = per.gross * units;
+  const netBooked = per.net * units;
+  const revenueGst = grossBooked - netBooked;
+
+  const fullCount = Math.max(0, Number(sale.fullPaymentCount) || 0);
+  const tokenCount = Math.max(0, Number(sale.tokenSalesCount) || 0);
+  const tok = resolveTokenCollected(sale);
+  const fullCollected = fullCount * per.gross;
+  const other = Math.max(0, Number(sale.otherCollected) || 0);
+  const refund = Math.max(0, Number(sale.refundAmount) || 0);
+  const cashCollected = Math.max(0, fullCollected + tok.value + other - refund);
+  const outstanding = Math.max(0, grossBooked - cashCollected);
+
+  const warnings: string[] = [];
+  if (units > 0 && !(product.unitPrice > 0)) warnings.push("Units entered but product price is missing.");
+  if (fullCount + tokenCount > units) warnings.push("Full-payment + token counts exceed units sold.");
+  if (Number(sale.directTokenCollected) < 0 || Number(sale.commonTokenAmount) < 0) warnings.push("Token amount cannot be negative.");
+  if (Number(sale.directTokenCollected) > 0 && tokenCount > 0 && Number(sale.commonTokenAmount) > 0) {
+    warnings.push("Both direct token total and count×common are set. Using direct total.");
+  }
+  if (refund > cashCollected + refund) warnings.push("Refunds exceed collected.");
+  if (grossBooked > 0 && cashCollected > grossBooked) warnings.push("Cash collected exceeds gross booked revenue.");
+
+  return {
+    productKey: product.rowKey,
+    productName: product.productName,
+    unitPrice: Number(product.unitPrice) || 0,
+    gstMode: product.gstMode,
+    gstPercent: Number(product.gstPercent) || 0,
+    grossPerSale: per.gross,
+    netPerSale: per.net,
+    gstPerSale: per.gst,
+    unitsSold: units,
+    grossBooked,
+    netBooked,
+    revenueGst,
+    tokenCollected: tok.value,
+    tokenSource: tok.source,
+    fullPaymentCollected: fullCollected,
+    otherCollected: other,
+    refundAmount: refund,
+    cashCollected,
+    outstanding,
+    warnings,
+  };
+}
+
+export type MultiProductTotals = {
+  perProduct: PerProductTotals[];
+  totalUnits: number;
+  grossBooked: number;
+  netBooked: number;
+  revenueGst: number;
+  tokenCollected: number;
+  cashCollected: number;
+  outstanding: number;
+  refundAmount: number;
+};
+
+export function computeMultiProductTotals(
+  products: SeminarProductRow[],
+  sales: Record<string, SeminarSalesRow>,
+): MultiProductTotals {
+  const perProduct = products
+    .filter((p) => p.productName.trim() || p.unitPrice > 0)
+    .map((p) => computeProductTotals(p, sales[p.rowKey] ?? emptySeminarSalesRow(p.rowKey)));
+  const sum = (fn: (t: PerProductTotals) => number) => perProduct.reduce((a, t) => a + fn(t), 0);
+  return {
+    perProduct,
+    totalUnits: sum((t) => t.unitsSold),
+    grossBooked: sum((t) => t.grossBooked),
+    netBooked: sum((t) => t.netBooked),
+    revenueGst: sum((t) => t.revenueGst),
+    tokenCollected: sum((t) => t.tokenCollected),
+    cashCollected: sum((t) => t.cashCollected),
+    outstanding: sum((t) => t.outstanding),
+    refundAmount: sum((t) => t.refundAmount),
+  };
+}
+
+/** ROAS numerator per basis. */
+export function revenueForRoasBasis(totals: MultiProductTotals, basis: SeminarRevenueBasis): number {
+  if (basis === "net_revenue") return totals.netBooked;
+  if (basis === "cash_collected") return totals.cashCollected;
+  return totals.grossBooked;
+}
+
+export function roasLabelForBasis(basis: SeminarRevenueBasis): string {
+  if (basis === "cash_collected") return "Cash-Collected ROAS";
+  if (basis === "net_revenue") return "Net Booked-Revenue ROAS";
+  return "Gross Booked-Revenue ROAS";
+}
+
