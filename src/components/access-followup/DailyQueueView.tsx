@@ -93,7 +93,7 @@ function hygieneBadges(r: QueueRow, nowMs: number): Array<{ label: string; tone:
   return out;
 }
 
-export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember }: Props) {
+export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember, returnTo, onBeforeCrmNav }: Props) {
   const qc = useQueryClient();
   const nowMs = Date.now();
   const dayStart = startOfDay().getTime();
