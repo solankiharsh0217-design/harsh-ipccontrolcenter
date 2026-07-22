@@ -3,6 +3,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
+import { Plus, Settings2, X as XIcon } from "lucide-react";
+import SearchableProductSelect from "@/components/roas/seminar/SearchableProductSelect";
+import SeminarProductManagerModal from "@/components/roas/seminar/SeminarProductManagerModal";
+import {
+  computeProductGst,
+  emptySeminarProductRow,
+  findDuplicateRow,
+  listActiveCatalogProducts,
+  validateSeminarProducts,
+  REVENUE_BASIS_LABEL,
+  REVENUE_BASIS_HELP,
+  type CatalogProduct,
+  type ProductGstMode,
+  type SeminarProductRow,
+  type SeminarRevenueBasis,
+} from "@/lib/roas/seminarProduct";
+import { loadGstDefaults } from "@/lib/roas/gst";
+import { logActivity } from "@/lib/auditLog";
+
 
 /* ============================================================
    Seminar ROAS Calculator (5-step wizard)
@@ -190,11 +209,25 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [revenueBasis, setRevenueBasis] = useState<"full_deal_value" | "token_collected_amount">("full_deal_value");
   const [products, setProducts] = useState<ProductRow[]>([emptyProd()]);
 
+  // Products / Offers (Step 1 — foundation) + ROAS revenue basis
+  const gstDefaults = loadGstDefaults();
+  const [seminarProducts, setSeminarProducts] = useState<SeminarProductRow[]>([emptySeminarProductRow()]);
+  const [roasRevenueBasis, setRoasRevenueBasis] = useState<SeminarRevenueBasis>("gross_revenue");
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
+
   const [editingId, setEditingId] = useState<string | null>(loadReportId || null);
   const [saving, setSaving] = useState(false);
   const [draftBanner, setDraftBanner] = useState(false);
   const draftLoadedRef = useRef(false);
   const setSalesDayManual = useCallback((d: number) => { setSalesDayError(false); setSalesDay(d); }, []);
+
+  const refreshCatalog = useCallback(async () => {
+    try { setCatalog(await listActiveCatalogProducts()); } catch { /* toast handled elsewhere */ }
+  }, []);
+  useEffect(() => { void refreshCatalog(); }, [refreshCatalog]);
+
 
   // ----- derived: keep days array sized to totalDays. Do NOT auto-pick salesDay. -----
   useEffect(() => {
@@ -241,6 +274,8 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       setAdCostExGst(d.adCostExGst || "");
       setRevenueBasis(d.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
       setProducts(d.products?.length ? d.products : [emptyProd()]);
+      setSeminarProducts(Array.isArray(d.seminarProducts) && d.seminarProducts.length ? d.seminarProducts : [emptySeminarProductRow()]);
+      setRoasRevenueBasis((d.roasRevenueBasis as SeminarRevenueBasis) || "gross_revenue");
       setStep(d.step || 1);
       setDraftBanner(false);
       toast.success("Previous draft restored");
@@ -263,12 +298,15 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({
           step, webinarName, webinarMode, totalDays, watchPct, salesDay,
           defaultStart, defaultEnd, timingNote, convBasis, days, adCostExGst, revenueBasis, products,
+          seminarProducts, roasRevenueBasis,
         }));
       } catch {}
     }, 600);
     return () => clearTimeout(t);
   }, [step, webinarName, webinarMode, totalDays, watchPct, salesDay,
-      defaultStart, defaultEnd, timingNote, convBasis, days, adCostExGst, revenueBasis, products, draftBanner, editingId]);
+      defaultStart, defaultEnd, timingNote, convBasis, days, adCostExGst, revenueBasis, products,
+      seminarProducts, roasRevenueBasis, draftBanner, editingId]);
+
 
   // Per-day computed timing
   const dayTimings = useMemo(() => {
@@ -517,8 +555,10 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         webinarName, webinarMode, totalDays, watchPct, salesDay,
         defaultStart, defaultEnd, timingNote, convBasis,
         days, adCostExGst, revenueBasis, products,
+        seminarProducts, roasRevenueBasis,
       };
-      const outputSnap = { ...calc, dayTimings, revenueBasis, convBasis };
+      const outputSnap = { ...calc, dayTimings, revenueBasis, convBasis, roasRevenueBasis, seminarProducts };
+
 
       const reportPayload: any = {
         report_name: webinarName,
@@ -531,6 +571,8 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         sales_day: salesDay,
         timing_note: timingNote || null,
         revenue_basis: revenueBasis,
+        roas_revenue_basis: roasRevenueBasis,
+
         conversion_rate_basis: convBasis,
         conversion_rate: calc.convRate,
         ad_cost_excluding_gst: calc.adCost,
@@ -648,7 +690,10 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     })));
     setAdCostExGst(String(r.ad_cost_excluding_gst || ""));
     if (snap.revenueBasis) setRevenueBasis(snap.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
+    setRoasRevenueBasis((snap.roasRevenueBasis || r.roas_revenue_basis || "gross_revenue") as SeminarRevenueBasis);
+    if (Array.isArray(snap.seminarProducts) && snap.seminarProducts.length) setSeminarProducts(snap.seminarProducts);
     if (snap.products) setProducts(snap.products);
+
     else setProducts((r.products || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((p: any) => ({
       type: p.payment_type || "",
       units: String(p.units_sold || ""),
@@ -701,8 +746,14 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         <Step1 {...{ webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
           watchPct, setWatchPct, salesDay, setSalesDay: setSalesDayManual, salesDayError,
           timingNote, setTimingNote,
-          convBasis, setConvBasis }} />
+          convBasis, setConvBasis,
+          seminarProducts, setSeminarProducts,
+          roasRevenueBasis, setRoasRevenueBasis,
+          catalog, refreshCatalog, setManagerOpen,
+          productsError, setProductsError,
+          adSpendBasis: gstDefaults.spendBasis, adSpendTaxMode: gstDefaults.taxMode }} />
       )}
+
       {step === 2 && (
         <Step2 days={days} totalDays={totalDays} salesDay={salesDay} watchPct={watchPct}
           dayTimings={dayTimings} updateDay={updateDay} addDay={addDay} removeDay={removeDay} dayMetrics={dayMetrics} />
@@ -733,9 +784,24 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
                 toast.error("Please select the day when sales/offer happened.");
                 return;
               }
+              const err = validateSeminarProducts(seminarProducts);
+              if (err) { setProductsError(err); toast.error(err); return; }
+              setProductsError(null);
+              // Fire selection audit (fire-and-forget)
+              void logActivity({
+                module_key: "roas",
+                action_type: "seminar_roas_products_selected",
+                entity_type: "seminar_roas_report",
+                entity_label: webinarName,
+                metadata: {
+                  count: seminarProducts.filter((p) => p.productName.trim()).length,
+                  revenue_basis: roasRevenueBasis,
+                },
+              });
             }
             setStep((s) => (s + 1) as any);
           }}>Next →</button>}
+
           {step === 5 && (
             <>
               <ExportMenu onCsv={exportCsv} onSheets={exportSheetsCsv} onPdf={exportPdf} onWa={copyWhatsApp} />
@@ -750,19 +816,63 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       <datalist id="srTimes">
         {TIME_OPTIONS.map((t) => <option key={t} value={t} />)}
       </datalist>
+
+      {managerOpen && (
+        <SeminarProductManagerModal
+          onClose={() => setManagerOpen(false)}
+          onChanged={() => { void refreshCatalog(); }}
+        />
+      )}
     </div>
   );
 }
+
 
 /* ---------------- Step 1 ---------------- */
 function Step1(props: any) {
   const { webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
     watchPct, setWatchPct, salesDay, setSalesDay, salesDayError,
     timingNote, setTimingNote,
-    convBasis, setConvBasis } = props;
+    convBasis, setConvBasis,
+    seminarProducts, setSeminarProducts,
+    roasRevenueBasis, setRoasRevenueBasis,
+    catalog, refreshCatalog, setManagerOpen,
+    productsError, setProductsError,
+    adSpendBasis, adSpendTaxMode } = props;
 
   const [customDays, setCustomDays] = useState(!DAY_PRESETS.includes(totalDays));
   const [customWatch, setCustomWatch] = useState(!WATCH_PRESETS.includes(watchPct));
+
+  const dupIdx = findDuplicateRow(seminarProducts);
+
+  const addRow = () => setSeminarProducts((rows: SeminarProductRow[]) => [...rows, emptySeminarProductRow()]);
+  const removeRow = (i: number) => setSeminarProducts((rows: SeminarProductRow[]) =>
+    rows.length > 1 ? rows.filter((_: SeminarProductRow, idx: number) => idx !== i) : rows);
+  const updateRow = (i: number, patch: Partial<SeminarProductRow>) =>
+    setSeminarProducts((rows: SeminarProductRow[]) => rows.map((r: SeminarProductRow, idx: number) => idx === i ? { ...r, ...patch } : r));
+  const pickProduct = (i: number, p: CatalogProduct) => {
+    // program_products stores product_price_including_gst → treat catalogue picks as includes_gst.
+    updateRow(i, {
+      productId: p.id,
+      productName: p.product_name,
+      programme: p.business_unit || null,
+      unitPrice: Number(p.product_price_including_gst || 0),
+      gstMode: "includes_gst",
+      gstPercent: Number(p.gst_rate || 0),
+      isPriceTier: false,
+    });
+    setProductsError(null);
+  };
+
+  // Ad-spend basis compatibility hint
+  const adSpendBasisLabel = adSpendBasis === "net" ? "Net Ad Spend" : "Gross Ad Spend";
+  const revenueForRoas = roasRevenueBasis === "cash_collected"
+    ? "Cash Collected"
+    : (roasRevenueBasis === "net_revenue" ? "Net Revenue" : "Gross Revenue");
+  const basesMatch =
+    (roasRevenueBasis === "gross_revenue" && adSpendBasis !== "net") ||
+    (roasRevenueBasis === "net_revenue" && adSpendBasis === "net") ||
+    roasRevenueBasis === "cash_collected";
 
   return (
     <div className="srSection">
@@ -842,9 +952,135 @@ function Step1(props: any) {
       <div className="srHint">
         Each day's start &amp; end time is set on its own card in Step 2 — Attendance Details.
       </div>
+
+      {/* ─────────────── Products / Offers Sold ─────────────── */}
+      <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--bd)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17 }}>
+            Products / Offers Sold <span style={{ color: "var(--rd)" }}>*</span>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="srBtn srBtn-g" style={{ height: 32, fontSize: 11.5 }} onClick={addRow}>
+              <Plus className="w-3 h-3" /> Add Product / Offer
+            </button>
+            <button className="srBtn srBtn-g" style={{ height: 32, fontSize: 11.5 }} onClick={() => setManagerOpen(true)}>
+              <Settings2 className="w-3 h-3" /> Manage Products
+            </button>
+          </div>
+        </div>
+        <div className="srHelper" style={{ marginBottom: 12 }}>
+          Select the products or programmes that may be sold during this seminar. Product prices are required for accurate revenue, GST, profit and ROAS calculations.
+        </div>
+
+        {seminarProducts.map((row: SeminarProductRow, i: number) => {
+          const preview = computeProductGst(Number(row.unitPrice) || 0, row.gstMode, Number(row.gstPercent) || 0);
+          const isDup = dupIdx === i && !row.isPriceTier;
+          return (
+            <div key={row.rowKey} className="srDayCard" style={isDup ? { borderColor: "var(--rd)" } : undefined}>
+              <div className="srDayHead">
+                <div className="srDayTitle">Product {i + 1}</div>
+                <button className="srBtn srBtn-d" style={{ height: 28, fontSize: 11 }} onClick={() => removeRow(i)} disabled={seminarProducts.length <= 1}>
+                  <XIcon className="w-3 h-3" /> Remove
+                </button>
+              </div>
+
+              <div className="srGrid c2" style={{ marginBottom: 10 }}>
+                <div>
+                  <div className="srLbl">Select Saved Product</div>
+                  <SearchableProductSelect
+                    value={row.productId}
+                    productLabel={row.productName}
+                    options={catalog}
+                    onPick={(p) => pickProduct(i, p)}
+                    onClear={() => updateRow(i, { productId: null })}
+                    onCreateNew={() => setManagerOpen(true)}
+                    onManage={() => setManagerOpen(true)}
+                    placeholder="Select or create a product…"
+                  />
+                </div>
+                <div>
+                  <div className="srLbl">Product / Offer Name *</div>
+                  <input className="srInput" value={row.productName}
+                    onChange={(e) => updateRow(i, { productName: e.target.value })} placeholder="e.g. IPC Diamond Membership" />
+                </div>
+              </div>
+
+              <div className="srGrid c3" style={{ marginBottom: 10 }}>
+                <div>
+                  <div className="srLbl">Price *</div>
+                  <input className="srInput" type="number" value={row.unitPrice || ""}
+                    onChange={(e) => updateRow(i, { unitPrice: Number(e.target.value) || 0 })} placeholder="0" />
+                </div>
+                <div>
+                  <div className="srLbl">GST Mode *</div>
+                  <select className="srSelect" value={row.gstMode}
+                    onChange={(e) => updateRow(i, { gstMode: e.target.value as ProductGstMode })}>
+                    <option value="excludes_gst">Excludes GST</option>
+                    <option value="includes_gst">Includes GST</option>
+                  </select>
+                </div>
+                <div>
+                  <div className="srLbl">GST %</div>
+                  <input className="srInput" type="number" value={row.gstPercent}
+                    onChange={(e) => updateRow(i, { gstPercent: Number(e.target.value) || 0 })} placeholder="18" />
+                </div>
+              </div>
+
+              <div className="srMetric" style={{ marginTop: 4 }}>
+                <span>Gross / sale: <strong>₹{preview.gross.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</strong></span>
+                <span>Net / sale: <strong>₹{preview.net.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</strong></span>
+                <span>GST / sale: <strong>₹{preview.gst.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</strong></span>
+              </div>
+
+              {isDup && (
+                <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "var(--rp)", border: "1px solid var(--rb)", padding: "8px 12px", borderRadius: 8 }}>
+                  <span style={{ fontSize: 11.5, color: "var(--rd)" }}>
+                    Duplicate of an earlier product. Mark as a separate price tier or remove it.
+                  </span>
+                  <button className="srBtn srBtn-g" style={{ height: 28, fontSize: 11 }}
+                    onClick={() => updateRow(i, { isPriceTier: true })}>
+                    Add as separate price tier
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {productsError && <div className="srErr" style={{ marginTop: 4 }}>{productsError}</div>}
+
+        {/* ROAS Revenue Basis */}
+        <div style={{ marginTop: 18 }}>
+          <div className="srLbl">ROAS Revenue Basis <span style={{ color: "var(--rd)" }}>*</span>
+            <Info title="ROAS Revenue Basis" body="Choose the revenue definition used in the ROAS calculation. Cash Collected uses only payments actually received." />
+          </div>
+          <div className="srPills">
+            {(["gross_revenue", "net_revenue", "cash_collected"] as SeminarRevenueBasis[]).map((b) => (
+              <button key={b} className={"srPill" + (roasRevenueBasis === b ? " on" : "")}
+                onClick={() => setRoasRevenueBasis(b)}>{REVENUE_BASIS_LABEL[b]}</button>
+            ))}
+          </div>
+          <div className="srHelper">{REVENUE_BASIS_HELP[roasRevenueBasis]}</div>
+          {roasRevenueBasis === "cash_collected" && (
+            <div className="srHint" style={{ marginTop: 8 }}>
+              This calculates cash-collected ROAS, not full booked-product ROAS.
+            </div>
+          )}
+        </div>
+
+        {/* Revenue / Ad-spend basis compatibility */}
+        <div className="srHint" style={{ marginTop: 12, background: basesMatch ? "var(--gp)" : "var(--rp)", borderColor: basesMatch ? "var(--gm)" : "var(--rb)", color: basesMatch ? "#7A5E10" : "var(--rd)" }}>
+          {basesMatch ? (
+            <>ROAS will use <strong>{revenueForRoas}</strong> and <strong>{adSpendBasisLabel}</strong>{adSpendTaxMode === "none" ? " (no GST on ad spend)" : ""}.</>
+          ) : (
+            <>Revenue and ad-spend bases are different. For a consistent ROAS comparison, normally use Gross Revenue with Gross Ad Spend or Net Revenue with Net Ad Spend.</>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
+
 
 
 /* ---------------- Step 2 ---------------- */

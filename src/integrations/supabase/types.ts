@@ -8343,37 +8343,74 @@ export type Database = {
         Row: {
           created_at: string
           deal_price_including_gst: number
+          gross_per_sale: number | null
+          gst_mode: string | null
+          gst_per_sale: number | null
+          gst_percent: number | null
           id: string
+          is_price_tier: boolean
+          net_per_sale: number | null
           payment_type: string
+          product_id: string | null
+          product_name_snapshot: string | null
+          programme_snapshot: string | null
           report_id: string
           revenue_counted: number
           sort_order: number
           token_down_payment: number | null
+          unit_price: number | null
           units_sold: number
         }
         Insert: {
           created_at?: string
           deal_price_including_gst?: number
+          gross_per_sale?: number | null
+          gst_mode?: string | null
+          gst_per_sale?: number | null
+          gst_percent?: number | null
           id?: string
+          is_price_tier?: boolean
+          net_per_sale?: number | null
           payment_type: string
+          product_id?: string | null
+          product_name_snapshot?: string | null
+          programme_snapshot?: string | null
           report_id: string
           revenue_counted?: number
           sort_order?: number
           token_down_payment?: number | null
+          unit_price?: number | null
           units_sold?: number
         }
         Update: {
           created_at?: string
           deal_price_including_gst?: number
+          gross_per_sale?: number | null
+          gst_mode?: string | null
+          gst_per_sale?: number | null
+          gst_percent?: number | null
           id?: string
+          is_price_tier?: boolean
+          net_per_sale?: number | null
           payment_type?: string
+          product_id?: string | null
+          product_name_snapshot?: string | null
+          programme_snapshot?: string | null
           report_id?: string
           revenue_counted?: number
           sort_order?: number
           token_down_payment?: number | null
+          unit_price?: number | null
           units_sold?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "seminar_roas_report_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "program_products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "seminar_roas_report_products_report_id_fkey"
             columns: ["report_id"]
@@ -8404,6 +8441,7 @@ export type Database = {
           report_name: string | null
           revenue_basis: string
           roas: number | null
+          roas_revenue_basis: string | null
           sales_day: number | null
           timing_note: string | null
           total_ad_spend_including_gst: number
@@ -8440,6 +8478,7 @@ export type Database = {
           report_name?: string | null
           revenue_basis?: string
           roas?: number | null
+          roas_revenue_basis?: string | null
           sales_day?: number | null
           timing_note?: string | null
           total_ad_spend_including_gst?: number
@@ -8476,6 +8515,7 @@ export type Database = {
           report_name?: string | null
           revenue_basis?: string
           roas?: number | null
+          roas_revenue_basis?: string | null
           sales_day?: number | null
           timing_note?: string | null
           total_ad_spend_including_gst?: number
