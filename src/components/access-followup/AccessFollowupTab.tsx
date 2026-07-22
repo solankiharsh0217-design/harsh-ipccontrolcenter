@@ -501,7 +501,7 @@ function DesktopTable({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[
   );
 }
 
-function MobileCards({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => void }) {
+function MobileCards({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[]; onSelect: (r: Row) => void; returnTo?: string; onBeforeCrmNav?: () => void }) {
   if (rows.length === 0) {
     return <div className="border border-border rounded-lg bg-background px-3 py-6 text-center text-muted-foreground text-sm">No members match these filters.</div>;
   }
