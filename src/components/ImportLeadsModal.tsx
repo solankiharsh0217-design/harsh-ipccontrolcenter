@@ -1671,7 +1671,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               const dsp = (n: number) => n > 0 ? `₹${n.toLocaleString("en-IN")}` : "—";
               return (
                 <>
-                  <div className="text-xs text-muted-foreground">{validRows} rows · {headers.length} columns detected · map your columns:</div>
+                  <div className="text-xs text-muted-foreground flex items-center justify-between gap-2">
+                    <span>{validRows} rows · {headers.length} columns detected · map your columns:</span>
+                    <span className="text-[10px] text-muted-foreground/70 font-mono" title="Client bundle marker">build {IMPORT_MODAL_BUILD_ID}</span>
+                  </div>
 
                   <div className="space-y-3">
                     <div className="uppercase-label">Identity</div>
