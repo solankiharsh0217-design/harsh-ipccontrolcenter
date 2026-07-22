@@ -623,19 +623,25 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         totalDays,
         watchPct,
         salesDay,
-        revenueBasisLabel: revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value",
+        revenueBasisLabel: legacyReport
+          ? (revenueBasis === "token_collected_amount" ? "Token / Collected (legacy)" : "Full Deal Value (legacy)")
+          : REVENUE_BASIS_LABEL[roasRevenueBasis],
         conversionBasisLabel: CONV_BASIS_LABEL[convBasis],
+        adSpendBasisLabel: legacyReport ? "Legacy (incl. 18% GST)" : roasResult.adBasisLabel,
+        roasLabel: legacyReport ? "ROAS (legacy)" : roasResult.label,
+        roasValue: legacyReport ? calc.roas : roasResult.value,
+        profitOnBasis: legacyReport ? calc.profit : productProfit,
         totals: {
           totalRev: calc.totalRev,
           adInc: calc.adInc,
           adCost: calc.adCost,
           netGst: calc.netGst,
           profit: calc.profit,
-          totalUnits: calc.totalUnits,
+          totalUnits: legacyReport ? calc.totalUnits : productTotals.totalUnits,
           convRate: calc.convRate,
           cpa: calc.cpa,
           cpl: calc.cpl,
-          roas: calc.roas,
+          roas: legacyReport ? calc.roas : roasResult.value,
         },
         days: days.map((d, i) => {
           const t = dayTimings[i];
@@ -652,13 +658,40 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
             isSalesDay: i + 1 === salesDay,
           };
         }),
-        products: products.map((p) => {
+        productBreakdown: legacyReport ? undefined : productTotals.perProduct.map((t) => ({
+          productName: t.productName,
+          unitPrice: t.unitPrice,
+          gstMode: t.gstMode,
+          gstPercent: t.gstPercent,
+          grossPerSale: t.grossPerSale,
+          netPerSale: t.netPerSale,
+          unitsSold: t.unitsSold,
+          grossBooked: t.grossBooked,
+          netBooked: t.netBooked,
+          revenueGst: t.revenueGst,
+          tokenCollected: t.tokenCollected,
+          cashCollected: t.cashCollected,
+          outstanding: t.outstanding,
+          refundAmount: t.refundAmount,
+        })),
+        productTotals: legacyReport ? undefined : {
+          totalUnits: productTotals.totalUnits,
+          grossBooked: productTotals.grossBooked,
+          netBooked: productTotals.netBooked,
+          revenueGst: productTotals.revenueGst,
+          tokenCollected: productTotals.tokenCollected,
+          cashCollected: productTotals.cashCollected,
+          outstanding: productTotals.outstanding,
+          refundAmount: productTotals.refundAmount,
+        },
+        products: legacyReport ? products.map((p) => {
           const u = Number(p.units || 0);
           const pr = Number(p.price || 0);
           const tk = p.token === "" ? null : Number(p.token);
           const rev = (revenueBasis === "token_collected_amount" && tk != null && tk > 0) ? u * tk : u * pr;
           return { type: p.type, units: u, price: pr, token: tk, revenue: rev };
-        }),
+        }) : undefined,
+
       });
       toast.success("PDF downloaded");
     } catch (e: any) {
