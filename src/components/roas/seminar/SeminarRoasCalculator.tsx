@@ -795,6 +795,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         prodRows = seminarProducts.map((p, idx) => {
           const sale = seminarSales[p.rowKey];
           const totals = productTotals.perProduct.find((t) => t.productKey === p.rowKey);
+          const rev = totals ? (roasRevenueBasis === "cash_collected" ? totals.cashCollected : roasRevenueBasis === "net_revenue" ? totals.netBooked : totals.grossBooked) : 0;
           return {
             report_id: reportId,
             product_id: p.productId || null,
@@ -806,26 +807,17 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
             gross_per_sale: totals?.grossPerSale ?? 0,
             net_per_sale: totals?.netPerSale ?? 0,
             gst_per_sale: totals?.gstPerSale ?? 0,
+            // legacy-compat columns still present on the row
+            payment_type: p.productName || "Product",
             units_sold: totals?.unitsSold ?? 0,
-            gross_booked_revenue: totals?.grossBooked ?? 0,
-            net_booked_revenue: totals?.netBooked ?? 0,
-            revenue_gst: totals?.revenueGst ?? 0,
-            token_collected: totals?.tokenCollected ?? 0,
-            full_payment_collected: totals?.fullPaymentCollected ?? 0,
-            other_collected: totals?.otherCollected ?? 0,
-            refund_amount: totals?.refundAmount ?? 0,
-            cash_collected: totals?.cashCollected ?? 0,
-            outstanding: totals?.outstanding ?? 0,
-            // legacy-compat fields
-            payment_type: p.productName || "",
             deal_price_including_gst: Number(p.unitPrice) || 0,
             token_down_payment: sale?.directTokenCollected || null,
-            revenue_counted: totals ? (roasRevenueBasis === "cash_collected" ? totals.cashCollected : roasRevenueBasis === "net_revenue" ? totals.netBooked : totals.grossBooked) : 0,
+            revenue_counted: rev,
             sort_order: idx,
-            sales_row_json: sale || null,
           };
         });
       } else {
+
         prodRows = products.filter((p) => p.type.trim()).map((p, idx) => {
           const units = Number(p.units || 0);
           const price = Number(p.price || 0);
