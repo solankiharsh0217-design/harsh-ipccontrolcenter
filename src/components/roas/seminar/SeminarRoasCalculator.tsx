@@ -1442,154 +1442,247 @@ function Step3({ adCostExGst, setAdCostExGst, calc }: any) {
 }
 
 /* ---------------- Step 4 ---------------- */
-function Step4({ revenueBasis, setRevenueBasis, products, updateProd, addProd, removeProd, calc }: any) {
-  const isToken = revenueBasis === "token_collected_amount";
-  return (
-    <div className="srSection">
-      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>Sales & Payment Types</div>
+function Step4(props: any) {
+  const {
+    legacyReport, revenueBasis, setRevenueBasis, products, updateProd, addProd, removeProd, calc,
+    seminarProducts, seminarSales, updateSale, productTotals, roasRevenueBasis, onEditProducts,
+  } = props;
 
-      <div style={{ marginBottom: 16 }}>
-        <div className="srLbl">Revenue Basis for ROAS <span style={{ color: "var(--rd)" }}>*</span>
-          <Info title="Revenue Basis for ROAS" body="Full Deal Value uses the complete program price; Token / Collected Amount uses only the token amount when entered." /></div>
-        <div className="srPills">
+  if (legacyReport) {
+    const isToken = revenueBasis === "token_collected_amount";
+    return (
+      <div className="srSection">
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>Sales & Payment Types (Legacy)</div>
+        <div className="srHint">This is a legacy report. Product snapshots weren't captured; showing the original payment rows.</div>
+        <div className="srProdGrid srProdHead">
+          <div>Payment / Product Type</div><div>Units</div><div>Deal Price (Inc. GST)</div><div>Token / Down Pmt</div><div>Row Revenue</div><div></div>
+        </div>
+        {products.map((p: ProductRow, i: number) => {
+          const units = Number(p.units || 0);
+          const price = Number(p.price || 0);
+          const tok = p.token === "" ? null : Number(p.token);
+          const rev = (isToken && tok != null && tok > 0) ? units * tok : units * price;
+          return (
+            <div key={i} className="srProdGrid srProdRow">
+              <div><QuickSaveInput fieldKey="seminar_payment_type" value={p.type} onChange={(v: string) => updateProd(i, { type: v })} placeholder="e.g. Full Payment Sale" /></div>
+              <input type="number" className="srInput" value={p.units} onChange={(e) => updateProd(i, { units: e.target.value })} placeholder="0" />
+              <input type="number" className="srInput" value={p.price} onChange={(e) => updateProd(i, { price: e.target.value })} placeholder="0" />
+              <input type="number" className="srInput" value={p.token} onChange={(e) => updateProd(i, { token: e.target.value })} placeholder="optional" />
+              <div className="srInput srRO">{inr(rev)}</div>
+              <button className="srRm" onClick={() => removeProd(i)} title="Remove row">✕</button>
+            </div>
+          );
+        })}
+        <button className="srAddBtn" onClick={addProd} style={{ marginTop: 6 }}>+ Add Product</button>
+        <div className="srPills" style={{ marginTop: 12 }}>
           <button className={"srPill" + (!isToken ? " on" : "")} onClick={() => setRevenueBasis("full_deal_value")}>Full Deal Value</button>
           <button className={"srPill" + (isToken ? " on" : "")} onClick={() => setRevenueBasis("token_collected_amount")}>Token / Collected Amount</button>
         </div>
-        <div className="srHelper">
-          Choose whether ROAS should be calculated on the full product/deal value or only the token/amount collected during the webinar.
-        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="srSection">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18 }}>Product-wise Sales & Collections</div>
+        <button className="srBtn srBtn-g" onClick={onEditProducts}>Edit Products</button>
       </div>
 
-      <div className="srHint">
-        Revenue basis: <strong>{isToken ? "Token / Collected Amount" : "Full Deal Value"}</strong>{isToken
-          ? " — token amount (when entered) is used as row revenue. Token does not modify the deal price."
-          : " — full deal price is always used. Token / Down Payment is stored only as informational data and does not change ROAS."}
-      </div>
+      {seminarProducts.length === 0 && (
+        <div className="srHint">No products configured. Go back to Step 1 to add products before entering sales.</div>
+      )}
 
-      <div className="srProdGrid srProdHead">
-        <div>Payment / Product Type</div>
-        <div>Units</div>
-        <div>Deal Price (Inc. GST)</div>
-        <div>Token / Down Pmt</div>
-        <div>Row Revenue</div>
-        <div></div>
-      </div>
-
-      {products.map((p: ProductRow, i: number) => {
-        const units = Number(p.units || 0);
-        const price = Number(p.price || 0);
-        const tok = p.token === "" ? null : Number(p.token);
-        const rev = (isToken && tok != null && tok > 0) ? units * tok : units * price;
+      {seminarProducts.map((p: SeminarProductRow) => {
+        const sale: SeminarSalesRow = seminarSales[p.rowKey] || emptySeminarSalesRow(p.rowKey);
+        const totals = productTotals.perProduct.find((t: any) => t.productKey === p.rowKey);
+        const tokenSource = totals?.tokenSource || "none";
         return (
-          <div key={i} className="srProdGrid srProdRow">
-            <div>
-              <QuickSaveInput fieldKey="seminar_payment_type" value={p.type}
-                onChange={(v) => updateProd(i, { type: v })} placeholder="e.g. Full Payment Sale" />
+          <div key={p.rowKey} className="srSection" style={{ margin: "12px 0", padding: 14, background: "var(--ww)", border: "1px solid var(--bd)", borderRadius: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{p.productName || "(Unnamed product)"}</div>
+                <div className="srHelper">
+                  {p.programme || "—"} · {inr(Number(p.unitPrice) || 0)} {p.gstMode === "includes_gst" ? "(incl.)" : "(excl.)"} · GST {Number(p.gstPercent) || 0}%
+                  {" · "}Gross/sale {inr(totals?.grossPerSale ?? 0)} · Net/sale {inr(totals?.netPerSale ?? 0)}
+                </div>
+              </div>
             </div>
-            <input type="number" className="srInput" value={p.units} onChange={(e) => updateProd(i, { units: e.target.value })} placeholder="0" />
-            <input type="number" className="srInput" value={p.price} onChange={(e) => updateProd(i, { price: e.target.value })} placeholder="0" />
-            <input type="number" className="srInput" value={p.token} onChange={(e) => updateProd(i, { token: e.target.value })} placeholder="optional" />
-            <div className="srInput srRO">{inr(rev)}</div>
-            <button className="srRm" onClick={() => removeProd(i)} title="Remove row">✕</button>
+
+            <div className="srProdGrid" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", marginTop: 10 }}>
+              <div>
+                <div className="srLbl">Units Sold</div>
+                <input type="number" min={0} className="srInput" value={sale.unitsSold || ""} onChange={(e) => updateSale(p.rowKey, { unitsSold: Number(e.target.value) || 0 })} placeholder="0" />
+              </div>
+              <div>
+                <div className="srLbl">Full-Payment Count</div>
+                <input type="number" min={0} className="srInput" value={sale.fullPaymentCount || ""} onChange={(e) => updateSale(p.rowKey, { fullPaymentCount: Number(e.target.value) || 0 })} placeholder="0" />
+              </div>
+              <div>
+                <div className="srLbl">Token Sales Count</div>
+                <input type="number" min={0} className="srInput" value={sale.tokenSalesCount || ""} onChange={(e) => updateSale(p.rowKey, { tokenSalesCount: Number(e.target.value) || 0 })} placeholder="0" />
+              </div>
+              <div>
+                <div className="srLbl">Common Token / Sale</div>
+                <input type="number" min={0} className="srInput" value={sale.commonTokenAmount || ""} onChange={(e) => updateSale(p.rowKey, { commonTokenAmount: Number(e.target.value) || 0 })} placeholder="0" disabled={Number(sale.directTokenCollected) > 0} />
+              </div>
+              <div>
+                <div className="srLbl">Direct Token Total</div>
+                <input type="number" min={0} className="srInput" value={sale.directTokenCollected || ""} onChange={(e) => updateSale(p.rowKey, { directTokenCollected: Number(e.target.value) || 0 })} placeholder="overrides" />
+              </div>
+              <div>
+                <div className="srLbl">Other Collected</div>
+                <input type="number" min={0} className="srInput" value={sale.otherCollected || ""} onChange={(e) => updateSale(p.rowKey, { otherCollected: Number(e.target.value) || 0 })} placeholder="0" />
+              </div>
+              <div>
+                <div className="srLbl">Refunds (₹)</div>
+                <input type="number" min={0} className="srInput" value={sale.refundAmount || ""} onChange={(e) => updateSale(p.rowKey, { refundAmount: Number(e.target.value) || 0 })} placeholder="0" />
+              </div>
+              <div style={{ gridColumn: "span 3" }}>
+                <div className="srLbl">Notes</div>
+                <input type="text" className="srInput" value={sale.notes || ""} onChange={(e) => updateSale(p.rowKey, { notes: e.target.value })} placeholder="Optional" />
+              </div>
+            </div>
+
+            <div className="srSumGrid" style={{ marginTop: 12 }}>
+              <div className="srSumCard"><div className="srSumLbl">Gross Booked</div><div className="srSumVal">{inr(totals?.grossBooked ?? 0)}</div></div>
+              <div className="srSumCard"><div className="srSumLbl">Net Booked</div><div className="srSumVal">{inr(totals?.netBooked ?? 0)}</div></div>
+              <div className="srSumCard"><div className="srSumLbl">Token Collected</div><div className="srSumVal">{inr(totals?.tokenCollected ?? 0)}</div><div className="srSumNote">{tokenSource === "direct" ? "Direct total" : tokenSource === "computed" ? "Count × common" : "—"}</div></div>
+              <div className="srSumCard grn"><div className="srSumLbl">Cash Collected</div><div className="srSumVal">{inr(totals?.cashCollected ?? 0)}</div><div className="srSumNote">Full + Token + Other − Refunds</div></div>
+            </div>
+
+            {totals?.warnings?.length ? (
+              <div className="srHint" style={{ marginTop: 8, color: "var(--rd)" }}>
+                {totals.warnings.map((w: string, wi: number) => <div key={wi}>⚠ {w}</div>)}
+              </div>
+            ) : null}
           </div>
         );
       })}
 
-      <button className="srAddBtn" onClick={addProd} style={{ marginTop: 6 }}>+ Add Product</button>
-
-      <div className="srSumGrid" style={{ marginTop: 18 }}>
-        <div className="srSumCard">
-          <div className="srSumLbl">Total Conversions</div>
-          <div className="srSumVal">{calc.totalUnits}</div>
-        </div>
-        <div className="srSumCard grn">
-          <div className="srSumLbl">Total Revenue Inc. GST</div>
-          <div className="srSumVal">{inr(calc.totalRev)}</div>
-        </div>
+      <div className="srSumGrid" style={{ marginTop: 14 }}>
+        <div className="srSumCard"><div className="srSumLbl">Total Units</div><div className="srSumVal">{productTotals.totalUnits}</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Gross Booked</div><div className="srSumVal">{inr(productTotals.grossBooked)}</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Net Booked</div><div className="srSumVal">{inr(productTotals.netBooked)}</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Cash Collected</div><div className="srSumVal">{inr(productTotals.cashCollected)}</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Outstanding</div><div className="srSumVal">{inr(productTotals.outstanding)}</div></div>
       </div>
 
-      <div className="srHelper">Suggested types: {DEFAULT_PAYMENT_TYPES.join(" · ")}</div>
+      <div className="srHelper" style={{ marginTop: 10 }}>
+        ROAS revenue basis: <strong>{REVENUE_BASIS_LABEL[roasRevenueBasis as SeminarRevenueBasis]}</strong>.
+        Token / advance is tracked separately and is <strong>never</strong> counted as booked revenue.
+      </div>
     </div>
   );
 }
 
 /* ---------------- Step 5 ---------------- */
-function Step5({ calc, totalDays, watchPct, salesDay, revenueBasis, convBasis, regs, showUp, offer }: any) {
-  const rows: [string, string][] = [
-    ["Webinar Days", String(totalDays)],
-    ["Watch Point", `${watchPct}%`],
-    ["Sales / Offer Day", salesDay >= 1 ? `Day ${salesDay}` : "—"],
-    ["Revenue Basis", revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"],
-    ["Conversion Rate Basis", CONV_BASIS_LABEL[convBasis as ConvBasis]],
-    ["Registrations (sales day)", num(regs)],
-    ["Show-Up (sales day)", num(showUp)],
-    ["Offer Show-Up / Watch Present", num(offer)],
-    ["Total Revenue Inc. GST", inr(calc.totalRev)],
-    ["Ad Cost Excl. GST", inr(calc.adCost)],
-    ["Ad Spend Inc. GST", inr(calc.adInc)],
-    ["Net GST Payable to Govt", inr(calc.netGst)],
-    ["Total Conversions", num(calc.totalUnits)],
-    ["Conversion Rate", pctFmt(calc.convRate)],
-    ["Profit After GST", inr(calc.profit)],
-    ["CPA", inr(calc.cpa)],
-    ["ROAS", calc.roas == null ? "—" : calc.roas.toFixed(2) + "×"],
-  ];
+function Step5(props: any) {
+  const {
+    legacyReport, calc, totalDays, watchPct, salesDay, revenueBasis, convBasis,
+    regs, showUp, offer, seminarProducts, productTotals, roasRevenueBasis, roasResult, productProfit, catalogDrift, onEditProducts,
+  } = props;
+
+  if (legacyReport) {
+    return (
+      <div className="srSection">
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>ROAS, GST & Profit Summary (Legacy)</div>
+        <div className="srSumGrid">
+          <div className="srSumCard gold"><div className="srSumLbl">ROAS</div><div className="srSumVal">{calc.roas == null ? "—" : calc.roas.toFixed(2) + "×"}</div><div className="srSumNote">Legacy: Revenue Inc. GST ÷ Ad Spend Inc. GST</div></div>
+          <div className="srSumCard grn"><div className="srSumLbl">Profit After GST</div><div className="srSumVal">{inr(calc.profit)}</div></div>
+          <div className="srSumCard"><div className="srSumLbl">CPA</div><div className="srSumVal">{inr(calc.cpa)}</div></div>
+          <div className="srSumCard"><div className="srSumLbl">Conversion Rate</div><div className="srSumVal">{pctFmt(calc.convRate)}</div></div>
+        </div>
+        <table className="srTbl">
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Total Revenue Inc. GST</td><td>{inr(calc.totalRev)}</td></tr>
+            <tr><td>Ad Spend Inc. GST</td><td>{inr(calc.adInc)}</td></tr>
+            <tr><td>Net GST Payable to Govt</td><td>{inr(calc.netGst)}</td></tr>
+            <tr><td>Total Conversions</td><td>{num(calc.totalUnits)}</td></tr>
+            <tr><td>Revenue Basis</td><td>{revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"}</td></tr>
+            <tr><td>Conversion Rate Basis</td><td>{CONV_BASIS_LABEL[convBasis as ConvBasis]}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  const basisLabel = REVENUE_BASIS_LABEL[roasRevenueBasis as SeminarRevenueBasis];
+  const roasVal = roasResult?.value;
   return (
     <div className="srSection">
-      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, marginBottom: 14 }}>ROAS, GST & Profit Summary</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18 }}>ROAS, GST & Profit Summary</div>
+        <button className="srBtn srBtn-g" onClick={onEditProducts}>Edit Products</button>
+      </div>
+
+      {catalogDrift?.length ? (
+        <div className="srHint" style={{ color: "var(--rd)", marginBottom: 10 }}>
+          ⚠ Catalog drift detected — these products have changed prices since this report was saved. The saved snapshot values are used:
+          {catalogDrift.map((d: any, i: number) => (
+            <div key={i}>• {d.name}: snapshot {inr(d.oldPrice)} → catalog now {inr(d.newPrice)}</div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="srSumGrid">
         <div className="srSumCard gold">
-          <div className="srSumLbl">ROAS</div>
-          <div className="srSumVal">{calc.roas == null ? "—" : calc.roas.toFixed(2) + "×"}</div>
-          <div className="srSumNote">Revenue Inc. GST ÷ Ad Spend Inc. GST</div>
+          <div className="srSumLbl">{roasResult?.label || "ROAS"}</div>
+          <div className="srSumVal">{roasVal == null ? "Not calculable" : Number(roasVal).toFixed(2) + "×"}</div>
+          <div className="srSumNote">{basisLabel} ÷ {roasResult?.adBasisLabel || "Ad Spend"}</div>
         </div>
         <div className="srSumCard grn">
-          <div className="srSumLbl">Profit After GST</div>
-          <div className="srSumVal">{inr(calc.profit)}</div>
-          <div className="srSumNote">Revenue − Net GST − Ad Spend Inc. GST</div>
+          <div className="srSumLbl">Profit ({basisLabel} − Ad Spend)</div>
+          <div className="srSumVal">{inr(productProfit)}</div>
         </div>
-        <div className="srSumCard">
-          <div className="srSumLbl">CPA</div>
-          <div className="srSumVal">{inr(calc.cpa)}</div>
-          <div className="srSumNote">Ad Cost Excl. GST ÷ Conversions</div>
-        </div>
-        <div className="srSumCard">
-          <div className="srSumLbl">Conversion Rate</div>
-          <div className="srSumVal">{pctFmt(calc.convRate)}</div>
-          <div className="srSumNote">Conversions ÷ {CONV_BASIS_LABEL[convBasis as ConvBasis]} × 100</div>
-        </div>
+        <div className="srSumCard"><div className="srSumLbl">Ad Spend Basis</div><div className="srSumVal" style={{ fontSize: 18 }}>{inr(roasResult?.adSpend ?? 0)}</div><div className="srSumNote">{roasResult?.adBasisLabel}</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Conversion Rate</div><div className="srSumVal">{pctFmt(calc.convRate)}</div><div className="srSumNote">Conversions ÷ {CONV_BASIS_LABEL[convBasis as ConvBasis]}</div></div>
       </div>
 
-      <div className="srSumGrid">
-        <div className="srSumCard">
-          <div className="srSumLbl">Total Revenue Inc. GST</div>
-          <div className="srSumVal" style={{ fontSize: 22 }}>{inr(calc.totalRev)}</div>
-        </div>
-        <div className="srSumCard">
-          <div className="srSumLbl">Ad Spend Inc. GST</div>
-          <div className="srSumVal" style={{ fontSize: 22 }}>{inr(calc.adInc)}</div>
-        </div>
-        <div className="srSumCard">
-          <div className="srSumLbl">Net GST Payable to Govt</div>
-          <div className="srSumVal" style={{ fontSize: 22 }}>{inr(calc.netGst)}</div>
-          {calc.excessCredit > 0 && <div className="srSumNote">Excess input GST credit: {inr(calc.excessCredit)}</div>}
-        </div>
-        <div className="srSumCard">
-          <div className="srSumLbl">Total Conversions</div>
-          <div className="srSumVal" style={{ fontSize: 22 }}>{calc.totalUnits}</div>
-        </div>
+      <div className="srSumGrid" style={{ marginTop: 10 }}>
+        <div className="srSumCard"><div className="srSumLbl">Gross Booked</div><div className="srSumVal">{inr(productTotals.grossBooked)}</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Net Booked</div><div className="srSumVal">{inr(productTotals.netBooked)}</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Revenue GST</div><div className="srSumVal">{inr(productTotals.revenueGst)}</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Token Collected</div><div className="srSumVal">{inr(productTotals.tokenCollected)}</div><div className="srSumNote">Not counted as revenue</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Cash Collected</div><div className="srSumVal">{inr(productTotals.cashCollected)}</div></div>
+        <div className="srSumCard"><div className="srSumLbl">Outstanding</div><div className="srSumVal">{inr(productTotals.outstanding)}</div></div>
       </div>
 
+      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, margin: "18px 0 8px" }}>Product Breakdown</div>
       <table className="srTbl">
-        <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Product</th><th>Price</th><th>GST</th><th>Units</th>
+            <th>Gross</th><th>Net</th><th>Rev GST</th><th>Token</th><th>Cash</th><th>Outstanding</th>
+          </tr>
+        </thead>
         <tbody>
-          {rows.map(([k, v]) => (<tr key={k}><td>{k}</td><td>{v}</td></tr>))}
+          {productTotals.perProduct.map((t: any) => (
+            <tr key={t.productKey}>
+              <td>{t.productName || "—"}</td>
+              <td>{inr(t.unitPrice)} {t.gstMode === "includes_gst" ? "(in)" : "(ex)"}</td>
+              <td>{t.gstPercent}%</td>
+              <td>{t.unitsSold}</td>
+              <td>{inr(t.grossBooked)}</td>
+              <td>{inr(t.netBooked)}</td>
+              <td>{inr(t.revenueGst)}</td>
+              <td>{inr(t.tokenCollected)}</td>
+              <td>{inr(t.cashCollected)}</td>
+              <td>{inr(t.outstanding)}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
+
+      <div className="srHelper" style={{ marginTop: 10 }}>
+        Webinar: {totalDays}d · Watch Point {watchPct}% · Sales Day {salesDay >= 1 ? salesDay : "—"} ·
+        Reg {num(regs)} · Show-Up {num(showUp)} · Offer/Watch {num(offer)}
+      </div>
     </div>
   );
 }
+
 
 /* ---------------- Export Menu ---------------- */
 function ExportMenu({ onCsv, onSheets, onPdf, onWa }: { onCsv: () => void; onSheets: () => void; onPdf: () => void; onWa: () => void; }) {
