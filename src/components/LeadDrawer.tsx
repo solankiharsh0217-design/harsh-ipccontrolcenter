@@ -974,8 +974,9 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             <button
               onClick={async () => { await load(); onChanged(); toast.success("Saved"); onClose(); }}
               className="ipc-btn !bg-[#16A34A] hover:!bg-[#15803D] !text-white !h-10"
+              title={originLabel ? `Save changes and return to ${originLabel}` : "Save and close"}
             >
-              Save & Close
+              {originLabel ? "Save & Return" : "Save & Close"}
             </button>
           </div>
         </div>
