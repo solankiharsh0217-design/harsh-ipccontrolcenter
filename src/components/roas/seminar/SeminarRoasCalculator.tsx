@@ -471,6 +471,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
 
 
   const buildWhatsApp = () => {
+    const useLegacy = legacyReport;
     const lines: string[] = [];
     lines.push("Seminar ROAS Summary");
     lines.push(`Webinar: ${webinarName}`);
@@ -478,19 +479,33 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     lines.push(`Days: ${totalDays}`);
     lines.push(`Watch Point: ${watchPct}%`);
     lines.push(`Sales Day: Day ${salesDay}`);
-    lines.push(`Revenue Basis: ${revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"}`);
+    lines.push(`Revenue Basis: ${useLegacy ? (revenueBasis === "token_collected_amount" ? "Token / Collected (legacy)" : "Full Deal Value (legacy)") : REVENUE_BASIS_LABEL[roasRevenueBasis]}`);
+    lines.push(`Ad Spend Basis: ${useLegacy ? "Legacy (incl. 18% GST)" : roasResult.adBasisLabel}`);
     lines.push(`Conversion Basis: ${CONV_BASIS_LABEL[convBasis]}`);
-    lines.push(`Revenue Inc. GST: ${inr(calc.totalRev)}`);
-    lines.push(`Ad Spend Inc. GST: ${inr(calc.adInc)}`);
-    lines.push(`Net GST Payable to Govt: ${inr(calc.netGst)}`);
-    lines.push(`Profit After GST: ${inr(calc.profit)}`);
-    lines.push(`Total Conversions: ${calc.totalUnits}`);
+    if (useLegacy) {
+      lines.push(`Revenue Inc. GST: ${inr(calc.totalRev)}`);
+      lines.push(`Ad Spend Inc. GST: ${inr(calc.adInc)}`);
+      lines.push(`Net GST Payable to Govt: ${inr(calc.netGst)}`);
+      lines.push(`Profit After GST: ${inr(calc.profit)}`);
+      lines.push(`Total Conversions: ${calc.totalUnits}`);
+      lines.push(`ROAS: ${calc.roas == null ? "—" : calc.roas.toFixed(2) + "×"}`);
+    } else {
+      lines.push(`Gross Booked Revenue: ${inr(productTotals.grossBooked)}`);
+      lines.push(`Net Booked Revenue: ${inr(productTotals.netBooked)}`);
+      lines.push(`Revenue GST: ${inr(productTotals.revenueGst)}`);
+      lines.push(`Token Collected: ${inr(productTotals.tokenCollected)}`);
+      lines.push(`Cash Collected: ${inr(productTotals.cashCollected)}`);
+      lines.push(`Outstanding: ${inr(productTotals.outstanding)}`);
+      lines.push(`Ad Spend (${roasResult.adBasisLabel}): ${inr(roasResult.adSpend)}`);
+      lines.push(`Total Units: ${productTotals.totalUnits}`);
+      lines.push(`${roasResult.label}: ${roasResult.value == null ? "Not calculable" : roasResult.value.toFixed(2) + "×"}`);
+      lines.push(`Profit (basis): ${inr(productProfit)}`);
+    }
     lines.push(`Conversion Rate: ${pctFmt(calc.convRate)}`);
-    lines.push(`CPA: ${inr(calc.cpa)}`);
     lines.push(`CPL: ${inr(calc.cpl)}`);
-    lines.push(`ROAS: ${calc.roas == null ? "—" : calc.roas.toFixed(2) + "×"}`);
     return lines.join("\n");
   };
+
 
   const copyWhatsApp = async () => {
     try { await navigator.clipboard.writeText(buildWhatsApp()); toast.success("WhatsApp summary copied"); }
