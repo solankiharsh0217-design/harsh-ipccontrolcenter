@@ -488,6 +488,8 @@ function DesktopTable({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[
                     crmLeadId={r.crmLeadId}
                     cocStatus={r.cocStatus}
                     onUpdate={() => onSelect(r)}
+                    returnTo={returnTo}
+                    onBeforeCrmNav={onBeforeCrmNav}
                   />
                 </td>
               </tr>
