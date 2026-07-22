@@ -709,9 +709,14 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         webinarName, webinarMode, totalDays, watchPct, salesDay,
         defaultStart, defaultEnd, timingNote, convBasis,
         days, adCostExGst, revenueBasis, products,
-        seminarProducts, roasRevenueBasis,
+        seminarProducts, seminarSales, roasRevenueBasis,
+        productTotals, roasResult, productProfit,
+        legacyReport,
       };
-      const outputSnap = { ...calc, dayTimings, revenueBasis, convBasis, roasRevenueBasis, seminarProducts };
+      const outputSnap = {
+        ...calc, dayTimings, revenueBasis, convBasis, roasRevenueBasis,
+        seminarProducts, seminarSales, productTotals, roasResult, productProfit,
+      };
 
 
       const reportPayload: any = {
@@ -732,13 +737,13 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         ad_cost_excluding_gst: calc.adCost,
         ad_gst: calc.adGst,
         total_ad_spend_including_gst: calc.adInc,
-        total_revenue_including_gst: calc.totalRev,
-        net_gst_payable_to_govt: calc.netGst,
-        profit_after_gst: calc.profit,
+        total_revenue_including_gst: legacyReport ? calc.totalRev : productTotals.grossBooked,
+        net_gst_payable_to_govt: legacyReport ? calc.netGst : productTotals.revenueGst,
+        profit_after_gst: legacyReport ? calc.profit : productProfit,
         cpl: calc.cpl,
         cpa: calc.cpa,
-        roas: calc.roas,
-        total_conversions: calc.totalUnits,
+        roas: legacyReport ? calc.roas : roasResult.value,
+        total_conversions: legacyReport ? calc.totalUnits : productTotals.totalUnits,
         input_snapshot_json: inputSnap,
         output_snapshot_json: outputSnap,
         whatsapp_summary_text: wa,
@@ -784,21 +789,59 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         if (dErr) throw dErr;
       }
 
-      const prodRows = products.filter((p) => p.type.trim()).map((p, idx) => {
-        const units = Number(p.units || 0);
-        const price = Number(p.price || 0);
-        const tok = p.token === "" ? null : Number(p.token);
-        const rev = (revenueBasis === "token_collected_amount" && tok != null && tok > 0) ? units * tok : units * price;
-        return {
-          report_id: reportId,
-          payment_type: p.type,
-          units_sold: units,
-          deal_price_including_gst: price,
-          token_down_payment: tok,
-          revenue_counted: rev,
-          sort_order: idx,
-        };
-      });
+      // New product snapshots (Part 1+2). Fall back to legacy rows only if the caller is still on the legacy path.
+      let prodRows: any[] = [];
+      if (!legacyReport && seminarProducts.length) {
+        prodRows = seminarProducts.map((p, idx) => {
+          const sale = seminarSales[p.rowKey];
+          const totals = productTotals.perProduct.find((t) => t.productKey === p.rowKey);
+          return {
+            report_id: reportId,
+            product_id: p.productId || null,
+            product_name_snapshot: p.productName || null,
+            programme_snapshot: p.programme || null,
+            unit_price: Number(p.unitPrice) || 0,
+            gst_mode: p.gstMode,
+            gst_percent: Number(p.gstPercent) || 0,
+            gross_per_sale: totals?.grossPerSale ?? 0,
+            net_per_sale: totals?.netPerSale ?? 0,
+            gst_per_sale: totals?.gstPerSale ?? 0,
+            units_sold: totals?.unitsSold ?? 0,
+            gross_booked_revenue: totals?.grossBooked ?? 0,
+            net_booked_revenue: totals?.netBooked ?? 0,
+            revenue_gst: totals?.revenueGst ?? 0,
+            token_collected: totals?.tokenCollected ?? 0,
+            full_payment_collected: totals?.fullPaymentCollected ?? 0,
+            other_collected: totals?.otherCollected ?? 0,
+            refund_amount: totals?.refundAmount ?? 0,
+            cash_collected: totals?.cashCollected ?? 0,
+            outstanding: totals?.outstanding ?? 0,
+            // legacy-compat fields
+            payment_type: p.productName || "",
+            deal_price_including_gst: Number(p.unitPrice) || 0,
+            token_down_payment: sale?.directTokenCollected || null,
+            revenue_counted: totals ? (roasRevenueBasis === "cash_collected" ? totals.cashCollected : roasRevenueBasis === "net_revenue" ? totals.netBooked : totals.grossBooked) : 0,
+            sort_order: idx,
+            sales_row_json: sale || null,
+          };
+        });
+      } else {
+        prodRows = products.filter((p) => p.type.trim()).map((p, idx) => {
+          const units = Number(p.units || 0);
+          const price = Number(p.price || 0);
+          const tok = p.token === "" ? null : Number(p.token);
+          const rev = (revenueBasis === "token_collected_amount" && tok != null && tok > 0) ? units * tok : units * price;
+          return {
+            report_id: reportId,
+            payment_type: p.type,
+            units_sold: units,
+            deal_price_including_gst: price,
+            token_down_payment: tok,
+            revenue_counted: rev,
+            sort_order: idx,
+          };
+        });
+      }
       if (prodRows.length) {
         const { error: pErr } = await (supabase as any).from("seminar_roas_report_products").insert(prodRows);
         if (pErr) throw pErr;
@@ -813,6 +856,7 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       setSaving(false);
     }
   };
+
 
   const loadReport = async (id: string) => {
     const { data, error } = await (supabase as any)
