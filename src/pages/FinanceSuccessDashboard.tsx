@@ -869,7 +869,7 @@ export default function FinanceSuccessDashboard() {
         </Card>
       )}
 
-      <Tabs defaultValue="summary" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4 h-auto bg-transparent p-0 border-b border-border rounded-none w-full justify-start gap-1">
           <TabsTrigger
             value="summary"
