@@ -739,8 +739,14 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         <Step1 {...{ webinarName, setWebinarName, webinarMode, setWebinarMode, totalDays, setTotalDays,
           watchPct, setWatchPct, salesDay, setSalesDay: setSalesDayManual, salesDayError,
           timingNote, setTimingNote,
-          convBasis, setConvBasis }} />
+          convBasis, setConvBasis,
+          seminarProducts, setSeminarProducts,
+          roasRevenueBasis, setRoasRevenueBasis,
+          catalog, refreshCatalog, setManagerOpen,
+          productsError, setProductsError,
+          adSpendBasis: gstDefaults.spendBasis, adSpendTaxMode: gstDefaults.taxMode }} />
       )}
+
       {step === 2 && (
         <Step2 days={days} totalDays={totalDays} salesDay={salesDay} watchPct={watchPct}
           dayTimings={dayTimings} updateDay={updateDay} addDay={addDay} removeDay={removeDay} dayMetrics={dayMetrics} />
