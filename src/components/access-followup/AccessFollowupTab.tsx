@@ -418,7 +418,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
   );
 }
 
-function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => void }) {
+function DesktopTable({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[]; onSelect: (r: Row) => void; returnTo?: string; onBeforeCrmNav?: () => void }) {
   return (
     <div className="border border-border rounded-lg overflow-hidden bg-background">
       <div className="overflow-x-auto">
