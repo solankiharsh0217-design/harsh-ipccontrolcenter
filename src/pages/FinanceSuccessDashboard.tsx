@@ -104,8 +104,15 @@ export default function FinanceSuccessDashboard() {
     || hasModule("calling_crm")
     || hasModule("crm");
   const canMoveStage = isAdmin || hasModule("calling_crm") || hasModule("crm") || hasModule("paid_pipeline") || hasModule("paid-pipeline");
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlPipelineId = searchParams.get("pipelineId");
+  const tabParam = searchParams.get("tab");
+  const activeTab = tabParam === "incomplete" || tabParam === "access" || tabParam === "summary" ? tabParam : "summary";
+  const setActiveTab = (v: string) => {
+    const sp = new URLSearchParams(searchParams);
+    if (v === "summary") sp.delete("tab"); else sp.set("tab", v);
+    setSearchParams(sp, { replace: true });
+  };
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [search, setSearch] = useState("");
