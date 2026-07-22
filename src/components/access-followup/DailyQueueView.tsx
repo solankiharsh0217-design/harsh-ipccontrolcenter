@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { upsertVerification, AccessVerification, OverallStatus, CALL_LABELS, WHATSAPP_LABELS, APP_LOGIN_LABELS } from "@/lib/accessVerification";
 import { cocActionLabel, cocActionTooltip } from "@/lib/cocStatus";
+import { buildCrmDeepLinkFromAccessFollowup } from "@/lib/accessFollowupReturn";
 import { logActivity } from "@/lib/auditLog";
 
 export type QueueRow = {
@@ -32,6 +33,10 @@ interface Props {
   owners: Array<{ id: string; full_name: string | null }>;
   isAdmin: boolean;
   onOpenMember: (r: QueueRow) => void;
+  /** Return path for CRM drawer's "Back to Access Follow-up" / Save & Return. */
+  returnTo?: string;
+  /** Fires just before navigating into the CRM drawer so the caller can persist view state. */
+  onBeforeCrmNav?: () => void;
 }
 
 function startOfDay(d = new Date()) {
@@ -88,7 +93,7 @@ function hygieneBadges(r: QueueRow, nowMs: number): Array<{ label: string; tone:
   return out;
 }
 
-export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember }: Props) {
+export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember, returnTo, onBeforeCrmNav }: Props) {
   const qc = useQueryClient();
   const nowMs = Date.now();
   const dayStart = startOfDay().getTime();
@@ -389,7 +394,8 @@ export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember }: 
                         </button>
                         {r.crmLeadId ? (
                           <Link
-                            to={`/crm?lead=${r.crmLeadId}&focus=code-of-conduct`}
+                            to={buildCrmDeepLinkFromAccessFollowup(r.crmLeadId, { returnTo })}
+                            onClick={() => onBeforeCrmNav?.()}
                             title={cocActionTooltip(r.cocStatus, true)}
                             className="inline-flex items-center justify-center h-8 px-2.5 rounded-md border border-amber-400/70 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium text-[11.5px] whitespace-nowrap"
                           >

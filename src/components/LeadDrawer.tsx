@@ -41,6 +41,12 @@ interface Props {
   onClose: () => void;
   onChanged: () => void;
   onStageChanged?: (leadId: string, newStageId: string) => void;
+  /** Optional label of the origin surface that opened this drawer (e.g. "Access Follow-up").
+   *  When set, the drawer shows a "Back to <origin>" action and relabels
+   *  "Save & Close" to "Save & Return". Normal CRM navigation is unchanged. */
+  originLabel?: string | null;
+  /** Return path used when the user clicks the origin "Back" button. Ignored when unset. */
+  returnTo?: string | null;
 }
 
 
@@ -48,7 +54,7 @@ const channelStyle: Record<string, string> = {
   call: "#16A34A", whatsapp: "#22C55E", email: "#2563EB", sms: "#7C3AED", note: "#888888", system: "#0a0a0a",
 };
 
-export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged, onStageChanged }: Props) {
+export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged, onStageChanged, originLabel, returnTo }: Props) {
   // Focus the Code of Conduct panel when navigated via `?focus=code-of-conduct`.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -437,7 +443,18 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                 </>
               )}
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
+            <div className="flex items-center gap-2">
+              {originLabel && (
+                <button
+                  onClick={onClose}
+                  title={`Return to ${originLabel}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-line bg-white hover:bg-off text-[12px] font-medium whitespace-nowrap"
+                >
+                  ← Back to {originLabel}
+                </button>
+              )}
+              <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center" title={originLabel ? `Return to ${originLabel}` : "Close"}><X className="w-4 h-4" /></button>
+            </div>
           </div>
           {lead.lead_type === "unpaid"
             && !(lead as any).paid_pipeline_lead_id
@@ -957,8 +974,9 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             <button
               onClick={async () => { await load(); onChanged(); toast.success("Saved"); onClose(); }}
               className="ipc-btn !bg-[#16A34A] hover:!bg-[#15803D] !text-white !h-10"
+              title={originLabel ? `Save changes and return to ${originLabel}` : "Save and close"}
             >
-              Save & Close
+              {originLabel ? "Save & Return" : "Save & Close"}
             </button>
           </div>
         </div>

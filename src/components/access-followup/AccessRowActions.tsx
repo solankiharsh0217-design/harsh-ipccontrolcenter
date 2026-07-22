@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Phone, Copy } from "lucide-react";
 import { cocActionLabel, cocActionTooltip } from "@/lib/cocStatus";
+import { buildCrmDeepLinkFromAccessFollowup } from "@/lib/accessFollowupReturn";
 
 interface Props {
   phone: string | null;
@@ -9,13 +10,18 @@ interface Props {
   cocStatus: string | null;
   onUpdate: () => void;
   fullWidthPrimary?: boolean; // mobile
+  /** When provided the CRM link is tagged with origin=access-followup + returnTo. */
+  returnTo?: string;
+  /** Optional callback invoked before navigating to CRM so the caller can
+   *  persist filters / scroll position to sessionStorage. */
+  onBeforeCrmNav?: () => void;
 }
 
-export default function AccessRowActions({ phone, crmLeadId, cocStatus, onUpdate, fullWidthPrimary }: Props) {
+export default function AccessRowActions({ phone, crmLeadId, cocStatus, onUpdate, fullWidthPrimary, returnTo, onBeforeCrmNav }: Props) {
   const cocLabel = cocActionLabel(cocStatus, !!crmLeadId);
   const cocTip = cocActionTooltip(cocStatus, !!crmLeadId);
   const cocDisabled = !crmLeadId;
-  const crmHref = crmLeadId ? `/crm?lead=${crmLeadId}&focus=code-of-conduct` : "#";
+  const crmHref = crmLeadId ? buildCrmDeepLinkFromAccessFollowup(crmLeadId, { returnTo }) : "#";
 
   const copyPhone = () => {
     if (!phone) { toast.error("No phone number"); return; }
@@ -66,6 +72,7 @@ export default function AccessRowActions({ phone, crmLeadId, cocStatus, onUpdate
       ) : (
         <Link
           to={crmHref}
+          onClick={() => onBeforeCrmNav?.()}
           className="inline-flex items-center h-8 px-2.5 rounded-md border border-amber-400/70 bg-amber-50 text-amber-900 hover:bg-amber-100 font-medium text-[11.5px] whitespace-nowrap"
           title={cocTip}
         >

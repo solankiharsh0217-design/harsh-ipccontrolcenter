@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AccessVerification, fetchVerificationsForPaidLeads, computeOverall, OverallStatus,
@@ -11,6 +11,11 @@ import { CoCStatusChip, hasSuccessfulCocSend } from "@/lib/cocStatus";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
+import {
+  accessFollowupReturnPath,
+  persistAccessFollowupState,
+  readAccessFollowupState,
+} from "@/lib/accessFollowupReturn";
 
 type Row = {
   paidLeadId: string;
@@ -150,12 +155,49 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
   );
   const awaitingInitialSendCount = allRows.length - rows.length;
 
-  const [quick, setQuick] = useState<QuickFilter>("all");
-  const [search, setSearch] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState<string[]>([]);
-  const [batchFilter, setBatchFilter] = useState<string[]>([]);
+  // Restore Access Follow-up view state persisted before navigating into the CRM drawer.
+  const restored = useRef(readAccessFollowupState());
+  const initial = restored.current;
+
+  const [quick, setQuick] = useState<QuickFilter>((initial?.quick as QuickFilter) || "all");
+  const [search, setSearch] = useState(initial?.search || "");
+  const [ownerFilter, setOwnerFilter] = useState<string[]>(initial?.ownerFilter || []);
+  const [batchFilter, setBatchFilter] = useState<string[]>(initial?.batchFilter || []);
   const [selected, setSelected] = useState<Row | null>(null);
-  const [view, setView] = useState<"members" | "daily">("members");
+  const [view, setView] = useState<"members" | "daily">(initial?.view || "members");
+
+  // Restore scroll position once after a return from CRM. Wait until rows render.
+  const didRestoreScroll = useRef(false);
+  useEffect(() => {
+    if (didRestoreScroll.current) return;
+    if (!initial || typeof initial.scrollY !== "number") return;
+    const y = initial.scrollY;
+    const t = window.setTimeout(() => { window.scrollTo({ top: y, behavior: "auto" }); didRestoreScroll.current = true; }, 60);
+    return () => window.clearTimeout(t);
+  }, [initial]);
+
+  // Refetch Code of Conduct / verification data when the tab becomes visible again
+  // (e.g. after returning from the CRM drawer via Back button).
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        qc.invalidateQueries({ queryKey: ["access-verifications"] });
+        qc.invalidateQueries({ queryKey: ["fsd-paid-leads"] });
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [qc]);
+
+  const captureState = () => {
+    persistAccessFollowupState({
+      view, quick, search, ownerFilter, batchFilter,
+      scrollY: typeof window !== "undefined" ? window.scrollY : 0,
+      updatedAt: Date.now(),
+    });
+  };
+
+  const returnTo = accessFollowupReturnPath();
 
   const nowMs = Date.now();
 
@@ -318,6 +360,8 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
           owners={owners}
           isAdmin={isAdmin}
           onOpenMember={(r) => setSelected(r as Row)}
+          returnTo={returnTo}
+          onBeforeCrmNav={captureState}
         />
       ) : (
         <>
@@ -350,9 +394,9 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
 
           {/* Content */}
           {isMobile ? (
-            <MobileCards rows={filtered} onSelect={setSelected} />
+            <MobileCards rows={filtered} onSelect={setSelected} returnTo={returnTo} onBeforeCrmNav={captureState} />
           ) : (
-            <DesktopTable rows={filtered} onSelect={setSelected} />
+            <DesktopTable rows={filtered} onSelect={setSelected} returnTo={returnTo} onBeforeCrmNav={captureState} />
           )}
         </>
       )}
@@ -374,7 +418,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
   );
 }
 
-function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => void }) {
+function DesktopTable({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[]; onSelect: (r: Row) => void; returnTo?: string; onBeforeCrmNav?: () => void }) {
   return (
     <div className="border border-border rounded-lg overflow-hidden bg-background">
       <div className="overflow-x-auto">
@@ -444,6 +488,8 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
                     crmLeadId={r.crmLeadId}
                     cocStatus={r.cocStatus}
                     onUpdate={() => onSelect(r)}
+                    returnTo={returnTo}
+                    onBeforeCrmNav={onBeforeCrmNav}
                   />
                 </td>
               </tr>
@@ -455,7 +501,7 @@ function DesktopTable({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => v
   );
 }
 
-function MobileCards({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => void }) {
+function MobileCards({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[]; onSelect: (r: Row) => void; returnTo?: string; onBeforeCrmNav?: () => void }) {
   if (rows.length === 0) {
     return <div className="border border-border rounded-lg bg-background px-3 py-6 text-center text-muted-foreground text-sm">No members match these filters.</div>;
   }
@@ -493,6 +539,8 @@ function MobileCards({ rows, onSelect }: { rows: Row[]; onSelect: (r: Row) => vo
             cocStatus={r.cocStatus}
             onUpdate={() => onSelect(r)}
             fullWidthPrimary
+            returnTo={returnTo}
+            onBeforeCrmNav={onBeforeCrmNav}
           />
         </div>
       ))}

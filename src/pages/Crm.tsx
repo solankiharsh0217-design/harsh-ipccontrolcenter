@@ -353,6 +353,27 @@ export default function Crm() {
     if (leadParam) setOpenLead(leadParam);
   }, [searchParams]);
 
+  // Origin-aware return handling: when opened from Access Follow-up via
+  //   /crm?lead=<id>&focus=code-of-conduct&origin=access-followup&returnTo=<path>
+  // capture the metadata once so Save & Return / Cancel / X can navigate back.
+  const drawerOrigin = searchParams.get("origin");
+  const drawerReturnToRaw = searchParams.get("returnTo");
+  const drawerReturnTo = (() => {
+    if (!drawerReturnToRaw) return null;
+    if (typeof drawerReturnToRaw !== "string") return null;
+    if (!drawerReturnToRaw.startsWith("/")) return null;
+    if (drawerReturnToRaw.startsWith("//")) return null;
+    if (/[\r\n\t]/.test(drawerReturnToRaw)) return null;
+    return drawerReturnToRaw;
+  })();
+
+  const handleDrawerClose = () => {
+    setOpenLead(null);
+    if (drawerReturnTo) {
+      navigate(drawerReturnTo);
+    }
+  };
+
   // Universal Search ↔ Jump-to-Card support
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const [focusLeadId, setFocusLeadId] = useState<string | null>(null);
@@ -2488,7 +2509,7 @@ export default function Crm() {
       {/* Spacer for fixed bottom bar */}
       <div className="h-14" />
 
-      {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={() => setOpenLead(null)} onChanged={load} onStageChanged={async (lid, stageId) => {
+      {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={handleDrawerClose} originLabel={drawerOrigin === "access-followup" ? "Access Follow-up" : null} returnTo={drawerReturnTo} onChanged={load} onStageChanged={async (lid, stageId) => {
         // Fetch latest lead so pipeline_id is current, then route through the unified evaluator
         const { data: l } = await supabase.from("leads").select("id, pipeline_id, full_name, email, phone, program_name, webinar_source, deal_value, paid_pipeline_lead_id").eq("id", lid).maybeSingle();
         if (!l) return;
