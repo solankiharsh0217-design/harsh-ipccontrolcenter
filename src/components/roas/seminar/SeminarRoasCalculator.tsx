@@ -325,14 +325,15 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({
           step, webinarName, webinarMode, totalDays, watchPct, salesDay,
           defaultStart, defaultEnd, timingNote, convBasis, days, adCostExGst, revenueBasis, products,
-          seminarProducts, roasRevenueBasis,
+          seminarProducts, seminarSales, roasRevenueBasis,
         }));
       } catch {}
     }, 600);
     return () => clearTimeout(t);
   }, [step, webinarName, webinarMode, totalDays, watchPct, salesDay,
       defaultStart, defaultEnd, timingNote, convBasis, days, adCostExGst, revenueBasis, products,
-      seminarProducts, roasRevenueBasis, draftBanner, editingId]);
+      seminarProducts, seminarSales, roasRevenueBasis, draftBanner, editingId]);
+
 
 
   // Per-day computed timing
