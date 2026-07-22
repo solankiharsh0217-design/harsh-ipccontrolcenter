@@ -10,6 +10,7 @@ import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { listServicePackages, buildSnapshot, type ServicePackage } from "@/lib/servicePackages";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
 import { Link } from "react-router-dom";
+import SearchableHeaderSelect from "@/components/import/SearchableHeaderSelect";
 
 export type DuplicatePolicy = "skip" | "update" | "move" | "new_only" | "promote";
 export type AssignmentMode = "unassigned" | "assign_to_me" | "assign_to_member" | "round_robin" | "hot_to_top";
