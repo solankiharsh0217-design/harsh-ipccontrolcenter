@@ -155,12 +155,49 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
   );
   const awaitingInitialSendCount = allRows.length - rows.length;
 
-  const [quick, setQuick] = useState<QuickFilter>("all");
-  const [search, setSearch] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState<string[]>([]);
-  const [batchFilter, setBatchFilter] = useState<string[]>([]);
+  // Restore Access Follow-up view state persisted before navigating into the CRM drawer.
+  const restored = useRef(readAccessFollowupState());
+  const initial = restored.current;
+
+  const [quick, setQuick] = useState<QuickFilter>((initial?.quick as QuickFilter) || "all");
+  const [search, setSearch] = useState(initial?.search || "");
+  const [ownerFilter, setOwnerFilter] = useState<string[]>(initial?.ownerFilter || []);
+  const [batchFilter, setBatchFilter] = useState<string[]>(initial?.batchFilter || []);
   const [selected, setSelected] = useState<Row | null>(null);
-  const [view, setView] = useState<"members" | "daily">("members");
+  const [view, setView] = useState<"members" | "daily">(initial?.view || "members");
+
+  // Restore scroll position once after a return from CRM. Wait until rows render.
+  const didRestoreScroll = useRef(false);
+  useEffect(() => {
+    if (didRestoreScroll.current) return;
+    if (!initial || typeof initial.scrollY !== "number") return;
+    const y = initial.scrollY;
+    const t = window.setTimeout(() => { window.scrollTo({ top: y, behavior: "auto" }); didRestoreScroll.current = true; }, 60);
+    return () => window.clearTimeout(t);
+  }, [initial]);
+
+  // Refetch Code of Conduct / verification data when the tab becomes visible again
+  // (e.g. after returning from the CRM drawer via Back button).
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        qc.invalidateQueries({ queryKey: ["access-verifications"] });
+        qc.invalidateQueries({ queryKey: ["fsd-paid-leads"] });
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [qc]);
+
+  const captureState = () => {
+    persistAccessFollowupState({
+      view, quick, search, ownerFilter, batchFilter,
+      scrollY: typeof window !== "undefined" ? window.scrollY : 0,
+      updatedAt: Date.now(),
+    });
+  };
+
+  const returnTo = accessFollowupReturnPath();
 
   const nowMs = Date.now();
 
