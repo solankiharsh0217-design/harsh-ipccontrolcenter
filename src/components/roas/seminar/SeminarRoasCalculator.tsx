@@ -571,6 +571,8 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         sales_day: salesDay,
         timing_note: timingNote || null,
         revenue_basis: revenueBasis,
+        roas_revenue_basis: roasRevenueBasis,
+
         conversion_rate_basis: convBasis,
         conversion_rate: calc.convRate,
         ad_cost_excluding_gst: calc.adCost,
