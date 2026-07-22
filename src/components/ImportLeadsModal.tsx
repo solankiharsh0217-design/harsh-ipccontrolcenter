@@ -1646,10 +1646,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                       ? <span className="text-rose-600 font-normal"> *</span>
                       : <span className="text-muted-foreground font-normal"> (optional)</span>}
                   </label>
-                  <select className="ipc-input" value={mapping[k]} onChange={(e) => setMapping({ ...mapping, [k]: e.target.value })}>
-                    <option value="">— none —</option>
-                    {headers.map((h) => <option key={h} value={h}>{h || "(blank header)"}</option>)}
-                  </select>
+                  <SearchableHeaderSelect
+                    value={mapping[k]}
+                    onChange={(v) => setMapping({ ...mapping, [k]: v })}
+                    options={headers}
+                    placeholder="— none —"
+                  />
                   {mapping[k] && (
                     <div className="text-[10px] text-muted-foreground truncate" title={firstSample(mapping[k])}>
                       e.g. <b className="text-foreground">{firstSample(mapping[k]) || "—"}</b>
