@@ -43,8 +43,39 @@ export type SeminarPdfInput = {
     token?: number | null;
     revenue: number;
   }>;
+  productBreakdown?: Array<{
+    productName: string;
+    unitPrice: number;
+    gstMode: string;
+    gstPercent: number;
+    grossPerSale: number;
+    netPerSale: number;
+    unitsSold: number;
+    grossBooked: number;
+    netBooked: number;
+    revenueGst: number;
+    tokenCollected: number;
+    cashCollected: number;
+    outstanding: number;
+    refundAmount: number;
+  }>;
+  productTotals?: {
+    totalUnits: number;
+    grossBooked: number;
+    netBooked: number;
+    revenueGst: number;
+    tokenCollected: number;
+    cashCollected: number;
+    outstanding: number;
+    refundAmount: number;
+  };
+  adSpendBasisLabel?: string;
+  roasLabel?: string;
+  roasValue?: number | null;
+  profitOnBasis?: number;
   createdAt?: string;
 };
+
 
 export function downloadSeminarRoasPdf(p: SeminarPdfInput) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
