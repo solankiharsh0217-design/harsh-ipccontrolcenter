@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AccessVerification, fetchVerificationsForPaidLeads, computeOverall, OverallStatus,
@@ -11,6 +11,11 @@ import { CoCStatusChip, hasSuccessfulCocSend } from "@/lib/cocStatus";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
+import {
+  accessFollowupReturnPath,
+  persistAccessFollowupState,
+  readAccessFollowupState,
+} from "@/lib/accessFollowupReturn";
 
 type Row = {
   paidLeadId: string;
