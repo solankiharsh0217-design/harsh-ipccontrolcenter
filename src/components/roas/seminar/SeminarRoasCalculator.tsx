@@ -3,6 +3,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import QuickSaveInput from "@/components/QuickSaveInput";
+import { Plus, Settings2, X as XIcon } from "lucide-react";
+import SearchableProductSelect from "@/components/roas/seminar/SearchableProductSelect";
+import SeminarProductManagerModal from "@/components/roas/seminar/SeminarProductManagerModal";
+import {
+  computeProductGst,
+  emptySeminarProductRow,
+  findDuplicateRow,
+  listActiveCatalogProducts,
+  validateSeminarProducts,
+  REVENUE_BASIS_LABEL,
+  REVENUE_BASIS_HELP,
+  type CatalogProduct,
+  type ProductGstMode,
+  type SeminarProductRow,
+  type SeminarRevenueBasis,
+} from "@/lib/roas/seminarProduct";
+import { loadGstDefaults } from "@/lib/roas/gst";
+import { logActivity } from "@/lib/auditLog";
+
 
 /* ============================================================
    Seminar ROAS Calculator (5-step wizard)
