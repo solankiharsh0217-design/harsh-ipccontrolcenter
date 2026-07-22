@@ -33,6 +33,10 @@ interface Props {
   owners: Array<{ id: string; full_name: string | null }>;
   isAdmin: boolean;
   onOpenMember: (r: QueueRow) => void;
+  /** Return path for CRM drawer's "Back to Access Follow-up" / Save & Return. */
+  returnTo?: string;
+  /** Fires just before navigating into the CRM drawer so the caller can persist view state. */
+  onBeforeCrmNav?: () => void;
 }
 
 function startOfDay(d = new Date()) {
