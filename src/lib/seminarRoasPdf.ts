@@ -43,8 +43,39 @@ export type SeminarPdfInput = {
     token?: number | null;
     revenue: number;
   }>;
+  productBreakdown?: Array<{
+    productName: string;
+    unitPrice: number;
+    gstMode: string;
+    gstPercent: number;
+    grossPerSale: number;
+    netPerSale: number;
+    unitsSold: number;
+    grossBooked: number;
+    netBooked: number;
+    revenueGst: number;
+    tokenCollected: number;
+    cashCollected: number;
+    outstanding: number;
+    refundAmount: number;
+  }>;
+  productTotals?: {
+    totalUnits: number;
+    grossBooked: number;
+    netBooked: number;
+    revenueGst: number;
+    tokenCollected: number;
+    cashCollected: number;
+    outstanding: number;
+    refundAmount: number;
+  };
+  adSpendBasisLabel?: string;
+  roasLabel?: string;
+  roasValue?: number | null;
+  profitOnBasis?: number;
   createdAt?: string;
 };
+
 
 export function downloadSeminarRoasPdf(p: SeminarPdfInput) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -146,14 +177,44 @@ export function downloadSeminarRoasPdf(p: SeminarPdfInput) {
     });
   }
 
-  // Products
+  // Product breakdown (new — Part 2)
+  if (p.productBreakdown && p.productBreakdown.length) {
+    doc.addPage();
+    doc.setTextColor(...BLACK); doc.setFont("times", "normal"); doc.setFontSize(20);
+    doc.text("Product Revenue Breakdown", 40, 60);
+    doc.setFontSize(10); doc.setTextColor(...MUTED);
+    doc.text(
+      `Revenue Basis: ${p.revenueBasisLabel || "—"}   ·   Ad Spend Basis: ${p.adSpendBasisLabel || "—"}   ·   ${p.roasLabel || "ROAS"}: ${p.roasValue == null ? "Not calculable" : p.roasValue.toFixed(2) + "x"}`,
+      40, 78,
+    );
+    autoTable(doc, {
+      startY: 92,
+      head: [["Product", "Price", "GST", "Units", "Gross", "Net", "GST Rev.", "Token", "Cash", "Outstanding"]],
+      body: p.productBreakdown.map((r) => [
+        r.productName || "—",
+        inr(r.unitPrice) + (r.gstMode === "includes_gst" ? " (in)" : " (ex)"),
+        `${r.gstPercent}%`,
+        String(r.unitsSold),
+        inr(r.grossBooked),
+        inr(r.netBooked),
+        inr(r.revenueGst),
+        inr(r.tokenCollected),
+        inr(r.cashCollected),
+        inr(r.outstanding),
+      ]),
+      headStyles: { fillColor: [247, 246, 243], textColor: BLACK, fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: BLACK },
+      margin: { left: 40, right: 40 },
+    });
+  }
+
+  // Legacy products (still supported for old reports)
   if (p.products && p.products.length) {
     const lastY = (doc as any).lastAutoTable?.finalY || 80;
     if (lastY > 600) doc.addPage();
     const startY = lastY > 600 ? 60 : lastY + 30;
     doc.setTextColor(...BLACK); doc.setFont("times", "normal"); doc.setFontSize(20);
     doc.text("Products / Payment Rows", 40, startY);
-
     autoTable(doc, {
       startY: startY + 14,
       head: [["Payment Type", "Units", "Deal Price Inc. GST", "Token / Down", "Row Revenue"]],
@@ -168,6 +229,7 @@ export function downloadSeminarRoasPdf(p: SeminarPdfInput) {
       bodyStyles: { fontSize: 9, textColor: BLACK },
       margin: { left: 40, right: 40 },
     });
+
   }
 
   doc.save(`seminar-roas-${slug(p.webinarName)}.pdf`);
