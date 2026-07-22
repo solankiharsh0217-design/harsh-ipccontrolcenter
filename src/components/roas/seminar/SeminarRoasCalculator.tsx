@@ -690,7 +690,10 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     })));
     setAdCostExGst(String(r.ad_cost_excluding_gst || ""));
     if (snap.revenueBasis) setRevenueBasis(snap.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
+    setRoasRevenueBasis((snap.roasRevenueBasis || r.roas_revenue_basis || "gross_revenue") as SeminarRevenueBasis);
+    if (Array.isArray(snap.seminarProducts) && snap.seminarProducts.length) setSeminarProducts(snap.seminarProducts);
     if (snap.products) setProducts(snap.products);
+
     else setProducts((r.products || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((p: any) => ({
       type: p.payment_type || "",
       units: String(p.units_sold || ""),
