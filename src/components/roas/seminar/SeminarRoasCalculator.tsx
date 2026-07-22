@@ -274,6 +274,8 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       setAdCostExGst(d.adCostExGst || "");
       setRevenueBasis(d.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
       setProducts(d.products?.length ? d.products : [emptyProd()]);
+      setSeminarProducts(Array.isArray(d.seminarProducts) && d.seminarProducts.length ? d.seminarProducts : [emptySeminarProductRow()]);
+      setRoasRevenueBasis((d.roasRevenueBasis as SeminarRevenueBasis) || "gross_revenue");
       setStep(d.step || 1);
       setDraftBanner(false);
       toast.success("Previous draft restored");
@@ -296,12 +298,15 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({
           step, webinarName, webinarMode, totalDays, watchPct, salesDay,
           defaultStart, defaultEnd, timingNote, convBasis, days, adCostExGst, revenueBasis, products,
+          seminarProducts, roasRevenueBasis,
         }));
       } catch {}
     }, 600);
     return () => clearTimeout(t);
   }, [step, webinarName, webinarMode, totalDays, watchPct, salesDay,
-      defaultStart, defaultEnd, timingNote, convBasis, days, adCostExGst, revenueBasis, products, draftBanner, editingId]);
+      defaultStart, defaultEnd, timingNote, convBasis, days, adCostExGst, revenueBasis, products,
+      seminarProducts, roasRevenueBasis, draftBanner, editingId]);
+
 
   // Per-day computed timing
   const dayTimings = useMemo(() => {
