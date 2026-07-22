@@ -209,11 +209,25 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
   const [revenueBasis, setRevenueBasis] = useState<"full_deal_value" | "token_collected_amount">("full_deal_value");
   const [products, setProducts] = useState<ProductRow[]>([emptyProd()]);
 
+  // Products / Offers (Step 1 — foundation) + ROAS revenue basis
+  const gstDefaults = loadGstDefaults();
+  const [seminarProducts, setSeminarProducts] = useState<SeminarProductRow[]>([emptySeminarProductRow()]);
+  const [roasRevenueBasis, setRoasRevenueBasis] = useState<SeminarRevenueBasis>("gross_revenue");
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
+
   const [editingId, setEditingId] = useState<string | null>(loadReportId || null);
   const [saving, setSaving] = useState(false);
   const [draftBanner, setDraftBanner] = useState(false);
   const draftLoadedRef = useRef(false);
   const setSalesDayManual = useCallback((d: number) => { setSalesDayError(false); setSalesDay(d); }, []);
+
+  const refreshCatalog = useCallback(async () => {
+    try { setCatalog(await listActiveCatalogProducts()); } catch { /* toast handled elsewhere */ }
+  }, []);
+  useEffect(() => { void refreshCatalog(); }, [refreshCatalog]);
+
 
   // ----- derived: keep days array sized to totalDays. Do NOT auto-pick salesDay. -----
   useEffect(() => {
