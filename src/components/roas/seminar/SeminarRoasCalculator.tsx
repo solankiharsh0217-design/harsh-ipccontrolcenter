@@ -402,6 +402,42 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     };
   }, [days, salesDay, totalDays, adCostExGst, products, revenueBasis, convBasis]);
 
+  // ─── Multi-product totals + ROAS on selected revenue basis ──────────────
+  const productTotals: MultiProductTotals = useMemo(
+    () => computeMultiProductTotals(seminarProducts, seminarSales),
+    [seminarProducts, seminarSales],
+  );
+
+  const spendBreakdown = useMemo(
+    () => computeSpend(Number(adCostExGst || 0), gstDefaults.taxMode, gstDefaults.gstRate),
+    [adCostExGst, gstDefaults.taxMode, gstDefaults.gstRate],
+  );
+
+  const roasResult = useMemo(() => {
+    const rev = revenueForRoasBasis(productTotals, roasRevenueBasis);
+    // Cash-collected → use whichever ad-spend basis is configured (gross by default).
+    // Net revenue → use net ad spend. Gross revenue → use gross ad spend.
+    const adBasis = roasRevenueBasis === "net_revenue" ? "net" : gstDefaults.spendBasis;
+    const spend = effectiveSpendForBasis(spendBreakdown, adBasis as any);
+    const value = spend > 0 ? rev / spend : null;
+    return {
+      revenue: rev,
+      adSpend: spend,
+      adBasisLabel: adBasis === "net" ? "Net Ad Spend" : "Gross Ad Spend",
+      value,
+      label: roasLabelForBasis(roasRevenueBasis),
+    };
+  }, [productTotals, roasRevenueBasis, spendBreakdown, gstDefaults.spendBasis]);
+
+  // Product-based profit — clear, explicit, non-silent.
+  const productProfit = useMemo(() => {
+    const rev = roasRevenueBasis === "cash_collected"
+      ? productTotals.cashCollected
+      : (roasRevenueBasis === "net_revenue" ? productTotals.netBooked : productTotals.grossBooked);
+    return rev - roasResult.adSpend;
+  }, [productTotals, roasRevenueBasis, roasResult.adSpend]);
+
+
   const dayMetrics = (i: number) => {
     const d = days[i];
     if (!d) return { sur: null as number | null, dr: null as number | null };
