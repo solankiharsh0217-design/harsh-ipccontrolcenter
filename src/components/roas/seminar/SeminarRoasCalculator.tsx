@@ -777,9 +777,24 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
                 toast.error("Please select the day when sales/offer happened.");
                 return;
               }
+              const err = validateSeminarProducts(seminarProducts);
+              if (err) { setProductsError(err); toast.error(err); return; }
+              setProductsError(null);
+              // Fire selection audit (fire-and-forget)
+              void logActivity({
+                module_key: "roas",
+                action_type: "seminar_roas_products_selected",
+                entity_type: "seminar_roas_report",
+                entity_label: webinarName,
+                metadata: {
+                  count: seminarProducts.filter((p) => p.productName.trim()).length,
+                  revenue_basis: roasRevenueBasis,
+                },
+              });
             }
             setStep((s) => (s + 1) as any);
           }}>Next →</button>}
+
           {step === 5 && (
             <>
               <ExportMenu onCsv={exportCsv} onSheets={exportSheetsCsv} onPdf={exportPdf} onWa={copyWhatsApp} />
