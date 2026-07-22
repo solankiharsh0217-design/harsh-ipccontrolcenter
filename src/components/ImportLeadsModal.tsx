@@ -12,6 +12,10 @@ import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemp
 import { Link } from "react-router-dom";
 import SearchableHeaderSelect from "@/components/import/SearchableHeaderSelect";
 
+// Bundle build marker — used to detect stale client bundles.
+// Frozen at module evaluation, i.e. when the JS chunk was built + first loaded.
+const IMPORT_MODAL_BUILD_ID = `phase2-mapper·${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
+
 export type DuplicatePolicy = "skip" | "update" | "move" | "new_only" | "promote";
 export type AssignmentMode = "unassigned" | "assign_to_me" | "assign_to_member" | "round_robin" | "hot_to_top";
 
@@ -1667,7 +1671,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               const dsp = (n: number) => n > 0 ? `₹${n.toLocaleString("en-IN")}` : "—";
               return (
                 <>
-                  <div className="text-xs text-muted-foreground">{validRows} rows · {headers.length} columns detected · map your columns:</div>
+                  <div className="text-xs text-muted-foreground flex items-center justify-between gap-2">
+                    <span>{validRows} rows · {headers.length} columns detected · map your columns:</span>
+                    <span className="text-[10px] text-muted-foreground/70 font-mono" title="Client bundle marker">build {IMPORT_MODAL_BUILD_ID}</span>
+                  </div>
 
                   <div className="space-y-3">
                     <div className="uppercase-label">Identity</div>
