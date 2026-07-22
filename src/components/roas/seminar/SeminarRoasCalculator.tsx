@@ -300,7 +300,9 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       setRevenueBasis(d.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
       setProducts(d.products?.length ? d.products : [emptyProd()]);
       setSeminarProducts(Array.isArray(d.seminarProducts) && d.seminarProducts.length ? d.seminarProducts : [emptySeminarProductRow()]);
+      setSeminarSales(d.seminarSales && typeof d.seminarSales === "object" ? d.seminarSales : {});
       setRoasRevenueBasis((d.roasRevenueBasis as SeminarRevenueBasis) || "gross_revenue");
+
       setStep(d.step || 1);
       setDraftBanner(false);
       toast.success("Previous draft restored");
