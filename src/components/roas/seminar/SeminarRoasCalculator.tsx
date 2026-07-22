@@ -896,17 +896,21 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       token: p.token_down_payment == null ? "" : String(p.token_down_payment),
     })) || [emptyProd()]);
 
-    // Catalog drift: warn if a snapshot product no longer matches the current catalog price/GST.
+    // Catalog drift: warn if a snapshot product no longer matches the current catalog price.
     if (!isLegacy && catalog.length && snapSemProducts.length) {
-      const drift = snapSemProducts.some((sp) => {
-        if (!sp.productId) return false;
-        const current = catalog.find((c: any) => c.id === sp.productId);
-        if (!current) return true;
-        const curPrice = Number(current.price ?? current.unit_price ?? 0);
-        return curPrice !== Number(sp.unitPrice);
-      });
+      const drift: Array<{ name: string; oldPrice: number; newPrice: number }> = [];
+      for (const sp of snapSemProducts) {
+        if (!sp.productId) continue;
+        const current = catalog.find((c) => c.id === sp.productId);
+        if (!current) continue;
+        const curPrice = Number(current.product_price_including_gst || 0);
+        if (curPrice !== Number(sp.unitPrice)) {
+          drift.push({ name: sp.productName || current.product_name, oldPrice: Number(sp.unitPrice), newPrice: curPrice });
+        }
+      }
       setCatalogDrift(drift);
     }
+
 
     draftLoadedRef.current = true;
     setStep(5);
