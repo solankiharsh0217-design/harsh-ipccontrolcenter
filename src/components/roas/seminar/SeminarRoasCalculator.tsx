@@ -9,6 +9,11 @@ import SeminarProductManagerModal from "@/components/roas/seminar/SeminarProduct
 import {
   computeProductGst,
   emptySeminarProductRow,
+  emptySeminarSalesRow,
+  syncSalesToProducts,
+  computeMultiProductTotals,
+  revenueForRoasBasis,
+  roasLabelForBasis,
   findDuplicateRow,
   listActiveCatalogProducts,
   validateSeminarProducts,
@@ -17,10 +22,14 @@ import {
   type CatalogProduct,
   type ProductGstMode,
   type SeminarProductRow,
+  type SeminarSalesRow,
   type SeminarRevenueBasis,
+  type MultiProductTotals,
+  type PerProductTotals,
 } from "@/lib/roas/seminarProduct";
-import { loadGstDefaults } from "@/lib/roas/gst";
+import { loadGstDefaults, computeSpend, effectiveSpendForBasis } from "@/lib/roas/gst";
 import { logActivity } from "@/lib/auditLog";
+
 
 
 /* ============================================================
