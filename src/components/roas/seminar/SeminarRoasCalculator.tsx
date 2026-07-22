@@ -555,8 +555,10 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         webinarName, webinarMode, totalDays, watchPct, salesDay,
         defaultStart, defaultEnd, timingNote, convBasis,
         days, adCostExGst, revenueBasis, products,
+        seminarProducts, roasRevenueBasis,
       };
-      const outputSnap = { ...calc, dayTimings, revenueBasis, convBasis };
+      const outputSnap = { ...calc, dayTimings, revenueBasis, convBasis, roasRevenueBasis, seminarProducts };
+
 
       const reportPayload: any = {
         report_name: webinarName,
