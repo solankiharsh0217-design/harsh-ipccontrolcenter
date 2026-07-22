@@ -2509,7 +2509,7 @@ export default function Crm() {
       {/* Spacer for fixed bottom bar */}
       <div className="h-14" />
 
-      {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={() => setOpenLead(null)} onChanged={load} onStageChanged={async (lid, stageId) => {
+      {openLead && <LeadDrawer leadId={openLead} stages={stages} agents={agents} onClose={handleDrawerClose} originLabel={drawerOrigin === "access-followup" ? "Access Follow-up" : null} returnTo={drawerReturnTo} onChanged={load} onStageChanged={async (lid, stageId) => {
         // Fetch latest lead so pipeline_id is current, then route through the unified evaluator
         const { data: l } = await supabase.from("leads").select("id, pipeline_id, full_name, email, phone, program_name, webinar_source, deal_value, paid_pipeline_lead_id").eq("id", lid).maybeSingle();
         if (!l) return;
