@@ -816,9 +816,17 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       <datalist id="srTimes">
         {TIME_OPTIONS.map((t) => <option key={t} value={t} />)}
       </datalist>
+
+      {managerOpen && (
+        <SeminarProductManagerModal
+          onClose={() => setManagerOpen(false)}
+          onChanged={() => { void refreshCatalog(); }}
+        />
+      )}
     </div>
   );
 }
+
 
 /* ---------------- Step 1 ---------------- */
 function Step1(props: any) {
