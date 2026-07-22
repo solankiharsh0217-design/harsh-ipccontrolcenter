@@ -975,14 +975,28 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         <Step3 adCostExGst={adCostExGst} setAdCostExGst={setAdCostExGst} calc={calc} />
       )}
       {step === 4 && (
-        <Step4 revenueBasis={revenueBasis} setRevenueBasis={setRevenueBasis}
-          products={products} updateProd={updateProd} addProd={addProd} removeProd={removeProd} calc={calc} />
+        <Step4
+          legacyReport={legacyReport}
+          revenueBasis={revenueBasis} setRevenueBasis={setRevenueBasis}
+          products={products} updateProd={updateProd} addProd={addProd} removeProd={removeProd} calc={calc}
+          seminarProducts={seminarProducts} seminarSales={seminarSales} updateSale={updateSale}
+          productTotals={productTotals} roasRevenueBasis={roasRevenueBasis}
+          onEditProducts={() => setStep(1)}
+        />
       )}
       {step === 5 && (
-        <Step5 calc={calc} totalDays={totalDays} watchPct={watchPct} salesDay={salesDay}
+        <Step5
+          legacyReport={legacyReport}
+          calc={calc} totalDays={totalDays} watchPct={watchPct} salesDay={salesDay}
           revenueBasis={revenueBasis} convBasis={convBasis}
-          regs={calc.regs} showUp={calc.showUp} offer={calc.offerShowUp} />
+          regs={calc.regs} showUp={calc.showUp} offer={calc.offerShowUp}
+          seminarProducts={seminarProducts} productTotals={productTotals}
+          roasRevenueBasis={roasRevenueBasis} roasResult={roasResult} productProfit={productProfit}
+          catalogDrift={catalogDrift}
+          onEditProducts={() => setStep(1)}
+        />
       )}
+
 
       <div className="srBtnRow">
         <div>
