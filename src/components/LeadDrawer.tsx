@@ -41,6 +41,12 @@ interface Props {
   onClose: () => void;
   onChanged: () => void;
   onStageChanged?: (leadId: string, newStageId: string) => void;
+  /** Optional label of the origin surface that opened this drawer (e.g. "Access Follow-up").
+   *  When set, the drawer shows a "Back to <origin>" action and relabels
+   *  "Save & Close" to "Save & Return". Normal CRM navigation is unchanged. */
+  originLabel?: string | null;
+  /** Return path used when the user clicks the origin "Back" button. Ignored when unset. */
+  returnTo?: string | null;
 }
 
 
@@ -48,7 +54,7 @@ const channelStyle: Record<string, string> = {
   call: "#16A34A", whatsapp: "#22C55E", email: "#2563EB", sms: "#7C3AED", note: "#888888", system: "#0a0a0a",
 };
 
-export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged, onStageChanged }: Props) {
+export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged, onStageChanged, originLabel, returnTo }: Props) {
   // Focus the Code of Conduct panel when navigated via `?focus=code-of-conduct`.
   useEffect(() => {
     if (typeof window === "undefined") return;
