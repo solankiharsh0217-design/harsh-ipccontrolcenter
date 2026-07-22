@@ -443,7 +443,18 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                 </>
               )}
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center"><X className="w-4 h-4" /></button>
+            <div className="flex items-center gap-2">
+              {originLabel && (
+                <button
+                  onClick={onClose}
+                  title={`Return to ${originLabel}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-line bg-white hover:bg-off text-[12px] font-medium whitespace-nowrap"
+                >
+                  ← Back to {originLabel}
+                </button>
+              )}
+              <button onClick={onClose} className="w-8 h-8 rounded-md hover:bg-off flex items-center justify-center" title={originLabel ? `Return to ${originLabel}` : "Close"}><X className="w-4 h-4" /></button>
+            </div>
           </div>
           {lead.lead_type === "unpaid"
             && !(lead as any).paid_pipeline_lead_id
