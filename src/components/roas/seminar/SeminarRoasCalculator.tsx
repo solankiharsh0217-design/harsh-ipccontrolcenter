@@ -519,21 +519,42 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
       ["Total Webinar Days", totalDays],
       ["Watch Point %", watchPct],
       ["Sales Day", `Day ${salesDay}`],
-      ["Revenue Basis", revenueBasis === "token_collected_amount" ? "Token / Collected Amount" : "Full Deal Value"],
+      ["Revenue Basis (ROAS)", legacyReport ? "Legacy" : REVENUE_BASIS_LABEL[roasRevenueBasis]],
+      ["Ad Spend Basis", legacyReport ? "Legacy (incl. 18% GST)" : roasResult.adBasisLabel],
       ["Conversion Rate Basis", CONV_BASIS_LABEL[convBasis]],
       ["Conversion Rate", calc.convRate == null ? "" : Number(calc.convRate).toFixed(2) + "%"],
       ["Registrations (sales day)", calc.regs],
       ["Show-Up (sales day)", calc.showUp],
       ["Offer / Watch Present", calc.offerShowUp],
-      ["Total Revenue Inc. GST", calc.totalRev],
       ["Ad Cost Excl. GST", calc.adCost],
       ["Ad Spend Inc. GST", calc.adInc],
-      ["Net GST Payable to Govt", calc.netGst],
-      ["Total Conversions", calc.totalUnits],
-      ["CPA", calc.cpa ?? ""],
-      ["CPL", calc.cpl ?? ""],
-      ["ROAS", calc.roas == null ? "" : Number(calc.roas).toFixed(4)],
-      ["Profit After GST", calc.profit],
+    ];
+    if (!legacyReport) {
+      head.push(
+        ["Gross Booked Revenue", productTotals.grossBooked],
+        ["Net Booked Revenue", productTotals.netBooked],
+        ["Revenue GST", productTotals.revenueGst],
+        ["Token Collected", productTotals.tokenCollected],
+        ["Cash Collected", productTotals.cashCollected],
+        ["Outstanding", productTotals.outstanding],
+        ["Refunds", productTotals.refundAmount],
+        ["Total Units Sold", productTotals.totalUnits],
+        ["ROAS Type", roasResult.label],
+        ["ROAS", roasResult.value == null ? "Not calculable" : Number(roasResult.value).toFixed(4)],
+        ["Profit (revenue basis − ad spend basis)", productProfit],
+      );
+    } else {
+      head.push(
+        ["Total Revenue Inc. GST", calc.totalRev],
+        ["Net GST Payable to Govt", calc.netGst],
+        ["Total Conversions", calc.totalUnits],
+        ["CPA", calc.cpa ?? ""],
+        ["CPL", calc.cpl ?? ""],
+        ["ROAS (legacy)", calc.roas == null ? "" : Number(calc.roas).toFixed(4)],
+        ["Profit After GST (legacy)", calc.profit],
+      );
+    }
+    head.push(
       [],
       ["Day-wise Attendance"],
       ["Day", "Date", "Start Time", "End Time", "Duration (min)", "Watch Point Time", "Registrations", "Show-Up", "Watch/Offer Present", "Show-Up Rate", "Drop Rate", "Is Sales Day"],
@@ -550,18 +571,36 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
         ];
       }),
       [],
-      ["Products / Payment Rows"],
-      ["Payment Type", "Units", "Deal Price Inc. GST", "Token / Down Payment", "Row Revenue"],
-      ...products.map((p) => {
-        const u = Number(p.units || 0);
-        const pr = Number(p.price || 0);
-        const tk = p.token === "" ? null : Number(p.token);
-        const rev = (revenueBasis === "token_collected_amount" && tk != null && tk > 0) ? u * tk : u * pr;
-        return [p.type, u, pr, tk ?? "", rev];
-      }),
-    ];
+    );
+    if (!legacyReport) {
+      head.push(
+        ["Product Revenue Breakdown"],
+        ["Product", "Unit Price", "GST Mode", "GST %", "Gross / Sale", "Net / Sale", "Units Sold",
+         "Gross Booked", "Net Booked", "Revenue GST", "Token Collected", "Cash Collected", "Outstanding", "Refunds"],
+        ...productTotals.perProduct.map((t) => [
+          t.productName || "—",
+          t.unitPrice, t.gstMode === "includes_gst" ? "Includes GST" : "Excludes GST", t.gstPercent,
+          t.grossPerSale, t.netPerSale, t.unitsSold,
+          t.grossBooked, t.netBooked, t.revenueGst, t.tokenCollected,
+          t.cashCollected, t.outstanding, t.refundAmount,
+        ]),
+      );
+    } else {
+      head.push(
+        ["Products / Payment Rows (legacy)"],
+        ["Payment Type", "Units", "Deal Price Inc. GST", "Token / Down Payment", "Row Revenue"],
+        ...products.map((p) => {
+          const u = Number(p.units || 0);
+          const pr = Number(p.price || 0);
+          const tk = p.token === "" ? null : Number(p.token);
+          const rev = (revenueBasis === "token_collected_amount" && tk != null && tk > 0) ? u * tk : u * pr;
+          return [p.type, u, pr, tk ?? "", rev];
+        }),
+      );
+    }
     return head;
   };
+
 
   const downloadCsv = (filename: string) => {
     const rows = buildCsvRows();
