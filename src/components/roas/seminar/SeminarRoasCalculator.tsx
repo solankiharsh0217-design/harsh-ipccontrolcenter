@@ -881,18 +881,37 @@ export default function SeminarRoasCalculator({ onBack, loadReportId }: Props) {
     setAdCostExGst(String(r.ad_cost_excluding_gst || ""));
     if (snap.revenueBasis) setRevenueBasis(snap.revenueBasis === "token_collected_amount" ? "token_collected_amount" : "full_deal_value");
     setRoasRevenueBasis((snap.roasRevenueBasis || r.roas_revenue_basis || "gross_revenue") as SeminarRevenueBasis);
-    if (Array.isArray(snap.seminarProducts) && snap.seminarProducts.length) setSeminarProducts(snap.seminarProducts);
-    if (snap.products) setProducts(snap.products);
 
+    const snapSemProducts: SeminarProductRow[] = Array.isArray(snap.seminarProducts) ? snap.seminarProducts : [];
+    const isLegacy = snapSemProducts.length === 0;
+    setLegacyReport(isLegacy);
+    if (!isLegacy) setSeminarProducts(snapSemProducts);
+    if (snap.seminarSales && typeof snap.seminarSales === "object") setSeminarSales(snap.seminarSales);
+
+    if (snap.products) setProducts(snap.products);
     else setProducts((r.products || []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((p: any) => ({
       type: p.payment_type || "",
       units: String(p.units_sold || ""),
       price: String(p.deal_price_including_gst || ""),
       token: p.token_down_payment == null ? "" : String(p.token_down_payment),
     })) || [emptyProd()]);
+
+    // Catalog drift: warn if a snapshot product no longer matches the current catalog price/GST.
+    if (!isLegacy && catalog.length && snapSemProducts.length) {
+      const drift = snapSemProducts.some((sp) => {
+        if (!sp.productId) return false;
+        const current = catalog.find((c: any) => c.id === sp.productId);
+        if (!current) return true;
+        const curPrice = Number(current.price ?? current.unit_price ?? 0);
+        return curPrice !== Number(sp.unitPrice);
+      });
+      setCatalogDrift(drift);
+    }
+
     draftLoadedRef.current = true;
     setStep(5);
   };
+
 
   const stepTitles: Record<number, string> = {
     1: "Webinar Setup", 2: "Attendance Details", 3: "Ad Cost & Spend",
