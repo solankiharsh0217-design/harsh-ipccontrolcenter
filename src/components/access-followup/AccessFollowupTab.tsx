@@ -539,6 +539,8 @@ function MobileCards({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[]
             cocStatus={r.cocStatus}
             onUpdate={() => onSelect(r)}
             fullWidthPrimary
+            returnTo={returnTo}
+            onBeforeCrmNav={onBeforeCrmNav}
           />
         </div>
       ))}
