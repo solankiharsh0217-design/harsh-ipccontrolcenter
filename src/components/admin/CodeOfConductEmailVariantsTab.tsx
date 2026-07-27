@@ -5,6 +5,8 @@ import {
   loadEmailVariants, renderPreview, validateVariant, conditionLabel,
   type CocEmailVariant,
 } from "@/lib/cocCompletionTiming";
+import { logActivity } from "@/lib/auditLog";
+
 
 const ORDER = ["completed_within_1_day", "completed_after_1_day"];
 
@@ -24,19 +26,29 @@ const VARIABLES = Object.keys(PREVIEW_VARS);
 
 export default function CodeOfConductEmailVariantsTab() {
   const [rows, setRows] = useState<CocEmailVariant[]>([]);
+  const [original, setOriginal] = useState<CocEmailVariant[]>([]);
+  const [editors, setEditors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [testingKey, setTestingKey] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const v = await loadEmailVariants();
-      setRows(v.sort((a, b) => ORDER.indexOf(a.condition_key) - ORDER.indexOf(b.condition_key)));
+      const v = (await loadEmailVariants()).sort((a, b) => ORDER.indexOf(a.condition_key) - ORDER.indexOf(b.condition_key));
+      setRows(v);
+      setOriginal(v.map((x) => ({ ...x })));
+      const ids = Array.from(new Set(v.map((x) => x.updated_by).filter(Boolean))) as string[];
+      if (ids.length) {
+        const { data: profs } = await supabase.from("profiles").select("id,full_name").in("id", ids);
+        setEditors(Object.fromEntries((profs || []).map((p: any) => [p.id, p.full_name || "—"])));
+      }
     } catch (e: any) {
       toast.error("Could not load email templates", { description: e?.message });
     } finally { setLoading(false); }
   };
+
   useEffect(() => { void load(); }, []);
 
   const patch = (id: string, p: Partial<CocEmailVariant>) =>
