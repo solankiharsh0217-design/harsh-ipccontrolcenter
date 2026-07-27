@@ -622,6 +622,7 @@ export default function CodeOfConductPanel(props: Props) {
         entity_type: "code_of_conduct_request", entity_id: resultRequestId, entity_label: memberName,
         metadata: {
           condition_key: usedCondition,
+          override_condition_key: res?.resend_override_condition_key || null,
           email_variant_id: res?.email_variant_id || null,
           email_variant_version: res?.email_variant_version || null,
           used_snapshot: !!res?.used_snapshot,
