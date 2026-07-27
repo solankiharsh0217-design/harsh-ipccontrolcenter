@@ -527,9 +527,10 @@ ${htmlLines}
       is_test: !!is_test,
       condition_key: requestRow?.completion_condition_key || conditionKey || null,
       condition_name: completionConditionLabel,
-      email_variant_id: requestRow?.email_variant_id || variantRow?.id || null,
-      email_variant_version: requestRow?.email_variant_version || variantRow?.version || null,
+      email_variant_id: isResendOverride ? (variantRow?.id || null) : (requestRow?.email_variant_id || variantRow?.id || null),
+      email_variant_version: isResendOverride ? (variantRow?.version || null) : (requestRow?.email_variant_version || variantRow?.version || null),
       used_snapshot: useSnapshot,
+      resend_override_condition_key: isResendOverride ? (variantRow?.condition_key || null) : null,
     });
 
   } catch (e) {
