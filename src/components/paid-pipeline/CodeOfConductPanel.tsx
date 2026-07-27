@@ -73,6 +73,8 @@ export default function CodeOfConductPanel(props: Props) {
   const [timingOpen, setTimingOpen] = useState(false);
   const [changeVariantOpen, setChangeVariantOpen] = useState(false);
   const [changeReason, setChangeReason] = useState("");
+  const [processStart, setProcessStart] = useState<{ at: string; label: string } | null>(null);
+
 
 
   const [matchedRule, setMatchedRule] = useState<CodeOfConductRule | null>(null);
