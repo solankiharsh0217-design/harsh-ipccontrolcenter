@@ -196,8 +196,12 @@ export default function CodeOfConductEmailVariantsTab() {
             )}
 
             <div className="flex justify-end gap-2">
+              <button onClick={() => void sendTest(row)} disabled={testingKey === row.id} className="ipc-btn ipc-btn-ghost disabled:opacity-50">
+                {testingKey === row.id ? "Sending…" : "Send Test Email"}
+              </button>
               <button onClick={() => setPreviewKey(previewKey === row.id ? null : row.id)} className="ipc-btn ipc-btn-ghost">
                 {previewKey === row.id ? "Hide Preview" : "Preview"}
+
               </button>
               <button onClick={() => void save(row)} disabled={savingKey === row.id || !!issue} className="ipc-btn ipc-btn-black disabled:opacity-50">
                 {savingKey === row.id ? "Saving…" : "Save Template"}
