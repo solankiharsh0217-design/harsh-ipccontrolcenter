@@ -71,7 +71,9 @@ export default function CodeOfConductPanel(props: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editEmailOpen, setEditEmailOpen] = useState(false);
   const [timingOpen, setTimingOpen] = useState(false);
-  const [processStart, setProcessStart] = useState<{ at: string; label: string } | null>(null);
+  const [changeVariantOpen, setChangeVariantOpen] = useState(false);
+  const [changeReason, setChangeReason] = useState("");
+
 
   const [matchedRule, setMatchedRule] = useState<CodeOfConductRule | null>(null);
   const [evalResult, setEvalResult] = useState<{ action: string; message?: string; at: string } | null>(null);
