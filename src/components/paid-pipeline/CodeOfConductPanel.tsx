@@ -1050,6 +1050,51 @@ export default function CodeOfConductPanel(props: Props) {
         processStartedAt={processStart?.at || null}
         processStartLabel={processStart?.label || null}
       />
+
+      {changeVariantOpen && req && (() => {
+        const current = req.completion_condition_key;
+        const next = current === "completed_within_1_day" ? "completed_after_1_day" : "completed_within_1_day";
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setChangeVariantOpen(false)}>
+            <div className="bg-white rounded-xl border border-line w-full max-w-md p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="text-[15px] font-semibold mb-1">Change Template for This Resend</div>
+              <p className="text-[11.5px] text-muted-foreground mb-3">
+                This affects only the new resend. The original send history stays unchanged.
+              </p>
+              <div className="space-y-1.5 text-[12.5px] mb-3">
+                <Row k="Current template" v={conditionLabel(current)} />
+                <Row k="New template" v={conditionLabel(next)} />
+              </div>
+              <input value={changeReason} onChange={(e) => setChangeReason(e.target.value)}
+                placeholder="Reason for changing the template (required)"
+                className="w-full border border-slate-200 rounded-md px-2.5 py-1.5 text-[12px] mb-3" />
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setChangeVariantOpen(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
+                <button
+                  disabled={busy || !changeReason.trim()}
+                  onClick={() => {
+                    setChangeVariantOpen(false);
+                    void sendEmail(
+                      {
+                        selection: req.completion_selection || "custom",
+                        condition_key: next,
+                        process_started_at: req.process_started_at || null,
+                        process_completed_at: req.process_completed_at || null,
+                        duration_hours: req.completion_duration_hours ?? null,
+                        duration_days: req.completion_duration_days ?? null,
+                        override_reason: changeReason.trim(),
+                      },
+                      { changeVariantForResend: true, changeReason: changeReason.trim() },
+                    );
+                    setChangeReason("");
+                  }}
+                  className="ipc-btn ipc-btn-black disabled:opacity-50">Confirm & Resend</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
