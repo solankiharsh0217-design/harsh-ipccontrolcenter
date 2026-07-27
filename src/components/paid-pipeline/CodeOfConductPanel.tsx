@@ -735,7 +735,10 @@ export default function CodeOfConductPanel(props: Props) {
             <Cell label="Member email" value={req.signed_member_email || req.member_email} />
             {req.signature_name && <Cell label="Signed by" value={req.signature_name} />}
             {req.corrected_contact_email && <Cell label="Corrected contact" value={req.corrected_contact_email} />}
+            {req.completion_condition_key && <Cell label="Completion time" value={selectionLabel(req.completion_selection)} />}
+            {req.completion_condition_key && <Cell label="Email variant" value={`${conditionLabel(req.completion_condition_key)}${req.email_variant_version ? ` v${req.email_variant_version}` : ""}`} />}
             <Cell label="Request id" value={req.id.slice(0, 8)} />
+
           </div>
           {req.status === "signed" && (() => {
             const hasSig = hasValidSignature(req);
