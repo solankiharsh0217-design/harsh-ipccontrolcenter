@@ -892,6 +892,17 @@ export default function CodeOfConductPanel(props: Props) {
           {!signingUrl && (req.status === "sent" || req.status === "viewed" || isFailed) && (
             <div className="text-[10.5px] text-slate-400">Tip: click {isFailed ? "Retry Send" : "Resend Email"} to also receive a fresh copyable signing link.</div>
           )}
+          {req.completion_condition_key ? (
+            <div className="text-[11px] text-slate-600 flex items-center gap-2 flex-wrap">
+              <span>Using original template: <b>{conditionLabel(req.completion_condition_key)}</b>{req.email_variant_version ? ` (v${req.email_variant_version})` : ""}</span>
+              {isAdmin && (
+                <button onClick={() => setChangeVariantOpen(true)} className="underline text-slate-700">Change Template for This Resend</button>
+              )}
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-500">Completion timing not selected</div>
+
+          )}
         </div>
       )}
 
