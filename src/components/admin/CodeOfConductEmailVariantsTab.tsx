@@ -128,8 +128,23 @@ export default function CodeOfConductEmailVariantsTab() {
       if (error) throw error;
       const res = data as any;
       if (res?.ok === false) throw new Error(`[${res.error_code}] ${res.message}`);
+      await logActivity({
+        module_key: "code_of_conduct", module_label: "Code of Conduct",
+        action_type: "coc_test_email_sent", action_label: "Code of Conduct test email sent",
+        entity_type: "code_of_conduct_email_variant", entity_id: row.id, entity_label: row.condition_name,
+        metadata: { condition_key: row.condition_key, variant_version: row.version, result: "sent" },
+        summary: `Test Code of Conduct email sent using ${row.condition_name} (v${row.version}).`,
+      });
       toast.success(`Test email sent to ${to}`, { description: `Template: ${row.condition_name}` });
     } catch (e: any) {
+      await logActivity({
+        module_key: "code_of_conduct", module_label: "Code of Conduct",
+        action_type: "coc_test_email_sent", action_label: "Code of Conduct test email failed",
+        entity_type: "code_of_conduct_email_variant", entity_id: row.id, entity_label: row.condition_name,
+        severity: "warning",
+        metadata: { condition_key: row.condition_key, variant_version: row.version, result: "failed", error: String(e?.message || "").slice(0, 200) },
+        summary: `Test Code of Conduct email failed for ${row.condition_name}.`,
+      });
       toast.error("Test email failed", { description: e?.message });
     } finally { setTestingKey(null); }
   };
