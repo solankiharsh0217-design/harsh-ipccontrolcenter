@@ -8,6 +8,8 @@ import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRuleDetailed, nor
 import { evaluatePostSendAutomation, getLastAutomationEvent, describeSkipReason, type PostSendAutomationResult } from "@/lib/codeOfConductAutomation";
 import CocCompletionTimingModal, { type CompletionPayload } from "./CocCompletionTimingModal";
 import { conditionLabel, selectionLabel } from "@/lib/cocCompletionTiming";
+import { logActivity } from "@/lib/auditLog";
+
 
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
