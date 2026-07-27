@@ -382,7 +382,7 @@ Deno.serve(async (req) => {
 
     // Resends reuse the exact snapshot captured on the original send, so later
     // template edits never rewrite an already-sent request's copy.
-    const useSnapshot = !writeTimingSnapshot && !!requestRow?.email_body_snapshot;
+    const useSnapshot = !writeTimingSnapshot && !isResendOverride && !!requestRow?.email_body_snapshot;
     const rawSubject = useSnapshot ? String(requestRow.email_subject_snapshot || '')
       : variantRow ? String(variantRow.subject || '')
       : String(templateRow.email_subject || '');
