@@ -554,12 +554,39 @@ export default function CodeOfConductPanel(props: Props) {
     try { setPostSendLast(await getLastAutomationEvent(id)); } catch { /* ignore */ }
   };
 
-  const sendEmail = async (completion?: CompletionPayload) => {
+  const sendEmail = async (completion?: CompletionPayload, opts?: { changeVariantForResend?: boolean; changeReason?: string }) => {
     setConfirmOpen(false);
     setTimingOpen(false);
     setBusy(true);
+    const isFirstSend = !req?.completion_condition_key;
     let sentOk = false;
     let resultRequestId: string | null = req?.id || null;
+    let usedCondition: string | null = req?.completion_condition_key || completion?.condition_key || null;
+
+    if (completion) {
+      await logActivity({
+        module_key: "code_of_conduct", module_label: "Code of Conduct",
+        action_type: "coc_completion_timing_selected", action_label: "Completion timing selected",
+        entity_type: "code_of_conduct_request", entity_id: req?.id || null, entity_label: memberName,
+        metadata: {
+          selection: completion.selection, condition_key: completion.condition_key,
+          duration_days: completion.duration_days, duration_hours: completion.duration_hours,
+          process_started_at: completion.process_started_at,
+        },
+        summary: `Completion time "${selectionLabel(completion.selection)}" selected for ${memberName} → ${conditionLabel(completion.condition_key)}.`,
+      });
+      if (completion.override_reason) {
+        await logActivity({
+          module_key: "code_of_conduct", module_label: "Code of Conduct",
+          action_type: "coc_completion_timing_overridden", action_label: "Completion timing overridden",
+          entity_type: "code_of_conduct_request", entity_id: req?.id || null, entity_label: memberName,
+          severity: "warning",
+          metadata: { selection: completion.selection, condition_key: completion.condition_key, reason: completion.override_reason },
+          summary: `Calculated completion category overridden for ${memberName}.`,
+        });
+      }
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke("send-code-of-conduct-email", {
         body: {
@@ -569,6 +596,7 @@ export default function CodeOfConductPanel(props: Props) {
           member_name: memberName, member_email: emailOverride, member_phone: memberPhone,
           program_name: programName, deal_value: dealValue,
           completion: completion || undefined,
+          change_variant_for_resend: opts?.changeVariantForResend || undefined,
           origin: window.location.origin,
         },
       });
@@ -579,12 +607,39 @@ export default function CodeOfConductPanel(props: Props) {
       if (res?.signing_url) setSigningUrl(res.signing_url);
       sentOk = true;
       resultRequestId = res?.request_id || resultRequestId;
+      usedCondition = res?.condition_key || usedCondition;
+
+      await logActivity({
+        module_key: "code_of_conduct", module_label: "Code of Conduct",
+        action_type: opts?.changeVariantForResend ? "coc_email_variant_changed_for_resend" : (isFirstSend ? "coc_initial_email_sent" : "coc_email_variant_selected"),
+        action_label: opts?.changeVariantForResend ? "Email variant changed for resend" : (isFirstSend ? "Initial Code of Conduct email sent" : "Code of Conduct email variant used"),
+        entity_type: "code_of_conduct_request", entity_id: resultRequestId, entity_label: memberName,
+        metadata: {
+          condition_key: usedCondition,
+          email_variant_id: res?.email_variant_id || null,
+          email_variant_version: res?.email_variant_version || null,
+          used_snapshot: !!res?.used_snapshot,
+          change_reason: opts?.changeReason || null,
+          result: "sent",
+        },
+        summary: `Code of Conduct sent using the ${conditionLabel(usedCondition)} template.`,
+      });
     } catch (e: any) {
+      await logActivity({
+        module_key: "code_of_conduct", module_label: "Code of Conduct",
+        action_type: isFirstSend ? "coc_initial_email_sent" : "coc_email_variant_selected",
+        action_label: "Code of Conduct email send failed",
+        entity_type: "code_of_conduct_request", entity_id: resultRequestId, entity_label: memberName,
+        severity: "warning",
+        metadata: { condition_key: usedCondition, error: String(e?.message || "").slice(0, 300), result: "failed" },
+        summary: `Code of Conduct email failed for ${memberName}.`,
+      });
       toast({ title: "Code of Conduct email failed. Stage was not changed.", description: e?.message || "Unknown error", variant: "destructive" });
       await load();
       setBusy(false);
       return;
     }
+
 
     await load();
 
