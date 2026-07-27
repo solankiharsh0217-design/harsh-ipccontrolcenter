@@ -5,6 +5,8 @@ import {
   loadEmailVariants, renderPreview, validateVariant, conditionLabel,
   type CocEmailVariant,
 } from "@/lib/cocCompletionTiming";
+import { logActivity } from "@/lib/auditLog";
+
 
 const ORDER = ["completed_within_1_day", "completed_after_1_day"];
 
@@ -24,19 +26,29 @@ const VARIABLES = Object.keys(PREVIEW_VARS);
 
 export default function CodeOfConductEmailVariantsTab() {
   const [rows, setRows] = useState<CocEmailVariant[]>([]);
+  const [original, setOriginal] = useState<CocEmailVariant[]>([]);
+  const [editors, setEditors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [testingKey, setTestingKey] = useState<string | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const v = await loadEmailVariants();
-      setRows(v.sort((a, b) => ORDER.indexOf(a.condition_key) - ORDER.indexOf(b.condition_key)));
+      const v = (await loadEmailVariants()).sort((a, b) => ORDER.indexOf(a.condition_key) - ORDER.indexOf(b.condition_key));
+      setRows(v);
+      setOriginal(v.map((x) => ({ ...x })));
+      const ids = Array.from(new Set(v.map((x) => x.updated_by).filter(Boolean))) as string[];
+      if (ids.length) {
+        const { data: profs } = await supabase.from("profiles").select("id,full_name").in("id", ids);
+        setEditors(Object.fromEntries((profs || []).map((p: any) => [p.id, p.full_name || "—"])));
+      }
     } catch (e: any) {
       toast.error("Could not load email templates", { description: e?.message });
     } finally { setLoading(false); }
   };
+
   useEffect(() => { void load(); }, []);
 
   const patch = (id: string, p: Partial<CocEmailVariant>) =>
@@ -45,8 +57,10 @@ export default function CodeOfConductEmailVariantsTab() {
   const save = async (row: CocEmailVariant) => {
     const issue = validateVariant({ ...row, is_active: true });
     if (issue) { toast.error(issue.message); return; }
+    const before = original.find((x) => x.id === row.id);
     setSavingKey(row.id);
     try {
+      const { data: u } = await supabase.auth.getUser();
       const { error } = await (supabase as any)
         .from("code_of_conduct_email_variants")
         .update({
@@ -55,16 +69,71 @@ export default function CodeOfConductEmailVariantsTab() {
           text_body: row.text_body,
           is_active: row.is_active,
           version: (row.version || 1) + 1,
+          updated_by: u?.user?.id || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", row.id);
       if (error) throw error;
+
+      await logActivity({
+        module_key: "code_of_conduct", module_label: "Code of Conduct",
+        action_type: "coc_email_variant_updated", action_label: "Code of Conduct email template updated",
+        entity_type: "code_of_conduct_email_variant", entity_id: row.id, entity_label: row.condition_name,
+        metadata: { condition_key: row.condition_key, new_version: (row.version || 1) + 1, subject_changed: before?.subject !== row.subject, body_changed: before?.html_body !== row.html_body },
+        summary: `${row.condition_name} email template updated to v${(row.version || 1) + 1}.`,
+      });
+      if (before && before.is_active !== row.is_active) {
+        await logActivity({
+          module_key: "code_of_conduct", module_label: "Code of Conduct",
+          action_type: row.is_active ? "coc_email_variant_activated" : "coc_email_variant_deactivated",
+          action_label: row.is_active ? "Email template activated" : "Email template deactivated",
+          entity_type: "code_of_conduct_email_variant", entity_id: row.id, entity_label: row.condition_name,
+          severity: row.is_active ? "info" : "warning",
+          metadata: { condition_key: row.condition_key },
+          summary: `${row.condition_name} template ${row.is_active ? "activated" : "deactivated"}.`,
+        });
+      }
+
       toast.success(`${row.condition_name} saved`, { description: "Already-sent requests keep their original email snapshot." });
       await load();
     } catch (e: any) {
       toast.error("Save failed", { description: e?.message });
     } finally { setSavingKey(null); }
   };
+
+  const sendTest = async (row: CocEmailVariant) => {
+    const issue = validateVariant(row);
+    if (issue) { toast.error(issue.message); return; }
+    const to = window.prompt("Send a test Code of Conduct email to:");
+    if (!to || !to.includes("@")) { if (to !== null) toast.error("Enter a valid email address."); return; }
+    setTestingKey(row.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-code-of-conduct-email", {
+        body: {
+          member_name: "Test Member",
+          member_email: to,
+          is_test: true,
+          origin: window.location.origin,
+          completion: {
+            selection: row.condition_key === "completed_within_1_day" ? "same_day" : "two_days",
+            condition_key: row.condition_key,
+            process_started_at: null,
+            process_completed_at: new Date().toISOString(),
+            duration_hours: null,
+            duration_days: row.condition_key === "completed_within_1_day" ? 0 : 2,
+            override_reason: null,
+          },
+        },
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (res?.ok === false) throw new Error(`[${res.error_code}] ${res.message}`);
+      toast.success(`Test email sent to ${to}`, { description: `Template: ${row.condition_name}` });
+    } catch (e: any) {
+      toast.error("Test email failed", { description: e?.message });
+    } finally { setTestingKey(null); }
+  };
+
 
   if (loading) return <div className="text-[12.5px] text-muted-foreground">Loading templates…</div>;
 
@@ -88,7 +157,7 @@ export default function CodeOfConductEmailVariantsTab() {
               <div>
                 <div className="text-[14px] font-semibold">{row.condition_name || conditionLabel(row.condition_key)}</div>
                 <div className="text-[11px] text-muted-foreground">
-                  {row.condition_key} · v{row.version}{row.updated_at ? ` · updated ${new Date(row.updated_at).toLocaleString()}` : ""}
+                  {row.condition_key} · v{row.version}{row.updated_at ? ` · updated ${new Date(row.updated_at).toLocaleString()}` : ""}{row.updated_by && editors[row.updated_by] ? ` by ${editors[row.updated_by]}` : ""}
                 </div>
               </div>
               <label className="flex items-center gap-1.5 text-[12px]">
@@ -127,8 +196,12 @@ export default function CodeOfConductEmailVariantsTab() {
             )}
 
             <div className="flex justify-end gap-2">
+              <button onClick={() => void sendTest(row)} disabled={testingKey === row.id} className="ipc-btn ipc-btn-ghost disabled:opacity-50">
+                {testingKey === row.id ? "Sending…" : "Send Test Email"}
+              </button>
               <button onClick={() => setPreviewKey(previewKey === row.id ? null : row.id)} className="ipc-btn ipc-btn-ghost">
                 {previewKey === row.id ? "Hide Preview" : "Preview"}
+
               </button>
               <button onClick={() => void save(row)} disabled={savingKey === row.id || !!issue} className="ipc-btn ipc-btn-black disabled:opacity-50">
                 {savingKey === row.id ? "Saving…" : "Save Template"}

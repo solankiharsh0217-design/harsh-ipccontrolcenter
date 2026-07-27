@@ -8,6 +8,8 @@ import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRuleDetailed, nor
 import { evaluatePostSendAutomation, getLastAutomationEvent, describeSkipReason, type PostSendAutomationResult } from "@/lib/codeOfConductAutomation";
 import CocCompletionTimingModal, { type CompletionPayload } from "./CocCompletionTimingModal";
 import { conditionLabel, selectionLabel } from "@/lib/cocCompletionTiming";
+import { logActivity } from "@/lib/auditLog";
+
 
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
@@ -69,7 +71,11 @@ export default function CodeOfConductPanel(props: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editEmailOpen, setEditEmailOpen] = useState(false);
   const [timingOpen, setTimingOpen] = useState(false);
+  const [changeVariantOpen, setChangeVariantOpen] = useState(false);
+  const [changeReason, setChangeReason] = useState("");
   const [processStart, setProcessStart] = useState<{ at: string; label: string } | null>(null);
+
+
 
   const [matchedRule, setMatchedRule] = useState<CodeOfConductRule | null>(null);
   const [evalResult, setEvalResult] = useState<{ action: string; message?: string; at: string } | null>(null);
@@ -554,12 +560,39 @@ export default function CodeOfConductPanel(props: Props) {
     try { setPostSendLast(await getLastAutomationEvent(id)); } catch { /* ignore */ }
   };
 
-  const sendEmail = async (completion?: CompletionPayload) => {
+  const sendEmail = async (completion?: CompletionPayload, opts?: { changeVariantForResend?: boolean; changeReason?: string }) => {
     setConfirmOpen(false);
     setTimingOpen(false);
     setBusy(true);
+    const isFirstSend = !req?.completion_condition_key;
     let sentOk = false;
     let resultRequestId: string | null = req?.id || null;
+    let usedCondition: string | null = req?.completion_condition_key || completion?.condition_key || null;
+
+    if (completion) {
+      await logActivity({
+        module_key: "code_of_conduct", module_label: "Code of Conduct",
+        action_type: "coc_completion_timing_selected", action_label: "Completion timing selected",
+        entity_type: "code_of_conduct_request", entity_id: req?.id || null, entity_label: memberName,
+        metadata: {
+          selection: completion.selection, condition_key: completion.condition_key,
+          duration_days: completion.duration_days, duration_hours: completion.duration_hours,
+          process_started_at: completion.process_started_at,
+        },
+        summary: `Completion time "${selectionLabel(completion.selection)}" selected for ${memberName} → ${conditionLabel(completion.condition_key)}.`,
+      });
+      if (completion.override_reason) {
+        await logActivity({
+          module_key: "code_of_conduct", module_label: "Code of Conduct",
+          action_type: "coc_completion_timing_overridden", action_label: "Completion timing overridden",
+          entity_type: "code_of_conduct_request", entity_id: req?.id || null, entity_label: memberName,
+          severity: "warning",
+          metadata: { selection: completion.selection, condition_key: completion.condition_key, reason: completion.override_reason },
+          summary: `Calculated completion category overridden for ${memberName}.`,
+        });
+      }
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke("send-code-of-conduct-email", {
         body: {
@@ -569,6 +602,7 @@ export default function CodeOfConductPanel(props: Props) {
           member_name: memberName, member_email: emailOverride, member_phone: memberPhone,
           program_name: programName, deal_value: dealValue,
           completion: completion || undefined,
+          change_variant_for_resend: opts?.changeVariantForResend || undefined,
           origin: window.location.origin,
         },
       });
@@ -579,12 +613,39 @@ export default function CodeOfConductPanel(props: Props) {
       if (res?.signing_url) setSigningUrl(res.signing_url);
       sentOk = true;
       resultRequestId = res?.request_id || resultRequestId;
+      usedCondition = res?.condition_key || usedCondition;
+
+      await logActivity({
+        module_key: "code_of_conduct", module_label: "Code of Conduct",
+        action_type: opts?.changeVariantForResend ? "coc_email_variant_changed_for_resend" : (isFirstSend ? "coc_initial_email_sent" : "coc_email_variant_selected"),
+        action_label: opts?.changeVariantForResend ? "Email variant changed for resend" : (isFirstSend ? "Initial Code of Conduct email sent" : "Code of Conduct email variant used"),
+        entity_type: "code_of_conduct_request", entity_id: resultRequestId, entity_label: memberName,
+        metadata: {
+          condition_key: usedCondition,
+          email_variant_id: res?.email_variant_id || null,
+          email_variant_version: res?.email_variant_version || null,
+          used_snapshot: !!res?.used_snapshot,
+          change_reason: opts?.changeReason || null,
+          result: "sent",
+        },
+        summary: `Code of Conduct sent using the ${conditionLabel(usedCondition)} template.`,
+      });
     } catch (e: any) {
+      await logActivity({
+        module_key: "code_of_conduct", module_label: "Code of Conduct",
+        action_type: isFirstSend ? "coc_initial_email_sent" : "coc_email_variant_selected",
+        action_label: "Code of Conduct email send failed",
+        entity_type: "code_of_conduct_request", entity_id: resultRequestId, entity_label: memberName,
+        severity: "warning",
+        metadata: { condition_key: usedCondition, error: String(e?.message || "").slice(0, 300), result: "failed" },
+        summary: `Code of Conduct email failed for ${memberName}.`,
+      });
       toast({ title: "Code of Conduct email failed. Stage was not changed.", description: e?.message || "Unknown error", variant: "destructive" });
       await load();
       setBusy(false);
       return;
     }
+
 
     await load();
 
@@ -835,6 +896,17 @@ export default function CodeOfConductPanel(props: Props) {
           {!signingUrl && (req.status === "sent" || req.status === "viewed" || isFailed) && (
             <div className="text-[10.5px] text-slate-400">Tip: click {isFailed ? "Retry Send" : "Resend Email"} to also receive a fresh copyable signing link.</div>
           )}
+          {req.completion_condition_key ? (
+            <div className="text-[11px] text-slate-600 flex items-center gap-2 flex-wrap">
+              <span>Using original template: <b>{conditionLabel(req.completion_condition_key)}</b>{req.email_variant_version ? ` (v${req.email_variant_version})` : ""}</span>
+              {isAdmin && (
+                <button onClick={() => setChangeVariantOpen(true)} className="underline text-slate-700">Change Template for This Resend</button>
+              )}
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-500">Completion timing not selected</div>
+
+          )}
         </div>
       )}
 
@@ -978,6 +1050,51 @@ export default function CodeOfConductPanel(props: Props) {
         processStartedAt={processStart?.at || null}
         processStartLabel={processStart?.label || null}
       />
+
+      {changeVariantOpen && req && (() => {
+        const current = req.completion_condition_key;
+        const next = current === "completed_within_1_day" ? "completed_after_1_day" : "completed_within_1_day";
+        return (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setChangeVariantOpen(false)}>
+            <div className="bg-white rounded-xl border border-line w-full max-w-md p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="text-[15px] font-semibold mb-1">Change Template for This Resend</div>
+              <p className="text-[11.5px] text-muted-foreground mb-3">
+                This affects only the new resend. The original send history stays unchanged.
+              </p>
+              <div className="space-y-1.5 text-[12.5px] mb-3">
+                <Row k="Current template" v={conditionLabel(current)} />
+                <Row k="New template" v={conditionLabel(next)} />
+              </div>
+              <input value={changeReason} onChange={(e) => setChangeReason(e.target.value)}
+                placeholder="Reason for changing the template (required)"
+                className="w-full border border-slate-200 rounded-md px-2.5 py-1.5 text-[12px] mb-3" />
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setChangeVariantOpen(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
+                <button
+                  disabled={busy || !changeReason.trim()}
+                  onClick={() => {
+                    setChangeVariantOpen(false);
+                    void sendEmail(
+                      {
+                        selection: req.completion_selection || "custom",
+                        condition_key: next,
+                        process_started_at: req.process_started_at || null,
+                        process_completed_at: req.process_completed_at || null,
+                        duration_hours: req.completion_duration_hours ?? null,
+                        duration_days: req.completion_duration_days ?? null,
+                        override_reason: changeReason.trim(),
+                      },
+                      { changeVariantForResend: true, changeReason: changeReason.trim() },
+                    );
+                    setChangeReason("");
+                  }}
+                  className="ipc-btn ipc-btn-black disabled:opacity-50">Confirm & Resend</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
