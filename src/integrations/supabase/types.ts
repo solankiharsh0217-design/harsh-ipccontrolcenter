@@ -994,6 +994,51 @@ export type Database = {
         }
         Relationships: []
       }
+      code_of_conduct_email_variants: {
+        Row: {
+          condition_key: string
+          condition_name: string
+          created_at: string
+          created_by: string | null
+          html_body: string
+          id: string
+          is_active: boolean
+          subject: string
+          text_body: string | null
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          condition_key: string
+          condition_name: string
+          created_at?: string
+          created_by?: string | null
+          html_body?: string
+          id?: string
+          is_active?: boolean
+          subject?: string
+          text_body?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Update: {
+          condition_key?: string
+          condition_name?: string
+          created_at?: string
+          created_by?: string | null
+          html_body?: string
+          id?: string
+          is_active?: boolean
+          subject?: string
+          text_body?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       code_of_conduct_events: {
         Row: {
           created_at: string
@@ -1092,18 +1137,26 @@ export type Database = {
           bonus_terms_version_accepted: number | null
           cancelled_at: string | null
           cancelled_reason: string | null
+          completion_condition_key: string | null
+          completion_duration_days: number | null
+          completion_duration_hours: number | null
+          completion_selection: string | null
           corrected_contact_email: string | null
           created_at: string
           created_by: string | null
           crm_lead_id: string | null
           deal_value: number | null
           email_attempt_count: number
+          email_body_snapshot: string | null
           email_change_history: Json
           email_error: string | null
           email_last_error_at: string | null
           email_sent_at: string | null
           email_sent_to: string | null
           email_status: string | null
+          email_subject_snapshot: string | null
+          email_variant_id: string | null
+          email_variant_version: number | null
           first_opened_at: string | null
           id: string
           last_bonus_email_resent_at: string | null
@@ -1119,6 +1172,8 @@ export type Database = {
           paid_pipeline_lead_id: string | null
           previous_token_expires_at: string | null
           previous_token_hash: string | null
+          process_completed_at: string | null
+          process_started_at: string | null
           program_name: string | null
           provider_message_id: string | null
           re_signature_for_request_id: string | null
@@ -1140,6 +1195,7 @@ export type Database = {
           status: string
           template_id: string | null
           template_version: string | null
+          timing_override_reason: string | null
           token_expires_at: string | null
           token_hash: string | null
           updated_at: string
@@ -1164,18 +1220,26 @@ export type Database = {
           bonus_terms_version_accepted?: number | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
+          completion_condition_key?: string | null
+          completion_duration_days?: number | null
+          completion_duration_hours?: number | null
+          completion_selection?: string | null
           corrected_contact_email?: string | null
           created_at?: string
           created_by?: string | null
           crm_lead_id?: string | null
           deal_value?: number | null
           email_attempt_count?: number
+          email_body_snapshot?: string | null
           email_change_history?: Json
           email_error?: string | null
           email_last_error_at?: string | null
           email_sent_at?: string | null
           email_sent_to?: string | null
           email_status?: string | null
+          email_subject_snapshot?: string | null
+          email_variant_id?: string | null
+          email_variant_version?: number | null
           first_opened_at?: string | null
           id?: string
           last_bonus_email_resent_at?: string | null
@@ -1191,6 +1255,8 @@ export type Database = {
           paid_pipeline_lead_id?: string | null
           previous_token_expires_at?: string | null
           previous_token_hash?: string | null
+          process_completed_at?: string | null
+          process_started_at?: string | null
           program_name?: string | null
           provider_message_id?: string | null
           re_signature_for_request_id?: string | null
@@ -1212,6 +1278,7 @@ export type Database = {
           status?: string
           template_id?: string | null
           template_version?: string | null
+          timing_override_reason?: string | null
           token_expires_at?: string | null
           token_hash?: string | null
           updated_at?: string
@@ -1236,18 +1303,26 @@ export type Database = {
           bonus_terms_version_accepted?: number | null
           cancelled_at?: string | null
           cancelled_reason?: string | null
+          completion_condition_key?: string | null
+          completion_duration_days?: number | null
+          completion_duration_hours?: number | null
+          completion_selection?: string | null
           corrected_contact_email?: string | null
           created_at?: string
           created_by?: string | null
           crm_lead_id?: string | null
           deal_value?: number | null
           email_attempt_count?: number
+          email_body_snapshot?: string | null
           email_change_history?: Json
           email_error?: string | null
           email_last_error_at?: string | null
           email_sent_at?: string | null
           email_sent_to?: string | null
           email_status?: string | null
+          email_subject_snapshot?: string | null
+          email_variant_id?: string | null
+          email_variant_version?: number | null
           first_opened_at?: string | null
           id?: string
           last_bonus_email_resent_at?: string | null
@@ -1263,6 +1338,8 @@ export type Database = {
           paid_pipeline_lead_id?: string | null
           previous_token_expires_at?: string | null
           previous_token_hash?: string | null
+          process_completed_at?: string | null
+          process_started_at?: string | null
           program_name?: string | null
           provider_message_id?: string | null
           re_signature_for_request_id?: string | null
@@ -1284,6 +1361,7 @@ export type Database = {
           status?: string
           template_id?: string | null
           template_version?: string | null
+          timing_override_reason?: string | null
           token_expires_at?: string | null
           token_hash?: string | null
           updated_at?: string
@@ -1291,6 +1369,13 @@ export type Database = {
           whatsapp_redirect_opened_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "code_of_conduct_requests_email_variant_id_fkey"
+            columns: ["email_variant_id"]
+            isOneToOne: false
+            referencedRelation: "code_of_conduct_email_variants"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "code_of_conduct_requests_re_signature_for_request_id_fkey"
             columns: ["re_signature_for_request_id"]
