@@ -53,6 +53,22 @@ function findUnresolvedVars(value: string) {
   return Array.from(new Set((value.match(/{{\s*[^}]+\s*}}/g) || []).map((v) => v.trim())));
 }
 
+const SELECTION_LABELS: Record<string, string> = {
+  same_day: 'Same day',
+  one_day: '1 day',
+  two_days: '2 days',
+  three_days: '3 days',
+  four_to_seven_days: '4–7 days',
+  more_than_seven_days: 'More than 7 days',
+  custom: 'a custom duration',
+};
+
+function humanizeSelection(selection: string | null) {
+  if (!selection) return '—';
+  return SELECTION_LABELS[selection] || selection.replace(/_/g, ' ');
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -73,7 +89,7 @@ Deno.serve(async (req) => {
     userId = userData.user.id;
 
     const body = await req.json().catch(() => ({}));
-    const { action, request_id, paid_pipeline_lead_id, crm_lead_id, template_id, member_name, member_email, member_phone, program_name, deal_value, origin, is_test } = body || {};
+    const { action, request_id, paid_pipeline_lead_id, crm_lead_id, template_id, member_name, member_email, member_phone, program_name, deal_value, origin, is_test, completion, change_variant_for_resend } = body || {};
 
     if (action === 'diagnostics') {
       const diagAdmin = createClient(SUPABASE_URL, SERVICE);
@@ -174,6 +190,35 @@ Deno.serve(async (req) => {
       if (data && data.length) requestRow = data[0];
     }
 
+    // ── Completion-time email variant resolution ───────────────────────────
+    // First send: the client passes `completion` (selection + condition_key).
+    // Resend/retry: the condition saved on the request wins, unless an admin
+    // explicitly changes it for this resend.
+    const savedConditionKey: string | null = requestRow?.completion_condition_key || null;
+    const conditionKey: string | null = change_variant_for_resend
+      ? (completion?.condition_key || null)
+      : (savedConditionKey || completion?.condition_key || null);
+
+    let variantRow: any = null;
+    if (conditionKey) {
+      const { data: v } = await admin.from('code_of_conduct_email_variants').select('*').eq('condition_key', conditionKey).maybeSingle();
+      if (!v) return fail('NO_MATCHING_EMAIL_VARIANT', 'A matching email template could not be found.', { condition_key: conditionKey });
+      if (!v.is_active) return fail('EMAIL_VARIANT_INACTIVE', 'The selected email template is inactive.', { condition_key: conditionKey });
+      if (!String(v.subject || '').trim() || !String(v.html_body || '').trim()) {
+        return fail('EMAIL_VARIANT_INCOMPLETE', 'The matched Code of Conduct email template is incomplete. Please update it in Admin Center.', { condition_key: conditionKey });
+      }
+      if (!String(v.html_body).includes('{{signing_link}}')) {
+        return fail('EMAIL_VARIANT_MISSING_LINK', 'The template must include the Code of Conduct link.', { condition_key: conditionKey });
+      }
+      variantRow = v;
+    }
+    // Snapshot timing fields only on the first send, or when an admin
+    // deliberately changes the variant for this resend. Never rewrite history
+    // of a request that already carries a condition.
+    const writeTimingSnapshot = !!variantRow && (!savedConditionKey || !!change_variant_for_resend);
+
+
+
     const nowIso = new Date().toISOString();
     const expiryDays = Number(templateRow.expiry_days || 7);
     const graceMs = 48 * 3600 * 1000; // old link stays valid for 48h after rotation
@@ -211,6 +256,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    const timingFields: Record<string, unknown> = writeTimingSnapshot ? {
+      process_started_at: completion?.process_started_at || null,
+      process_completed_at: completion?.process_completed_at || null,
+      completion_duration_hours: completion?.duration_hours ?? null,
+      completion_duration_days: completion?.duration_days ?? null,
+      completion_selection: completion?.selection || null,
+      completion_condition_key: variantRow.condition_key,
+      email_variant_id: variantRow.id,
+      email_variant_version: variantRow.version,
+      email_subject_snapshot: variantRow.subject,
+      email_body_snapshot: variantRow.html_body,
+      timing_override_reason: completion?.override_reason || null,
+    } : {};
+
     if (!requestRow) {
       const { data, error } = await admin.from('code_of_conduct_requests').insert({
         template_id: templateRow.id,
@@ -230,10 +289,11 @@ Deno.serve(async (req) => {
         email_sent_to: member_email,
         email_attempt_count: 1,
         created_by: userId,
+        ...timingFields,
       }).select().single();
       if (error) return fail('REQUEST_CREATION_FAILED', error.message, error, 500);
       requestRow = data;
-      await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'request_created', metadata: { is_test: !!is_test }, created_by: userId });
+      await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'request_created', metadata: { is_test: !!is_test, condition_key: conditionKey }, created_by: userId });
     } else {
       const nextStatus = requestRow.status === 'signed' ? 'signed' : 'ready_to_send';
       const nextAttempts = Number(requestRow.email_attempt_count || 0) + 1;
@@ -248,6 +308,7 @@ Deno.serve(async (req) => {
         email_status: 'pending',
         email_sent_to: member_email,
         email_attempt_count: nextAttempts,
+        ...timingFields,
       };
       if (previousTokenHash) {
         updatePayload.previous_token_hash = previousTokenHash;
@@ -257,6 +318,7 @@ Deno.serve(async (req) => {
       if (error) return fail('REQUEST_CREATION_FAILED', error.message, error, 500);
       requestRow = data;
     }
+
 
     // If we reused the existing token we cannot rebuild the raw URL (only hash is stored).
     // In that case we mint a *new* token and record the old hash under previous_token_hash
@@ -293,6 +355,10 @@ Deno.serve(async (req) => {
     const supportEmail = replyTo || Deno.env.get('EMAIL_FROM_ADDRESS') || (templateRow.from_email ? String(templateRow.from_email) : '');
     const expiryDate = new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     const resolvedProgram = program_name || templateRow.program_name || 'IPC Diamond Membership';
+    const completionTimeLabel = humanizeSelection(requestRow?.completion_selection || completion?.selection || null);
+    const completionConditionLabel = variantRow?.condition_name
+      || (requestRow?.completion_condition_key === 'completed_within_1_day' ? 'Completed Within 1 Day'
+        : requestRow?.completion_condition_key === 'completed_after_1_day' ? 'Completed After 1 Day' : '—');
     const vars = {
       member_name: String(member_name),
       program_name: String(resolvedProgram),
@@ -301,10 +367,23 @@ Deno.serve(async (req) => {
       expiry_date: expiryDate,
       company_name: companyName,
       support_email: supportEmail,
+      completion_time: completionTimeLabel,
+      completion_condition: completionConditionLabel,
     };
 
-    const subject = renderTemplate(templateRow.email_subject || '', vars).trim();
-    const bodyText = renderTemplate(templateRow.email_body || '', vars).trim();
+    // Resends reuse the exact snapshot captured on the original send, so later
+    // template edits never rewrite an already-sent request's copy.
+    const useSnapshot = !writeTimingSnapshot && !!requestRow?.email_body_snapshot;
+    const rawSubject = useSnapshot ? String(requestRow.email_subject_snapshot || '')
+      : variantRow ? String(variantRow.subject || '')
+      : String(templateRow.email_subject || '');
+    const rawBody = useSnapshot ? String(requestRow.email_body_snapshot || '')
+      : variantRow ? String(variantRow.html_body || '')
+      : String(templateRow.email_body || '');
+
+    const subject = renderTemplate(rawSubject, vars).trim();
+    const bodyText = renderTemplate(rawBody, vars).trim();
+
     if (!subject) return fail('SUBJECT_NOT_RENDERED', 'Email subject could not be rendered.');
     if (!bodyText) return fail('BODY_NOT_RENDERED', 'Email body could not be rendered.');
     if (bodyText.includes('{{signing_link}}') || !bodyText.includes(signingLink)) return fail('SIGNING_LINK_NOT_RENDERED', 'The signing link was not rendered into the email body.');
@@ -413,7 +492,22 @@ ${htmlLines}
       if (!is_test && crm_lead_id) await admin.from('leads').update({ code_of_conduct_status: 'sent', code_of_conduct_request_id: requestRow.id, code_of_conduct_sent_at: nowIso }).eq('id', crm_lead_id);
     }
 
-    return jsonResponse({ ok: true, request_id: requestRow?.id || null, status: 'sent', recipient_email: member_email, signing_url: signingLink, provider_message_id: providerMessageId, sent_at: nowIso, is_test: !!is_test });
+    return jsonResponse({
+      ok: true,
+      request_id: requestRow?.id || null,
+      status: 'sent',
+      recipient_email: member_email,
+      signing_url: signingLink,
+      provider_message_id: providerMessageId,
+      sent_at: nowIso,
+      is_test: !!is_test,
+      condition_key: requestRow?.completion_condition_key || conditionKey || null,
+      condition_name: completionConditionLabel,
+      email_variant_id: requestRow?.email_variant_id || variantRow?.id || null,
+      email_variant_version: requestRow?.email_variant_version || variantRow?.version || null,
+      used_snapshot: useSnapshot,
+    });
+
   } catch (e) {
     console.error('send-code-of-conduct-email error', e);
     const msg = (e as Error)?.message || 'Unknown error';

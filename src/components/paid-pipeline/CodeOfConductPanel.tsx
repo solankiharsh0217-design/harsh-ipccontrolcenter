@@ -6,6 +6,9 @@ import EditMemberEmailModal from "./EditMemberEmailModal";
 import { useAuth } from "@/context/AuthContext";
 import { evaluateStageTrigger, loadActiveCoCRules, findMatchingRuleDetailed, normalizeCoCName, type CodeOfConductRule, type CoCRuleSource, type RuleMatchDiagnostics } from "@/lib/codeOfConductRules";
 import { evaluatePostSendAutomation, getLastAutomationEvent, describeSkipReason, type PostSendAutomationResult } from "@/lib/codeOfConductAutomation";
+import CocCompletionTimingModal, { type CompletionPayload } from "./CocCompletionTimingModal";
+import { conditionLabel, selectionLabel } from "@/lib/cocCompletionTiming";
+
 
 const toast = ({ title, description, variant }: { title: string; description?: string; variant?: "destructive" }) => {
   if (variant === "destructive") sonnerToast.error(title, { description });
@@ -65,6 +68,9 @@ export default function CodeOfConductPanel(props: Props) {
   const [diag, setDiag] = useState<any>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editEmailOpen, setEditEmailOpen] = useState(false);
+  const [timingOpen, setTimingOpen] = useState(false);
+  const [processStart, setProcessStart] = useState<{ at: string; label: string } | null>(null);
+
   const [matchedRule, setMatchedRule] = useState<CodeOfConductRule | null>(null);
   const [evalResult, setEvalResult] = useState<{ action: string; message?: string; at: string } | null>(null);
   const [evalRunning, setEvalRunning] = useState(false);
@@ -502,10 +508,44 @@ export default function CodeOfConductPanel(props: Props) {
   }
   const setupComplete = setupMissing.length === 0;
 
-  const requestSend = () => {
+  const requestSend = async () => {
     if (!emailOverride || !emailOverride.includes("@")) { toast({ title: "Valid email required", variant: "destructive" }); return; }
     if (!setupComplete) { toast({ title: "Email setup incomplete", description: `Missing: ${setupMissing.join(", ")}`, variant: "destructive" }); return; }
+    // First-time send must pick a completion time; resends reuse the saved condition.
+    if (!req?.completion_condition_key) {
+      await resolveProcessStart();
+      setTimingOpen(true);
+      return;
+    }
     setConfirmOpen(true);
+  };
+
+  /** Best-effort canonical process start: first payment date, else lead creation. */
+  const resolveProcessStart = async () => {
+    if (processStart) return;
+    try {
+      if (paidLeadId) {
+        const { data: pay } = await (supabase as any)
+          .from("paid_pipeline_payments")
+          .select("payment_date,created_at")
+          .eq("paid_pipeline_lead_id", paidLeadId)
+          .eq("is_deleted", false)
+          .order("payment_date", { ascending: true })
+          .limit(1);
+        const p = pay?.[0];
+        if (p?.payment_date || p?.created_at) {
+          setProcessStart({ at: new Date(p.payment_date || p.created_at).toISOString(), label: "First payment received" });
+          return;
+        }
+        const { data: lead } = await (supabase as any).from("paid_pipeline_leads").select("created_at").eq("id", paidLeadId).maybeSingle();
+        if (lead?.created_at) { setProcessStart({ at: lead.created_at, label: "Paid onboarding started" }); return; }
+      }
+      const cid = resolvedCrmLeadId || crmLeadId;
+      if (cid) {
+        const { data: crm } = await (supabase as any).from("leads").select("created_at").eq("id", cid).maybeSingle();
+        if (crm?.created_at) setProcessStart({ at: crm.created_at, label: "CRM lead created" });
+      }
+    } catch { /* prefill is best-effort */ }
   };
 
   const refreshLastAutomation = async (requestId?: string | null) => {
@@ -514,8 +554,9 @@ export default function CodeOfConductPanel(props: Props) {
     try { setPostSendLast(await getLastAutomationEvent(id)); } catch { /* ignore */ }
   };
 
-  const sendEmail = async () => {
+  const sendEmail = async (completion?: CompletionPayload) => {
     setConfirmOpen(false);
+    setTimingOpen(false);
     setBusy(true);
     let sentOk = false;
     let resultRequestId: string | null = req?.id || null;
@@ -527,9 +568,11 @@ export default function CodeOfConductPanel(props: Props) {
           crm_lead_id: resolvedCrmLeadId || crmLeadId || undefined,
           member_name: memberName, member_email: emailOverride, member_phone: memberPhone,
           program_name: programName, deal_value: dealValue,
+          completion: completion || undefined,
           origin: window.location.origin,
         },
       });
+
       if (error) throw error;
       const res = data as any;
       if (res?.ok === false) throw new Error(`[${res.error_code}] ${res.message}`);
@@ -692,7 +735,10 @@ export default function CodeOfConductPanel(props: Props) {
             <Cell label="Member email" value={req.signed_member_email || req.member_email} />
             {req.signature_name && <Cell label="Signed by" value={req.signature_name} />}
             {req.corrected_contact_email && <Cell label="Corrected contact" value={req.corrected_contact_email} />}
+            {req.completion_condition_key && <Cell label="Completion time" value={selectionLabel(req.completion_selection)} />}
+            {req.completion_condition_key && <Cell label="Email variant" value={`${conditionLabel(req.completion_condition_key)}${req.email_variant_version ? ` v${req.email_variant_version}` : ""}`} />}
             <Cell label="Request id" value={req.id.slice(0, 8)} />
+
           </div>
           {req.status === "signed" && (() => {
             const hasSig = hasValidSignature(req);
@@ -898,6 +944,8 @@ export default function CodeOfConductPanel(props: Props) {
               <Row k="Sender name" v={sFromName || "—"} />
               <Row k="Reply-to" v={sReplyTo} />
               <Row k="Template" v={`${tpl.name || "—"}${tpl.version ? ` v${tpl.version}` : ""}`} />
+              <Row k="Completion time" v={selectionLabel(req?.completion_selection)} />
+              <Row k="Email variant" v={conditionLabel(req?.completion_condition_key)} />
               <Row k="Link expiry" v={`${tpl.expiry_days || 7} days`} />
             </div>
             {looksUnverified && (
@@ -907,7 +955,8 @@ export default function CodeOfConductPanel(props: Props) {
             )}
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setConfirmOpen(false)} className="ipc-btn ipc-btn-ghost">Cancel</button>
-              <button onClick={sendEmail} className="ipc-btn ipc-btn-black">Send Email</button>
+              <button onClick={() => { void sendEmail(); }} className="ipc-btn ipc-btn-black">Send Email</button>
+
             </div>
           </div>
         </div>
@@ -917,9 +966,22 @@ export default function CodeOfConductPanel(props: Props) {
       {req && (
         <BonusEmailSection req={req} memberName={memberName} memberEmail={req.signed_member_email || req.member_email || emailOverride} isAdmin={isAdmin} onSent={load} />
       )}
+
+      <CocCompletionTimingModal
+        open={timingOpen}
+        busy={busy}
+        onClose={() => setTimingOpen(false)}
+        onConfirm={(payload) => { void sendEmail(payload); }}
+        memberName={memberName}
+        memberEmail={emailOverride}
+        programName={programName}
+        processStartedAt={processStart?.at || null}
+        processStartLabel={processStart?.label || null}
+      />
     </div>
   );
 }
+
 
 function Cell({ label, value }: { label: string; value: string }) {
   return (
