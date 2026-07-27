@@ -212,10 +212,19 @@ Deno.serve(async (req) => {
       }
       variantRow = v;
     }
-    // Snapshot timing fields only on the first send, or when an admin
-    // deliberately changes the variant for this resend. Never rewrite history
-    // of a request that already carries a condition.
-    const writeTimingSnapshot = !!variantRow && (!savedConditionKey || !!change_variant_for_resend);
+    // A resend override (admin-only) uses a different variant for THIS send only —
+    // the original first-send snapshot must stay exactly as it was.
+    const isResendOverride = !!change_variant_for_resend && !!savedConditionKey;
+    if (isResendOverride) {
+      const { data: overrideIsAdmin } = await admin.rpc('has_role', { _user_id: userId, _role: 'admin' });
+      if (!overrideIsAdmin) return fail('FORBIDDEN', 'Only an admin can change the template for a resend.', null, 403);
+      if (!String(completion?.override_reason || '').trim()) {
+        return fail('OVERRIDE_REASON_REQUIRED', 'A reason is required to change the template for this resend.');
+      }
+    }
+    // Snapshot timing fields only on the first send. Never rewrite history of a
+    // request that already carries a condition.
+    const writeTimingSnapshot = !!variantRow && !savedConditionKey;
 
 
 
@@ -348,6 +357,21 @@ Deno.serve(async (req) => {
     const signingLink = `${baseUrl}/code-of-conduct-guide/${token}`;
     await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'token_generated', metadata: { expires_at: expiresAt, is_test: !!is_test }, created_by: userId });
     await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'email_send_attempted', metadata: { to: member_email, is_test: !!is_test }, created_by: userId });
+    if (isResendOverride) {
+      await admin.from('code_of_conduct_events').insert({
+        request_id: requestRow.id,
+        event_type: 'email_variant_override_resend',
+        metadata: {
+          original_condition_key: savedConditionKey,
+          original_variant_version: requestRow.email_variant_version ?? null,
+          override_condition_key: variantRow?.condition_key ?? null,
+          override_variant_id: variantRow?.id ?? null,
+          override_variant_version: variantRow?.version ?? null,
+          reason: String(completion?.override_reason || '').slice(0, 300),
+        },
+        created_by: userId,
+      });
+    }
 
     const envReplyTo = Deno.env.get('EMAIL_REPLY_TO') || '';
     const replyTo = ((templateRow as any).reply_to_email && String((templateRow as any).reply_to_email).trim()) || envReplyTo || '';
@@ -373,7 +397,7 @@ Deno.serve(async (req) => {
 
     // Resends reuse the exact snapshot captured on the original send, so later
     // template edits never rewrite an already-sent request's copy.
-    const useSnapshot = !writeTimingSnapshot && !!requestRow?.email_body_snapshot;
+    const useSnapshot = !writeTimingSnapshot && !isResendOverride && !!requestRow?.email_body_snapshot;
     const rawSubject = useSnapshot ? String(requestRow.email_subject_snapshot || '')
       : variantRow ? String(variantRow.subject || '')
       : String(templateRow.email_subject || '');
@@ -503,9 +527,10 @@ ${htmlLines}
       is_test: !!is_test,
       condition_key: requestRow?.completion_condition_key || conditionKey || null,
       condition_name: completionConditionLabel,
-      email_variant_id: requestRow?.email_variant_id || variantRow?.id || null,
-      email_variant_version: requestRow?.email_variant_version || variantRow?.version || null,
+      email_variant_id: isResendOverride ? (variantRow?.id || null) : (requestRow?.email_variant_id || variantRow?.id || null),
+      email_variant_version: isResendOverride ? (variantRow?.version || null) : (requestRow?.email_variant_version || variantRow?.version || null),
       used_snapshot: useSnapshot,
+      resend_override_condition_key: isResendOverride ? (variantRow?.condition_key || null) : null,
     });
 
   } catch (e) {
