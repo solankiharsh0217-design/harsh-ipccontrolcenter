@@ -62,7 +62,7 @@ type ChecklistItem = { key: string; label: string; ok: boolean; required: boolea
 
 export default function CodeOfConductAdmin() {
   const { isAdmin } = useAuth();
-  const [tab, setTab] = useState<"setup" | "template" | "rules" | "requests" | "diagnostics">("setup");
+  const [tab, setTab] = useState<"setup" | "template" | "variants" | "rules" | "requests" | "diagnostics">("setup");
   const [tpl, setTpl] = useState<any>(null);
   const [savingTpl, setSavingTpl] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
