@@ -357,6 +357,21 @@ Deno.serve(async (req) => {
     const signingLink = `${baseUrl}/code-of-conduct-guide/${token}`;
     await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'token_generated', metadata: { expires_at: expiresAt, is_test: !!is_test }, created_by: userId });
     await admin.from('code_of_conduct_events').insert({ request_id: requestRow.id, event_type: 'email_send_attempted', metadata: { to: member_email, is_test: !!is_test }, created_by: userId });
+    if (isResendOverride) {
+      await admin.from('code_of_conduct_events').insert({
+        request_id: requestRow.id,
+        event_type: 'email_variant_override_resend',
+        metadata: {
+          original_condition_key: savedConditionKey,
+          original_variant_version: requestRow.email_variant_version ?? null,
+          override_condition_key: variantRow?.condition_key ?? null,
+          override_variant_id: variantRow?.id ?? null,
+          override_variant_version: variantRow?.version ?? null,
+          reason: String(completion?.override_reason || '').slice(0, 300),
+        },
+        created_by: userId,
+      });
+    }
 
     const envReplyTo = Deno.env.get('EMAIL_REPLY_TO') || '';
     const replyTo = ((templateRow as any).reply_to_email && String((templateRow as any).reply_to_email).trim()) || envReplyTo || '';
