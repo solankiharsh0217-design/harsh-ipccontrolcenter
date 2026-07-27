@@ -212,10 +212,19 @@ Deno.serve(async (req) => {
       }
       variantRow = v;
     }
-    // Snapshot timing fields only on the first send, or when an admin
-    // deliberately changes the variant for this resend. Never rewrite history
-    // of a request that already carries a condition.
-    const writeTimingSnapshot = !!variantRow && (!savedConditionKey || !!change_variant_for_resend);
+    // A resend override (admin-only) uses a different variant for THIS send only —
+    // the original first-send snapshot must stay exactly as it was.
+    const isResendOverride = !!change_variant_for_resend && !!savedConditionKey;
+    if (isResendOverride) {
+      const { data: overrideIsAdmin } = await admin.rpc('has_role', { _user_id: userId, _role: 'admin' });
+      if (!overrideIsAdmin) return fail('FORBIDDEN', 'Only an admin can change the template for a resend.', null, 403);
+      if (!String(completion?.override_reason || '').trim()) {
+        return fail('OVERRIDE_REASON_REQUIRED', 'A reason is required to change the template for this resend.');
+      }
+    }
+    // Snapshot timing fields only on the first send. Never rewrite history of a
+    // request that already carries a condition.
+    const writeTimingSnapshot = !!variantRow && !savedConditionKey;
 
 
 
