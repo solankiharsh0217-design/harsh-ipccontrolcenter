@@ -157,7 +157,7 @@ export default function CodeOfConductEmailVariantsTab() {
               <div>
                 <div className="text-[14px] font-semibold">{row.condition_name || conditionLabel(row.condition_key)}</div>
                 <div className="text-[11px] text-muted-foreground">
-                  {row.condition_key} · v{row.version}{row.updated_at ? ` · updated ${new Date(row.updated_at).toLocaleString()}` : ""}
+                  {row.condition_key} · v{row.version}{row.updated_at ? ` · updated ${new Date(row.updated_at).toLocaleString()}` : ""}{row.updated_by && editors[row.updated_by] ? ` by ${editors[row.updated_by]}` : ""}
                 </div>
               </div>
               <label className="flex items-center gap-1.5 text-[12px]">
