@@ -68,18 +68,16 @@ export default function CocCompletionTimingModal(props: Props) {
 
   if (!open) return null;
 
-  const customDays = calculated?.days ?? null;
-  const condition = selection ? conditionForSelection(selection, customDays) : null;
+  const condition = selection ? conditionForSelection(selection) : null;
   const variant = condition ? variants.find((v) => v.condition_key === condition) || null : null;
   const issue = condition ? validateVariant(variant) : null;
 
   const conflictsWithCalculated = !!(calculated && condition && calculated.condition !== condition);
   const needsReason = conflictsWithCalculated && !overrideReason.trim();
 
-  const durationHours = selection === "custom" || calculated ? calculated?.hours ?? null : null;
-  const durationDays = selection === "custom"
-    ? (calculated?.days ?? null)
-    : (selection ? daysForSelection(selection) : null);
+  const durationHours = calculated?.hours ?? null;
+  const durationDays = calculated?.days ?? (selection ? daysForSelection(selection) : null);
+
 
   const previewVars: Record<string, string> = {
     member_name: memberName || "Member",
