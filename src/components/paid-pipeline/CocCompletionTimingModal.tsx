@@ -68,18 +68,16 @@ export default function CocCompletionTimingModal(props: Props) {
 
   if (!open) return null;
 
-  const customDays = calculated?.days ?? null;
-  const condition = selection ? conditionForSelection(selection, customDays) : null;
+  const condition = selection ? conditionForSelection(selection) : null;
   const variant = condition ? variants.find((v) => v.condition_key === condition) || null : null;
   const issue = condition ? validateVariant(variant) : null;
 
   const conflictsWithCalculated = !!(calculated && condition && calculated.condition !== condition);
   const needsReason = conflictsWithCalculated && !overrideReason.trim();
 
-  const durationHours = selection === "custom" || calculated ? calculated?.hours ?? null : null;
-  const durationDays = selection === "custom"
-    ? (calculated?.days ?? null)
-    : (selection ? daysForSelection(selection) : null);
+  const durationHours = calculated?.hours ?? null;
+  const durationDays = calculated?.days ?? (selection ? daysForSelection(selection) : null);
+
 
   const previewVars: Record<string, string> = {
     member_name: memberName || "Member",
@@ -121,15 +119,23 @@ export default function CocCompletionTimingModal(props: Props) {
           <Row k={processStartLabel || "Process start"} v={processStartedAt ? new Date(processStartedAt).toLocaleString() : "Not available"} />
         </div>
 
-        <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">Completed in</label>
-        <div className="grid grid-cols-2 gap-1.5 mb-3">
-          {COMPLETION_OPTIONS.map((o) => (
-            <button key={o.value} onClick={() => setSelection(o.value)}
-              className={`text-left text-[12px] px-2.5 py-1.5 rounded-md border ${selection === o.value ? "border-black bg-black text-white" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
-              {o.label}
-            </button>
-          ))}
+        <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">Completion</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+          {COMPLETION_OPTIONS.map((o) => {
+            const active = selection === o.value;
+            return (
+              <button key={o.value} onClick={() => setSelection(o.value)}
+                className={`text-left rounded-lg border p-3 transition ${active ? "border-black bg-black text-white" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`h-3.5 w-3.5 rounded-full border flex-none ${active ? "border-white bg-white" : "border-slate-300"}`} />
+                  <span className="text-[13px] font-medium">{o.label}</span>
+                </div>
+                <div className={`text-[11.5px] mt-1 ${active ? "opacity-80" : "text-slate-500"}`}>{o.description}</div>
+              </button>
+            );
+          })}
         </div>
+
 
         <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">Process completed at</label>
         <input type="datetime-local" value={completedAt} onChange={(e) => setCompletedAt(e.target.value)}
