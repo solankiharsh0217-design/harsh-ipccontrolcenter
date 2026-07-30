@@ -1077,7 +1077,7 @@ export default function CodeOfConductPanel(props: Props) {
                     setChangeVariantOpen(false);
                     void sendEmail(
                       {
-                        selection: req.completion_selection || "custom",
+                        selection: req.completion_selection || (next === "completed_within_1_day" ? "same_day" : "next_day_or_later"),
                         condition_key: next,
                         process_started_at: req.process_started_at || null,
                         process_completed_at: req.process_completed_at || null,
