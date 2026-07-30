@@ -55,6 +55,8 @@ function findUnresolvedVars(value: string) {
 
 const SELECTION_LABELS: Record<string, string> = {
   same_day: 'Same day',
+  next_day_or_later: 'Next day or later',
+  // Legacy selections kept for historical requests.
   one_day: '1 day',
   two_days: '2 days',
   three_days: '3 days',
