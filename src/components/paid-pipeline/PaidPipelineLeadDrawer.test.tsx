@@ -1,4 +1,4 @@
-import { render, screen, within, cleanup } from "@testing-library/react";
+import { render, screen, within, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { BrowserRouter } from "react-router-dom";
@@ -88,7 +88,6 @@ describe("PaidPipelineLeadDrawer", () => {
   });
 
   it("Payments Tab renders correctly with history and matching finance balance", async () => {
-    // Mock supabase response for payments
     const { supabase } = await import("@/integrations/supabase/client");
     (supabase.from as any).mockImplementation((table: string) => {
       if (table === "paid_pipeline_payments") {
@@ -119,16 +118,18 @@ describe("PaidPipelineLeadDrawer", () => {
     );
 
     // Switch to Payments tab
-    const paymentsTab = screen.getByRole("tab", { name: /Payments/i });
-    paymentsTab.click();
+    const paymentsTabTrigger = screen.getByRole("tab", { name: /Payments/i });
+    fireEvent.click(paymentsTabTrigger);
 
     // 1. Check correct number of rows for 3 payment records
-    const rows = await screen.findAllByRole("row");
-    // Header row + 3 data rows = 4 rows total
-    expect(rows.length).toBe(4);
+    // Use waitFor to ensure state updates (like payments being set) are reflected
+    await waitFor(() => {
+        const rows = screen.getAllByRole("row");
+        // Header row + 3 data rows = 4 rows total
+        expect(rows.length).toBe(4);
+    });
 
     // 2. Check Finance/EMI card balance matches Overview (₹1,000)
-    // We look for "₹1,000" inside the Finance card
     const financeHeading = screen.getByText(/Finance \/ EMI/i);
     const financeCard = financeHeading.closest("div");
     expect(within(financeCard!).getByText("₹1,000")).toBeDefined();
