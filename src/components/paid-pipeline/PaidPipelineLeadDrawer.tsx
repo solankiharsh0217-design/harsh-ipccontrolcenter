@@ -426,7 +426,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
               <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
                 <span className="truncate max-w-[200px]">{lead.product_name_snapshot || lead.onboarding_batch_name || "No Program/Batch"}</span>
                 <span>•</span>
-                <span className="truncate">Owner: {agents.find(a => a.id === lead.owner_id)?.full_name || "Unassigned"}</span>
+                <span className="truncate">Owner: {agents.find(a => a.id === (lead as any).owner_id)?.full_name || "Unassigned"}</span>
                 <span>•</span>
                 <span className="font-medium text-amber-600">Balance: {inr(lead.balance_pending)}</span>
               </div>
