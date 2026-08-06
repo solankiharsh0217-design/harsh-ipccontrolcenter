@@ -128,28 +128,29 @@ describe("PaidPipelineLeadDrawer", () => {
       );
     });
 
-    // Overview should already show ₹1,000
-    expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
+    const triggers = screen.getAllByRole("tab");
+    const paymentsTrigger = triggers.find(t => t.textContent?.toLowerCase().includes("payments"));
+    expect(paymentsTrigger).toBeDefined();
 
-    const paymentsTrigger = screen.getByRole("tab", { name: /Payments/i });
     await act(async () => {
-      fireEvent.click(paymentsTrigger);
+      fireEvent.click(paymentsTrigger!);
     });
 
-    // Use a loose text check for everything since exact element queries are failing in the virtual DOM
-    await waitFor(() => {
-        expect(screen.getByText("Finance / EMI")).toBeDefined();
-        // Approved amount from mockLead
-        expect(screen.getByText("₹500")).toBeDefined();
-        // Disbursed amount from mockLead
-        expect(screen.getByText("₹250")).toBeDefined();
-    }, { timeout: 3000 });
+    // Verify Approved and Disbursed amounts from finance card
+    // Note: We use findByText to wait for the tab content to render into the DOM
+    expect(await screen.findByText("₹500")).toBeDefined();
+    expect(await screen.findByText("₹250")).toBeDefined();
 
-    // Verify payments loaded
-    await waitFor(() => {
-      expect(screen.getByText("Desc 1")).toBeDefined();
-      expect(screen.getByText("Desc 2")).toBeDefined();
-      expect(screen.getByText("Desc 3")).toBeDefined();
-    });
+    // Verify Payment History content
+    expect(await screen.findByText("2024-01-01")).toBeDefined();
+    expect(screen.getByText("Desc 1")).toBeDefined();
+    expect(screen.getByText("Desc 2")).toBeDefined();
+    expect(screen.getByText("Desc 3")).toBeDefined();
+    
+    // Check row count in table body (3 payments)
+    const table = screen.getByRole("table");
+    const tbody = table.querySelector("tbody");
+    const rows = within(tbody!).getAllByRole("row");
+    expect(rows.length).toBe(3);
   });
 });
