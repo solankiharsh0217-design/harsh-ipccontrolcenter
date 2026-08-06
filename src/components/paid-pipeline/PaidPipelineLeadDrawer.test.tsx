@@ -11,9 +11,16 @@ vi.mock("@/integrations/supabase/client", () => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           eq: vi.fn(() => ({
-            order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+            order: vi.fn(() => ({
+              order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+            })),
           })),
           maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
+          order: vi.fn(() => ({
+            order: vi.fn(() => Promise.resolve({ data: [], error: null })),
+          })),
+        })),
+        order: vi.fn(() => ({
           order: vi.fn(() => Promise.resolve({ data: [], error: null })),
         })),
       })),
@@ -102,7 +109,7 @@ describe("PaidPipelineLeadDrawer", () => {
       return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        order: vi.fn().mockReturnThis(),
         maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       };
     });
@@ -121,12 +128,10 @@ describe("PaidPipelineLeadDrawer", () => {
       );
     });
 
-    // Find tab trigger
     const triggers = screen.getAllByRole("tab");
     const paymentsTrigger = triggers.find(t => t.textContent?.toLowerCase().includes("payments"));
     expect(paymentsTrigger).toBeDefined();
 
-    // Click trigger
     await act(async () => {
       fireEvent.click(paymentsTrigger!);
     });
@@ -145,5 +150,11 @@ describe("PaidPipelineLeadDrawer", () => {
     expect(screen.getByText("Desc 1")).toBeDefined();
     expect(screen.getByText("Desc 2")).toBeDefined();
     expect(screen.getByText("Desc 3")).toBeDefined();
+    
+    // Check row count in table body (3 payments)
+    const table = screen.getByRole("table");
+    const tbody = table.querySelector("tbody");
+    const rows = within(tbody!).getAllByRole("row");
+    expect(rows.length).toBe(3);
   });
 });
