@@ -4,9 +4,12 @@ import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { BrowserRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 
-// Robust Supabase mock for the entire test suite
-const createSupabaseMock = () => {
-  const mock = {
+// vi.mock calls are hoisted to the top of the file.
+// We must not reference any variables defined in the scope of this file (like functions)
+// unless we use the factory pattern correctly or define everything inside the factory.
+
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
     from: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
@@ -15,12 +18,7 @@ const createSupabaseMock = () => {
     limit: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
-  } as any;
-  return mock;
-};
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: createSupabaseMock(),
+  },
 }));
 
 vi.mock("@/lib/paidPipeline", () => ({
@@ -114,32 +112,19 @@ describe("PaidPipelineLeadDrawer", () => {
     expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
 
     // 2. Switch to Payments Tab
-    // We target by role/name to ensure we find the trigger regardless of wrapper elements
     const paymentsTrigger = screen.getByRole("tab", { name: /Payments/i });
     
-    // Use user-event like fireEvent but wrapped in act
     await act(async () => {
       fireEvent.click(paymentsTrigger);
     });
 
-    // 3. Verify Finance/EMI and Payment History in the tab
-    // We use a longer timeout and debug if it fails
+    // 3. Verify content
     await waitFor(() => {
-        const body = document.body.innerHTML;
-        // Verify Approved and Disbursed amounts from finance card
-        const hasApproved = body.includes("₹500");
-        const hasDisbursed = body.includes("₹250");
-        
-        // Payment history records
-        const hasDesc1 = body.includes("Desc 1");
-        
-        if (!hasApproved || !hasDesc1) {
-            throw new Error(`Content not found. Body snippet: ${body.substring(0, 1000)}`);
-        }
-        
-        expect(hasApproved).toBe(true);
-        expect(hasDisbursed).toBe(true);
-        expect(hasDesc1).toBe(true);
+        // Finance card values
+        expect(screen.queryByText("₹500")).not.toBeNull();
+        expect(screen.queryByText("₹250")).not.toBeNull();
+        // Payment history record
+        expect(screen.queryByText("Desc 1")).not.toBeNull();
     }, { timeout: 4000 });
   });
 });
