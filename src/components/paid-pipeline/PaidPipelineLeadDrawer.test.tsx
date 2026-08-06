@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { BrowserRouter } from "react-router-dom";
-import { AuthContext } from "@/context/AuthContext";
+import * as AuthModule from "@/context/AuthContext";
 
 // Mock the modules used in the component
 vi.mock("@/integrations/supabase/client", () => ({
@@ -53,17 +53,18 @@ const mockAuthContext = {
 
 describe("PaidPipelineLeadDrawer - Overview Tab", () => {
   it("renders the consolidated summary block with correct values", () => {
+    // Mock useAuth return value directly instead of using a Provider
+    vi.spyOn(AuthModule, "useAuth").mockReturnValue(mockAuthContext as any);
+
     render(
       <BrowserRouter>
-        <AuthContext.Provider value={mockAuthContext as any}>
-          <PaidPipelineLeadDrawer
-            lead={mockLead}
-            onClose={vi.fn()}
-            stages={[]}
-            agents={[]}
-            onChanged={vi.fn()}
-          />
-        </AuthContext.Provider>
+        <PaidPipelineLeadDrawer
+          lead={mockLead}
+          onClose={vi.fn()}
+          stages={[]}
+          agents={[]}
+          onChanged={vi.fn()}
+        />
       </BrowserRouter>
     );
 
