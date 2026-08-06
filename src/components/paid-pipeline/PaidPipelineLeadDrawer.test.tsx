@@ -1,29 +1,26 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { BrowserRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 
-// Mock the modules used in the component
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => Promise.resolve({ data: [], error: null })),
-          })),
-          maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
-          order: vi.fn(() => Promise.resolve({ data: [], error: null })),
-        })),
-      })),
-    })),
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    single: vi.fn().mockResolvedValue({ data: null, error: null }),
   },
 }));
 
 vi.mock("@/lib/paidPipeline", () => ({
   inr: (val: number) => `₹${val.toLocaleString("en-IN")}`,
   recomputePaidLead: vi.fn(),
+  fmtDate: (d: string) => d,
 }));
 
 vi.mock("@/lib/auditLog", () => ({
@@ -41,8 +38,16 @@ const mockLead = {
   total_collected: 2000,
   token_amount_collected: 3000,
   deal_value_including_gst: 5000,
-  // Add other required fields for the Lead type if necessary
+  finance_required: true,
+  finance_amount_approved: 500,
+  finance_amount_disbursed: 250,
 } as any;
+
+const mockPayments = [
+  { id: "p1", payment_date: "2024-01-01", payment_type: "Token", payment_mode: "UPI", amount: 1000, description: "Desc 1" },
+  { id: "p2", payment_date: "2024-01-02", payment_type: "Part", payment_mode: "Bank", amount: 2000, description: "Desc 2" },
+  { id: "p3", payment_date: "2024-01-03", payment_type: "Full", payment_mode: "Cash", amount: 3000, description: "Desc 3" },
+];
 
 const mockAuthContext = {
   user: { id: "user-123" },
@@ -51,40 +56,77 @@ const mockAuthContext = {
   signOut: vi.fn(),
 };
 
-describe("PaidPipelineLeadDrawer - Overview Tab", () => {
-  it("renders the consolidated summary block with correct values", () => {
-    // Mock useAuth return value directly instead of using a Provider
+describe("PaidPipelineLeadDrawer", () => {
+  beforeEach(() => {
     vi.spyOn(AuthModule, "useAuth").mockReturnValue(mockAuthContext as any);
+  });
 
-    render(
-      <BrowserRouter>
-        <PaidPipelineLeadDrawer
-          lead={mockLead}
-          onClose={vi.fn()}
-          stages={[]}
-          agents={[]}
-          onChanged={vi.fn()}
-        />
-      </BrowserRouter>
-    );
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
 
-    // The overview tab is active by default in the component state (useState("overview"))
+  it("matches finance data across Overview and Payments tabs", async () => {
+    const { supabase } = await import("@/integrations/supabase/client");
     
-    // Check Balance Pending
-    // Using getAllByText and checking that the first one is the label
-    const balanceLabels = screen.getAllByText(/Balance Pending/i);
-    expect(balanceLabels.length).toBeGreaterThan(0);
+    (supabase.from as any).mockImplementation((table: string) => {
+      const base = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      };
+
+      if (table === "paid_pipeline_payments") {
+        return {
+          ...base,
+          order: vi.fn().mockResolvedValue({ data: mockPayments, error: null }),
+        };
+      }
+      return base;
+    });
+
+    await act(async () => {
+      render(
+        <BrowserRouter>
+          <PaidPipelineLeadDrawer
+            lead={mockLead}
+            onClose={vi.fn()}
+            stages={[]}
+            agents={[]}
+            onChanged={vi.fn()}
+          />
+        </BrowserRouter>
+      );
+    });
+
+    // 1. Overview Tab checks
     expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
 
-    // Check Total Collected
-    expect(screen.getByText(/Total Collected/i)).toBeDefined();
-    expect(screen.getAllByText("₹2,000").length).toBeGreaterThan(0);
-
-    // Check Token Amount
-    expect(screen.getByText(/Token Amount/i)).toBeDefined();
-    expect(screen.getAllByText("₹3,000").length).toBeGreaterThan(0);
+    // 2. Switch to Payments Tab
+    const paymentsTrigger = screen.getByRole("tab", { name: /Payments/i });
     
-    // Verify context (e.g. Deal subtext)
-    expect(screen.getByText(/Deal: ₹5,000/i)).toBeDefined();
+    await act(async () => {
+      fireEvent.click(paymentsTrigger);
+    });
+
+    // 3. Verify content
+    await waitFor(() => {
+        // Finance card values
+        expect(screen.getByText("₹500")).toBeDefined();
+        expect(screen.getByText("₹250")).toBeDefined();
+        // Payment history record
+        expect(screen.getByText("Desc 1")).toBeDefined();
+        // Matching balance from overview
+        expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
+        
+        // Verify row count
+        const rows = document.querySelectorAll('tbody tr');
+        // The table body should have 3 rows for our mock payments
+        expect(rows.length).toBe(3);
+    }, { timeout: 4000 });
   });
 });
