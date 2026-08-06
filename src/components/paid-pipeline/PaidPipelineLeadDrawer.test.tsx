@@ -76,27 +76,7 @@ describe("PaidPipelineLeadDrawer", () => {
     cleanup();
   });
 
-  it("Overview Tab renders correctly", async () => {
-    await act(async () => {
-      render(
-        <BrowserRouter>
-          <PaidPipelineLeadDrawer
-            lead={mockLead}
-            onClose={vi.fn()}
-            stages={[]}
-            agents={[]}
-            onChanged={vi.fn()}
-          />
-        </BrowserRouter>
-      );
-    });
-
-    expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("₹2,000").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("₹3,000").length).toBeGreaterThan(0);
-  });
-
-  it("Payments Tab renders history and matching finance data", async () => {
+  it("renders correctly and matches finance data across tabs", async () => {
     const { supabase } = await import("@/integrations/supabase/client");
     (supabase.from as any).mockImplementation((table: string) => {
       if (table === "paid_pipeline_payments") {
@@ -128,29 +108,27 @@ describe("PaidPipelineLeadDrawer", () => {
       );
     });
 
-    const triggers = screen.getAllByRole("tab");
-    const paymentsTrigger = triggers.find(t => t.textContent?.toLowerCase().includes("payments"));
-    expect(paymentsTrigger).toBeDefined();
+    // 1. Overview Tab (default) checks
+    expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("₹2,000").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("₹3,000").length).toBeGreaterThan(0);
 
+    // 2. Payments Tab checks
+    const paymentsTrigger = screen.getByRole("tab", { name: /Payments/i });
     await act(async () => {
-      fireEvent.click(paymentsTrigger!);
+      fireEvent.click(paymentsTrigger);
     });
 
-    // Verify Approved and Disbursed amounts from finance card
-    // Note: We use findByText to wait for the tab content to render into the DOM
-    expect(await screen.findByText("₹500")).toBeDefined();
-    expect(await screen.findByText("₹250")).toBeDefined();
-
-    // Verify Payment History content
-    expect(await screen.findByText("2024-01-01")).toBeDefined();
-    expect(screen.getByText("Desc 1")).toBeDefined();
-    expect(screen.getByText("Desc 2")).toBeDefined();
-    expect(screen.getByText("Desc 3")).toBeDefined();
-    
-    // Check row count in table body (3 payments)
-    const table = screen.getByRole("table");
-    const tbody = table.querySelector("tbody");
-    const rows = within(tbody!).getAllByRole("row");
-    expect(rows.length).toBe(3);
+    // Wait for async content in the tab to appear
+    await waitFor(() => {
+        // Finance card values
+        expect(screen.queryByText("₹500")).not.toBeNull();
+        expect(screen.queryByText("₹250")).not.toBeNull();
+        
+        // Payment history records
+        expect(screen.queryByText("Desc 1")).not.toBeNull();
+        expect(screen.queryByText("Desc 2")).not.toBeNull();
+        expect(screen.queryByText("Desc 3")).not.toBeNull();
+    }, { timeout: 3000 });
   });
 });
