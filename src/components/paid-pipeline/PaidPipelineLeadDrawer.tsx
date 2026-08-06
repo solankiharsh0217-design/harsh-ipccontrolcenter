@@ -25,7 +25,7 @@ import ServicePackageChip from "@/components/ServicePackageChip";
 import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 import type { Lead, Batch, Payment } from "@/pages/PaidPipeline";
 import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -481,8 +481,109 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
         {/* Existing Content Shell (Temporarily remains as is) */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {/* OLD HEADER (to be removed in future step, keeping for reference as per instructions) */}
-          <div className="shrink-0 bg-white px-6 py-4 border-b border-line flex justify-between items-start opacity-50 grayscale pointer-events-none">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsContent value="overview" className="m-0 focus-visible:ring-0">
+              <div className="p-6 space-y-5">
+                {/* Consolidated Summary Block */}
+                <div className="rounded-xl border border-line bg-off/30 p-5">
+                  <div className="grid grid-cols-3 gap-8">
+                    <div className="space-y-1">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Balance Pending</div>
+                      <div className={`text-[24px] font-bold ${Number(lead.balance_pending) > 50000 ? "text-red-600" : "text-amber-600"}`}>
+                        {inr(lead.balance_pending)}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">Next follow-up: {lead.next_balance_follow_up_date ? fmtDate(lead.next_balance_follow_up_date) : "—"}</div>
+                    </div>
+                    <div className="space-y-1 border-l border-line pl-8">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Collected</div>
+                      <div className="text-[24px] font-bold text-green-600">
+                        {inr(lead.total_collected)}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">Deal: {inr(lead.deal_value_including_gst)}</div>
+                    </div>
+                    <div className="space-y-1 border-l border-line pl-8">
+                      <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Token Amount</div>
+                      <div className="text-[24px] font-bold text-green-600">
+                        {inr(lead.token_amount_collected)}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">{hasToken ? "Token recorded" : "Not recorded"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Next Follow-up Section */}
+                {(() => {
+                  const todayStr = new Date().toISOString().slice(0, 10);
+                  const fu = lead.next_follow_up_date || lead.follow_up_date || lead.next_balance_follow_up_date || lead.finance_follow_up_date || null;
+                  let status = { label: "No follow-up set", cls: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" };
+                  if (fu) {
+                    if (fu < todayStr) status = { label: "Overdue", cls: "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]" };
+                    else if (fu === todayStr) status = { label: "Due today", cls: "bg-[#FEF3C7] text-[#92400E] border-[#FBBF24]" };
+                    else status = { label: "Upcoming", cls: "bg-[#DBEAFE] text-[#1E3A8A] border-[#93C5FD]" };
+                  }
+                  return (
+                    <div className="rounded-xl border border-[#FDE68A] bg-gradient-to-br from-[#FFFBEB] to-[#FEF3C7]/40 p-4 shadow-sm">
+                      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-[#78350F]">⏰ Next Follow-up</div>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${status.cls}`}>{status.label}</span>
+                        </div>
+                        <div className="text-[11.5px] text-[#78350F]">
+                          {fu ? <b>{fmtDate(fu)}</b> : "—"} {lead.follow_up_reason ? <span>· {lead.follow_up_reason}</span> : null}
+                        </div>
+                      </div>
+                      <div className="text-[11.5px] text-[#78350F] mb-2">
+                        Owner: {agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"}
+                      </div>
+                      <FastFollowUpComposer
+                        paidLeadId={lead.id}
+                        crmLeadId={lead.crm_lead_id || null}
+                        leadName={lead.name || undefined}
+                        defaultPriority={temperature || "Normal"}
+                        ownerId={lead.assigned_sales_executive || user?.id || null}
+                        source="paid_pipeline_drawer"
+                        onSaved={() => { loadInner(); onChanged(); }}
+                      />
+                    </div>
+                  );
+                })()}
+
+                {/* Quick Status Section */}
+                <Section title="Quick status">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="qsi-label">Pipeline stage</label>
+                      <InlineManagedSelect settingType="pipeline_stage" value={stage} onChange={(v) => changePaidStage(v)} width="100%"
+                        triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+                    </div>
+                    <div>
+                      <label className="qsi-label">Lead temperature</label>
+                      <InlineManagedSelect settingType="lead_priority" value={temperature} onChange={setTemperature} width="100%" colorize
+                        triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+                    </div>
+                    <div>
+                      <label className="qsi-label">Finance partner</label>
+                      <InlineManagedSelect settingType="finance_partner" value={financePartner} onChange={setFinancePartner} width="100%"
+                        triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+                    </div>
+                    <div>
+                      <label className="qsi-label">Finance status</label>
+                      <InlineManagedSelect settingType="finance_status" value={financeStatus} onChange={setFinanceStatus} width="100%"
+                        triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
+                    </div>
+                    <div>
+                      <label className="qsi-label">Balance category</label>
+                      <QuickSaveInput fieldKey="balance_category" value={balCat} onChange={setBalCat} placeholder="Second Token Pending" />
+                    </div>
+                  </div>
+                </Section>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {/* OLD HEADER (to be removed in future step) */}
+          <div className="hidden shrink-0 bg-white px-6 py-4 border-b border-line flex justify-between items-start opacity-50 grayscale pointer-events-none">
+
             <div>
               <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
               <div className="text-[12px] text-muted-foreground">{lead.email || "—"} · {lead.phone || "—"}</div>
@@ -544,79 +645,8 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
         <div className="p-6 space-y-5">
 
-          {/* 1. Payment Summary — top priority */}
-          <Section title="Revenue snapshot">
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Deal value" value={inr(lead.deal_value_including_gst)} />
-              <Field label="Token collected" value={inr(lead.token_amount_collected)} tone="green" />
-              <Field label="Total collected" value={inr(lead.total_collected)} tone="green" />
-              <Field label="Balance pending" value={inr(lead.balance_pending)} tone={Number(lead.balance_pending) > 50000 ? "red" : "amber"} />
-              <Field label="Realized revenue" value={inr(lead.final_revenue_realized || 0)} tone="green" />
-              <Field label="To be realized" value={inr(lead.revenue_to_be_realized ?? lead.balance_pending)} />
-            </div>
-          </Section>
+          {/* Revenue snapshot, Payment Timeline, and Token Recording moved to Overview tab */}
 
-          {/* 1a. Payment Timeline — quick clarity near top */}
-          {(() => {
-            const tokenPay = payments.find((p: any) => p.is_token || /token/i.test(p.payment_type || "") || /token/i.test(p.payment_category || ""));
-            const latest = payments[0];
-            const recent = payments.slice(0, 3);
-            return (
-              <Section title="Payment Timeline">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
-                  <Field label="Token paid date" value={tokenPay?.payment_date ? fmtDate(tokenPay.payment_date) : "—"} tone={tokenPay ? "green" : undefined} />
-                  <Field label="Token amount" value={tokenPay ? inr(tokenPay.amount || 0) : inr(lead.token_amount_collected || 0)} tone={tokenPay || Number(lead.token_amount_collected) > 0 ? "green" : undefined} />
-                  <Field label="Latest payment date" value={latest?.payment_date ? fmtDate(latest.payment_date) : "—"} />
-                  <Field label="Latest payment amount" value={latest ? inr(latest.amount || 0) : "—"} />
-                  <Field label="Total collected" value={inr(lead.total_collected || 0)} tone="green" />
-                  <Field label="Balance pending" value={inr(lead.balance_pending || 0)} tone={Number(lead.balance_pending) > 0 ? "amber" : "green"} />
-                </div>
-                {recent.length === 0 ? (
-                  <div className="text-[11.5px] text-muted-foreground">No payments recorded yet.</div>
-                ) : (
-                  <div className="border border-line rounded-md overflow-hidden">
-                    <div className="grid grid-cols-[100px_110px_120px_1fr] gap-2 px-2.5 py-1.5 bg-off/60 text-[10px] uppercase tracking-wider text-muted-foreground">
-                      <div>Date</div><div>Amount</div><div>Mode / Type</div><div>Note</div>
-                    </div>
-                    {recent.map((p: any) => (
-                      <div key={p.id} className="grid grid-cols-[100px_110px_120px_1fr] gap-2 px-2.5 py-1.5 text-[11.5px] border-t border-line">
-                        <div>{fmtDate(p.payment_date)}</div>
-                        <div className="tabular-nums">{inr(p.amount || 0)}</div>
-                        <div className="truncate" title={`${p.payment_mode || ""} · ${p.payment_type || ""}`}>{p.payment_mode || p.payment_type || "—"}</div>
-                        <div className="truncate text-muted-foreground" title={p.notes || p.payment_description || ""}>{p.notes || p.payment_description || "—"}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Section>
-            );
-          })()}
-
-          {/* 1b. Token / Payment Recording */}
-          <Section title="Token / Payment Recording">
-            <div className="grid grid-cols-4 gap-2 mb-3">
-              <Field label="Token collected" value={inr(lead.token_amount_collected)} tone={hasToken ? "green" : undefined} />
-              <Field label="Total collected" value={inr(lead.total_collected)} tone={Number(lead.total_collected) > 0 ? "green" : undefined} />
-              <Field label="Balance pending" value={inr(lead.balance_pending)} tone={Number(lead.balance_pending) > 0 ? "amber" : "green"} />
-              <Field label="Last payment" value={lastPaymentDate ? fmtDate(lastPaymentDate) : "—"} />
-            </div>
-            {!hasToken ? (
-              <div className="rounded-md border border-[#F5D78A] bg-gold-pale px-3 py-2.5 flex items-center justify-between gap-3">
-                <div className="text-[12.5px]">
-                  <div className="font-medium">No token recorded yet</div>
-                  <div className="text-[11.5px] text-muted-foreground">Record the token payment before moving this buyer to Token Paid.</div>
-                </div>
-                <button onClick={openRecordTokenSimple} className="ipc-btn ipc-btn-black !h-9 whitespace-nowrap">Record Token Payment</button>
-              </div>
-            ) : (
-              <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] px-3 py-2.5 flex items-center justify-between gap-3">
-                <div className="text-[12.5px] text-[#15803D]">
-                  Token recorded: <b>{inr(lead.token_amount_collected)}</b>
-                </div>
-                <button onClick={openAddPayment} className="ipc-btn ipc-btn-ghost !h-9 whitespace-nowrap">+ Add Another Payment</button>
-              </div>
-            )}
-          </Section>
 
 
           {/* 1c. Linked Calling CRM Stage — high in drawer for quick stage sync */}
@@ -758,72 +788,8 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
             currentStageName={stage || null}
           />
 
-          {/* 2. Next Follow-up — high-visibility, daily-use card */}
-          {(() => {
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const fu = lead.next_follow_up_date || lead.follow_up_date || lead.next_balance_follow_up_date || lead.finance_follow_up_date || null;
-            let status = { label: "No follow-up set", cls: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" };
-            if (fu) {
-              if (fu < todayStr) status = { label: "Overdue", cls: "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]" };
-              else if (fu === todayStr) status = { label: "Due today", cls: "bg-[#FEF3C7] text-[#92400E] border-[#FBBF24]" };
-              else status = { label: "Upcoming", cls: "bg-[#DBEAFE] text-[#1E3A8A] border-[#93C5FD]" };
-            }
-            return (
-              <div className="rounded-xl border border-[#FDE68A] bg-gradient-to-br from-[#FFFBEB] to-[#FEF3C7]/40 p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[#78350F]">⏰ Next Follow-up</div>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${status.cls}`}>{status.label}</span>
-                  </div>
-                  <div className="text-[11.5px] text-[#78350F]">
-                    {fu ? <b>{fmtDate(fu)}</b> : "—"} {lead.follow_up_reason ? <span>· {lead.follow_up_reason}</span> : null}
-                  </div>
-                </div>
-                <div className="text-[11.5px] text-[#78350F] mb-2">
-                  Owner: {agents.find(a => a.id === lead.assigned_sales_executive)?.full_name || "—"}
-                </div>
-                <FastFollowUpComposer
-                  paidLeadId={lead.id}
-                  crmLeadId={lead.crm_lead_id || null}
-                  leadName={lead.name || undefined}
-                  defaultPriority={temperature || "Normal"}
-                  ownerId={lead.assigned_sales_executive || user?.id || null}
-                  source="paid_pipeline_drawer"
-                  onSaved={() => { loadInner(); onChanged(); }}
-                />
-              </div>
-            );
-          })()}
+          {/* Next Follow-up and Quick status moved to Overview tab */}
 
-          {/* 3. Quick status — managed dropdowns */}
-          <Section title="Quick status">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="qsi-label">Pipeline stage</label>
-                <InlineManagedSelect settingType="pipeline_stage" value={stage} onChange={(v) => changePaidStage(v)} width="100%"
-                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
-              </div>
-              <div>
-                <label className="qsi-label">Lead temperature</label>
-                <InlineManagedSelect settingType="lead_priority" value={temperature} onChange={setTemperature} width="100%" colorize
-                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
-              </div>
-              <div>
-                <label className="qsi-label">Finance partner</label>
-                <InlineManagedSelect settingType="finance_partner" value={financePartner} onChange={setFinancePartner} width="100%"
-                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
-              </div>
-              <div>
-                <label className="qsi-label">Finance status</label>
-                <InlineManagedSelect settingType="finance_status" value={financeStatus} onChange={setFinanceStatus} width="100%"
-                  triggerClassName="w-full h-10 border border-input rounded-md px-3 text-[13px] text-left bg-background truncate flex items-center justify-between gap-1 hover:bg-off" />
-              </div>
-              <div>
-                <label className="qsi-label">Balance category</label>
-                <QuickSaveInput fieldKey="balance_category" value={balCat} onChange={setBalCat} placeholder="Second Token Pending" />
-              </div>
-            </div>
-          </Section>
 
 
           {/* 4. Batch information — read-only by default */}
