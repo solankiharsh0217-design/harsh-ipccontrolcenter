@@ -17,8 +17,9 @@ import MediaBuyerComparisonView from "@/components/roas/daily/MediaBuyerComparis
 import type { DailyReport } from "@/lib/dailyReports/helpers";
 import { logActivity } from "@/lib/auditLog";
 import { getGstAwareAdSpend, calculateRoas, GST_TRUST_NOTE } from "@/lib/roas/gst";
+import { inr } from "@/lib/format";
 
-const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+
 const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const fmtDateTime = (d: string | Date) => new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const roasClass = (n: number) => (n >= 10 ? "roas-good" : n >= 5 ? "roas-avg" : "roas-bad");

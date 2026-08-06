@@ -79,7 +79,7 @@ export type AttributionPayload = {
   onEditRevenueSettings?: () => void;
 };
 
-export const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+export { inr } from "@/lib/format";
 export const fmtDate = (d: string | Date) =>
   new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 export const roasColor = (n: number) => (n >= 10 ? "#16A34A" : n >= 5 ? "#CA8A04" : "#DC2626");

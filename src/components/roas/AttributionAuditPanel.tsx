@@ -3,8 +3,9 @@
 
 import React, { useMemo, useState } from "react";
 import type { AttributionResult, AuditRow, DuplicateConflict, MediaBuyerBreakdown } from "@/lib/roas/attributionEngine";
+import { inr } from "@/lib/format";
 
-const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+
 
 export default function AttributionAuditPanel({
   result,

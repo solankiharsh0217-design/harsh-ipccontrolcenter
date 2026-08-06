@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { X, Clock, User, ArrowRight, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { logActivity } from "@/lib/auditLog";
+import { inr } from "@/lib/format";
 
 interface Props {
   leadId: string;
@@ -24,7 +25,7 @@ type ConvRow = {
   metadata_json: any;
 };
 
-const inr = (n: number | null | undefined) => "₹" + Math.round(Number(n || 0)).toLocaleString("en-IN");
+
 
 export default function ConversionHistoryDrawer({ leadId, onClose }: Props) {
   const [rows, setRows] = useState<ConvRow[]>([]);

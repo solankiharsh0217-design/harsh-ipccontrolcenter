@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, X, Search, Plus, Settings2 } from "lucide-react";
 import type { CatalogProduct } from "@/lib/roas/seminarProduct";
+import { inr } from "@/lib/format";
 
 interface Props {
   value: string | null;                     // product id
@@ -14,7 +15,7 @@ interface Props {
   disabled?: boolean;
 }
 
-const inr = (n: number) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
 
 /** App-style searchable combobox for seminar product/offer selection. */
 export default function SearchableProductSelect({

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { logActivity } from "@/lib/auditLog";
 import {
+import { inr } from "@/lib/format";
   listAllCatalogProductsForAdmin,
   upsertCatalogProduct,
   archiveCatalogProduct,
@@ -32,7 +33,7 @@ const emptyForm = (): FormState => ({
   id: null, product_name: "", business_unit: "IPC", price: "", gstMode: "excludes_gst", gstPercent: "18", is_active: true,
 });
 
-const inr = (n: number) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
 
 export default function SeminarProductManagerModal({ onClose, onChanged }: Props) {
   const { user, isAdmin } = useAuth();

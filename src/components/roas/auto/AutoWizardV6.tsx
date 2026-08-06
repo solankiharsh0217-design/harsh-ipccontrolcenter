@@ -21,6 +21,7 @@ import {
   type AdSpendTaxMode, type RoasSpendBasis,
 } from "@/lib/roas/gst";
 import {
+import { inr } from "@/lib/format";
   DEFAULT_REVENUE_CONFIG,
   splitRevenueByGst,
   type RevenueConfig,
@@ -1244,7 +1245,6 @@ function Step3AdSpends(p: {
   spendBasis: RoasSpendBasis;
   setSpendBasis: (b: RoasSpendBasis) => void;
 }) {
-  const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
   const ordered = p.priorityOrder.length === p.mbs.length
     ? p.priorityOrder.map((id) => p.mbs.find((m) => m.sheetId === id)!).filter(Boolean)
     : p.mbs;
@@ -1526,7 +1526,6 @@ function RevenueSettingsSection({
   setOpen: (b: boolean) => void;
 }) {
   const set = (patch: Partial<RevenueConfig>) => onChange({ ...value, ...patch });
-  const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
   const previewPrice = Number(value.productPrice || 0);
   const split = splitRevenueByGst(previewPrice, value.productGstMode, value.productGstPercent);
   const priceMissing = value.mode === "fixed_product_price" && previewPrice <= 0;
@@ -1637,7 +1636,6 @@ function RevenueSummaryCard({
   totalSales: number;
   onEdit: () => void;
 }) {
-  const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
   const perSaleGross = totalSales > 0 && summary ? summary.totalGrossRevenue / totalSales : 0;
   const perSaleNet = totalSales > 0 && summary ? summary.totalNetRevenue / totalSales : 0;
   const usedForRoas = cfg.roasRevenueBasis === "net" ? perSaleNet : perSaleGross;

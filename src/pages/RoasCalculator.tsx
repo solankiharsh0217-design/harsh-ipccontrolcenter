@@ -12,6 +12,7 @@ import SeminarRoasCalculator from "@/components/roas/seminar/SeminarRoasCalculat
 import OfflineSeminarRoas from "@/components/roas/offline/OfflineSeminarRoas";
 
 import { calculateAttribution, toLegacyPayload, DEAL_VALUE as ENGINE_DEAL, type AttributionResult, type AttributionSnapshot } from "@/lib/roas/attributionEngine";
+import { inr } from "@/lib/format";
 
 /* ====================================================================
    ROAS Calculator v2 — single-page module with three tabs:
@@ -270,7 +271,7 @@ function matchSale(sale: Person, list: Person[]) {
   }
   return null;
 }
-const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+
 const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const roasClass = (n: number) => (n >= 10 ? "roas-good" : n >= 5 ? "roas-avg" : "roas-bad");
 

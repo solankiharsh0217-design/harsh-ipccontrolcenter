@@ -31,6 +31,7 @@ import MoveCopyLinkPipelineModal from "@/components/crm/MoveCopyLinkPipelineModa
 import SendToPaidOnboardingModal from "@/components/crm/SendToPaidOnboardingModal";
 import PromisedOffersPanel from "@/components/offers/PromisedOffersPanel";
 import ServicePackageChip from "@/components/ServicePackageChip";
+import { inr } from "@/lib/format";
 
 
 
@@ -349,7 +350,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
 
   const today = new Date().toISOString().slice(0, 10);
   const currentStage = pipelineStages.find((s) => s.id === lead.stage_id);
-  const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
   const matchingRule = findRuleForStage(opsRules, lead.pipeline_id, lead.stage_id, stagesById);
   const isOpsEligible = !!matchingRule;
   const inOps = opsLeadId !== null;

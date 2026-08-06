@@ -4,14 +4,14 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/auditLog";
 import {
+import { inr } from "@/lib/format";
   getCanonicalMediaBuyers,
   normalizeMediaBuyerNameSync,
   refreshMediaBuyerCache,
   subscribeMediaBuyers,
 } from "@/lib/mediaBuyers";
 
-const inr = (n: number) =>
-  "₹" + (Number.isFinite(n) ? Math.round(n) : 0).toLocaleString("en-IN");
+
 const num = (v: any) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
