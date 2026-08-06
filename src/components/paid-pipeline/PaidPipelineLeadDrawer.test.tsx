@@ -121,28 +121,36 @@ describe("PaidPipelineLeadDrawer", () => {
       );
     });
 
-    // Switch to Payments tab
-    const paymentsTabTrigger = screen.getByRole("tab", { name: /Payments/i });
-    fireEvent.click(paymentsTabTrigger);
+    // Check if Payments tab trigger exists
+    const tabTriggers = screen.getAllByRole("tab");
+    const paymentsTrigger = tabTriggers.find(t => t.textContent?.includes("Payments"));
+    expect(paymentsTrigger).toBeDefined();
 
-    // 1. Check correct number of rows for 3 payment records
-    await waitFor(() => {
-        const rows = screen.queryAllByRole("row");
-        // Check if rows are found (header + data rows)
-        expect(rows.length).toBeGreaterThan(0);
-    });
-    
-    // Fallback if role="row" is missing due to shadcn Tabs lazy rendering or something similar
-    // Search for payment date strings which are only in the payments table
-    await waitFor(() => {
-        expect(screen.getByText("2024-01-01")).toBeDefined();
-        expect(screen.getByText("2024-01-02")).toBeDefined();
-        expect(screen.getByText("2024-01-03")).toBeDefined();
+    // Force click it
+    await act(async () => {
+      fireEvent.click(paymentsTrigger!);
     });
 
-    // 2. Check Finance/EMI card balance matches Overview (₹1,000)
-    const financeHeading = screen.getByText(/Finance \/ EMI/i);
+    // 1. Check Finance/EMI card balance matches Overview (₹1,000)
+    // This part of the tab content should render immediately if not lazy-loaded
+    const financeHeading = await screen.findByText(/Finance \/ EMI/i);
     const financeCard = financeHeading.closest("div");
     expect(within(financeCard!).getByText("₹1,000")).toBeDefined();
+
+    // 2. Check correct number of rows for 3 payment records
+    // Use findByText to wait for the table content to appear (which confirms payments state is loaded)
+    await screen.findByText("2024-01-01");
+    
+    // Now check rows (using generic query if role="table" isn't matched)
+    const rows = screen.queryAllByRole("row");
+    if (rows.length > 0) {
+      // Header + 3 records
+      expect(rows.length).toBe(4);
+    } else {
+      // Fallback: verify all three payments are visible in the document
+      expect(screen.getByText("Desc 1")).toBeDefined();
+      expect(screen.getByText("Desc 2")).toBeDefined();
+      expect(screen.getByText("Desc 3")).toBeDefined();
+    }
   });
 });
