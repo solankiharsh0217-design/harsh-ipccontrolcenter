@@ -107,31 +107,26 @@ describe("PaidPipelineLeadDrawer", () => {
     expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
 
     // 2. Switch to Payments Tab
-    // We try targeting by the 'value' data attribute which is common in Radix triggers
-    const trigger = document.querySelector('[data-value="payments"]');
-    if (trigger) {
-      await act(async () => {
-        fireEvent.click(trigger);
-      });
-    } else {
-      const paymentsTrigger = screen.getByRole("tab", { name: /Payments/i });
-      await act(async () => {
-        fireEvent.click(paymentsTrigger);
-      });
-    }
+    const paymentsTrigger = screen.getByRole("tab", { name: /Payments/i });
+    
+    await act(async () => {
+      fireEvent.click(paymentsTrigger);
+    });
 
     // 3. Verify content
     await waitFor(() => {
-        const body = document.body.innerHTML;
-        const hasApproved = body.includes("₹500");
-        const hasDesc1 = body.includes("Desc 1");
+        // Finance card values
+        expect(screen.getByText("₹500")).toBeDefined();
+        expect(screen.getByText("₹250")).toBeDefined();
+        // Payment history record
+        expect(screen.getByText("Desc 1")).toBeDefined();
+        // Matching balance from overview
+        expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
         
-        if (!hasApproved || !hasDesc1) {
-          throw new Error(`Payments content not found. Body snippet: ${body.substring(0, 500)}`);
-        }
-        
-        expect(hasApproved).toBe(true);
-        expect(hasDesc1).toBe(true);
+        // Verify row count
+        const rows = document.querySelectorAll('tbody tr');
+        // The table body should have 3 rows for our mock payments
+        expect(rows.length).toBe(3);
     }, { timeout: 4000 });
   });
 });
