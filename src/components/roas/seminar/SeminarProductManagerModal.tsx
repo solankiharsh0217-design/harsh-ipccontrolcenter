@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { logActivity } from "@/lib/auditLog";
 import {
-import { inr } from "@/lib/format";
   listAllCatalogProductsForAdmin,
   upsertCatalogProduct,
   archiveCatalogProduct,
@@ -13,6 +12,7 @@ import { inr } from "@/lib/format";
   type ProductGstMode,
   computeProductGst,
 } from "@/lib/roas/seminarProduct";
+import { inr } from "@/lib/format";
 
 interface Props {
   onClose: () => void;

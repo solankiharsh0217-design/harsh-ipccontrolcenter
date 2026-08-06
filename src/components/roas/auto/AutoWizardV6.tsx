@@ -21,11 +21,11 @@ import {
   type AdSpendTaxMode, type RoasSpendBasis,
 } from "@/lib/roas/gst";
 import {
-import { inr } from "@/lib/format";
   DEFAULT_REVENUE_CONFIG,
   splitRevenueByGst,
   type RevenueConfig,
 } from "@/lib/roas/attributionEngine";
+import { inr } from "@/lib/format";
 
 // ---------- Types & storage ----------
 type DateMode = "single" | "range" | "multiple";
