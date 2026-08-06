@@ -106,33 +106,31 @@ describe("PaidPipelineLeadDrawer", () => {
     // 1. Overview Tab checks
     expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
 
-    // 2. Switch to Payments Tab
-    // We look for the trigger button
+    // 2. Switch to Payments Tab using value directly
+    // This bypasses Radix click handling issues in JSDOM by triggering the internal state if necessary,
+    // but first we try standard user interaction with force.
     const paymentsTrigger = screen.getByRole("tab", { name: /Payments/i });
     
-    // Radix tabs sometimes need a double click or specific dispatch in JSDOM
     await act(async () => {
+      fireEvent.mouseDown(paymentsTrigger);
+      fireEvent.mouseUp(paymentsTrigger);
       fireEvent.click(paymentsTrigger);
-      // Fallback: trigger keyDown Enter
-      fireEvent.keyDown(paymentsTrigger, { key: 'Enter', code: 'Enter' });
     });
 
     // 3. Verify content
-    // We check the raw DOM to see if it even exists but is hidden
     await waitFor(() => {
-        const body = document.body.innerHTML;
-        // Verify Approved and Disbursed amounts from finance card
-        const hasApproved = body.includes("₹500");
-        const hasDisbursed = body.includes("₹250");
-        const hasDesc1 = body.includes("Desc 1");
+        // Look for unique text that only exists in the Payments tab
+        const historyHeader = screen.queryByText(/Payment History \(3\)/i);
+        const financeHeader = screen.queryByText(/Finance \/ EMI/i);
         
-        if (!hasApproved || !hasDesc1) {
-            throw new Error(`Content not found in DOM.`);
+        if (!historyHeader && !financeHeader) {
+          throw new Error("Payments tab content not detected");
         }
-        
-        expect(hasApproved).toBe(true);
-        expect(hasDisbursed).toBe(true);
-        expect(hasDesc1).toBe(true);
+
+        // Check values
+        expect(screen.queryByText("₹500")).not.toBeNull();
+        expect(screen.queryByText("₹250")).not.toBeNull();
+        expect(screen.queryByText("Desc 1")).not.toBeNull();
     }, { timeout: 4000 });
   });
 });
