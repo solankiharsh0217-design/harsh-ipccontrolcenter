@@ -25,7 +25,7 @@ import ServicePackageChip from "@/components/ServicePackageChip";
 import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 import type { Lead, Batch, Payment } from "@/pages/PaidPipeline";
 import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
