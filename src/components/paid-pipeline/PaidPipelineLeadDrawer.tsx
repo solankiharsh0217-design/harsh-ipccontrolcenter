@@ -406,43 +406,114 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
     { label: "Welcome / Onboarding", msg: `Welcome to the ${lead.product_name_snapshot || "program"}, ${lead.name || ""}! Our onboarding team will reach out shortly with next steps.` },
   ];
 
+  const chip = stageChip(stage, "gray");
+
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-full max-w-[720px] bg-white flex flex-col h-[100dvh] overflow-hidden">
-        <div className="shrink-0 bg-white px-6 py-4 border-b border-line flex justify-between items-start">
-          <div>
-            <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
-            <div className="text-[12px] text-muted-foreground">{lead.email || "—"} · {lead.phone || "—"}</div>
-            {((lead as any).service_package_snapshot?.name || (lead as any).service_package?.name) && (
-              <div className="mt-1.5"><ServicePackageChip snapshot={(lead as any).service_package_snapshot} fallbackName={(lead as any).service_package?.name} compact={false} /></div>
-            )}
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              {lead.crm_lead_id && (
-                <Link to={`/crm?lead=${lead.crm_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
-                  Open in Calling CRM
-                </Link>
-              )}
-              <button onClick={() => setOpenFin(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#15803D] text-white hover:opacity-90">
-                Update Finance
+      <div className="w-full max-w-[800px] bg-white flex flex-col h-[100dvh] overflow-hidden">
+        {/* New Sticky Header Shell */}
+        <div className="shrink-0 bg-white border-b border-line z-20">
+          <div className="px-6 py-4 flex justify-between items-start">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-1">
+                <h2 className="font-serif text-[24px] truncate leading-tight">{lead.name || "Untitled"}</h2>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap" style={{ background: chip.bg, color: chip.text, borderColor: chip.border }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: chip.dot }} />
+                  {stage || "No Stage"}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
+                <span className="truncate max-w-[200px]">{lead.product_name_snapshot || lead.onboarding_batch_name || "No Program/Batch"}</span>
+                <span>•</span>
+                <span className="truncate">Owner: {agents.find(a => a.id === lead.owner_id)?.full_name || "Unassigned"}</span>
+                <span>•</span>
+                <span className="font-medium text-amber-600">Balance: {inr(lead.balance_pending)}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 ml-4">
+              <button className="ipc-btn ipc-btn-black !h-9 px-4">Save & Close</button>
+              <button onClick={onClose} className="p-2 hover:bg-off rounded-full transition-colors">
+                <X className="w-5 h-5" />
               </button>
-              <button onClick={openAddPayment} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
-                + Add Payment
-              </button>
-              <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
-                Set Follow-up
-              </button>
-              {(hasToken || isAdmin) && (
-                <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#1D4ED8] text-white hover:opacity-90" title="Hand off this paid client to the Operations CRM service-delivery board">
-                  Send to Operations CRM
-                </button>
-              )}
             </div>
           </div>
-          <button onClick={onClose} className="text-[20px] leading-none">×</button>
+
+          {/* Quick Action Bar */}
+          <div className="px-6 py-2 bg-off/30 border-t border-line flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
+              <Phone className="w-3.5 h-3.5" /> Call
+            </button>
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors text-green-600">
+              <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+            </button>
+            <button onClick={openAddPayment} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Add Payment
+            </button>
+            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" /> Update Status
+            </button>
+            <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors text-blue-600">
+              <Send className="w-3.5 h-3.5" /> Send to Operations CRM
+            </button>
+            <button className="inline-flex items-center px-2 py-1.5 rounded-md border border-line bg-white hover:bg-off transition-colors">
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Tabs Skeleton */}
+          <div className="px-4 border-t border-line">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="w-full justify-start h-12 bg-transparent p-0 gap-6">
+                {["Overview", "Payments", "Onboarding", "Documents", "Offers & Delivery", "Activity"].map((tab) => (
+                  <TabsTrigger
+                    key={tab}
+                    value={tab.toLowerCase()}
+                    className="h-12 rounded-none border-b-2 border-transparent data-[state=active]:border-black data-[state=active]:bg-transparent px-2 text-[13px] font-medium"
+                  >
+                    {tab}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
 
+        {/* Existing Content Shell (Temporarily remains as is) */}
         <div className="flex-1 min-h-0 overflow-y-auto">
+          {/* OLD HEADER (to be removed in future step, keeping for reference as per instructions) */}
+          <div className="shrink-0 bg-white px-6 py-4 border-b border-line flex justify-between items-start opacity-50 grayscale pointer-events-none">
+            <div>
+              <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
+              <div className="text-[12px] text-muted-foreground">{lead.email || "—"} · {lead.phone || "—"}</div>
+              {((lead as any).service_package_snapshot?.name || (lead as any).service_package?.name) && (
+                <div className="mt-1.5"><ServicePackageChip snapshot={(lead as any).service_package_snapshot} fallbackName={(lead as any).service_package?.name} compact={false} /></div>
+              )}
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                {lead.crm_lead_id && (
+                  <Link to={`/crm?lead=${lead.crm_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+                    Open in Calling CRM
+                  </Link>
+                )}
+                <button onClick={() => setOpenFin(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#15803D] text-white hover:opacity-90">
+                  Update Finance
+                </button>
+                <button onClick={openAddPayment} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
+                  + Add Payment
+                </button>
+                <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
+                  Set Follow-up
+                </button>
+                {(hasToken || isAdmin) && (
+                  <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#1D4ED8] text-white hover:opacity-90" title="Hand off this paid client to the Operations CRM service-delivery board">
+                    Send to Operations CRM
+                  </button>
+                )}
+              </div>
+            </div>
+            <button onClick={onClose} className="text-[20px] leading-none">×</button>
+          </div>
+
         <div className="px-6 pt-4">
           <div className="rounded-lg border border-line bg-off/40 px-3 py-2.5">
             <div className="flex items-center justify-between mb-2">
