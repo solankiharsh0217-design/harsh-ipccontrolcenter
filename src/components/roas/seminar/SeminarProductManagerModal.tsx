@@ -12,6 +12,7 @@ import {
   type ProductGstMode,
   computeProductGst,
 } from "@/lib/roas/seminarProduct";
+import { inr } from "@/lib/format";
 
 interface Props {
   onClose: () => void;
@@ -32,7 +33,7 @@ const emptyForm = (): FormState => ({
   id: null, product_name: "", business_unit: "IPC", price: "", gstMode: "excludes_gst", gstPercent: "18", is_active: true,
 });
 
-const inr = (n: number) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
 
 export default function SeminarProductManagerModal({ onClose, onChanged }: Props) {
   const { user, isAdmin } = useAuth();

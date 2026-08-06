@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { inr } from "@/lib/format";
 
 /* ---------------- helpers ---------------- */
-const inr = (n: number) => {
-  if (!isFinite(n) || isNaN(n)) return "₹0";
-  return "₹" + Math.round(n).toLocaleString("en-IN");
-};
+
 const safe = (n: number) => (isFinite(n) && !isNaN(n) ? n : 0);
 
 type Pkg = { id: string; name: string; price: number | ""; core: boolean };

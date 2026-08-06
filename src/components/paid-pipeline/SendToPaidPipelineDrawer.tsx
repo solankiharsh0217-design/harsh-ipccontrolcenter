@@ -8,8 +8,9 @@ import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { logActivity } from "@/lib/auditLog";
 import OffersStep from "@/components/offers/OffersStep";
 import { attachOffersToPaidLead, createPreset, type DraftOffer } from "@/lib/offers";
+import { inr } from "@/lib/format";
 
-const inr = (n: number) => "₹" + (Math.round(n || 0)).toLocaleString("en-IN");
+
 
 export type SendToPaidPipelineDrawerProps = {
   open: boolean;

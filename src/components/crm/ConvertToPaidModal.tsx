@@ -7,6 +7,7 @@ import { recomputePaidLead } from "@/lib/paidPipeline";
 import { logActivity } from "@/lib/auditLog";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import type { Lead } from "@/lib/crmTypes";
+import { inr } from "@/lib/format";
 
 interface Props {
   lead: Lead;
@@ -33,7 +34,7 @@ const normPhone = (p?: string | null) => {
   const digits = (p || "").replace(/\D/g, "");
   return digits.length >= 10 ? digits.slice(-10) : "";
 };
-const inr = (n: number) => "₹" + Math.round(n || 0).toLocaleString("en-IN");
+
 
 export default function ConvertToPaidModal({ lead, agents, onClose, onConverted }: Props) {
   const { profile, isAdmin } = useAuth();

@@ -6,9 +6,10 @@ import {
 import { downloadCSV, downloadPDF, type AttributionPayload, type SaleDetail } from "@/lib/roasExport";
 import SendToPaidPipelineDrawer from "@/components/paid-pipeline/SendToPaidPipelineDrawer";
 import { normalizeMediaBuyerNameSync, getCanonicalMediaBuyers, getMediaBuyerAliasMap } from "@/lib/mediaBuyers";
+import { inr } from "@/lib/format";
 
 
-const inr = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
+
 const fmtDate = (d: string | Date) =>
   new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const roasClass = (n: number) => (n >= 10 ? "roas-good" : n >= 5 ? "roas-avg" : "roas-bad");

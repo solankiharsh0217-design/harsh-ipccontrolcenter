@@ -230,10 +230,7 @@ export function calcPayrollEntry({
   };
 }
 
-export function inr(n: number): string {
-  if (!Number.isFinite(n)) return "₹0";
-  return "₹" + Math.round(n).toLocaleString("en-IN");
-}
+export { inr } from "@/lib/format";
 
 export function monthBounds(monthIso: string): { start: string; end: string } {
   // monthIso = "YYYY-MM-01" or any date in month

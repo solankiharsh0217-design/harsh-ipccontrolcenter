@@ -44,7 +44,7 @@ export const DEFAULT_FINANCE_STATUSES = [
 export const FOLLOWUP_PRIORITIES = ["Urgent","Hot","Warm","Cold","Normal"];
 export const FOLLOWUP_STATUSES = ["Pending","Done","Missed","Rescheduled","Cancelled"];
 
-export const inr = (n: number) => "₹" + (Math.round(n || 0)).toLocaleString("en-IN");
+export { inr } from "@/lib/format";
 export const fmtDate = (d: string | null | undefined) =>
   d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
 
