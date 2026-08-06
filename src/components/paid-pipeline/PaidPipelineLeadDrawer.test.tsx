@@ -42,9 +42,9 @@ const mockLead = {
   total_collected: 2000,
   token_amount_collected: 3000,
   deal_value_including_gst: 5000,
-  finance_required_amount: 1000, // Match balance_pending for the test
-  finance_approved_amount: 500,
-  finance_disbursed_amount: 250,
+  finance_required_amount: 1000, // For the test
+  finance_amount_approved: 500,
+  finance_amount_disbursed: 250,
 } as any;
 
 const mockPayments = [
@@ -89,7 +89,7 @@ describe("PaidPipelineLeadDrawer", () => {
     expect(screen.getAllByText("₹3,000").length).toBeGreaterThan(0);
   });
 
-  it("Payments Tab renders correctly with history and matching finance balance", async () => {
+  it("Payments Tab renders correctly with history and matching finance data", async () => {
     const { supabase } = await import("@/integrations/supabase/client");
     (supabase.from as any).mockImplementation((table: string) => {
       if (table === "paid_pipeline_payments") {
@@ -122,35 +122,36 @@ describe("PaidPipelineLeadDrawer", () => {
     });
 
     // Check if Payments tab trigger exists
-    const tabTriggers = screen.getAllByRole("tab");
-    const paymentsTrigger = tabTriggers.find(t => t.textContent?.includes("Payments"));
+    const paymentsTrigger = screen.getByRole("tab", { name: /Payments/i });
     expect(paymentsTrigger).toBeDefined();
 
     // Force click it
     await act(async () => {
-      fireEvent.click(paymentsTrigger!);
+      fireEvent.click(paymentsTrigger);
     });
 
-    // 1. Check Finance/EMI card balance matches Overview (₹1,000)
-    // This part of the tab content should render immediately if not lazy-loaded
-    const financeHeading = await screen.findByText(/Finance \/ EMI/i);
-    const financeCard = financeHeading.closest("div");
-    expect(within(financeCard!).getByText("₹1,000")).toBeDefined();
+    // 1. Check Finance / EMI section renders
+    // Use a flexible matcher for Finance / EMI as it might be split across elements
+    const financeHeading = await screen.findByText((content, element) => {
+      return element?.tagName.toLowerCase() === 'h3' && content.includes('Finance / EMI');
+    });
+    expect(financeHeading).toBeDefined();
+    
+    // Check Approved amount (₹500) and Disbursed amount (₹250)
+    const financeCard = financeHeading.closest("div")?.parentElement;
+    expect(within(financeCard!).getByText("₹500")).toBeDefined();
+    expect(within(financeCard!).getByText("₹250")).toBeDefined();
 
     // 2. Check correct number of rows for 3 payment records
-    // Use findByText to wait for the table content to appear (which confirms payments state is loaded)
+    // Looking for the text content to ensure the table rendered
     await screen.findByText("2024-01-01");
+    expect(screen.getByText("Desc 1")).toBeDefined();
+    expect(screen.getByText("Desc 2")).toBeDefined();
+    expect(screen.getByText("Desc 3")).toBeDefined();
     
-    // Now check rows (using generic query if role="table" isn't matched)
-    const rows = screen.queryAllByRole("row");
-    if (rows.length > 0) {
-      // Header + 3 records
-      expect(rows.length).toBe(4);
-    } else {
-      // Fallback: verify all three payments are visible in the document
-      expect(screen.getByText("Desc 1")).toBeDefined();
-      expect(screen.getByText("Desc 2")).toBeDefined();
-      expect(screen.getByText("Desc 3")).toBeDefined();
-    }
+    // Check row count in table body
+    const table = screen.getByRole("table");
+    const rows = table.querySelectorAll("tbody tr");
+    expect(rows.length).toBe(3);
   });
 });
