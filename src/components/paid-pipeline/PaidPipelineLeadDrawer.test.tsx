@@ -42,7 +42,7 @@ const mockLead = {
   total_collected: 2000,
   token_amount_collected: 3000,
   deal_value_including_gst: 5000,
-  finance_required_amount: 1000, // For the test
+  finance_required: true,
   finance_amount_approved: 500,
   finance_amount_disbursed: 250,
 } as any;
@@ -121,37 +121,32 @@ describe("PaidPipelineLeadDrawer", () => {
       );
     });
 
-    // Check if Payments tab trigger exists
+    // Find and click the Payments tab trigger
     const paymentsTrigger = screen.getByRole("tab", { name: /Payments/i });
-    expect(paymentsTrigger).toBeDefined();
-
-    // Force click it
     await act(async () => {
       fireEvent.click(paymentsTrigger);
     });
 
-    // 1. Check Finance / EMI section renders
-    // Use a flexible matcher for Finance / EMI as it might be split across elements
-    const financeHeading = await screen.findByText((content, element) => {
-      return element?.tagName.toLowerCase() === 'h3' && content.includes('Finance / EMI');
-    });
-    expect(financeHeading).toBeDefined();
-    
-    // Check Approved amount (₹500) and Disbursed amount (₹250)
-    const financeCard = financeHeading.closest("div")?.parentElement;
-    expect(within(financeCard!).getByText("₹500")).toBeDefined();
-    expect(within(financeCard!).getByText("₹250")).toBeDefined();
+    // 1. Verify Finance / EMI section content
+    // We expect "Finance / EMI" as a heading and specific values from mockLead
+    expect(screen.getByText("Finance / EMI")).toBeDefined();
+    expect(screen.getByText("₹500")).toBeDefined(); // Approved
+    expect(screen.getByText("₹250")).toBeDefined(); // Disbursed
 
-    // 2. Check correct number of rows for 3 payment records
-    // Looking for the text content to ensure the table rendered
-    await screen.findByText("2024-01-01");
+    // 2. Verify Payment History table content
+    // Wait for the async data to load into the state and render
+    await waitFor(() => {
+      expect(screen.queryByText("2024-01-01")).not.toBeNull();
+    });
+
     expect(screen.getByText("Desc 1")).toBeDefined();
     expect(screen.getByText("Desc 2")).toBeDefined();
     expect(screen.getByText("Desc 3")).toBeDefined();
     
-    // Check row count in table body
+    // Check row count in table body (3 payments)
     const table = screen.getByRole("table");
-    const rows = table.querySelectorAll("tbody tr");
+    const tbody = table.querySelector("tbody");
+    const rows = within(tbody!).getAllByRole("row");
     expect(rows.length).toBe(3);
   });
 });
