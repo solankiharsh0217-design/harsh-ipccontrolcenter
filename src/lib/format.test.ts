@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { inr, num, pct, rel } from "../format";
+import { inr, num, pct, rel } from "./format";
 
 describe("format helpers (src/lib/format.ts)", () => {
   describe("inr()", () => {
