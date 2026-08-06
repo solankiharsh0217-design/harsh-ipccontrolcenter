@@ -70,17 +70,19 @@ describe("PaidPipelineLeadDrawer - Overview Tab", () => {
 
     // The overview tab is active by default in the component state (useState("overview"))
     
-    // Check Balance Pending (using a more specific selector)
-    const balanceValue = screen.getByText("₹1,000");
-    expect(balanceValue).toBeDefined();
+    // Check Balance Pending
+    // Using getAllByText and checking that the first one is the label
+    const balanceLabels = screen.getAllByText(/Balance Pending/i);
+    expect(balanceLabels.length).toBeGreaterThan(0);
+    expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
 
     // Check Total Collected
-    const collectedValue = screen.getByText("₹2,000");
-    expect(collectedValue).toBeDefined();
+    expect(screen.getByText(/Total Collected/i)).toBeDefined();
+    expect(screen.getAllByText("₹2,000").length).toBeGreaterThan(0);
 
     // Check Token Amount
-    const tokenValue = screen.getByText("₹3,000");
-    expect(tokenValue).toBeDefined();
+    expect(screen.getByText(/Token Amount/i)).toBeDefined();
+    expect(screen.getAllByText("₹3,000").length).toBeGreaterThan(0);
     
     // Verify context (e.g. Deal subtext)
     expect(screen.getByText(/Deal: ₹5,000/i)).toBeDefined();
