@@ -645,79 +645,8 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
         <div className="p-6 space-y-5">
 
-          {/* 1. Payment Summary — top priority */}
-          <Section title="Revenue snapshot">
-            <div className="grid grid-cols-3 gap-2">
-              <Field label="Deal value" value={inr(lead.deal_value_including_gst)} />
-              <Field label="Token collected" value={inr(lead.token_amount_collected)} tone="green" />
-              <Field label="Total collected" value={inr(lead.total_collected)} tone="green" />
-              <Field label="Balance pending" value={inr(lead.balance_pending)} tone={Number(lead.balance_pending) > 50000 ? "red" : "amber"} />
-              <Field label="Realized revenue" value={inr(lead.final_revenue_realized || 0)} tone="green" />
-              <Field label="To be realized" value={inr(lead.revenue_to_be_realized ?? lead.balance_pending)} />
-            </div>
-          </Section>
+          {/* Revenue snapshot, Payment Timeline, and Token Recording moved to Overview tab */}
 
-          {/* 1a. Payment Timeline — quick clarity near top */}
-          {(() => {
-            const tokenPay = payments.find((p: any) => p.is_token || /token/i.test(p.payment_type || "") || /token/i.test(p.payment_category || ""));
-            const latest = payments[0];
-            const recent = payments.slice(0, 3);
-            return (
-              <Section title="Payment Timeline">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
-                  <Field label="Token paid date" value={tokenPay?.payment_date ? fmtDate(tokenPay.payment_date) : "—"} tone={tokenPay ? "green" : undefined} />
-                  <Field label="Token amount" value={tokenPay ? inr(tokenPay.amount || 0) : inr(lead.token_amount_collected || 0)} tone={tokenPay || Number(lead.token_amount_collected) > 0 ? "green" : undefined} />
-                  <Field label="Latest payment date" value={latest?.payment_date ? fmtDate(latest.payment_date) : "—"} />
-                  <Field label="Latest payment amount" value={latest ? inr(latest.amount || 0) : "—"} />
-                  <Field label="Total collected" value={inr(lead.total_collected || 0)} tone="green" />
-                  <Field label="Balance pending" value={inr(lead.balance_pending || 0)} tone={Number(lead.balance_pending) > 0 ? "amber" : "green"} />
-                </div>
-                {recent.length === 0 ? (
-                  <div className="text-[11.5px] text-muted-foreground">No payments recorded yet.</div>
-                ) : (
-                  <div className="border border-line rounded-md overflow-hidden">
-                    <div className="grid grid-cols-[100px_110px_120px_1fr] gap-2 px-2.5 py-1.5 bg-off/60 text-[10px] uppercase tracking-wider text-muted-foreground">
-                      <div>Date</div><div>Amount</div><div>Mode / Type</div><div>Note</div>
-                    </div>
-                    {recent.map((p: any) => (
-                      <div key={p.id} className="grid grid-cols-[100px_110px_120px_1fr] gap-2 px-2.5 py-1.5 text-[11.5px] border-t border-line">
-                        <div>{fmtDate(p.payment_date)}</div>
-                        <div className="tabular-nums">{inr(p.amount || 0)}</div>
-                        <div className="truncate" title={`${p.payment_mode || ""} · ${p.payment_type || ""}`}>{p.payment_mode || p.payment_type || "—"}</div>
-                        <div className="truncate text-muted-foreground" title={p.notes || p.payment_description || ""}>{p.notes || p.payment_description || "—"}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Section>
-            );
-          })()}
-
-          {/* 1b. Token / Payment Recording */}
-          <Section title="Token / Payment Recording">
-            <div className="grid grid-cols-4 gap-2 mb-3">
-              <Field label="Token collected" value={inr(lead.token_amount_collected)} tone={hasToken ? "green" : undefined} />
-              <Field label="Total collected" value={inr(lead.total_collected)} tone={Number(lead.total_collected) > 0 ? "green" : undefined} />
-              <Field label="Balance pending" value={inr(lead.balance_pending)} tone={Number(lead.balance_pending) > 0 ? "amber" : "green"} />
-              <Field label="Last payment" value={lastPaymentDate ? fmtDate(lastPaymentDate) : "—"} />
-            </div>
-            {!hasToken ? (
-              <div className="rounded-md border border-[#F5D78A] bg-gold-pale px-3 py-2.5 flex items-center justify-between gap-3">
-                <div className="text-[12.5px]">
-                  <div className="font-medium">No token recorded yet</div>
-                  <div className="text-[11.5px] text-muted-foreground">Record the token payment before moving this buyer to Token Paid.</div>
-                </div>
-                <button onClick={openRecordTokenSimple} className="ipc-btn ipc-btn-black !h-9 whitespace-nowrap">Record Token Payment</button>
-              </div>
-            ) : (
-              <div className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] px-3 py-2.5 flex items-center justify-between gap-3">
-                <div className="text-[12.5px] text-[#15803D]">
-                  Token recorded: <b>{inr(lead.token_amount_collected)}</b>
-                </div>
-                <button onClick={openAddPayment} className="ipc-btn ipc-btn-ghost !h-9 whitespace-nowrap">+ Add Another Payment</button>
-              </div>
-            )}
-          </Section>
 
 
           {/* 1c. Linked Calling CRM Stage — high in drawer for quick stage sync */}
