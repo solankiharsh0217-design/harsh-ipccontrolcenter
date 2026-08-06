@@ -89,7 +89,8 @@ describe("format helpers (src/lib/format.ts)", () => {
     it("returns 'Xs ago' for recent dates", () => {
       const now = new Date();
       const recent = new Date(now.getTime() - 5000); // 5s ago
-      expect(rel(recent)).toMatch(/^[0-9]+s ago$/);
+      const result = rel(recent);
+      expect(result).toMatch(/^[0-9]+s ago$/);
     });
 
     it("returns 'Xm ago' for dates from minutes ago", () => {
