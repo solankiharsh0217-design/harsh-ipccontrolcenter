@@ -24,10 +24,13 @@ import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import ServicePackageChip from "@/components/ServicePackageChip";
 import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 import type { Lead, Batch, Payment } from "@/pages/PaidPipeline";
+import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; onClose: () => void; stages: string[]; agents: { id: string; full_name: string }[]; onChanged: () => void }) {
+  const [activeTab, setActiveTab] = useState("overview");
   const { user, isAdmin } = useAuth();
   const [visibilityAudit, setVisibilityAudit] = useState<VisibilityAudit | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
