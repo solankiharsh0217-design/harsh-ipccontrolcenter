@@ -579,6 +579,92 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                 </Section>
               </div>
             </TabsContent>
+            <TabsContent value="payments" className="m-0 focus-visible:ring-0">
+              <div className="p-6 space-y-6">
+                {/* Finance / EMI Section */}
+                <div className="rounded-xl border border-line bg-white shadow-sm overflow-hidden">
+                  <div className="bg-off/50 px-4 py-3 border-b border-line flex items-center justify-between">
+                    <h3 className="text-[13px] font-semibold text-foreground">Finance / EMI</h3>
+                    <button onClick={() => setOpenFin(true)} className="text-[11px] font-medium text-blue-600 hover:underline">Open Editor</button>
+                  </div>
+                  <div className="p-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Required</div>
+                        <div className="text-[14px] font-medium">{lead.finance_required ? "Yes" : "No"}</div>
+                      </div>
+                      <div className="space-y-1 border-l border-line pl-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Approved</div>
+                        <div className="text-[14px] font-medium">{inr(lead.finance_amount_approved || 0)}</div>
+                      </div>
+                      <div className="space-y-1 border-l border-line pl-4">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Disbursed</div>
+                        <div className={`text-[14px] font-medium ${(lead.finance_amount_disbursed || 0) > 0 ? "text-green-600" : ""}`}>
+                          {inr(lead.finance_amount_disbursed || 0)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment History Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[13px] font-semibold text-foreground">Payment History ({payments.length})</h3>
+                    <button onClick={openAddPayment} className="inline-flex items-center gap-1 px-2 py-1 rounded border border-line bg-white text-[11px] font-medium hover:bg-off transition-colors">
+                      <Plus className="w-3 h-3" /> Add Payment
+                    </button>
+                  </div>
+                  
+                  {payments.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-line p-8 text-center">
+                      <div className="text-[12px] text-muted-foreground">No payments recorded for this lead yet.</div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-line bg-white shadow-sm overflow-hidden">
+                      <table className="w-full text-[12px]">
+                        <thead>
+                          <tr className="bg-off/50 text-left text-muted-foreground border-b border-line">
+                            <th className="px-4 py-2.5 font-semibold">Date</th>
+                            <th className="px-4 py-2.5 font-semibold">Category / Type</th>
+                            <th className="px-4 py-2.5 font-semibold">Mode</th>
+                            <th className="px-4 py-2.5 font-semibold">Description</th>
+                            <th className="px-4 py-2.5 font-semibold text-right">Amount</th>
+                            <th className="px-4 py-2.5"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-line">
+                          {payments.map(p => (
+                            <tr key={p.id} className="hover:bg-off/30 transition-colors align-top">
+                              <td className="px-4 py-3 whitespace-nowrap">{fmtDate(p.payment_date)}</td>
+                              <td className="px-4 py-3">
+                                <div className="font-medium text-foreground">{p.payment_category || p.payment_type}</div>
+                                <div className="text-[10px] text-muted-foreground">{p.payment_type}</div>
+                              </td>
+                              <td className="px-4 py-3">{p.payment_mode || "—"}</td>
+                              <td className="px-4 py-3 max-w-[200px]">
+                                <div className="text-[11px] line-clamp-2">{p.payment_description || p.notes || "—"}</div>
+                                {p.next_payment_expected_date && (
+                                  <div className="text-[10px] text-amber-600 mt-1 font-medium">Next: {fmtDate(p.next_payment_expected_date)}</div>
+                                )}
+                              </td>
+                              <td className={`px-4 py-3 text-right font-medium whitespace-nowrap ${p.payment_type === "Refund" ? "text-red-600" : "text-green-600"}`}>
+                                {p.payment_type === "Refund" ? "-" : ""}{inr(p.amount)}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button onClick={() => deletePayment(p.id)} className="p-1 hover:bg-red-50 hover:text-red-600 rounded transition-colors text-muted-foreground">
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
           </Tabs>
 
           {/* OLD HEADER (to be removed in future step) */}
@@ -819,38 +905,6 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
             )}
           </Section>
 
-          {/* 5. Finance / EMI — compact */}
-          <Section title="Finance / EMI">
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              <Field label="Required" value={lead.finance_required ? "Yes" : "No"} />
-              <Field label="Approved" value={inr(lead.finance_amount_approved || 0)} />
-              <Field label="Disbursed" value={inr(lead.finance_amount_disbursed || 0)} tone={(lead.finance_amount_disbursed || 0) > 0 ? "green" : undefined} />
-            </div>
-            <button onClick={() => setOpenFin(true)} className="ipc-btn ipc-btn-ghost !h-9">Open finance editor</button>
-          </Section>
-
-          {/* 6. Payment history */}
-          <Section title={`Payment history (${payments.length})`}>
-            {payments.length === 0 ? (
-              <div className="text-[12px] text-muted-foreground">No payments yet. Click "+ Add Payment" above.</div>
-            ) : (
-              <table className="w-full text-[12px]">
-                <thead><tr className="text-left text-muted-foreground"><th className="py-1">Date</th><th>Category / Type</th><th>Mode</th><th>Description</th><th className="text-right">Amount</th><th></th></tr></thead>
-                <tbody>
-                  {payments.map(p => (
-                    <tr key={p.id} className="border-t border-line align-top">
-                      <td className="py-1.5 whitespace-nowrap">{fmtDate(p.payment_date)}</td>
-                      <td>{p.payment_category || p.payment_type}<div className="text-[10px] text-muted-foreground">{p.payment_type}</div></td>
-                      <td>{p.payment_mode || "—"}</td>
-                      <td className="text-[11px]">{p.payment_description || p.notes || "—"}{p.next_payment_expected_date && <div className="text-[10px] text-muted-foreground">Next: {fmtDate(p.next_payment_expected_date)}</div>}</td>
-                      <td className={"text-right whitespace-nowrap " + (p.payment_type === "Refund" ? "text-[#DC2626]" : "")}>{inr(p.amount)}</td>
-                      <td className="text-right"><button onClick={() => deletePayment(p.id)} className="text-[10px] text-muted-foreground hover:text-[#DC2626]">✕</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </Section>
 
           {/* 7. WhatsApp templates — friendly cards */}
           <Section title="WhatsApp templates">
