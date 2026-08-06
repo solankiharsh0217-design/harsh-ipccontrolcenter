@@ -117,17 +117,20 @@ describe("PaidPipelineLeadDrawer", () => {
       </BrowserRouter>
     );
 
-    // Switch to Payments tab
+    // Click the trigger directly using data-state="inactive" check if needed, 
+    // but just finding by text or role should work if it's rendered.
     const paymentsTabTrigger = screen.getByRole("tab", { name: /Payments/i });
     fireEvent.click(paymentsTabTrigger);
 
     // 1. Check correct number of rows for 3 payment records
-    // Use waitFor to ensure state updates (like payments being set) are reflected
+    // State might take a tick to update 'payments' state variable in the component
     await waitFor(() => {
-        const rows = screen.getAllByRole("row");
-        // Header row + 3 data rows = 4 rows total
-        expect(rows.length).toBe(4);
-    });
+        // Look specifically for the table body rows
+        const table = screen.getByRole("table");
+        const tbody = table.querySelector("tbody");
+        const rows = within(tbody!).getAllByRole("row");
+        expect(rows.length).toBe(3);
+    }, { timeout: 2000 });
 
     // 2. Check Finance/EMI card balance matches Overview (₹1,000)
     const financeHeading = screen.getByText(/Finance \/ EMI/i);
