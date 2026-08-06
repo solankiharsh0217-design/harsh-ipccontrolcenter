@@ -4,10 +4,6 @@ import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { BrowserRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 
-// vi.mock calls are hoisted to the top of the file.
-// We must not reference any variables defined in the scope of this file (like functions)
-// unless we use the factory pattern correctly or define everything inside the factory.
-
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: vi.fn().mockReturnThis(),
