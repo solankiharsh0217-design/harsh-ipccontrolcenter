@@ -905,38 +905,6 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
             )}
           </Section>
 
-          {/* 5. Finance / EMI — compact */}
-          <Section title="Finance / EMI">
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              <Field label="Required" value={lead.finance_required ? "Yes" : "No"} />
-              <Field label="Approved" value={inr(lead.finance_amount_approved || 0)} />
-              <Field label="Disbursed" value={inr(lead.finance_amount_disbursed || 0)} tone={(lead.finance_amount_disbursed || 0) > 0 ? "green" : undefined} />
-            </div>
-            <button onClick={() => setOpenFin(true)} className="ipc-btn ipc-btn-ghost !h-9">Open finance editor</button>
-          </Section>
-
-          {/* 6. Payment history */}
-          <Section title={`Payment history (${payments.length})`}>
-            {payments.length === 0 ? (
-              <div className="text-[12px] text-muted-foreground">No payments yet. Click "+ Add Payment" above.</div>
-            ) : (
-              <table className="w-full text-[12px]">
-                <thead><tr className="text-left text-muted-foreground"><th className="py-1">Date</th><th>Category / Type</th><th>Mode</th><th>Description</th><th className="text-right">Amount</th><th></th></tr></thead>
-                <tbody>
-                  {payments.map(p => (
-                    <tr key={p.id} className="border-t border-line align-top">
-                      <td className="py-1.5 whitespace-nowrap">{fmtDate(p.payment_date)}</td>
-                      <td>{p.payment_category || p.payment_type}<div className="text-[10px] text-muted-foreground">{p.payment_type}</div></td>
-                      <td>{p.payment_mode || "—"}</td>
-                      <td className="text-[11px]">{p.payment_description || p.notes || "—"}{p.next_payment_expected_date && <div className="text-[10px] text-muted-foreground">Next: {fmtDate(p.next_payment_expected_date)}</div>}</td>
-                      <td className={"text-right whitespace-nowrap " + (p.payment_type === "Refund" ? "text-[#DC2626]" : "")}>{inr(p.amount)}</td>
-                      <td className="text-right"><button onClick={() => deletePayment(p.id)} className="text-[10px] text-muted-foreground hover:text-[#DC2626]">✕</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </Section>
 
           {/* 7. WhatsApp templates — friendly cards */}
           <Section title="WhatsApp templates">
