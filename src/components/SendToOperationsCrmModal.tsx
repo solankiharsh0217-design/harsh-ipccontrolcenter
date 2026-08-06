@@ -241,10 +241,15 @@ export default function SendToOperationsCrmModal({
         else skipped += slice.length;
       }
       let updated = 0;
-      for (const u of toUpdate) {
-        const { error } = await supabase.from("operations_leads" as any).update(u.patch).eq("id", u.id);
-        if (!error) updated++;
+      for (let i = 0; i < toUpdate.length; i += chunk) {
+        const slice = toUpdate.slice(i, i + chunk);
+        const results = await Promise.all(
+          slice.map((u) => supabase.from("operations_leads" as any).update(u.patch).eq("id", u.id))
+        );
+        // Same behaviour as before: a failed row is silently skipped, not aborted.
+        for (const r of results) if (!r.error) updated++;
       }
+
 
       await logActivity({
         module_key: "operations_crm",
