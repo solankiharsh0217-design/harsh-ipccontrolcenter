@@ -33,7 +33,7 @@ vi.mock("@/lib/codeOfConductRules", () => ({
   evaluateStageTrigger: vi.fn(),
 }));
 
-// Mock the sub-components to make them easier to find
+// Mock the sub-components
 vi.mock("@/components/crm/CrmStagePicker", () => ({
   default: ({ onChangeStage }: any) => (
     <button data-testid="mock-stage-picker" onClick={() => onChangeStage("stage-new")}>
@@ -57,6 +57,23 @@ const mockLead = {
 describe("PaidPipelineLeadDrawer Logic", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    // Mock loadInner responses
+    (supabase.from as any).mockImplementation((table: string) => {
+      if (table === "leads") {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { id: "crm-123", stage_id: "old-stage", pipeline_id: "pipe-1" }, error: null }),
+        };
+      }
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+      };
+    });
   });
 
   it("fires handoff and CoC logic on stage change", async () => {
@@ -73,12 +90,17 @@ describe("PaidPipelineLeadDrawer Logic", () => {
       />
     );
 
-    // Switch to Onboarding tab
-    fireEvent.click(screen.getByRole("tab", { name: /onboarding/i }));
+    // Click the Onboarding tab trigger (the button itself)
+    const onboardingTab = screen.getByRole("tab", { name: /onboarding/i });
+    fireEvent.click(onboardingTab);
 
-    // Trigger the stage change via our mock picker
-    const picker = await screen.findByTestId("mock-stage-picker");
-    fireEvent.click(picker);
+    // Wait for the tab content to be "active" and visible
+    // Instead of findByTestId which might be hidden by Radix, we'll wait for the element to exist
+    await waitFor(() => {
+      const picker = screen.queryByTestId("mock-stage-picker");
+      if (!picker) throw new Error("Picker not found yet");
+      fireEvent.click(picker);
+    }, { timeout: 3000 });
 
     // Verify expectations
     await waitFor(() => {
