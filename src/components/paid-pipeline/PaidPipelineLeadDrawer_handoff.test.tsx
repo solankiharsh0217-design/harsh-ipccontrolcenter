@@ -4,6 +4,7 @@ import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
 import * as cocRules from "@/lib/codeOfConductRules";
+import { MemoryRouter } from "react-router-dom";
 
 // Mock Supabase
 vi.mock("@/integrations/supabase/client", () => ({
