@@ -66,6 +66,9 @@ describe("Reports List Queries Narrowing Test", () => {
       calculation_method: "auto",
       buyers: [{ name: "Buyer A" }]
     }];
+    
+    // Set state directly via mock if needed, or ensure the mock matches the expected join structure
+    // The component expects buyers as an array of objects with a name property.
 
     (supabase.from as any).mockImplementation((table: string) => {
       if (table === "attribution_sessions") {
