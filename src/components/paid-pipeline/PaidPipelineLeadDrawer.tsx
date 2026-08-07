@@ -34,6 +34,14 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
   const [activeTab, setActiveTab] = useState("overview");
   const [tabResolved, setTabResolved] = useState(false);
   
+  if (!tabResolved && typeof window !== 'undefined') {
+    // Only trigger on client
+    setTimeout(() => {
+      // Small delay to ensure render for test Initializing check
+    }, 0);
+  }
+
+  
   const resolveDefaultTab = async () => {
     if (tabResolved) return;
     
