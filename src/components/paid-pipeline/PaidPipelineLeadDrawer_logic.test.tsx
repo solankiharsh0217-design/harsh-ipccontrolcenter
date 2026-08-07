@@ -1,9 +1,28 @@
 import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
-import { BrowserRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 import * as accessVerification from "@/lib/accessVerification";
+
+// Mock the Tabs component because Radix Tabs can be tricky in JSDOM
+vi.mock("@/components/ui/tabs", () => ({
+  Tabs: ({ children, value, onValueChange }: any) => (
+    <div data-testid="mock-tabs" data-value={value} onClick={(e: any) => {
+      const target = (e.target as HTMLElement).closest('[role="tab"]');
+      if (target) {
+        onValueChange?.(target.getAttribute('data-value'));
+      }
+    }}>{children}</div>
+  ),
+  TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
+  TabsTrigger: ({ children, value }: any) => (
+    <button role="tab" data-value={value} aria-label={value}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: any) => (
+    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
+  ),
+}));
 
 vi.mock("@/lib/accessVerification", () => ({
   fetchVerificationForPaidLead: vi.fn(),
@@ -79,9 +98,9 @@ describe("PaidPipelineLeadDrawer Logic Suite", () => {
   it("fires handoff and CoC logic on stage change", async () => {
     await act(async () => {
       render(
-        <BrowserRouter>
+        <MemoryRouter>
           <PaidPipelineLeadDrawer {...defaultProps} lead={mockLead as any} />
-        </BrowserRouter>
+        </MemoryRouter>
       );
     });
 
