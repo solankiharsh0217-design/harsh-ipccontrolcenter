@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, act, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, act } from "@testing-library/react";
 import OperationsLeadDrawer from "./OperationsLeadDrawer";
 import { MemoryRouter } from "react-router-dom";
 import React from 'react';
+import * as opsReadiness from "@/lib/operationsReadiness";
 
-// Standardized Supabase Mock for all Drawer tests
+// Standardized Supabase Mock
 const createMockQuery = () => {
   const query = {
     select: vi.fn().mockReturnThis(),
@@ -53,6 +54,18 @@ vi.mock("@/lib/notifications", () => ({
   createNotification: vi.fn().mockResolvedValue({}),
 }));
 
+// Mock the imported functions from operationsReadiness
+vi.mock("@/lib/operationsReadiness", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual as any,
+    resolveReadinessTargetStage: vi.fn().mockReturnValue(null),
+    isAtOrAfterTarget: vi.fn().mockReturnValue(false),
+    computeServiceCalc: vi.fn().mockReturnValue({}),
+    computeStageAging: vi.fn().mockReturnValue({ days: 0, status: 'good', lastMovedAt: new Date().toISOString(), source: 'none' }),
+  };
+});
+
 // Mock UI Components
 vi.mock("@/components/ui/tabs", () => ({
   Tabs: ({ children, value }: any) => React.createElement('div', { 'data-testid': 'mock-tabs', 'data-value': value }, children),
@@ -68,17 +81,27 @@ vi.mock("lucide-react", () => {
   });
 });
 
-// Mock child components to keep it light
+// Mock child components
 vi.mock("@/components/offers/PromisedOffersPanel", () => ({ default: () => null }));
 vi.mock("@/components/operations/DeliveryTrackingSection", () => ({ default: () => null }));
 vi.mock("@/components/operations/ConversionsSection", () => ({ default: () => null }));
-vi.mock("@/components/operations/ReadinessChecklist", () => ({ default: () => null }));
 vi.mock("@/components/operations/TeamResultSubmissionPanel", () => ({ default: () => null }));
 vi.mock("@/components/operations/CustomFieldsPanel", () => ({ default: () => null }));
 vi.mock("@/components/operations/CommTemplatePickerModal", () => ({ default: () => null }));
 vi.mock("@/components/operations/OperationsActivityTimeline", () => ({ default: () => null }));
 vi.mock("@/components/operations/OperationsLinkedRecordsCard", () => ({ default: () => null }));
 vi.mock("@/components/operations/StartProcessModal", () => ({ default: () => null }));
+
+// Special mock for ReadinessChecklist to trigger onChange
+vi.mock("@/components/operations/ReadinessChecklist", () => ({
+  default: ({ onChange }: any) => {
+    React.useEffect(() => {
+      // If the test case wants to be 'ready', we need a way to tell this mock.
+      // We can use a global or check a specific lead ID.
+    }, [onChange]);
+    return null;
+  }
+}));
 
 const mockLead = {
   id: "ops-lead-123",
@@ -101,6 +124,7 @@ const mockLead = {
 describe("OperationsLeadDrawer Primary Action Priority", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (opsReadiness.resolveReadinessTargetStage as any).mockReturnValue(null);
   });
 
   afterEach(cleanup);
@@ -121,15 +145,16 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
   });
 
   it("2. Move to [Target Stage]: Priority when ready and not at target", async () => {
-    // Mock the imported functions from operationsReadiness to force the 'isReady' condition
-    vi.mock("@/lib/operationsReadiness", async (importOriginal) => {
-      const actual = await importOriginal();
-      return {
-        ...actual as any,
-        resolveReadinessTargetStage: vi.fn().mockReturnValue({ id: "stage-target", name: "Target Stage" }),
-        isAtOrAfterTarget: vi.fn().mockReturnValue(false),
-      };
-    });
+    // We override the ReadinessChecklist mock for this test to trigger readiness
+    vi.mock("@/components/operations/ReadinessChecklist", () => ({
+      default: ({ onChange }: any) => {
+        React.useEffect(() => { onChange(100, false); }, []);
+        return null;
+      }
+    }));
+    
+    (opsReadiness.resolveReadinessTargetStage as any).mockReturnValue({ id: "stage-target", name: "Target Stage" });
+    (opsReadiness.isAtOrAfterTarget as any).mockReturnValue(false);
 
     await act(async () => {
       render(
@@ -139,8 +164,7 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
               ...mockLead, 
               intake_status: "active", 
               service_status: "not_started",
-              process_template_id: "template-123",
-              stage_id: "stage-current"
+              process_template_id: "template-123"
             } as any}
             onClose={() => {}}
             onSaved={() => {}}
@@ -149,16 +173,11 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
       );
     });
 
-    // We also need to mock the state that determines 'isReady' which is based on readinessSummary pct >= 100
-    // The ReadinessChecklist component calls onChange(100, false) which sets readinessSummary.
-    // Since we mocked ReadinessChecklist to null, we'll need to manually ensure isReady is true if possible,
-    // or mock the ReadinessChecklist to actually call the prop.
+    // Priority 2 should be active: Move to Target Stage
+    expect(screen.getByRole("button", { name: /Move to Target Stage/i })).toBeTruthy();
   });
 
-
-  // Since mocking the internal lib logic of the drawer is complex, we will test the ones that are easily state-driven
-  
-  it("3. Mark Ads Started: Priority when intake active and service not started", async () => {
+  it("3. Mark Ads Started: Priority when intake active and service not started (and not ready/no target)", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
