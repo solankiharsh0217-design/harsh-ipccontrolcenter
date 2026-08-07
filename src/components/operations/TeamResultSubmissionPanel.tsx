@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Trophy, CheckCircle2, XCircle, Clock, ExternalLink } from "lucide-react";
+import { LoadingState } from "@/components/ui-bits";
 import {
   submitResult, listSubmissionsForContext, RESULT_TYPES,
   type ResultSubmission,
@@ -83,7 +84,7 @@ export default function TeamResultSubmissionPanel({
       </div>
 
       {loading ? (
-        <div className="text-[11px] text-muted-foreground py-3">Loading…</div>
+        <div className="py-3"><LoadingState /></div>
       ) : rows.length === 0 ? (
         <div className="text-[11px] text-muted-foreground text-center py-3">No results submitted yet.</div>
       ) : (

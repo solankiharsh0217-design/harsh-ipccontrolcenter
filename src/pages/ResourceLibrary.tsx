@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
 import {
   RESOURCE_TYPES,
   listCategories,
@@ -111,7 +111,7 @@ export default function ResourceLibrary() {
 
       <SectionLabel>All resources ({filtered.length})</SectionLabel>
       {loading ? (
-        <div className="text-[12.5px] text-muted-foreground p-4">Loading…</div>
+        <div className="p-4"><LoadingState /></div>
       ) : filtered.length === 0 ? (
         <div className="border border-dashed border-line rounded-md p-8 text-center">
           <div className="font-serif text-[16px] mb-1">No resources found</div>

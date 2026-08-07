@@ -4,6 +4,7 @@ import {
   type RewardRule,
 } from "@/lib/operationsConversions";
 import { supabase } from "@/integrations/supabase/client";
+import { LoadingState } from "@/components/ui-bits";
 
 interface BuyerRow {
   id: string;
@@ -81,7 +82,7 @@ export default function MediaBuyerPerformancePanel({ leads, month }: {
         {rule && <div className="text-[10px] text-muted-foreground">Target: {rule.target_count} · Reward: {rule.currency} {Number(rule.reward_amount).toLocaleString()}</div>}
       </div>
       {loading ? (
-        <div className="p-4 text-xs text-muted-foreground">Loading…</div>
+        <div className="p-4"><LoadingState /></div>
       ) : rows.length === 0 ? (
         <div className="p-4 text-xs text-muted-foreground text-center">No media buyers with assigned clients yet.</div>
       ) : (
