@@ -87,25 +87,27 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     });
 
     render(
-      <PaidPipelineLeadDrawer
-        lead={mockLead as any}
-        onClose={() => {}}
-        stages={["New"]}
-        agents={[]}
-        onChanged={() => {}}
-      />
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer
+          lead={mockLead as any}
+          onClose={() => {}}
+          stages={["New"]}
+          agents={[]}
+          onChanged={() => {}}
+        />
+      </MemoryRouter>
     );
 
-    // 3. Navigate to Onboarding tab
+    // 3. Wait for initialization to complete
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
+
+    // 4. Navigate to Onboarding tab
     const onboardingTab = await screen.findByRole("tab", { name: /onboarding/i });
     fireEvent.click(onboardingTab);
 
-    // 4. Find the stage picker (CrmStagePicker) and trigger a change
-    // Search by text part that is definitely present in the Onboarding tab
-    await screen.findByText(/Batch information/i);
-    
+    // 5. Find the stage picker (CrmStagePicker) and trigger a change
     // The picker renders a button with the current stage name or "—"
-    const pickerTrigger = screen.getByRole("button", { name: /—|New Stage/ });
+    const pickerTrigger = await screen.findByRole("combobox");
     fireEvent.click(pickerTrigger);
 
     // Find the new stage in the list and click it
