@@ -31,7 +31,7 @@ import { fetchVerificationForPaidLead, computeOverall } from "@/lib/accessVerifi
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; onClose: () => void; stages: string[]; agents: { id: string; full_name: string }[]; onChanged: () => void }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState((lead as any).default_tab_override || "overview");
   const [tabResolved, setTabResolved] = useState(false);
   
   if (!tabResolved && typeof window !== 'undefined') {
