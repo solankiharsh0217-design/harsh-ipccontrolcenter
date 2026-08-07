@@ -27,6 +27,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 vi.mock("@/components/ui-bits", () => ({
   PageHead: ({ title }: any) => <h1>{title}</h1>,
   SectionLabel: ({ children }: any) => <h2>{children}</h2>,
+  EmptyRow: ({ title }: any) => <tr><td colSpan={4}>{title}</td></tr>,
 }));
 
 // Mock audit log
