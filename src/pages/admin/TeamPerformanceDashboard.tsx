@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, differenceInHours } from "date-fns";
 import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { useAuth } from "@/context/AuthContext";
