@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingRow } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -72,7 +72,7 @@ export default function TaxCodeMasterPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</td></tr>}
+            {loading && <LoadingRow colSpan={7} />}
             {!loading && rows.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No codes.</td></tr>}
             {!loading && rows.map((c) => (
               <tr key={c.id} className="border-t border-line align-top">
