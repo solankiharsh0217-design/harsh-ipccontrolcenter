@@ -54,7 +54,7 @@ const Card = ({ label, value, sub, onClick, tone }: { label: string; value: stri
   </button>
 );
 
-const Panel = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+const Panel = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
   <div className={`rounded-lg border border-line bg-card overflow-hidden ${className}`}>{children}</div>
 );
 
