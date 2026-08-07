@@ -5,6 +5,30 @@ import { BrowserRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 import * as accessVerification from "@/lib/accessVerification";
 
+// Set globals to avoid Radix issues in tests
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
+// Mock the Tabs component because Radix Tabs can be tricky in JSDOM
+vi.mock("@/components/ui/tabs", () => ({
+  Tabs: ({ children, value, onValueChange }: any) => (
+    <div data-testid="mock-tabs" data-value={value} onClick={(e: any) => {
+      const target = e.target as HTMLElement;
+      if (target.getAttribute('role') === 'tab') {
+        onValueChange?.(target.getAttribute('data-value'));
+      }
+    }}>{children}</div>
+  ),
+  TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
+  TabsTrigger: ({ children, value }: any) => <button role="tab" data-value={value} data-state={value === 'overview' ? 'active' : 'inactive'}>{children}</button>,
+  TabsContent: ({ children, value }: any) => <div role="tabpanel" data-value={value}>{children}</div>,
+}));
+import * as AuthModule from "@/context/AuthContext";
+import * as accessVerification from "@/lib/accessVerification";
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: vi.fn().mockReturnThis(),
