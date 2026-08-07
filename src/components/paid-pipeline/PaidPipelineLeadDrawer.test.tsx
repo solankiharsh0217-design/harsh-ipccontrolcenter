@@ -93,7 +93,7 @@ describe("PaidPipelineLeadDrawer", () => {
     await act(async () => {
       render(
         <BrowserRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={mockLead as any} open={true} onClose={vi.fn()} />
+          <PaidPipelineLeadDrawer {...defaultProps} lead={mockLead as any} onClose={vi.fn()} />
         </BrowserRouter>
       );
     });
