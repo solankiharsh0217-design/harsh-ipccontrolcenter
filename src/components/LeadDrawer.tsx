@@ -231,6 +231,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   const isOpsEligible = !!matchingRule;
   const inOps = opsLeadId !== null;
   const hasToken = !!paidSnap && Number(paidSnap.token_amount_collected || 0) > 0;
+  const rulePrefill = matchingRule ? {
+    serviceDays: matchingRule.default_service_days ?? null,
+    packageName: matchingRule.default_service_package ?? null,
+    assignMethod: matchingRule.default_assignment_method,
+    singleBuyerId: matchingRule.default_single_buyer_id,
+    duplicateBehavior: matchingRule.duplicate_behavior,
+  } : null;
 
   // Determine default tab on open
   useEffect(() => {
