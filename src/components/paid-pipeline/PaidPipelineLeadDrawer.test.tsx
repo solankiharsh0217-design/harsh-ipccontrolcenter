@@ -30,7 +30,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@/lib/paidPipeline", () => ({
-  inr: (val: any) => `₹${(Number(val) || 0).toLocaleString("en-IN")}`,
+  inr: (val: any) => `INR_FORMATTED_${val}`,
   recomputePaidLead: vi.fn(),
   fmtDate: (d: string) => d,
 }));
@@ -86,9 +86,8 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
 
     await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
 
-    // Check Overview tab figures (using regex to find text even if split across spans)
-    expect(screen.getAllByText(/₹1,000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹500/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹100/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("INR_FORMATTED_1000").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("INR_FORMATTED_500").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("INR_FORMATTED_100").length).toBeGreaterThan(0);
   });
 });
