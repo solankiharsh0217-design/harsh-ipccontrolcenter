@@ -4,18 +4,32 @@ import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import * as accessVerification from "@/lib/accessVerification";
 import { MemoryRouter } from "react-router-dom";
 
-// Mock Supabase with full query chain support
+// Standardized Supabase Mock for all Drawer tests
 const createMockQuery = () => {
   const query = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    neq: vi.fn().mockReturnThis(),
+    gt: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    lt: vi.fn().mockReturnThis(),
+    lte: vi.fn().mockReturnThis(),
+    like: vi.fn().mockReturnThis(),
+    ilike: vi.fn().mockReturnThis(),
+    is: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    contains: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
+    range: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
     update: vi.fn().mockReturnThis(),
     insert: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    upsert: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    delete: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    rpc: vi.fn().mockResolvedValue({ data: {}, error: null }),
   };
   return query;
 };
@@ -23,6 +37,7 @@ const createMockQuery = () => {
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: vi.fn().mockImplementation(() => createMockQuery()),
+    rpc: vi.fn().mockResolvedValue({ data: {}, error: null }),
   },
 }));
 
