@@ -201,7 +201,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }, [leadId, !!lead, isOpsEligible, inOps, hasToken, reminders.length]);
     if (!lead)
         return (<div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
-      <div className="absolute right-0 top-0 h-full w-[560px] bg-white p-8" onClick={(e) => e.stopPropagation()}>Loading...</div>
+      <div className="absolute right-0 top-0 h-full w-[560px] bg-white p-8" onClick={(e) => e.stopPropagation()}>Loading</div>
     </div>);
     const saveEdit = async () => {
         const name = editName.trim();
@@ -287,7 +287,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                   </div>
                   <div className="flex items-center gap-2 font-sans text-xs text-muted-foreground mt-1.5">
                     <span>{lead.phone}</span>
-                    <span>•</span>
+                    <span>*</span>
                     <span>{lead.email}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -344,15 +344,15 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                     </div>
                     <div className="p-3 rounded-lg bg-off/50 border border-line">
                       <div className="text-[10px] text-muted-foreground uppercase mb-1">Token</div>
-                      <div className="text-sm font-medium">{paidSnap ? inr(paidSnap.token_amount_collected) : "—"}</div>
+                      <div className="text-sm font-medium">{paidSnap ? inr(paidSnap.token_amount_collected) : "-"}</div>
                     </div>
                     <div className="p-3 rounded-lg bg-off/50 border border-line text-success">
                       <div className="text-[10px] text-muted-foreground uppercase mb-1">Paid</div>
-                      <div className="text-sm font-medium">{paidSnap ? inr(paidSnap.total_collected) : "—"}</div>
+                      <div className="text-sm font-medium">{paidSnap ? inr(paidSnap.total_collected) : "-"}</div>
                     </div>
                     <div className="p-3 rounded-lg bg-off/50 border border-line text-danger">
                       <div className="text-[10px] text-muted-foreground uppercase mb-1">Bal</div>
-                      <div className="text-sm font-medium">{paidSnap ? inr(paidSnap.balance_pending) : "—"}</div>
+                      <div className="text-sm font-medium">{paidSnap ? inr(paidSnap.balance_pending) : "-"}</div>
                     </div>
                   </div>
                   {paidLeadId && (<div className="flex gap-2">
@@ -407,7 +407,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                         <div className="absolute left-[-5px] top-1 w-2 h-2 rounded-full bg-line"/>
                         <div className="text-[10px] text-muted-foreground flex items-center gap-2 uppercase tracking-tight">
                           <span>{new Date(a.logged_at).toLocaleString()}</span>
-                          <span>•</span>
+                          <span>*</span>
                           <span>{a.channel}</span>
                         </div>
                         <div className="mt-1 text-sm text-foreground leading-relaxed">{a.note}</div>
