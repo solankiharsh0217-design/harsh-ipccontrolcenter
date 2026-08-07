@@ -99,6 +99,9 @@ describe("Reports List Queries Narrowing Test", () => {
     // Using a very loose regex to see what's actually there if this fails again.
     const roasElements = screen.queryAllByText(/×/);
     expect(roasElements.length).toBeGreaterThan(0);
+    
+    // Confirm media buyer name from join renders correctly
+    expect(screen.getByText("Buyer A")).toBeInTheDocument();
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
