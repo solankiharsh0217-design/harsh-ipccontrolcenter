@@ -439,6 +439,39 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
             </div>
           </div>
 
+          <div className="px-6 pb-4 flex flex-col gap-3">
+            <TagPicker
+              entityType="paid_pipeline_lead"
+              entityId={lead.id}
+              className="w-full"
+            />
+            
+            <Section title="WhatsApp templates">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {tpls.map(t => (
+                  <div key={t.label} className="rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] p-3 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center">W</span>
+                      <span className="text-[12.5px] font-medium text-[#15803D]">{t.label}</span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground line-clamp-2">{t.msg}</div>
+                    <div className="flex gap-1.5 mt-1">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(t.msg);
+                          setCopiedTpl(t.label);
+                          setTimeout(() => setCopiedTpl(null), 1200);
+                        }}
+                        className="flex-1 text-[11px] h-7 rounded border border-[#BBF7D0] bg-white hover:bg-[#DCFCE7] text-[#15803D]"
+                      >{copiedTpl === t.label ? "✓ Copied" : "Copy"}</button>
+                      <a href={waLink(t.msg)} target="_blank" rel="noreferrer" className="flex-1 text-[11px] h-7 rounded bg-[#25D366] text-white hover:opacity-90 flex items-center justify-center">Send</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          </div>
+
           {/* Quick Action Bar */}
           <div className="px-6 py-2 bg-off/30 border-t border-line flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
