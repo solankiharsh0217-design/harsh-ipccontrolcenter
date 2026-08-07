@@ -568,13 +568,6 @@ export default function OperationsLeadDrawer({
             </TabsContent>
 
 
-          {/* Communication Templates */}
-          <Section title="Communication">
-            <button onClick={() => setShowCommModal(true)} className="ipc-btn ipc-btn-black !text-xs">
-              <Mail className="w-3.5 h-3.5" /> Send / Log Communication
-            </button>
-          </Section>
-
           {/* Communication history */}
           <Section title="Communication history">
             {eventsLoading ? (
@@ -707,119 +700,6 @@ export default function OperationsLeadDrawer({
             <primaryAction.icon className="w-4 h-4" />
             {primaryAction.label}
           </button>
-        </div>
-      </div>
-
-
-
-
-
-          {/* Start Operations Process */}
-          {lead.intake_status !== "active" && lead.service_status === "not_started" && (
-            <Section title="Operations process">
-              <button onClick={() => setShowStartProcess(true)} className="ipc-btn ipc-btn-black !text-xs">
-                <Rocket className="w-3.5 h-3.5" /> Start Operations Process
-              </button>
-            </Section>
-          )}
-
-              {/* Service Summary */}
-              <Section title="Service summary">
-                <div className="grid grid-cols-2 gap-2">
-                  <Card label="Package" value={(lead as any).service_package_snapshot?.name || lead.service_package_name || "—"} />
-                  <Card label="Committed" value={`${calc.committedDays} days${lead.service_months ? ` · ${lead.service_months}m` : ""}`} />
-                  <Card label="Status" value={SERVICE_STATUS_LABELS[status] || status} />
-                  <Card label="Ads launch date" value={lead.ad_launch_date || "—"} />
-                  <Card label="Active days used" value={`${calc.activeDaysUsed} / ${calc.committedDays}`} hint={status === "active" && calc.currentActivePeriodDays > 0 ? `incl. ${calc.currentActivePeriodDays} current` : undefined} />
-                  <Card label="Paused days" value={`${calc.pausedDays}`} hint={status === "paused" && calc.currentPausedPeriodDays > 0 ? `incl. ${calc.currentPausedPeriodDays} current` : undefined} />
-                  <Card label="Remaining days" value={`${calc.remainingDays}`} />
-                  <Card label="Est. service end" value={calc.estimatedEndDate || "—"} />
-                </div>
-              </Section>
-
-              {/* Service Controls */}
-              <Section title="Service controls">
-                <div className="flex flex-wrap gap-2">
-                  {showStart && <Btn icon={Play} onClick={() => setAction("start")}>Mark Ads Started</Btn>}
-                  {showPause && <Btn icon={Pause} onClick={() => setAction("pause")}>Pause Service</Btn>}
-                  {showResume && <Btn icon={Play} onClick={() => setAction("resume")}>Resume Service</Btn>}
-                  {showStop && <Btn icon={Square} onClick={() => setAction("stop")} tone="danger">Stop Service</Btn>}
-                  {showComplete && <Btn icon={CheckCircle2} onClick={() => setAction("complete")}>Mark Completed</Btn>}
-                  {showRestart && <Btn icon={RotateCcw} onClick={() => setAction("start")}>Restart Service</Btn>}
-                  {!showStart && !showPause && !showResume && !showStop && !showComplete && !showRestart && (
-                    <div className="text-[11px] text-muted-foreground">No actions available for this status.</div>
-                  )}
-                </div>
-              </Section>
-            </TabsContent>
-
-
-          {/* Client Conversions (Phase C) */}
-          <ConversionsSection
-            leadId={lead.id}
-            leadName={lead.name}
-            assignedBuyerId={lead.assigned_media_buyer_id}
-            onChanged={onSaved}
-          />
-
-          {/* Team Result / Reward submissions */}
-          <TeamResultSubmissionPanel
-            operationsLeadId={lead.id}
-            crmLeadId={lead.crm_lead_id}
-            paidPipelineLeadId={lead.paid_pipeline_lead_id}
-            memberName={lead.name}
-          />
-
-          {/* Timeline */}
-          <Section title="Service timeline">
-            {eventsLoading ? (
-              <div className="text-[11px] text-muted-foreground">Loading…</div>
-            ) : serviceEvents.length === 0 ? (
-              <div className="text-[11px] text-muted-foreground">No service events yet.</div>
-            ) : (
-              <div className="space-y-2">
-                {serviceEvents.map((ev) => (
-                  <div key={ev.id} className="border border-line rounded-md p-2.5 text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${eventTone(ev.event_type)}`}>{ev.event_type}</span>
-                        <span className="text-foreground">{ev.event_date}</span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">{new Date(ev.created_at).toLocaleString()}</span>
-                    </div>
-                    {ev.reason && <div className="mt-1 text-[11px]"><span className="text-muted-foreground">Reason:</span> {ev.reason}</div>}
-                    {ev.note && <div className="mt-1 text-[11px] whitespace-pre-wrap">{ev.note}</div>}
-                    <div className="mt-1 text-[10px] text-muted-foreground">by {ev.created_by_name || "—"}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-
-
-          {/* Promised offers / services */}
-          <PromisedOffersPanel
-            operationsLeadId={lead.id}
-            paidPipelineLeadId={lead.paid_pipeline_lead_id}
-            crmLeadId={lead.crm_lead_id}
-            title="Services / Commitments"
-          />
-
-          {/* Delivery Tracking */}
-          <DeliveryTrackingSection
-            operationsLeadId={lead.id}
-            crmLeadId={lead.crm_lead_id}
-            paidPipelineLeadId={lead.paid_pipeline_lead_id}
-            actor={{ id: profile?.id ?? null, name: profile?.full_name ?? null }}
-            buyers={deliveryBuyers}
-          />
-
-          {/* Notes */}
-          {lead.notes && (
-            <Section title="Notes">
-              <div className="text-xs whitespace-pre-wrap text-foreground">{lead.notes}</div>
-            </Section>
-          )}
         </div>
       </div>
 
