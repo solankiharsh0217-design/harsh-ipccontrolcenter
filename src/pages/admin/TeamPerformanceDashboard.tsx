@@ -348,7 +348,7 @@ export default function TeamPerformanceDashboard() {
       </div>
 
       {error && <div className="mb-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 font-sans text-[12px] text-danger">{error}</div>}
-      {loading && <div className="mb-4 font-sans text-[12px] text-muted-foreground">Loading data…</div>}
+      {loading && <div className="mb-4 font-sans text-[12px] text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Loading…</div>}
 
       {/* ── Layer 1: headline KPIs ────────────────────────────── */}
       <SectionLabel>Headline</SectionLabel>
