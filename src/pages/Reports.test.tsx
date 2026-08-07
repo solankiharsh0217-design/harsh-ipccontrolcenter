@@ -123,9 +123,10 @@ describe("Reports List Queries Narrowing Test", () => {
 
     renderReports();
 
+    // The category cards are rendered in a loop. We click the one containing "Seminar ROAS Reports"
     await waitFor(() => {
-       const btn = screen.getByRole("button", { name: /Seminar ROAS Reports/i });
-       fireEvent.click(btn);
+       const card = screen.getByText(/Seminar ROAS Reports/i).closest('button');
+       if (card) fireEvent.click(card);
     });
 
     await waitFor(() => {
@@ -163,8 +164,8 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       const btn = screen.getByRole("button", { name: /Profit Statements/i });
-       fireEvent.click(btn);
+       const card = screen.getByText(/Profit Statements/i).closest('button');
+       if (card) fireEvent.click(card);
     });
 
     await waitFor(() => {
@@ -204,8 +205,8 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       const btn = screen.getByRole("button", { name: /Offline Seminar Reports/i });
-       fireEvent.click(btn);
+       const card = screen.getByText(/Offline Seminar Reports/i).closest('button');
+       if (card) fireEvent.click(card);
     });
 
     await waitFor(() => {
