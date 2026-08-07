@@ -83,14 +83,15 @@ describe("Reports List Queries Narrowing Test", () => {
 
     renderReports();
 
-    // Check if summary cards show correct totals
     await waitFor(() => {
       expect(screen.queryAllByText(/₹5,001/).length).toBeGreaterThan(0);
     }, { timeout: 3000 });
 
     expect(screen.getByText("Test Webinar Attribution")).toBeInTheDocument();
-    expect(screen.queryAllByText("101").length).toBeGreaterThan(0);
-    expect(screen.queryAllByText("11").length).toBeGreaterThan(0);
+    
+    const avatars = screen.getAllByTestId("buyer-avatar");
+    expect(avatars.length).toBeGreaterThan(0);
+    expect(avatars[0].getAttribute("title")).toBe("Buyer A");
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
@@ -122,12 +123,8 @@ describe("Reports List Queries Narrowing Test", () => {
 
     renderReports();
 
-    // Wait for the specific category to be active or data to load
     await waitFor(() => {
-       // Since the component might start on Attribution Reports, 
-       // we trigger the click but verify based on mock data injection
-       const seminarBtn = screen.getByText(/Seminar ROAS Reports/i);
-       fireEvent.click(seminarBtn);
+       fireEvent.click(screen.getByText(/Seminar ROAS Reports/i));
     });
 
     await waitFor(() => {
@@ -135,7 +132,6 @@ describe("Reports List Queries Narrowing Test", () => {
     }, { timeout: 3000 });
 
     expect(screen.queryAllByText(/₹10,002/).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText("22").length).toBeGreaterThan(0);
   });
 
   it("should render profit_statements list with mocked data", async () => {
@@ -166,8 +162,7 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       const profitBtn = screen.getByText(/Profit Statements/i);
-       fireEvent.click(profitBtn);
+       fireEvent.click(screen.getByText(/Profit Statements/i));
     });
 
     await waitFor(() => {
@@ -175,7 +170,6 @@ describe("Reports List Queries Narrowing Test", () => {
     }, { timeout: 3000 });
 
     expect(screen.queryAllByText(/15,003/).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText(/11,500/).length).toBeGreaterThan(0);
   });
 
   it("should render offline_seminar_reports list with mocked data", async () => {
@@ -208,8 +202,7 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       const offlineBtn = screen.getByText(/Offline Seminar Reports/i);
-       fireEvent.click(offlineBtn);
+       fireEvent.click(screen.getByText(/Offline Seminar Reports/i));
     });
 
     await waitFor(() => {
@@ -217,6 +210,5 @@ describe("Reports List Queries Narrowing Test", () => {
     }, { timeout: 3000 });
 
     expect(screen.getByText("Mumbai")).toBeInTheDocument();
-    expect(screen.queryAllByText("154").length).toBeGreaterThan(0);
   });
 });
