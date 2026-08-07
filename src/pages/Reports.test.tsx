@@ -91,12 +91,11 @@ describe("Reports List Queries Narrowing Test", () => {
       expect(screen.getByText("Test Webinar Attribution")).toBeInTheDocument();
     });
 
-    // Check stats. inr(5000) -> ₹5,000
-    const revElements = screen.getAllByText(/₹5,000/);
-    expect(revElements.length).toBeGreaterThan(0);
-    expect(screen.getByText("100")).toBeInTheDocument();
-    expect(screen.getByText("10")).toBeInTheDocument();
-    expect(screen.getByText("5.00×")).toBeInTheDocument();
+    // Use getAllByText for values that appear in both summary cards and table rows
+    expect(screen.getAllByText(/₹5,000/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("100").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("10").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("5.00×").length).toBeGreaterThan(0);
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
@@ -135,7 +134,6 @@ describe("Reports List Queries Narrowing Test", () => {
 
     renderReports();
 
-    // Switch to Seminar section
     const seminarCard = screen.getByRole("button", { name: /Seminar ROAS Reports/i });
     fireEvent.click(seminarCard);
 
@@ -145,7 +143,7 @@ describe("Reports List Queries Narrowing Test", () => {
 
     expect(screen.getAllByText(/₹10,000/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/₹8,000/).length).toBeGreaterThan(0);
-    expect(screen.getByText("5.00×")).toBeInTheDocument();
+    expect(screen.getAllByText("5.00×").length).toBeGreaterThan(0);
   });
 
   it("should render profit_statements list with mocked data", async () => {
@@ -192,7 +190,7 @@ describe("Reports List Queries Narrowing Test", () => {
 
     expect(screen.getAllByText(/₹20,000/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/₹11,000/).length).toBeGreaterThan(0);
-    expect(screen.getByText("55.0%")).toBeInTheDocument();
+    expect(screen.getAllByText("55.0%").length).toBeGreaterThan(0);
     expect(screen.getByText("posted")).toBeInTheDocument();
   });
 
@@ -240,10 +238,10 @@ describe("Reports List Queries Narrowing Test", () => {
     });
 
     expect(screen.getByText("Mumbai")).toBeInTheDocument();
-    expect(screen.getByText("150")).toBeInTheDocument();
-    expect(screen.getByText("25")).toBeInTheDocument();
+    expect(screen.getAllByText("150").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("25").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/₹15,000/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/₹12,000/).length).toBeGreaterThan(0);
-    expect(screen.getByText("5.00×")).toBeInTheDocument();
+    expect(screen.getAllByText("5.00×").length).toBeGreaterThan(0);
   });
 });
