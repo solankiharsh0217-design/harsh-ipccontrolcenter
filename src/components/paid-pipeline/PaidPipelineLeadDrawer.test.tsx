@@ -8,7 +8,7 @@ import * as accessVerification from "@/lib/accessVerification";
 vi.mock("@/components/ui/tabs", () => ({
   Tabs: ({ children, value }: any) => <div data-testid="mock-tabs" data-value={value}>{children}</div>,
   TabsList: ({ children }: any) => <div>{children}</div>,
-  TabsTrigger: ({ children, value }: any) => <button>{children}</button>,
+  TabsTrigger: ({ children }: any) => <button>{children}</button>,
   TabsContent: ({ children, value }: any) => <div data-testid={`tab-content-${value}`}>{children}</div>,
 }));
 
@@ -18,15 +18,25 @@ vi.mock("@/lib/accessVerification", () => ({
   WHATSAPP_LABELS: {}, APP_LOGIN_LABELS: {}, CALL_LABELS: {},
 }));
 
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    from: vi.fn().mockReturnThis(),
+vi.mock("@/integrations/supabase/client", () => {
+  const mockQuery = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn().mockResolvedValue({ data: null }),
-    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u" } } }) },
-  },
-}));
+    or: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+    update: vi.fn().mockResolvedValue({ data: null, error: null }),
+  };
+  return {
+    supabase: {
+      from: vi.fn().mockReturnValue(mockQuery),
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u" } } }) },
+    },
+  };
+});
 
 vi.mock("@/lib/paidPipeline", () => ({
   inr: (val: any) => `INR_${val}_MOCK`,
@@ -54,15 +64,11 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
     expect(screen.getByText("Payments")).toBeTruthy();
     expect(screen.getByText("Onboarding")).toBeTruthy();
     
-    // Check finance markers in the document body
     const bodyText = document.body.textContent || "";
     expect(bodyText).toContain("INR_1000_MOCK");
     expect(bodyText).toContain("INR_500_MOCK");
 
-    // Default tab check (balance pending -> payments)
     const tabs = screen.getAllByTestId("mock-tabs");
-    // The component might render multiple Tabs (e.g. one in header, one in body)
-    // We check that at least one of them has the correct value
     const hasCorrectTab = tabs.some(t => t.getAttribute("data-value") === "payments");
     expect(hasCorrectTab).toBe(true);
   });
