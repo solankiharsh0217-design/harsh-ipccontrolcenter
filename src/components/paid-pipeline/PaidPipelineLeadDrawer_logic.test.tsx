@@ -33,8 +33,6 @@ vi.mock("@/context/AuthContext", () => ({
 
 vi.mock("@/lib/operationsCrm", () => ({
   getActiveHandoffRules: vi.fn(),
-  findRuleForStage: vi.fn(),
-  isRuleAutoReady: vi.fn(),
   applyAutoHandoff: vi.fn(),
 }));
 
@@ -51,9 +49,28 @@ vi.mock("@/components/crm/CrmStagePicker", () => ({
   ),
 }));
 
+// Mock the Tabs component because Radix Tabs can be tricky in JSDOM
+vi.mock("@/components/ui/tabs", () => ({
+  Tabs: ({ children, value, onValueChange }: any) => (
+    <div data-testid="mock-tabs" data-value={value} onClick={(e: any) => {
+      const target = e.target.closest('[role="tab"]');
+      if (target) {
+        onValueChange?.(target.getAttribute('data-value'));
+      }
+    }}>{children}</div>
+  ),
+  TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
+  TabsTrigger: ({ children, value }: any) => (
+    <button role="tab" data-value={value} aria-label={value}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: any) => (
+    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
+  ),
+}));
+
 const mockLead = {
   id: "lead-123",
-  name: "Test Lead",
+  full_name: "Test Lead",
   pipeline_stage: "New",
   crm_lead_id: "crm-123",
   email: "test@example.com",
@@ -106,22 +123,15 @@ describe("PaidPipelineLeadDrawer Logic", () => {
       expect(screen.queryByText(/Initializing drawer/i)).toBeNull();
     });
 
-    // Click the Onboarding tab trigger (the button itself)
+    // Click the Onboarding tab trigger
     const onboardingTab = screen.getByRole("tab", { name: /onboarding/i });
     fireEvent.click(onboardingTab);
 
-    // Wait for the tab content to be "active" and visible
-    // Instead of findByTestId which might be hidden by Radix, we'll wait for the element to exist
-    await waitFor(() => {
-      const picker = screen.queryByTestId("mock-stage-picker");
-      if (!picker) throw new Error("Picker not found yet");
-      fireEvent.click(picker);
-    }, { timeout: 3000 });
+    // Wait for the picker and click it
+    const picker = await screen.findByTestId("mock-stage-picker");
+    fireEvent.click(picker);
 
-    // Verify expectations
-    await waitFor(() => {
-      expect(operationsCrm.getActiveHandoffRules).toHaveBeenCalled();
-      expect(cocRules.evaluateStageTrigger).toHaveBeenCalled();
-    });
+    expect(operationsCrm.applyAutoHandoff).toHaveBeenCalled();
+    expect(cocRules.evaluateStageTrigger).toHaveBeenCalled();
   });
 });
