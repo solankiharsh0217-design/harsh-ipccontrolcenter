@@ -82,25 +82,28 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
     // 1. New lead (No token)
     const { rerender } = render(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, token_amount_collected: 0} as any} /></MemoryRouter>);
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
-    expect(screen.getByText("Record Token Payment")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Record Token Payment/i })).toBeTruthy();
 
     // 2. Token paid, balance pending
     await act(async () => {
       rerender(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, token_amount_collected: 100, balance_pending: 1000} as any} /></MemoryRouter>);
     });
-    expect(screen.getByText("Add Payment")).toBeTruthy();
+    // Use getAllByRole + filter or more specific selector because there are multiple "Add Payment" buttons (one in summary, one primary)
+    const primaryButtons = screen.getAllByRole("button", { name: /Add Payment/i });
+    const blueButton = primaryButtons.find(b => b.className.includes("bg-blue-600"));
+    expect(blueButton).toBeTruthy();
 
     // 3. Fully paid, not yet Operations Ready
     await act(async () => {
       rerender(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, balance_pending: 0, pipeline_stage: "Paid"} as any} /></MemoryRouter>);
     });
-    expect(screen.getByText("Update Status")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Update Status/i })).toBeTruthy();
 
     // 4. Operations Ready
     await act(async () => {
       rerender(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, balance_pending: 0, pipeline_stage: "Operations Ready"} as any} /></MemoryRouter>);
     });
-    expect(screen.getByText("Send to Operations CRM")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Send to Operations CRM/i })).toBeTruthy();
   });
 
   it("defaults to Onboarding tab when access verification is incomplete", async () => {
