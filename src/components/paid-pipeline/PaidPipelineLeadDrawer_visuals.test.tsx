@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 import * as accessVerification from "@/lib/accessVerification";
 
-// Mock the Tabs component
+// Mock the Tabs component to be predictable in JSDOM
 vi.mock("@/components/ui/tabs", () => ({
   Tabs: ({ children, value, onValueChange }: any) => (
     <div data-testid="mock-tabs" data-value={value} onClick={(e: any) => {
@@ -49,9 +49,9 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-// Return unique strings we can definitely find
+// Use unique markers for currency to avoid collisions with template text
 vi.mock("@/lib/paidPipeline", () => ({
-  inr: (val: any) => `MOCK_INR_${val}`,
+  inr: (val: any) => `VAL_${val}_END`,
   recomputePaidLead: vi.fn(),
   fmtDate: (d: string) => d,
 }));
@@ -107,14 +107,14 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText((content) => content.includes("Initializing"))).toBeDefined();
+    expect(screen.getByText(/Initializing/)).toBeDefined();
     
     await act(async () => {
       resolveVerification({});
     });
 
     await waitFor(() => {
-      expect(screen.queryByText((content) => content.includes("Initializing"))).toBeNull();
+      expect(screen.queryByText(/Initializing/)).toBeNull();
     }, { timeout: 2000 });
   });
 
@@ -127,7 +127,7 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
       );
     });
 
-    await waitFor(() => expect(screen.queryByText((c) => c.includes("Initializing"))).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
     const expectedTabs = ["Overview", "Payments", "Onboarding", "Documents", "Offers & Delivery", "Activity"];
     for (const tab of expectedTabs) {
@@ -144,10 +144,10 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
       );
     });
 
-    await waitFor(() => expect(screen.queryByText((c) => c.includes("Initializing"))).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
     // Overview
-    expect(screen.getByText((c) => c.includes("Next Follow-up"))).toBeDefined();
+    expect(screen.getByText(/Next Follow-up/)).toBeDefined();
 
     // Payments
     fireEvent.click(screen.getByRole("tab", { name: /Payments/i }));
@@ -167,12 +167,11 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
       );
     });
     
-    await waitFor(() => expect(screen.queryByText((c) => c.includes("Initializing"))).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
-    // Check header balance
-    expect(screen.queryByText(/MOCK_INR_1000/)).not.toBeNull();
-    // Check summary collected
-    expect(screen.queryByText(/MOCK_INR_500/)).not.toBeNull();
+    // Use getAllByText and check for at least one match to handle duplicates
+    expect(screen.getAllByText(/VAL_1000_END/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/VAL_500_END/).length).toBeGreaterThan(0);
   });
 
   it("primary action button label changes correctly", async () => {
@@ -181,7 +180,7 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
         <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, token_amount_collected: 0} as any} />
       </MemoryRouter>
     );
-    await waitFor(() => expect(screen.queryByText((c) => c.includes("Initializing"))).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
     expect(screen.getByText("Record Token Payment")).toBeDefined();
 
     rerender(
@@ -205,7 +204,7 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
         <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, balance_pending: 1000} as any} />
       </MemoryRouter>
     );
-    await waitFor(() => expect(screen.queryByText((c) => c.includes("Initializing"))).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
     expect(screen.getByTestId("mock-tabs").getAttribute("data-value")).toBe("payments");
 
     rerender(
