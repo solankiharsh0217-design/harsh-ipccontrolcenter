@@ -53,7 +53,7 @@ vi.mock("@/lib/notifications", () => ({
   createNotification: vi.fn().mockResolvedValue({}),
 }));
 
-// Mock UI Components to avoid complex DOM structures and JSDOM issues
+// Mock UI Components
 vi.mock("@/components/ui/tabs", () => ({
   Tabs: ({ children, value }: any) => React.createElement('div', { 'data-testid': 'mock-tabs', 'data-value': value }, children),
   TabsList: ({ children }: any) => React.createElement('div', { role: 'tablist' }, children),
@@ -61,21 +61,24 @@ vi.mock("@/components/ui/tabs", () => ({
   TabsContent: ({ children, value }: any) => React.createElement('div', { role: 'tabpanel', 'data-value': value }, children),
 }));
 
-// Mock sections and icons to reduce render noise
-vi.mock("lucide-react", () => ({
-  X: () => null,
-  ExternalLink: () => null,
-  Play: () => null,
-  Pause: () => null,
-  Square: () => null,
-  CheckCircle2: () => null,
-  RotateCcw: () => null,
-  ClipboardCopy: () => null,
-  Mail: () => null,
-  Rocket: () => null,
-  ArrowRight: () => null,
-  CheckCircle: () => null,
-}));
+// Use Proxy to handle any missing lucide-react icons
+vi.mock("lucide-react", () => {
+  return new Proxy({}, {
+    get: () => () => null
+  });
+});
+
+// Mock child components to isolate drawer logic
+vi.mock("@/components/offers/PromisedOffersPanel", () => ({ default: () => null }));
+vi.mock("@/components/operations/DeliveryTrackingSection", () => ({ default: () => null }));
+vi.mock("@/components/operations/ConversionsSection", () => ({ default: () => null }));
+vi.mock("@/components/operations/ReadinessChecklist", () => ({ default: () => null }));
+vi.mock("@/components/operations/TeamResultSubmissionPanel", () => ({ default: () => null }));
+vi.mock("@/components/operations/CustomFieldsPanel", () => ({ default: () => null }));
+vi.mock("@/components/operations/CommTemplatePickerModal", () => ({ default: () => null }));
+vi.mock("@/components/operations/OperationsActivityTimeline", () => ({ default: () => null }));
+vi.mock("@/components/operations/OperationsLinkedRecordsCard", () => ({ default: () => null }));
+vi.mock("@/components/operations/StartProcessModal", () => ({ default: () => null }));
 
 const mockLead = {
   id: "ops-lead-123",
@@ -113,7 +116,7 @@ describe("OperationsLeadDrawer Action Priority & Defaulting", () => {
     expect(screen.getByRole("button", { name: /Start Operations Process/i })).toBeTruthy();
   });
 
-  it("shows 'Mark Ads Started' if intake is active but status is not_started and not ready", async () => {
+  it("shows 'Mark Ads Started' if intake is active but status is not_started", async () => {
     await act(async () => {
       render(
         React.createElement(MemoryRouter, null, 
