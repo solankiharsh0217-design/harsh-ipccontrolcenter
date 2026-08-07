@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil } from "lucide-react";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -189,7 +189,7 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
           <button onClick={() => setCreatingTpl(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> New template</button>
         </div>
         {templates.length === 0 ? (
-          <div className="text-xs text-muted-foreground italic">No templates yet.</div>
+          <EmptyState title="No templates yet." />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {templates.map((t) => (
@@ -214,7 +214,7 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
           <button onClick={() => setCreatingComm(true)} className="ipc-btn ipc-btn-black !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> New message</button>
         </div>
         {comms.length === 0 ? (
-          <div className="text-xs text-muted-foreground italic">No templates yet.</div>
+          <EmptyState title="No templates yet." />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {comms.map((c) => (
