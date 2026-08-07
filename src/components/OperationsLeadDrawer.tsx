@@ -300,11 +300,27 @@ export default function OperationsLeadDrawer({
   }, [isReady, readinessSettings, targetStageObj, alreadyAtOrAfterTarget, canMoveReadiness]);
 
 
+  const primaryAction = useMemo(() => {
+    if (lead.intake_status !== "active" && lead.service_status === "not_started") {
+      return { label: "Start Operations Process", icon: Rocket, onClick: () => setShowStartProcess(true) };
+    }
+    if (isReady && !alreadyAtOrAfterTarget && targetStageObj && canMoveReadiness) {
+      return { label: `Move to ${targetStageObj.name}`, icon: ArrowRight, onClick: () => setShowReadinessMove(true) };
+    }
+    if (showStart) {
+      return { label: "Mark Ads Started", icon: Play, onClick: () => setAction("start") };
+    }
+    if (showResume) {
+      return { label: "Resume Service", icon: Play, onClick: () => setAction("resume") };
+    }
+    return { label: "Log Communication", icon: Mail, onClick: () => setShowCommModal(true) };
+  }, [lead, isReady, alreadyAtOrAfterTarget, targetStageObj, canMoveReadiness, showStart, showResume]);
+
   return (
     <div className="fixed inset-0 z-[1100] bg-black/40 flex justify-end" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-white h-full overflow-y-auto">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-white h-full overflow-hidden flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-line flex items-center justify-between sticky top-0 bg-white z-10">
+        <div className="px-5 py-4 border-b border-line flex items-center justify-between sticky top-0 bg-white z-10 shrink-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className="font-serif text-lg text-black truncate">{lead.name}</div>
@@ -317,7 +333,21 @@ export default function OperationsLeadDrawer({
           <button onClick={onClose} className="w-7 h-7 rounded hover:bg-off flex items-center justify-center"><XIcon className="w-4 h-4" /></button>
         </div>
 
-        <div className="p-5 space-y-5">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+          <TabsList className="px-2 border-b border-line rounded-none bg-transparent gap-1 shrink-0 overflow-x-auto no-scrollbar">
+            {["overview", "onboarding", "delivery", "results", "activity"].map(t => (
+              <TabsTrigger 
+                key={t} 
+                value={t} 
+                className="capitalize text-[11px] py-2 data-[state=active]:border-b-2 data-[state=active]:border-gold rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              >
+                {t === "onboarding" ? "Process" : t}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          
+          <div className="flex-1 overflow-y-auto p-5 space-y-6">
+
           {/* Client Profile */}
           <Section title="Client profile">
             <div className="grid grid-cols-2 gap-3">
