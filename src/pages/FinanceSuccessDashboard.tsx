@@ -961,7 +961,7 @@ export default function FinanceSuccessDashboard() {
             {/* Layer 2: Today's Work (Daily Queue) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
-                <SectionLabel className="mb-0">Access Follow-up Daily Queue</SectionLabel>
+                <SectionLabel>Access Follow-up Daily Queue</SectionLabel>
                 <Link to="/analytics-center" className="text-[11px] text-muted-foreground hover:underline">View Analytics Center →</Link>
               </div>
               <AccessFollowupTab 
