@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import * as operationsCrm from "@/lib/operationsCrm";
 import * as cocRules from "@/lib/codeOfConductRules";
+import * as accessVerification from "@/lib/accessVerification";
+
+vi.mock("@/lib/accessVerification", () => ({
+  fetchVerificationForPaidLead: vi.fn().mockResolvedValue(null),
+  computeOverall: vi.fn().mockReturnValue("completed"),
+}));
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
