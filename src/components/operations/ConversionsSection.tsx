@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Check, X as XIcon, ExternalLink, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 import {
   listConversionsForLead, approveConversion, rejectConversion,
   type ConversionReport,
@@ -92,7 +92,7 @@ export default function ConversionsSection({
       {loading ? (
         <LoadingState />
       ) : rows.length === 0 ? (
-        <div className="text-[11px] text-muted-foreground border border-dashed border-line rounded-md p-3 text-center">No conversions reported yet.</div>
+        <EmptyState title="No conversions reported yet." bordered center />
       ) : (
         <div className="border border-line rounded-md divide-y divide-line">
           {rows.map((r) => {

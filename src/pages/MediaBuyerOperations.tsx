@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { PageHead, SectionLabel, LoadingRow } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingRow, EmptyRow } from "@/components/ui-bits";
 import { getEligibleAssignees, type EligibleAssignee } from "@/lib/eligibleAssignees";
 import type { MBCase } from "@/lib/mediaBuyerOps";
 import { autoAssignRoundRobin, createCase, SERVICE_DURATION_PRESETS, CALL_SLA_DAYS } from "@/lib/mediaBuyerOps";
@@ -275,7 +275,7 @@ export default function MediaBuyerOperations() {
               </thead>
               <tbody>
                 {performance.length === 0 ? (
-                  <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No eligible media buyers yet. Enable assignment eligibility from Team Directory.</td></tr>
+                  <EmptyRow colSpan={7} title="No eligible media buyers yet. Enable assignment eligibility from Team Directory." />
                 ) : performance.map((r) => (
                   <tr key={r.id} className="border-b border-line last:border-b-0 hover:bg-off/50 cursor-pointer" onClick={() => setPreviewBuyerId(r.id)}>
                     <td className="px-3 py-2 font-serif text-[13px] text-black">{r.name}</td>

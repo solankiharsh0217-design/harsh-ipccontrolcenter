@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHead, Tag } from "@/components/ui-bits";
+import { PageHead, Tag, EmptyState } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort } from "@/lib/format";
 
@@ -13,7 +13,7 @@ export default function Announcements() {
     <div className="max-w-[720px]">
       <PageHead title="Announcements" sub="Internal notices for the IPC team." back />
       <div className="border border-line rounded-xl bg-white overflow-hidden">
-        {items.length === 0 && <div className="px-[22px] py-8 font-sans text-sm text-muted-foreground">No announcements yet.</div>}
+        {items.length === 0 && <EmptyState title="No announcements yet." />}
         {items.map(a => (
           <div key={a.id} className="px-[22px] py-4 border-b border-line last:border-b-0 hover:bg-off transition-colors">
             <div className="mb-2"><Tag type={a.tag_type}>{a.tag_type}</Tag></div>

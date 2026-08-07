@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { logActivity } from "@/lib/auditLog";
 import { getCanonicalMediaBuyers, refreshMediaBuyerCache, type MediaBuyerAlias } from "@/lib/mediaBuyers";
-import { LoadingRow } from "@/components/ui-bits";
+import { LoadingRow, EmptyRow } from "@/components/ui-bits";
 
 const cardCls = "border border-line rounded-lg bg-white";
 const inputCls = "w-full h-10 border border-line rounded-md px-3.5 font-sans text-[13px] focus:outline-none focus:border-gold bg-white";
@@ -135,7 +135,7 @@ export default function MediaBuyerAliasManager() {
           <tbody>
             {loading && <LoadingRow colSpan={5} />}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">No aliases yet.</td></tr>
+              <EmptyRow colSpan={5} title="No aliases yet." />
             )}
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-line">
