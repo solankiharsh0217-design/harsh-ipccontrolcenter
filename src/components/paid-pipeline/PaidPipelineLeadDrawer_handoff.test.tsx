@@ -110,13 +110,8 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     fireEvent.click(onboardingTab);
 
     // 5. Find the stage picker (CrmStagePicker) and trigger a change
-    // The picker renders a button with the current stage name or "—"
     const pickerTrigger = await screen.findByRole("combobox");
-    fireEvent.click(pickerTrigger);
-
-    // Find the new stage in the list and click it
-    const newStageOption = await screen.findByText("New Stage");
-    fireEvent.click(newStageOption);
+    fireEvent.change(pickerTrigger, { target: { value: "stage-new" } });
 
 
 
