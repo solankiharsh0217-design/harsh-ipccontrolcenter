@@ -1,0 +1,60 @@
+193:  const changeCrmStage = async (newStageId: string) => {
+194-    if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) { setCrmPickerOpen(false); return; }
+195-    const oldName = crmStages.find(s => s.id === crmStageId)?.name || "—";
+196-    const newName = crmStages.find(s => s.id === newStageId)?.name || "—";
+197-    const prevId = crmStageId;
+198-    setCrmStageId(newStageId);
+199-    setCrmPickerOpen(false);
+200-    const { error } = await supabase.from("leads").update({ stage_id: newStageId }).eq("id", lead.crm_lead_id);
+201-    if (error) {
+202-      setCrmStageId(prevId);
+203-      toast.error("Failed to update CRM stage");
+204-      return;
+205-    }
+206-    logActivity({
+207-      module_key: "paid_pipeline", module_label: "Paid Pipeline",
+208-      action_type: "paid_pipeline_updated_linked_crm_stage",
+209-      entity_type: "lead", entity_id: lead.crm_lead_id, entity_label: lead.name || undefined,
+210-      old_values: { stage: oldName },
+211-      new_values: { stage: newName },
+212-      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, old_stage: oldName, new_stage: newName, changed_by: user?.id || null },
+213-      summary: `Linked CRM stage changed from '${oldName}' to '${newName}' from Paid Pipeline drawer.`,
+214-    });
+215-    toast.success("Calling CRM stage updated.");
+216-
+217-    // Trigger Operations handoff evaluation for this stage change
+218-    try {
+219-      const rules = await getActiveHandoffRules();
+220-      const stagesById = new Map(crmStages.map(s => [s.id, { id: s.id, name: s.name }]));
+221-      const rule = findRuleForStage(rules, crmPipelineId, newStageId, stagesById as any);
+222-      if (rule) {
+223-        if (rule.mode === "auto" && isRuleAutoReady(rule)) {
+224-          const res = await applyAutoHandoff(rule, [{
+225-            id: lead.crm_lead_id, full_name: lead.name, email: lead.email, phone: lead.phone,
+226-            program_name: lead.product_name_snapshot || null, paid_pipeline_lead_id: lead.id,
+227-          }], user?.id || null);
+228-          if (res.inserted > 0) toast.success("Auto-sent to Operations CRM");
+229-          else if (res.updated > 0) toast.info("Operations CRM record updated");
+230-        } else if (rule.mode === "suggest") {
+231-          toast.info(`Operations handoff suggested: ${rule.name}`);
+232-        }
+233-      }
+234-    } catch (e) { /* non-fatal */ }
+235-
+236-    // Code of Conduct trigger evaluation
+237-    try {
+238-      const { evaluateStageTrigger } = await import("@/lib/codeOfConductRules");
+239-      const res = await evaluateStageTrigger({
+240-        source: "paid_pipeline", pipelineId: crmPipelineId, stageId: newStageId,
+241-        crmLeadId: lead.crm_lead_id, paidPipelineLeadId: lead.id,
+242-        memberName: lead.name || "Member", memberEmail: lead.email, memberPhone: lead.phone,
+243-        programName: lead.product_name_snapshot, dealValue: (lead as any).deal_value,
+244-      });
+245-      if (res.action === "auto_sent") toast.success(`Code of Conduct auto-sent (rule: ${res.rule?.name})`);
+246-      else if (res.action === "suggested") toast.info(`Code of Conduct suggested: ${res.rule?.name}`);
+247-      else if (res.action === "auto_send_failed") toast.error(`CoC auto-send failed: ${res.message}`);
+248-    } catch (e) { /* non-fatal */ }
+249-
+250-
+251-    onChanged();
+252-  };
