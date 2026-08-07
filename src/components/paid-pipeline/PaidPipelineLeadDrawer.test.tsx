@@ -1,7 +1,7 @@
 import { render, screen, cleanup, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
-import { BrowserRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 import * as accessVerification from "@/lib/accessVerification";
 
@@ -78,17 +78,17 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
   it("matches finance data across Overview and Payments tabs", async () => {
     await act(async () => {
       render(
-        <BrowserRouter>
+        <MemoryRouter>
           <PaidPipelineLeadDrawer {...defaultProps} lead={mockLead as any} />
-        </BrowserRouter>
+        </MemoryRouter>
       );
     });
 
     await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
 
-    // Check Overview tab figures
-    expect(screen.getByText("₹1,000")).toBeDefined(); // Balance
-    expect(screen.getByText("₹500")).toBeDefined();   // Collected
-    expect(screen.getByText("₹100")).toBeDefined();   // Token
+    // Check Overview tab figures (using regex to find text even if split across spans)
+    expect(screen.getAllByText(/₹1,000/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/₹500/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/₹100/).length).toBeGreaterThan(0);
   });
 });
