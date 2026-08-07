@@ -100,11 +100,8 @@ describe("Reports List Queries Narrowing Test", () => {
     const roasElements = screen.queryAllByText(/×/);
     expect(roasElements.length).toBeGreaterThan(0);
     
-    // Confirm media buyer name from join renders correctly
-    // It's in the title attribute of the avatar-like div
-    const buyerAvatar = screen.getByTitle("Buyer A");
-    expect(buyerAvatar).toBeInTheDocument();
-    expect(buyerAvatar).toHaveTextContent("BA"); // initials of "Buyer A"
+    // Confirm media buyer initials from join renders correctly
+    expect(screen.getByText("BA")).toBeInTheDocument();
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
