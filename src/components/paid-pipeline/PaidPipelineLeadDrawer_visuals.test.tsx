@@ -31,8 +31,6 @@ vi.mock("@/components/ui/tabs", () => ({
   ),
 }));
 
-import * as AuthModule from "@/context/AuthContext";
-import * as accessVerification from "@/lib/accessVerification";
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
