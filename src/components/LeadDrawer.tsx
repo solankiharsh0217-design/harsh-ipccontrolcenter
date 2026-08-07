@@ -215,6 +215,16 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     loadActiveConversionRules().then(setConvRules).catch(() => setConvRules([])); 
   }, []);
 
+  if (!lead) return (
+    <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
+      <div className="absolute right-0 top-0 h-full w-[560px] bg-white p-8" onClick={(e) => e.stopPropagation()}>Loading…</div>
+    </div>
+  );
+
+  const g = GRADE_STYLES[lead.grade];
+  const pipelineAllStages = stages.filter((s) => s.pipeline_id === lead.pipeline_id).sort((a, b) => a.position - b.position);
+  const pipelineStages = pipelineAllStages.filter((s) => (s as any).is_active !== false || s.id === lead.stage_id);
+
   const today = new Date().toISOString().slice(0, 10);
   const currentStage = pipelineStages.find((s) => s.id === lead.stage_id);
   const matchingRule = findRuleForStage(opsRules, lead.pipeline_id, lead.stage_id, stagesById);
@@ -249,12 +259,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
 
     setActiveTab("overview");
   }, [leadId, !!lead, isOpsEligible, inOps, hasToken, reminders.length]);
-
-  if (!lead) return (
-    <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
-      <div className="absolute right-0 top-0 h-full w-[560px] bg-white p-8" onClick={(e) => e.stopPropagation()}>Loading…</div>
-    </div>
-  );
 
   const g = GRADE_STYLES[lead.grade];
   const pipelineAllStages = stages.filter((s) => s.pipeline_id === lead.pipeline_id).sort((a, b) => a.position - b.position);
