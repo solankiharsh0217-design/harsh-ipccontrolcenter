@@ -140,7 +140,7 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
     });
 
     // Overview (default)
-    expect(screen.getByText(/Next Follow-up/i)).toBeDefined();
+    expect(screen.getByRole("heading", { name: /Next Follow-up/i })).toBeDefined();
 
     // Payments
     fireEvent.click(screen.getByRole("tab", { name: /Payments/i }));
