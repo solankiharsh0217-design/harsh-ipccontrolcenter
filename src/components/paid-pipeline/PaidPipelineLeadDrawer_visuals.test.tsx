@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 import * as accessVerification from "@/lib/accessVerification";
 
-// Mock the Tabs component to be predictable in JSDOM
+// Mock the Tabs component
 vi.mock("@/components/ui/tabs", () => ({
   Tabs: ({ children, value, onValueChange }: any) => (
     <div data-testid="mock-tabs" data-value={value} onClick={(e: any) => {
@@ -49,7 +49,6 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-// Return unique strings that JSDOM won't mangle
 vi.mock("@/lib/paidPipeline", () => ({
   inr: (val: any) => `INR_${val}_MOCK`,
   recomputePaidLead: vi.fn(),
@@ -107,7 +106,6 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
       </MemoryRouter>
     );
 
-    // Initial check for loading state
     expect(screen.getByTestId("drawer-loader")).toBeDefined();
     
     await act(async () => {
@@ -193,8 +191,9 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
         <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, token_amount_collected: 100, balance_pending: 1000} as any} />
       </MemoryRouter>
     );
-    // Find specifically the primary action button to avoid finding "Add Payment" in text
-    const primaryBtn = screen.getByRole("button", { name: /Add Payment/i, className: /ipc-btn-black/i });
+    // Fixed: Use filter instead of className in options
+    const primaryBtns = screen.getAllByRole("button", { name: /Add Payment/i });
+    const primaryBtn = primaryBtns.find(btn => btn.className.includes("ipc-btn-black"));
     expect(primaryBtn).toBeDefined();
 
     rerender(
