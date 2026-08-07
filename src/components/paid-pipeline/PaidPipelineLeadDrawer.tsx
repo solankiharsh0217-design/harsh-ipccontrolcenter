@@ -24,7 +24,7 @@ import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
 import ServicePackageChip from "@/components/ServicePackageChip";
 import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 import type { Lead, Batch, Payment } from "@/pages/PaidPipeline";
-import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink } from "lucide-react";
+import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink, Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { fetchVerificationForPaidLead, computeOverall } from "@/lib/accessVerification";
 
@@ -455,7 +455,17 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
   const chip = stageChip(stage, "gray");
 
-  if (!tabResolved) return null;
+  if (!tabResolved) {
+    return (
+      <div className="fixed inset-0 z-50 flex">
+        <div className="flex-1 bg-black/30" onClick={onClose} />
+        <div className="w-full max-w-[800px] bg-white flex flex-col h-[100dvh] items-center justify-center">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-2" />
+          <div className="text-[13px] text-muted-foreground">Initializing drawer…</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex">
