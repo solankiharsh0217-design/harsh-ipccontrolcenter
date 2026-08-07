@@ -42,6 +42,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     limit: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    update: vi.fn().mockReturnThis(),
     auth: {
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-123" } }, error: null }),
     },
@@ -172,129 +173,92 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
     
     await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
 
-    // We use findByText to be more robust against nested spans
-    expect(screen.getAllByText(/₹1,000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹500/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹100/).length).toBeGreaterThan(0);
+    // Check figures (allowing for matching across multiple spans if necessary)
+    const findMoney = (val: string) => {
+      return screen.queryAllByText((content, element) => {
+        const hasText = (node: Element) => node.textContent === val;
+        const elementHasText = hasText(element!);
+        const childrenDontHaveText = Array.from(element?.children || []).every(
+          child => !hasText(child)
+        );
+        return elementHasText && childrenDontHaveText;
+      });
+    };
+
+    expect(findMoney("₹1,000").length).toBeGreaterThan(0);
+    expect(findMoney("₹500").length).toBeGreaterThan(0);
+    expect(findMoney("₹100").length).toBeGreaterThan(0);
   });
 
-  it("primary action button is 'Record Token Payment' for lead with no token", async () => {
-    const noTokenLead = { ...mockLead, token_amount_collected: 0 };
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={noTokenLead as any} />
-        </MemoryRouter>
-      );
-    });
-    
+  it("primary action button label changes correctly based on stage", async () => {
+    // 1. No token
+    const { rerender } = render(
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, token_amount_collected: 0} as any} />
+      </MemoryRouter>
+    );
     await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
     expect(screen.getByText("Record Token Payment")).toBeDefined();
-  });
 
-  it("primary action button is 'Add Payment' for lead with pending balance", async () => {
-    const pendingBalanceLead = { ...mockLead, token_amount_collected: 100, balance_pending: 1000 };
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={pendingBalanceLead as any} />
-        </MemoryRouter>
-      );
-    });
-    
-    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
+    // 2. Balance pending
+    rerender(
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, token_amount_collected: 100, balance_pending: 1000} as any} />
+      </MemoryRouter>
+    );
     expect(screen.getByText("Add Payment")).toBeDefined();
-  });
 
-  it("primary action button is 'Send to Operations CRM' for operations-ready lead", async () => {
-    const readyLead = { ...mockLead, pipeline_stage: "Operations Ready", balance_pending: 0, code_of_conduct_status: "signed" };
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={readyLead as any} />
-        </MemoryRouter>
-      );
-    });
-    
-    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
+    // 3. Operations Ready
+    rerender(
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, pipeline_stage: "Operations Ready", balance_pending: 0, code_of_conduct_status: "signed"} as any} />
+      </MemoryRouter>
+    );
     expect(screen.getByText("Send to Operations CRM")).toBeDefined();
-  });
 
-  it("primary action button is 'Update Status' for fully paid but not ready lead", async () => {
-    const fullyPaidLead = { ...mockLead, pipeline_stage: "Paid - Documentation Pending", balance_pending: 0, code_of_conduct_status: "pending" };
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={fullyPaidLead as any} />
-        </MemoryRouter>
-      );
-    });
-    
-    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
+    // 4. Fully paid but not ready
+    rerender(
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, pipeline_stage: "Documentation Pending", balance_pending: 0, code_of_conduct_status: "pending"} as any} />
+      </MemoryRouter>
+    );
     expect(screen.getByText("Update Status")).toBeDefined();
   });
 
-  it("defaults to Payments tab when balance is pending", async () => {
-    const pendingLead = { ...mockLead, balance_pending: 1000 };
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={pendingLead as any} />
-        </MemoryRouter>
-      );
-    });
-    
+  it("defaults to correct tab based on stage and blockers", async () => {
+    // 1. Payments (Balance Pending)
+    const { rerender } = render(
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, balance_pending: 1000} as any} />
+      </MemoryRouter>
+    );
     await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
-    const tabs = screen.getByTestId("mock-tabs");
-    expect(tabs.getAttribute("data-value")).toBe("payments");
-  });
+    expect(screen.getByTestId("mock-tabs").getAttribute("data-value")).toBe("payments");
 
-  it("defaults to Documents tab when CoC is pending", async () => {
-    const docPendingLead = { ...mockLead, balance_pending: 0, code_of_conduct_status: "pending" };
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={docPendingLead as any} />
-        </MemoryRouter>
-      );
-    });
-    
-    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
-    const tabs = screen.getByTestId("mock-tabs");
-    expect(tabs.getAttribute("data-value")).toBe("documents");
-  });
+    // 2. Documents (CoC Pending)
+    rerender(
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, balance_pending: 0, code_of_conduct_status: "pending"} as any} />
+      </MemoryRouter>
+    );
+    expect(screen.getByTestId("mock-tabs").getAttribute("data-value")).toBe("documents");
 
-  it("defaults to Onboarding tab when access verification is incomplete", async () => {
-    const onboardingPendingLead = { ...mockLead, balance_pending: 0, code_of_conduct_status: "signed" };
+    // 3. Onboarding (Access Verification Incomplete)
     (accessVerification.computeOverall as any).mockReturnValue("pending");
+    rerender(
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, balance_pending: 0, code_of_conduct_status: "signed"} as any} />
+      </MemoryRouter>
+    );
+    expect(screen.getByTestId("mock-tabs").getAttribute("data-value")).toBe("onboarding");
 
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={onboardingPendingLead as any} />
-        </MemoryRouter>
-      );
-    });
-    
-    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
-    const tabs = screen.getByTestId("mock-tabs");
-    expect(tabs.getAttribute("data-value")).toBe("onboarding");
-  });
-
-  it("defaults to Offers & Delivery when operations-ready", async () => {
-    const readyLead = { ...mockLead, balance_pending: 0, code_of_conduct_status: "signed", pipeline_stage: "Operations Ready" };
+    // 4. Offers & Delivery (Operations Ready)
     (accessVerification.computeOverall as any).mockReturnValue("completed");
-
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={readyLead as any} />
-        </MemoryRouter>
-      );
-    });
-    
-    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
-    const tabs = screen.getByTestId("mock-tabs");
-    expect(tabs.getAttribute("data-value")).toBe("offers");
+    rerender(
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer {...defaultProps} lead={{...mockLead, balance_pending: 0, code_of_conduct_status: "signed", pipeline_stage: "Operations Ready"} as any} />
+      </MemoryRouter>
+    );
+    expect(screen.getByTestId("mock-tabs").getAttribute("data-value")).toBe("offers");
   });
 });
