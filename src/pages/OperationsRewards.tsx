@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Trophy, CheckCircle2, XCircle, Clock, ExternalLink, IndianRupee, Users, Timer, Wallet, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { LoadingState } from "@/components/ui-bits";
 import {
   listSubmissions, approveSubmission, rejectSubmission, updateRewardAmount,
   listPayoutsForMonth, upsertPayout, setPayoutStatus,
@@ -255,7 +256,7 @@ export default function OperationsRewards() {
             {tab === "pending" ? "Pending submissions" : tab === "approved" ? "Approved submissions" : "Rejected submissions"}
           </div>
           {loading ? (
-            <div className="p-6 text-xs text-muted-foreground">Loading…</div>
+            <div className="p-6"><LoadingState /></div>
           ) : rows.length === 0 ? (
             <div className="p-6 text-center text-xs text-muted-foreground">No {tab} submissions.</div>
           ) : (

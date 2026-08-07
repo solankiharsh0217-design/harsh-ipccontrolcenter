@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Trophy, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { LoadingState } from "@/components/ui-bits";
 import {
   getActiveRewardRule, getMonthlyCountsByBuyer, listAllRewardProgressForMonth,
   currentMonthStr, type RewardRule, type RewardProgress,
@@ -155,7 +156,7 @@ export default function OpsRewardsTab({ isAdmin, selfId }: Props) {
           {isAdmin ? "Media buyer leaderboard" : "Your reward progress"}
         </div>
         {loading ? (
-          <div className="p-4 text-xs text-muted-foreground">Loading…</div>
+          <div className="p-4"><LoadingState /></div>
         ) : rows.length === 0 ? (
           <div className="p-4 text-xs text-muted-foreground text-center">No reward activity for this month.</div>
         ) : (
