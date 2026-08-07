@@ -233,7 +233,7 @@ export default function Reports() {
   const reloadOffline = async () => {
     const { data } = await (supabase as any)
       .from("offline_seminar_reports")
-      .select("*")
+      .select("id, created_at, is_deleted, deleted_at, event_name, event_date, city, tickets_sold, program_sales_count, total_cost, total_realized_revenue, net_profit, realized_roas")
       .order("created_at", { ascending: false })
       .limit(500);
     setOfflineRows((data || []) as OfflineRow[]);
@@ -242,7 +242,7 @@ export default function Reports() {
   const reloadProfit = async () => {
     const { data } = await (supabase as any)
       .from("profit_statements")
-      .select("*")
+      .select("id, business_unit, statement_month, status, total_revenue, total_cogs, gross_profit, total_payroll, net_profit, net_margin, is_deleted, deleted_at")
       .order("statement_month", { ascending: false })
       .limit(500);
     setProfitRows((data || []) as ProfitStatementRow[]);
@@ -252,7 +252,7 @@ export default function Reports() {
   const reloadSeminar = async () => {
     const { data } = await (supabase as any)
       .from("seminar_roas_reports")
-      .select("*")
+      .select("id, created_at, is_deleted, deleted_at, webinar_name, total_webinar_days, watch_point_percent, total_revenue_including_gst, total_ad_spend_including_gst, total_conversions, profit_after_gst, cpa, roas, whatsapp_summary_text")
       .order("created_at", { ascending: false })
       .limit(500);
     setSeminarRows((data || []) as SeminarRow[]);
@@ -262,7 +262,7 @@ export default function Reports() {
     setLoading(true);
     const { data } = await (supabase as any)
       .from("attribution_sessions")
-      .select("*, buyers:attribution_media_buyers(media_buyer_name)")
+      .select("id, webinar_name, webinar_date, webinar_type, total_leads, total_sales, total_ad_spend, total_revenue, overall_roas, created_at, is_deleted, calculation_method, calculation_display_method, webinar_date_mode, webinar_single_date, webinar_start_date, webinar_end_date, webinar_dates, session_slot, webinar_format, webinar_operator, webinar_platform, webinar_notes, zoom_account_used, buyers:attribution_media_buyers(media_buyer_name)")
       .order("created_at", { ascending: false })
       .limit(500);
     const rows: SessionRow[] = (data || []).map((d: any) => ({
