@@ -88,10 +88,11 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
     await act(async () => {
       rerender(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, token_amount_collected: 100, balance_pending: 1000} as any} /></MemoryRouter>);
     });
-    // Use getAllByRole + filter or more specific selector because there are multiple "Add Payment" buttons (one in summary, one primary)
-    const primaryButtons = screen.getAllByRole("button", { name: /Add Payment/i });
-    const blueButton = primaryButtons.find(b => b.className.includes("bg-blue-600"));
-    expect(blueButton).toBeTruthy();
+    // The primary action button has specific classes we can use to distinguish it
+    const addPaymentBtn = screen.getByRole("button", { 
+      name: (content, element) => content.includes("Add Payment") && element?.className.includes("bg-blue-600") 
+    } as any);
+    expect(addPaymentBtn).toBeTruthy();
 
     // 3. Fully paid, not yet Operations Ready
     await act(async () => {
