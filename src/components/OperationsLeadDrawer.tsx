@@ -624,34 +624,36 @@ export default function OperationsLeadDrawer({
             </Section>
           )}
 
-          {/* Service Summary */}
-          <Section title="Service summary">
-            <div className="grid grid-cols-2 gap-2">
-              <Card label="Package" value={(lead as any).service_package_snapshot?.name || lead.service_package_name || "—"} />
-              <Card label="Committed" value={`${calc.committedDays} days${lead.service_months ? ` · ${lead.service_months}m` : ""}`} />
-              <Card label="Status" value={SERVICE_STATUS_LABELS[status] || status} />
-              <Card label="Ads launch date" value={lead.ad_launch_date || "—"} />
-              <Card label="Active days used" value={`${calc.activeDaysUsed} / ${calc.committedDays}`} hint={status === "active" && calc.currentActivePeriodDays > 0 ? `incl. ${calc.currentActivePeriodDays} current` : undefined} />
-              <Card label="Paused days" value={`${calc.pausedDays}`} hint={status === "paused" && calc.currentPausedPeriodDays > 0 ? `incl. ${calc.currentPausedPeriodDays} current` : undefined} />
-              <Card label="Remaining days" value={`${calc.remainingDays}`} />
-              <Card label="Est. service end" value={calc.estimatedEndDate || "—"} />
-            </div>
-          </Section>
+              {/* Service Summary */}
+              <Section title="Service summary">
+                <div className="grid grid-cols-2 gap-2">
+                  <Card label="Package" value={(lead as any).service_package_snapshot?.name || lead.service_package_name || "—"} />
+                  <Card label="Committed" value={`${calc.committedDays} days${lead.service_months ? ` · ${lead.service_months}m` : ""}`} />
+                  <Card label="Status" value={SERVICE_STATUS_LABELS[status] || status} />
+                  <Card label="Ads launch date" value={lead.ad_launch_date || "—"} />
+                  <Card label="Active days used" value={`${calc.activeDaysUsed} / ${calc.committedDays}`} hint={status === "active" && calc.currentActivePeriodDays > 0 ? `incl. ${calc.currentActivePeriodDays} current` : undefined} />
+                  <Card label="Paused days" value={`${calc.pausedDays}`} hint={status === "paused" && calc.currentPausedPeriodDays > 0 ? `incl. ${calc.currentPausedPeriodDays} current` : undefined} />
+                  <Card label="Remaining days" value={`${calc.remainingDays}`} />
+                  <Card label="Est. service end" value={calc.estimatedEndDate || "—"} />
+                </div>
+              </Section>
 
-          {/* Service Controls */}
-          <Section title="Service controls">
-            <div className="flex flex-wrap gap-2">
-              {showStart && <Btn icon={Play} onClick={() => setAction("start")}>Mark Ads Started</Btn>}
-              {showPause && <Btn icon={Pause} onClick={() => setAction("pause")}>Pause Service</Btn>}
-              {showResume && <Btn icon={Play} onClick={() => setAction("resume")}>Resume Service</Btn>}
-              {showStop && <Btn icon={Square} onClick={() => setAction("stop")} tone="danger">Stop Service</Btn>}
-              {showComplete && <Btn icon={CheckCircle2} onClick={() => setAction("complete")}>Mark Completed</Btn>}
-              {showRestart && <Btn icon={RotateCcw} onClick={() => setAction("start")}>Restart Service</Btn>}
-              {!showStart && !showPause && !showResume && !showStop && !showComplete && !showRestart && (
-                <div className="text-[11px] text-muted-foreground">No actions available for this status.</div>
-              )}
-            </div>
-          </Section>
+              {/* Service Controls */}
+              <Section title="Service controls">
+                <div className="flex flex-wrap gap-2">
+                  {showStart && <Btn icon={Play} onClick={() => setAction("start")}>Mark Ads Started</Btn>}
+                  {showPause && <Btn icon={Pause} onClick={() => setAction("pause")}>Pause Service</Btn>}
+                  {showResume && <Btn icon={Play} onClick={() => setAction("resume")}>Resume Service</Btn>}
+                  {showStop && <Btn icon={Square} onClick={() => setAction("stop")} tone="danger">Stop Service</Btn>}
+                  {showComplete && <Btn icon={CheckCircle2} onClick={() => setAction("complete")}>Mark Completed</Btn>}
+                  {showRestart && <Btn icon={RotateCcw} onClick={() => setAction("start")}>Restart Service</Btn>}
+                  {!showStart && !showPause && !showResume && !showStop && !showComplete && !showRestart && (
+                    <div className="text-[11px] text-muted-foreground">No actions available for this status.</div>
+                  )}
+                </div>
+              </Section>
+            </TabsContent>
+
 
           {/* Client Conversions (Phase C) */}
           <ConversionsSection
