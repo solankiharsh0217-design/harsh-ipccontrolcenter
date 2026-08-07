@@ -115,7 +115,8 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
       ...mockLead,
       token_amount_collected: 500,
       balance_pending: 0,
-      code_of_conduct_status: "Completed" // Must match the property name used in resolveDefaultTab logic
+      default_tab_override: "overview", // Start at overview to verify the effect of resolveDefaultTab
+      code_of_conduct_status: "Completed"
     };
 
     await act(async () => {
