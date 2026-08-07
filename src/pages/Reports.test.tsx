@@ -76,7 +76,6 @@ describe("Reports List Queries Narrowing Test", () => {
       limit: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       then: vi.fn().mockImplementation((cb) => {
-        // Return raw joined data to simulate real Supabase response before frontend mapping
         const responseData = table === "attribution_sessions" 
           ? mockData.map(s => ({ ...s, buyers: [{ media_buyer_name: "Buyer A" }] }))
           : [];
@@ -93,7 +92,6 @@ describe("Reports List Queries Narrowing Test", () => {
 
     expect(screen.getByText("Test Webinar Attribution")).toBeInTheDocument();
     
-    // Check for buyer avatar title
     await waitFor(() => {
       const avatars = screen.queryAllByTestId("buyer-avatar");
       expect(avatars.length).toBeGreaterThan(0);
