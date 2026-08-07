@@ -95,3 +95,4 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
     expect(hasFinance("INR_100_MOCK")).toBe(true);
   });
 });
+
