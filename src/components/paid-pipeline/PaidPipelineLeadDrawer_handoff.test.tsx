@@ -101,21 +101,16 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     fireEvent.click(onboardingTab);
 
     // 4. Find the stage picker (CrmStagePicker) and trigger a change
-    // Since CrmStagePicker is a complex component, we'll mock its behavior or look for the trigger
-    // It uses CrmStagePicker internally. Let's find the 'Current' label area.
-    await screen.findByText(/Linked Calling CRM Stage/i);
+    await screen.findByText(/🔗 Linked Calling CRM Stage/i);
     
-    // In the actual component, clicking the picker opens a list. 
-    // For the test, we'll simulate the call to changeCrmStage by finding the element that triggers it.
-    // Based on the code, CrmStagePicker receives onChangeStage={changeCrmStage}
-    
-    // Let's assume the picker renders a button with the current stage name or "—"
+    // The picker renders a button with the current stage name or "—"
     const pickerTrigger = screen.getByRole("button", { name: /—|New Stage/ });
     fireEvent.click(pickerTrigger);
 
     // Find the new stage in the list and click it
     const newStageOption = await screen.findByText("New Stage");
     fireEvent.click(newStageOption);
+
 
     // 5. Assert downstream evaluations were called
     await waitFor(() => {
