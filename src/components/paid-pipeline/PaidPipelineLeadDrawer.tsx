@@ -30,7 +30,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; onClose: () => void; stages: string[]; agents: { id: string; full_name: string }[]; onChanged: () => void }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    const isTokenMissing = Number(lead.token_amount_collected || 0) === 0;
+    const isBalancePending = Number(lead.balance_pending || 0) > 0;
+    const cocStatus = (lead as any).code_of_conduct_status;
+    const isCocWaiting = !cocStatus || cocStatus === "pending" || cocStatus === "sent";
+    const isOpsReady = /Operations Ready/i.test(lead.pipeline_stage || "");
+    
+    if (isTokenMissing || isBalancePending) return "payments";
+    if (isCocWaiting) return "documents";
+    if (isOpsReady) return "offers & delivery";
+    return "overview";
+  });
   const { user, isAdmin } = useAuth();
   const [visibilityAudit, setVisibilityAudit] = useState<VisibilityAudit | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
