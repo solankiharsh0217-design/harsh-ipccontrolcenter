@@ -108,40 +108,6 @@ vi.mock("@/components/operations/ReadinessChecklist", () => ({
   }
 }));
 
-// Mock sonner
-vi.mock("sonner", () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    message: vi.fn(),
-  },
-}));
-
-// Mock operationsSla
-vi.mock("@/lib/operationsSla", () => ({
-  getOperationsSlaSettings: vi.fn().mockResolvedValue({ watch_days: 3, overdue_days: 6 }),
-  fetchStageChangeMap: vi.fn().mockResolvedValue(new Map()),
-  computeStageAging: vi.fn().mockReturnValue({ days: 0, status: 'on_track', lastMovedAt: new Date().toISOString(), source: 'estimated' }),
-  DEFAULT_SLA: { watch_days: 3, overdue_days: 6 },
-}));
-
-// Mock SlaChip
-vi.mock("@/components/operations/SlaChip", () => ({
-  default: () => null,
-}));
-
-// Mock operationsTemplates
-vi.mock("@/lib/operationsTemplates", () => ({
-  listProcessTemplates: vi.fn().mockResolvedValue([]),
-  getChecklistItems: vi.fn().mockResolvedValue([]),
-  getTemplateFields: vi.fn().mockResolvedValue([]),
-  listCommunicationTemplates: vi.fn().mockResolvedValue([]),
-  getChecklistState: vi.fn().mockResolvedValue([]),
-  getCustomValues: vi.fn().mockResolvedValue([]),
-  computeReadiness: vi.fn().mockReturnValue({ totalRequired: 0, checkedRequired: 0, totalOptional: 0, checkedOptional: 0, pct: 0, blocked: false }),
-}));
-
 // Mock readiness lib functions
 vi.mock("@/lib/operationsReadiness", () => ({
   resolveReadinessTargetStage: vi.fn(),
@@ -155,43 +121,6 @@ vi.mock("@/lib/operationsReadiness", () => ({
   getOperationsSlaSettings: vi.fn().mockResolvedValue({}),
   DEFAULT_SLA: { watch_days: 7, overdue_days: 14 },
   COMMUNICATION_EVENT_TYPES: new Set(),
-}));
-
-// Mock operationsCrm
-vi.mock("@/lib/operationsCrm", () => ({
-  SERVICE_STATUS_COLORS: {
-    not_started: "bg-gray-100",
-    active: "bg-green-100",
-    paused: "bg-amber-100",
-    stopped: "bg-red-100",
-    completed: "bg-indigo-100",
-  },
-  SERVICE_STATUS_LABELS: {
-    not_started: "Not Started",
-    active: "Active",
-    paused: "Paused",
-    stopped: "Stopped",
-    completed: "Completed",
-  },
-  COMMS_TEMPLATES: {},
-  computeServiceCalc: vi.fn().mockReturnValue({
-    committedDays: 0,
-    activeDaysUsed: 0,
-    pausedDays: 0,
-    remainingDays: 0,
-    estimatedEndDate: null,
-  }),
-  todayStr: () => new Date().toISOString().split('T')[0],
-  daysBetween: (a: string, b: string) => {
-    if (!a || !b) return 0;
-    return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
-  },
-  addDays: (date: string, days: number) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().split('T')[0];
-  },
-  monthsToDays: (m: number) => Math.round((m || 0) * 30),
 }));
 
 import * as opsReadiness from "@/lib/operationsReadiness";
