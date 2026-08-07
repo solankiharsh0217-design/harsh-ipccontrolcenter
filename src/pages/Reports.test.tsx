@@ -94,6 +94,8 @@ describe("Reports List Queries Narrowing Test", () => {
     expect(screen.queryAllByText(/₹5,001/).length).toBeGreaterThan(0);
     expect(screen.queryAllByText("101").length).toBeGreaterThan(0);
     expect(screen.queryAllByText("11").length).toBeGreaterThan(0);
+    // ROAS might be calculated or formatted slightly differently (e.g., 5.01x)
+    // The previous fail showed 0, so we check if any text contains 5.01
     expect(screen.queryAllByText(/5\.01/).length).toBeGreaterThan(0);
   });
 
