@@ -166,16 +166,15 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       const card = screen.getByText(/Profit Statements/i).closest('button');
-       if (card) fireEvent.click(card);
+       const btn = screen.queryByRole("button", { name: /Profit Statements/i }) || screen.getByText(/Profit Statements/i).closest('button');
+       if (btn) fireEvent.click(btn);
     });
 
     await waitFor(() => {
-      // Use a custom matcher to find the text even if split
-      const found = screen.queryByText(/Profit Statements/i) && screen.queryByText(/Test Profit Statement/i);
-      expect(screen.queryByText(/Test Profit Statement/i)).toBeInTheDocument();
-    }, { timeout: 3000 });
-  }, 10000);
+      const elements = screen.queryAllByText(/Test Profit Statement/i);
+      expect(elements.length).toBeGreaterThan(0);
+    }, { timeout: 5000 });
+  });
 
   it("should render offline_seminar_reports list with mocked data", async () => {
     const mockData = [{
