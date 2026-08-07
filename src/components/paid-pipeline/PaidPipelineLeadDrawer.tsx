@@ -443,7 +443,6 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
             <TagPicker
               paidLeadId={lead.id}
               leadName={lead.name || undefined}
-              className="w-full"
             />
             
             <Section title="WhatsApp templates">
