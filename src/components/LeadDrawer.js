@@ -275,7 +275,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
               {editMode ? (<div className="space-y-2">
                   <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Full name" className="w-full h-9 px-3 border border-line rounded-md text-sm"/>
                   <div className="flex gap-2">
-                    <button onClick={saveEdit} disabled={savingEdit} className="h-8 px-4 bg-black text-white rounded-md text-xs font-medium hover:bg-black/90">Save</button>
+                    <button onClick={saveEdit} disabled={false} className="h-8 px-4 bg-black text-white rounded-md text-xs font-medium hover:bg-black/90">Save</button>
                     <button onClick={() => setEditMode(false)} className="h-8 px-4 border border-line rounded-md text-xs font-medium text-muted-foreground hover:bg-off">Cancel</button>
                   </div>
                 </div>) : (<>
