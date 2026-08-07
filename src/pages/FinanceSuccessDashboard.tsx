@@ -107,10 +107,10 @@ export default function FinanceSuccessDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlPipelineId = searchParams.get("pipelineId");
   const tabParam = searchParams.get("tab");
-  const activeTab = tabParam === "incomplete" || tabParam === "access" || tabParam === "summary" ? tabParam : "summary";
+  const activeTab = tabParam === "incomplete" || tabParam === "summary" || tabParam === "analytics" ? tabParam : "work";
   const setActiveTab = (v: string) => {
     const sp = new URLSearchParams(searchParams);
-    if (v === "summary") sp.delete("tab"); else sp.set("tab", v);
+    if (v === "work") sp.delete("tab"); else sp.set("tab", v);
     setSearchParams(sp, { replace: true });
   };
   const [fromDate, setFromDate] = useState("");
@@ -872,10 +872,10 @@ export default function FinanceSuccessDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4 h-auto bg-transparent p-0 border-b border-border rounded-none w-full justify-start gap-1">
           <TabsTrigger
-            value="summary"
+            value="work"
             className="rounded-none rounded-t-md px-4 py-2 text-sm text-muted-foreground border-b-2 border-transparent hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-950 data-[state=active]:font-semibold data-[state=active]:border-amber-500 data-[state=active]:shadow-none"
           >
-            Webinar Summary
+            Today's Work
           </TabsTrigger>
           <TabsTrigger
             value="incomplete"
@@ -889,39 +889,151 @@ export default function FinanceSuccessDashboard() {
             )}
           </TabsTrigger>
           <TabsTrigger
-            value="access"
+            value="analytics"
             className="rounded-none rounded-t-md px-4 py-2 text-sm text-muted-foreground border-b-2 border-transparent hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-950 data-[state=active]:font-semibold data-[state=active]:border-amber-500 data-[state=active]:shadow-none"
           >
-            Access Follow-up
+            Analytics & Reports
+          </TabsTrigger>
+          <TabsTrigger
+            value="summary"
+            className="rounded-none rounded-t-md px-4 py-2 text-sm text-muted-foreground border-b-2 border-transparent hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-950 data-[state=active]:font-semibold data-[state=active]:border-amber-500 data-[state=active]:shadow-none"
+          >
+            Webinar Summary
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="work" className="mt-0">
+          <div className="space-y-6">
+            {/* Layer 1: Critical Decisions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="border-red-200 bg-red-50/30">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-red-900">
+                    <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+                    Urgent Decision Required
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-0 pb-3">
+                  <div className="text-[11px] text-red-800/80 mb-2">Stuck 15+ days in onboarding without access or full payment.</div>
+                  <div className="flex items-baseline gap-2">
+                    <div className="text-2xl font-bold text-red-900">{incompleteSummary.d15}</div>
+                    <Button 
+                      variant="link" 
+                      className="text-xs h-auto p-0 text-red-700 font-semibold"
+                      onClick={() => {
+                        setIncompleteChip("all");
+                        setIncompleteDays("15");
+                        setActiveTab("incomplete");
+                      }}
+                    >
+                      View & Process →
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-amber-200 bg-amber-50/30">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-900">
+                    <span className="w-2 h-2 rounded-full bg-amber-600" />
+                    Pending Finance Approval
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-0 pb-3">
+                  <div className="text-[11px] text-amber-800/80 mb-2">Member payments awaiting EMI/Finance confirmation.</div>
+                  <div className="flex items-baseline gap-2">
+                    <div className="text-2xl font-bold text-amber-900">{incompleteSummary.financePending}</div>
+                    <Button 
+                      variant="link" 
+                      className="text-xs h-auto p-0 text-amber-700 font-semibold"
+                      onClick={() => {
+                        setIncompleteChip("finance");
+                        setActiveTab("incomplete");
+                      }}
+                    >
+                      Process Queue →
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Layer 2: Today's Work (Daily Queue) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <SectionLabel>Access Follow-up Daily Queue</SectionLabel>
+                <Link to="/analytics-center" className="text-[11px] text-muted-foreground hover:underline">View Analytics Center →</Link>
+              </div>
+              <AccessFollowupTab 
+                paidLeads={paidLeads} 
+                crmLeads={crmLeads.map(l => ({ ...l, stage_name: enriched.find(e => e.id === l.id)?.currentStage }))} 
+                owners={owners} 
+              />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-0 space-y-8">
+          <div>
+            <SectionLabel>Webinar Performance & Outcomes</SectionLabel>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+              {[
+                { label: "Total Token-Paid Leads", value: String(summary.total) },
+                { label: "Success Rate", value: `${summary.successRate.toFixed(1)}%` },
+                { label: "Dead / Refund Rate", value: `${summary.deadRate.toFixed(1)}%` },
+                { label: "Total Token Collected", value: `₹${fmtINR(summary.tokenCollected)}` },
+              ].map((c) => (
+                <Card key={c.label}>
+                  <CardContent className="p-4">
+                    <div className="text-[11px] text-muted-foreground mb-1">{c.label}</div>
+                    <div className="text-xl font-semibold">{c.value}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <SectionLabel>Stuck Analysis</SectionLabel>
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {stuckAnalysis.map(([stage, count]) => (
+                    <div key={stage} className="border rounded-md p-3 bg-muted/20">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide truncate">{stage}</div>
+                      <div className="text-lg font-semibold">{count}</div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="summary" className="mt-0">
-      <SectionLabel>Summary</SectionLabel>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        {[
-          { label: "Total Token-Paid Leads", value: String(summary.total) },
-          { label: "Successful", value: String(summary.reached) },
-          { label: "Pending / Not yet", value: String(summary.pending) },
-          { label: "Dead / Refund", value: String(summary.dead) },
-          { label: "Success Rate", value: `${summary.successRate.toFixed(1)}%` },
-          { label: "Dead / Refund Rate", value: `${summary.deadRate.toFixed(1)}%` },
-          { label: "Total Token Collected", value: `₹${fmtINR(summary.tokenCollected)}` },
-          { label: "Balance Pending", value: `₹${fmtINR(summary.balancePending)}` },
-        ].map((c) => (
-          <Card key={c.label}>
-            <CardContent className="p-4">
-              <div className="text-[11px] text-muted-foreground mb-1">{c.label}</div>
-              <div className="text-xl font-semibold">{c.value}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      {summary.tokenMissing > 0 && (
-        <div className="mb-5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          ⚠ {summary.tokenMissing} lead(s) have no recorded token amount. They are still counted.
-        </div>
-      )}
+          <SectionLabel>Summary</SectionLabel>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+            {[
+              { label: "Total Token-Paid Leads", value: String(summary.total) },
+              { label: "Successful", value: String(summary.reached) },
+              { label: "Pending / Not yet", value: String(summary.pending) },
+              { label: "Dead / Refund", value: String(summary.dead) },
+              { label: "Success Rate", value: `${summary.successRate.toFixed(1)}%` },
+              { label: "Dead / Refund Rate", value: `${summary.deadRate.toFixed(1)}%` },
+              { label: "Total Token Collected", value: `₹${fmtINR(summary.tokenCollected)}` },
+              { label: "Balance Pending", value: `₹${fmtINR(summary.balancePending)}` },
+            ].map((c) => (
+              <Card key={c.label}>
+                <CardContent className="p-4">
+                  <div className="text-[11px] text-muted-foreground mb-1">{c.label}</div>
+                  <div className="text-xl font-semibold">{c.value}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {summary.tokenMissing > 0 && (
+            <div className="mb-5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              ⚠ {summary.tokenMissing} lead(s) have no recorded token amount. They are still counted.
+            </div>
+          )}
+
 
       <SectionLabel>By Webinar Date</SectionLabel>
       <Card className="mb-7">
