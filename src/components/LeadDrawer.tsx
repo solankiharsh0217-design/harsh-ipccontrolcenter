@@ -311,64 +311,130 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                 <TabsTrigger value="follow-ups & activity" className="h-12 border-b-2 border-transparent data-[state=active]:border-black data-[state=active]:text-black text-xs font-medium px-0">Activity</TabsTrigger>
               </TabsList>
             </div>
-            <TabsContent value="overview" className="flex-1 overflow-y-auto p-6 space-y-6">
-              <TagPicker crmLeadId={lead.id} leadName={lead.full_name || undefined} />
-              <SuggestedNextActions crmLeadId={lead.id} onApplied={() => { load(); onChanged(); }} onOpenTokenPayment={openTokenPayment} />
-              <SessionAttendanceTimeline leadId={lead.id} />
-              <LeadNotesSection leadId={lead.id} />
-              <LinkedRecordsPanel crmLeadId={lead.id} email={lead.email} phone={lead.phone} onChanged={onChanged} />
+            <TabsContent value="overview" className="flex-1 overflow-y-auto p-6 space-y-8">
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Context & Actions</h3>
+                <TagPicker crmLeadId={lead.id} leadName={lead.full_name || undefined} />
+                <SuggestedNextActions crmLeadId={lead.id} onApplied={() => { load(); onChanged(); }} onOpenTokenPayment={openTokenPayment} />
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attendance & History</h3>
+                <SessionAttendanceTimeline leadId={lead.id} />
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</h3>
+                <LeadNotesSection leadId={lead.id} />
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Linked Records</h3>
+                <LinkedRecordsPanel crmLeadId={lead.id} email={lead.email} phone={lead.phone} onChanged={onChanged} />
+              </section>
             </TabsContent>
+            
             <TabsContent value="payments" className="flex-1 overflow-y-auto p-6">
               {(paidSnap || Number(lead.deal_value) > 0) && (
-                <div className="rounded-lg border border-line bg-off/40 p-3">
-                  <div className="text-[11px] font-semibold uppercase mb-2">Financial Summary</div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="p-1.5 rounded bg-white border border-line text-[10px]">Deal<br/>{inr(paidSnap?.deal_value ?? lead.deal_value)}</div>
-                    <div className="p-1.5 rounded bg-white border border-line text-[10px]">Token<br/>{paidSnap ? inr(paidSnap.token_amount_collected) : "—"}</div>
-                    <div className="p-1.5 rounded bg-white border border-line text-[10px]">Paid<br/>{paidSnap ? inr(paidSnap.total_collected) : "—"}</div>
-                    <div className="p-1.5 rounded bg-white border border-line text-[10px]">Bal<br/>{paidSnap ? inr(paidSnap.balance_pending) : "—"}</div>
+                <div className="rounded-xl border border-line bg-card p-5 space-y-6">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Financial Summary</h3>
+                  <div className="grid grid-cols-4 gap-3 text-center">
+                    <div className="p-3 rounded-lg bg-off/50 border border-line">
+                      <div className="text-[10px] text-muted-foreground uppercase mb-1">Deal</div>
+                      <div className="text-sm font-medium">{inr(paidSnap?.deal_value ?? lead.deal_value)}</div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-off/50 border border-line">
+                      <div className="text-[10px] text-muted-foreground uppercase mb-1">Token</div>
+                      <div className="text-sm font-medium">{paidSnap ? inr(paidSnap.token_amount_collected) : "—"}</div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-off/50 border border-line text-success">
+                      <div className="text-[10px] text-muted-foreground uppercase mb-1">Paid</div>
+                      <div className="text-sm font-medium">{paidSnap ? inr(paidSnap.total_collected) : "—"}</div>
+                    </div>
+                    <div className="p-3 rounded-lg bg-off/50 border border-line text-danger">
+                      <div className="text-[10px] text-muted-foreground uppercase mb-1">Bal</div>
+                      <div className="text-sm font-medium">{paidSnap ? inr(paidSnap.balance_pending) : "—"}</div>
+                    </div>
                   </div>
                   {paidLeadId && (
-                    <div className="mt-4 flex gap-2">
-                      {!hasToken ? <button onClick={openTokenPayment} className="ipc-btn ipc-btn-black !h-8 !text-xs">Record Token</button> : <button onClick={() => { setPayPrefill(null); setPostPayAction(null); setOpenPay(true); }} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Add Payment</button>}
+                    <div className="flex gap-2">
+                      {!hasToken ? (
+                        <button onClick={openTokenPayment} className="h-9 px-4 bg-black text-white rounded-md text-sm font-medium hover:bg-black/90">Record Token</button>
+                      ) : (
+                        <button onClick={() => { setPayPrefill(null); setPostPayAction(null); setOpenPay(true); }} className="h-9 px-4 border border-line rounded-md text-sm font-medium hover:bg-off">Add Payment</button>
+                      )}
                     </div>
                   )}
                 </div>
               )}
             </TabsContent>
-            <TabsContent value="onboarding" className="flex-1 overflow-y-auto p-6 space-y-6">
-              <AccessVerificationPanel memberLabel={lead.full_name || undefined} crmLeadId={lead.id} cocStatus={(lead as any).code_of_conduct_status} />
-              <CodeOfConductCard crmLeadId={lead.id} pipelineId={lead.pipeline_id} stageId={lead.stage_id} memberName={lead.full_name || ""} memberEmail={lead.email} memberPhone={lead.phone} programName={lead.program_name} dealValue={Number(lead.deal_value) || null} />
-              <PromisedOffersPanel crmLeadId={lead.id} title="Services / Commitments" />
+            
+            <TabsContent value="onboarding" className="flex-1 overflow-y-auto p-6 space-y-8">
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Access Health</h3>
+                <AccessVerificationPanel memberLabel={lead.full_name || undefined} crmLeadId={lead.id} cocStatus={(lead as any).code_of_conduct_status} />
+              </section>
+              
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Code of Conduct</h3>
+                <CodeOfConductCard crmLeadId={lead.id} pipelineId={lead.pipeline_id} stageId={lead.stage_id} memberName={lead.full_name || ""} memberEmail={lead.email} memberPhone={lead.phone} programName={lead.program_name} dealValue={Number(lead.deal_value) || null} />
+              </section>
+              
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Promised Offers</h3>
+                <PromisedOffersPanel crmLeadId={lead.id} title="Services & Commitments" />
+              </section>
             </TabsContent>
-            <TabsContent value="stage & handoff" className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="space-y-2">
-                <div className="text-[11px] font-semibold uppercase">CRM Stage</div>
+
+            <TabsContent value="stage & handoff" className="flex-1 overflow-y-auto p-6 space-y-8">
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Stage</h3>
                 <CrmStagePicker
                   stages={pipelineStages} currentStageId={lead.stage_id} open={crmPickerOpen} onOpenChange={setCrmPickerOpen}
                   newStageName={newStageName} onNewStageNameChange={setNewStageName} onAddStage={addStageInline}
                   onChangeStage={(id) => { moveStage(id); setCrmPickerOpen(false); }}
                   onDeleteStage={() => {}}
                 />
-              </div>
+              </section>
+
               {isOpsEligible && !inOps && (
-                <div className="p-3 rounded-lg border border-amber-200 bg-amber-50">
-                  <div className="text-xs text-amber-800">Eligible for Operations CRM handoff.</div>
-                  <button onClick={() => setSendOpsOpen(true)} className="mt-2 ipc-btn ipc-btn-black !h-8 !text-xs">Send to Operations</button>
-                </div>
+                <section className="p-4 rounded-xl border border-amber-200 bg-amber-50 space-y-3">
+                  <div className="text-sm font-medium text-amber-900 flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4" />
+                    Operations Handoff Ready
+                  </div>
+                  <div className="text-xs text-amber-700">This lead matches an active handoff rule and is eligible for transfer to Operations CRM.</div>
+                  <button onClick={() => setSendOpsOpen(true)} className="h-8 px-4 bg-amber-600 text-white rounded-md text-xs font-medium hover:bg-amber-700 transition-colors">Send to Operations</button>
+                </section>
               )}
             </TabsContent>
-            <TabsContent value="follow-ups & activity" className="flex-1 overflow-y-auto p-6 space-y-6">
-              <FastFollowUpComposer crmLeadId={lead.id} leadName={lead.full_name || undefined} onSaved={load} />
-              <div className="space-y-3">
-                <div className="text-[11px] font-semibold uppercase">Activity History</div>
-                {activities.map(a => (
-                  <div key={a.id} className="text-xs border-l-2 border-line pl-3 py-1">
-                    <div className="text-muted-foreground">{new Date(a.logged_at).toLocaleString()} · {a.channel}</div>
-                    <div className="mt-1">{a.note}</div>
-                  </div>
-                ))}
-              </div>
+
+            <TabsContent value="follow-ups & activity" className="flex-1 overflow-y-auto p-6 space-y-8">
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fast Follow-up</h3>
+                <FastFollowUpComposer crmLeadId={lead.id} leadName={lead.full_name || undefined} onSaved={load} />
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity Timeline</h3>
+                <div className="space-y-4">
+                  {activities.length === 0 ? (
+                    <div className="text-sm text-muted-foreground italic px-2">No activity recorded yet.</div>
+                  ) : (
+                    activities.map(a => (
+                      <div key={a.id} className="relative pl-6 pb-4 border-l border-line last:border-0 last:pb-0">
+                        <div className="absolute left-[-5px] top-1 w-2 h-2 rounded-full bg-line" />
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-2 uppercase tracking-tight">
+                          <span>{new Date(a.logged_at).toLocaleString()}</span>
+                          <span>•</span>
+                          <span>{a.channel}</span>
+                        </div>
+                        <div className="mt-1 text-sm text-foreground leading-relaxed">{a.note}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
             </TabsContent>
           </Tabs>
         </div>
