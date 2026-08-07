@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -335,7 +335,7 @@ export default function InvoiceEditor() {
     finally { setBusy(false); }
   };
 
-  if (loading) return <div className="p-8 text-sm">Loading…</div>;
+  if (loading) return <div className="p-8"><LoadingState /></div>;
   if (!settings) return <div className="p-8 text-sm">Invoice settings not configured.</div>;
   if (!invoice) return <div className="p-8 text-sm">Invoice not found. <Button variant="link" onClick={() => nav(-1)}>Back</Button></div>;
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -385,7 +385,7 @@ export default function CompanySettingsPage() {
     } finally { setSaving(false); }
   }
 
-  if (loading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+  if (loading) return <div className="p-6"><LoadingState /></div>;
   if (!isAdmin) return <div className="p-6 text-sm text-muted-foreground">Admins only.</div>;
 
   return (

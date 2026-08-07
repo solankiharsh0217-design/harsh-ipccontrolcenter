@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -74,7 +74,7 @@ export default function CleanSlate() {
 
   useEffect(() => { if (isAdmin) refresh(); /* eslint-disable-next-line */ }, [isAdmin]);
 
-  if (authLoading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+  if (authLoading) return <div className="p-6"><LoadingState /></div>;
   if (!isAdmin) return <Navigate to="/admin-center" replace />;
 
   const canWipe = ack && confirmText.trim() === "DELETE ALL LEADS" && !wiping;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { listInvoicesForLead, loadCompanySettings } from "@/lib/invoices/api";
 import { downloadInvoicePdf } from "@/lib/invoices/pdf";
@@ -38,7 +38,7 @@ export default function PaidLeadInvoicesPage() {
     await downloadInvoicePdf({ ...data, line_items: items || [] }, company);
   };
 
-  if (loading) return <div className="p-8 text-sm">Loading…</div>;
+  if (loading) return <div className="p-8"><LoadingState /></div>;
 
   return (
     <div className="max-w-[1000px]">
