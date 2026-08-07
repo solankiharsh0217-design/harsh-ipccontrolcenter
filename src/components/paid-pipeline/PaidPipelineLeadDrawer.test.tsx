@@ -113,6 +113,12 @@ describe("PaidPipelineLeadDrawer", () => {
       fireEvent.click(paymentsTrigger);
     });
 
+    // Wait for the loader to clear if any (it won't because we didn't mock fetchVerificationForPaidLead here, 
+    // but the test was failing because of the new initialization state)
+    await waitFor(() => {
+      expect(screen.queryByText(/Initializing drawer…/i)).toBeNull();
+    });
+
     // 3. Verify content
     await waitFor(() => {
         // Finance card values
