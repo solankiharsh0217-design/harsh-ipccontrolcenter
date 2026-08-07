@@ -210,7 +210,38 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     setOpsLeadId(ops?.id ?? null);
   };
   useEffect(() => { load(); }, [leadId]);
-  useEffect(() => { getActiveHandoffRules().then(setOpsRules).catch(() => setOpsRules([])); loadActiveConversionRules().then(setConvRules).catch(() => setConvRules([])); }, []);
+  useEffect(() => { 
+    getActiveHandoffRules().then(setOpsRules).catch(() => setOpsRules([])); 
+    loadActiveConversionRules().then(setConvRules).catch(() => setConvRules([])); 
+  }, []);
+
+  // Determine default tab on open
+  useEffect(() => {
+    if (!lead) return;
+    
+    // Payments: if deal value exists but no token recorded
+    const hasDealValue = Number(lead.deal_value) > 0 || (paidSnap && Number(paidSnap.deal_value) > 0);
+    const tokenMissing = hasDealValue && !hasToken;
+    if (tokenMissing) {
+      setActiveTab("payments");
+      return;
+    }
+
+    // Stage & Handoff: if Ops Eligible but not in Ops
+    if (isOpsEligible && !inOps) {
+      setActiveTab("stage & handoff");
+      return;
+    }
+
+    // Activity: if overdue reminders
+    const overdue = reminders.some(r => r.reminder_date < today);
+    if (overdue) {
+      setActiveTab("follow-ups & activity");
+      return;
+    }
+
+    setActiveTab("overview");
+  }, [leadId, !!lead, isOpsEligible, inOps, hasToken, reminders.length]);
 
   if (!lead) return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
