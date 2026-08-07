@@ -34,6 +34,8 @@ import {
 } from "@/lib/operationsSla";
 import SlaChip from "@/components/operations/SlaChip";
 import type { Stage } from "@/lib/crmTypes";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 
 export interface OpsLeadFull {
   id: string;
@@ -110,6 +112,8 @@ export default function OperationsLeadDrawer({
   onSaved: () => void;
 }) {
   const { profile, isAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState("overview");
+
   const [events, setEvents] = useState<ServiceEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [action, setAction] = useState<ActionType | null>(null);
@@ -124,7 +128,38 @@ export default function OperationsLeadDrawer({
   const [exactStageMovedAt, setExactStageMovedAt] = useState<string | null>(null);
   const [deliveryBuyers, setDeliveryBuyers] = useState<{ id: string; full_name: string }[]>([]);
 
+  // ── Readiness completion / move logic ─────────────────────────
+  const isReady = (readinessSummary?.pct ?? 0) >= 100 && !!lead.process_template_id;
+  const currentStageObj = useMemo(
+    () => opsStages.find((s) => s.id === lead.stage_id) ?? null,
+    [opsStages, lead.stage_id],
+  );
+  const targetStageObj = useMemo(
+    () => resolveReadinessTargetStage(
+      opsStages,
+      lead.stage_id ?? null,
+      readinessSettings?.operations_readiness_target_stage_id ?? null,
+    ),
+    [opsStages, lead.stage_id, readinessSettings],
+  );
+  const alreadyAtOrAfterTarget = !!targetStageObj && isAtOrAfterTarget(
+    opsStages, lead.stage_id ?? null, targetStageObj.id,
+  );
+  const canMoveReadiness = !!(profile?.id) && (
+    isAdmin || (!!lead.assigned_media_buyer_id && lead.assigned_media_buyer_id === profile.id)
+  );
+
   useEffect(() => {
+
+    if (lead.service_status === "not_started" || !lead.process_template_id) {
+      setActiveTab("onboarding");
+    } else if (isReady && !alreadyAtOrAfterTarget) {
+      setActiveTab("onboarding");
+    }
+  }, [lead.id, lead.service_status, lead.process_template_id, isReady, alreadyAtOrAfterTarget]);
+
+  useEffect(() => {
+
     let cancel = false;
     (async () => {
       const { data } = await supabase
@@ -229,26 +264,6 @@ export default function OperationsLeadDrawer({
   const showComplete = status === "active";
   const showRestart  = status === "stopped" || status === "completed";
 
-  // ── Readiness completion / move logic ─────────────────────────
-  const isReady = (readinessSummary?.pct ?? 0) >= 100 && !!lead.process_template_id;
-  const currentStageObj = useMemo(
-    () => opsStages.find((s) => s.id === lead.stage_id) ?? null,
-    [opsStages, lead.stage_id],
-  );
-  const targetStageObj = useMemo(
-    () => resolveReadinessTargetStage(
-      opsStages,
-      lead.stage_id ?? null,
-      readinessSettings?.operations_readiness_target_stage_id ?? null,
-    ),
-    [opsStages, lead.stage_id, readinessSettings],
-  );
-  const alreadyAtOrAfterTarget = !!targetStageObj && isAtOrAfterTarget(
-    opsStages, lead.stage_id ?? null, targetStageObj.id,
-  );
-  const canMoveReadiness = !!(profile?.id) && (
-    isAdmin || (!!lead.assigned_media_buyer_id && lead.assigned_media_buyer_id === profile.id)
-  );
 
   const doMove = async (kind: "readiness_manual_move" | "readiness_auto_move") => {
     if (!targetStageObj) { toast.error("No target stage configured or resolvable."); return; }
@@ -285,11 +300,27 @@ export default function OperationsLeadDrawer({
   }, [isReady, readinessSettings, targetStageObj, alreadyAtOrAfterTarget, canMoveReadiness]);
 
 
+  const primaryAction = useMemo(() => {
+    if (lead.intake_status !== "active" && lead.service_status === "not_started") {
+      return { label: "Start Operations Process", icon: Rocket, onClick: () => setShowStartProcess(true) };
+    }
+    if (isReady && !alreadyAtOrAfterTarget && targetStageObj && canMoveReadiness) {
+      return { label: `Move to ${targetStageObj.name}`, icon: ArrowRight, onClick: () => setShowReadinessMove(true) };
+    }
+    if (showStart) {
+      return { label: "Mark Ads Started", icon: Play, onClick: () => setAction("start") };
+    }
+    if (showResume) {
+      return { label: "Resume Service", icon: Play, onClick: () => setAction("resume") };
+    }
+    return { label: "Log Communication", icon: Mail, onClick: () => setShowCommModal(true) };
+  }, [lead, isReady, alreadyAtOrAfterTarget, targetStageObj, canMoveReadiness, showStart, showResume]);
+
   return (
     <div className="fixed inset-0 z-[1100] bg-black/40 flex justify-end" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-white h-full overflow-y-auto">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-white h-full overflow-hidden flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-line flex items-center justify-between sticky top-0 bg-white z-10">
+        <div className="px-5 py-4 border-b border-line flex items-center justify-between sticky top-0 bg-white z-10 shrink-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <div className="font-serif text-lg text-black truncate">{lead.name}</div>
@@ -302,211 +333,240 @@ export default function OperationsLeadDrawer({
           <button onClick={onClose} className="w-7 h-7 rounded hover:bg-off flex items-center justify-center"><XIcon className="w-4 h-4" /></button>
         </div>
 
-        <div className="p-5 space-y-5">
-          {/* Client Profile */}
-          <Section title="Client profile">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Email" value={lead.email || "—"} />
-              <Field label="Phone" value={lead.phone || "—"} />
-              <Field label="Product / Program" value={lead.product_name || "—"} />
-              <Field label="Batch" value={lead.batch_name || "—"} />
-              <Field label="Media buyer" value={lead.assigned_media_buyer_name || "Unassigned"} />
-            </div>
-            <div className="flex gap-2 flex-wrap mt-3">
-              {lead.crm_lead_id && (
-                <button onClick={openCrmLink} className="ipc-btn ipc-btn-ghost !text-xs">
-                  <ExternalLink className="w-3 h-3" /> Open in Calling CRM
-                </button>
-              )}
-              {lead.paid_pipeline_lead_id && (
-                <button onClick={() => window.open(`/paid-pipeline?lead=${lead.paid_pipeline_lead_id}`, "_blank")} className="ipc-btn ipc-btn-ghost !text-xs">
-                  <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
-                </button>
-              )}
-            </div>
-          </Section>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+          <TabsList className="px-2 border-b border-line rounded-none bg-transparent gap-1 shrink-0 overflow-x-auto no-scrollbar">
+            {["overview", "onboarding", "delivery", "results", "activity"].map(t => (
+              <TabsTrigger 
+                key={t} 
+                value={t} 
+                className="capitalize text-[11px] py-2 data-[state=active]:border-b-2 data-[state=active]:border-gold rounded-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              >
+                {t === "onboarding" ? "Process" : t}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          
+          <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
-          {/* Linked Records */}
-          <OperationsLinkedRecordsCard
-            operationsLeadId={lead.id}
-            operationsLeadName={lead.name}
-            operationsStatusLabel={SERVICE_STATUS_LABELS[status] || status}
-            crmLeadId={lead.crm_lead_id}
-            paidPipelineLeadId={lead.paid_pipeline_lead_id}
-          />
-
-          {/* Process / Intake summary */}
-          <Section title="Process / Intake">
-            <div className="grid grid-cols-2 gap-2">
-              <Card label="Process / Service Type" value={templateName || "Not assigned"} />
-              <Card label="Intake status" value={lead.intake_status || "—"} />
-              <Card label="Readiness" value={readinessSummary ? `${readinessSummary.pct}%${readinessSummary.blocked ? " · blocked" : ""}` : "—"} />
-              <Card label="Source" value={lead.intake_source || "—"} />
-              <Card label="Owner" value={lead.assigned_media_buyer_name || "Unassigned"} />
-              {lead.readiness_override_reason && (
-                <Card label="Override" value={lead.readiness_override_reason} />
-              )}
-            </div>
-
-            {/* Template assignment / change */}
-            {isAdmin && (
-              <div className="mt-3 border border-line rounded-md p-2.5 bg-off/30">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                  {lead.process_template_id ? "Change process / service type" : "Assign process / service type"}
+            <TabsContent value="overview" className="mt-0 space-y-6">
+              {/* Client Profile */}
+              <Section title="Client profile">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Email" value={lead.email || "—"} />
+                  <Field label="Phone" value={lead.phone || "—"} />
+                  <Field label="Product / Program" value={lead.product_name || "—"} />
+                  <Field label="Batch" value={lead.batch_name || "—"} />
+                  <Field label="Media buyer" value={lead.assigned_media_buyer_name || "Unassigned"} />
                 </div>
-                {templates.length === 0 ? (
-                  <div className="text-[11px] text-[#92400E]">
-                    No process template exists.{" "}
-                    <a href="/operations-crm?tab=settings" className="underline font-medium">
-                      Create one in Operations CRM → Settings
-                    </a>.
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <select
-                      value={lead.process_template_id ?? ""}
-                      onChange={async (e) => {
-                        const v = e.target.value || null;
-                        if (v === (lead.process_template_id ?? null)) return;
-                        const isActive = lead.service_status === "active" || lead.service_status === "paused";
-                        if (isActive) {
-                          const ok = window.confirm(
-                            "Changing process template may change the checklist and custom fields for this client. Existing filled values will remain but may not apply to the new template. Continue?"
-                          );
-                          if (!ok) return;
-                        }
-                        const { error } = await supabase
-                          .from("operations_leads" as any)
-                          .update({ process_template_id: v } as any)
-                          .eq("id", lead.id);
-                        if (error) { toast.error(error.message); return; }
-                        toast.success(v ? "Process template updated" : "Process template removed");
-                        onSaved();
-                      }}
-                      className="ipc-input !h-8 !text-xs max-w-xs"
-                    >
-                      <option value="">— Not assigned —</option>
-                      {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                    <a
-                      href="/operations-crm?tab=settings"
-                      className="text-[11px] underline text-muted-foreground hover:text-black"
-                    >
-                      + Create Custom
-                    </a>
-                  </div>
-                )}
-                {!lead.process_template_id && (
-                  <div className="text-[10px] text-muted-foreground mt-1">
-                    The selected process controls the checklist, custom fields, and communication templates.
-                  </div>
-                )}
-              </div>
-            )}
-            {!isAdmin && !lead.process_template_id && (
-              <div className="mt-3 border border-[#FDE68A] bg-[#FFFBEB] rounded-md p-2.5">
-                <div className="text-[11px] text-[#92400E] font-medium">No process / service type assigned</div>
-                <div className="text-[10px] text-[#92400E]/80 mt-1">
-                  Please contact admin to assign a process template.
-                </div>
-              </div>
-            )}
-          </Section>
-
-
-          {/* Stage Aging / SLA */}
-          {(() => {
-            const aging = computeStageAging(
-              { created_at: lead.created_at ?? null, updated_at: lead.updated_at ?? null },
-              slaSettings,
-              exactStageMovedAt,
-            );
-            const currentStageName = opsStages.find((s) => s.id === lead.stage_id)?.name ?? "—";
-            const lastMoved = new Date(aging.lastMovedAt);
-            const lastMovedText = Number.isFinite(lastMoved.getTime())
-              ? lastMoved.toLocaleString(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
-              : "—";
-            return (
-              <Section title="Stage aging">
-                <div className="border border-line rounded-md bg-white p-3 space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] text-muted-foreground">Current stage</div>
-                    <div className="text-xs font-medium text-black truncate">{currentStageName}</div>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] text-muted-foreground">In this stage</div>
-                    <div className="text-xs text-black">{aging.days} day{aging.days === 1 ? "" : "s"}</div>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] text-muted-foreground">Status</div>
-                    <SlaChip status={aging.status} days={aging.days} />
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-[11px] text-muted-foreground">Last moved</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {lastMovedText} <span className="opacity-70">· {aging.source}</span>
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground/70 pt-1">
-                    Watch ≥ {slaSettings.watch_days}d · Overdue ≥ {slaSettings.overdue_days}d
-                  </div>
+                <div className="flex gap-2 flex-wrap mt-3">
+                  {lead.crm_lead_id && (
+                    <button onClick={openCrmLink} className="ipc-btn ipc-btn-ghost !text-xs">
+                      <ExternalLink className="w-3 h-3" /> Open in Calling CRM
+                    </button>
+                  )}
+                  {lead.paid_pipeline_lead_id && (
+                    <button onClick={() => window.open(`/paid-pipeline?lead=${lead.paid_pipeline_lead_id}`, "_blank")} className="ipc-btn ipc-btn-ghost !text-xs">
+                      <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
+                    </button>
+                  )}
                 </div>
               </Section>
-            );
-          })()}
 
-          {/* Readiness Checklist */}
-          <Section title="Readiness checklist">
-            <ReadinessChecklist
-              leadId={lead.id}
-              templateId={lead.process_template_id ?? null}
-              onChange={(pct, blocked) => setReadinessSummary({ pct, blocked })}
-            />
-          </Section>
+              {/* Linked Records */}
+              <OperationsLinkedRecordsCard
+                operationsLeadId={lead.id}
+                operationsLeadName={lead.name}
+                operationsStatusLabel={SERVICE_STATUS_LABELS[status] || status}
+                crmLeadId={lead.crm_lead_id}
+                paidPipelineLeadId={lead.paid_pipeline_lead_id}
+              />
 
-          {/* Readiness completion → Move to next stage */}
-          {isReady && (
-            <Section title="Readiness complete">
-              <div className="border border-[#BBF7D0] bg-[#F0FDF4] rounded-md p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[#16A34A] text-white font-medium">
-                    <CheckCircle className="w-3 h-3" /> READY
-                  </span>
-                  <span className="text-xs text-[#166534] font-medium">All required onboarding checklist items are complete.</span>
+
+            <TabsContent value="onboarding" className="mt-0 space-y-6">
+              {/* Process / Intake summary */}
+              <Section title="Process / Intake">
+                <div className="grid grid-cols-2 gap-2">
+                  <Card label="Process / Service Type" value={templateName || "Not assigned"} />
+                  <Card label="Intake status" value={lead.intake_status || "—"} />
+                  <Card label="Readiness" value={readinessSummary ? `${readinessSummary.pct}%${readinessSummary.blocked ? " · blocked" : ""}` : "—"} />
+                  <Card label="Source" value={lead.intake_source || "—"} />
+                  <Card label="Owner" value={lead.assigned_media_buyer_name || "Unassigned"} />
+                  {lead.readiness_override_reason && (
+                    <Card label="Override" value={lead.readiness_override_reason} />
+                  )}
                 </div>
-                <div className="text-[11px] text-[#166534]/80 mb-2">
-                  Current stage: <span className="font-medium">{currentStageObj?.name ?? "—"}</span>
-                  {targetStageObj && !alreadyAtOrAfterTarget && (<> · Next stage: <span className="font-medium">{targetStageObj.name}</span></>)}
-                </div>
-                {alreadyAtOrAfterTarget ? (
-                  <div className="text-[11px] text-muted-foreground italic">Already moved beyond readiness stage.</div>
-                ) : !targetStageObj ? (
-                  <div className="text-[11px] text-[#92400E]">
-                    No target stage resolvable. Configure one in Operations CRM → Settings.
-                  </div>
-                ) : canMoveReadiness ? (
-                  <button
-                    onClick={() => setShowReadinessMove(true)}
-                    className="ipc-btn ipc-btn-black !text-xs"
-                  >
-                    <ArrowRight className="w-3.5 h-3.5" /> Move to {targetStageObj.name}
-                  </button>
-                ) : (
-                  <div className="text-[11px] text-muted-foreground italic">
-                    Only admins or the assigned owner can move this lead.
+
+                {/* Template assignment / change */}
+                {isAdmin && (
+                  <div className="mt-3 border border-line rounded-md p-2.5 bg-off/30">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                      {lead.process_template_id ? "Change process / service type" : "Assign process / service type"}
+                    </div>
+                    {templates.length === 0 ? (
+                      <div className="text-[11px] text-[#92400E]">
+                        No process template exists.{" "}
+                        <a href="/operations-crm?tab=settings" className="underline font-medium">
+                          Create one in Operations CRM → Settings
+                        </a>.
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <select
+                          value={lead.process_template_id ?? ""}
+                          onChange={async (e) => {
+                            const v = e.target.value || null;
+                            if (v === (lead.process_template_id ?? null)) return;
+                            const isActive = lead.service_status === "active" || lead.service_status === "paused";
+                            if (isActive) {
+                              const ok = window.confirm(
+                                "Changing process template may change the checklist and custom fields for this client. Existing filled values will remain but may not apply to the new template. Continue?"
+                              );
+                              if (!ok) return;
+                            }
+                            const { error } = await supabase
+                              .from("operations_leads" as any)
+                              .update({ process_template_id: v } as any)
+                              .eq("id", lead.id);
+                            if (error) { toast.error(error.message); return; }
+                            toast.success(v ? "Process template updated" : "Process template removed");
+                            onSaved();
+                          }}
+                          className="ipc-input !h-8 !text-xs max-w-xs"
+                        >
+                          <option value="">— Not assigned —</option>
+                          {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                        <a
+                          href="/operations-crm?tab=settings"
+                          className="text-[11px] underline text-muted-foreground hover:text-black"
+                        >
+                          + Create Custom
+                        </a>
+                      </div>
+                    )}
+                    {!lead.process_template_id && (
+                      <div className="text-[10px] text-muted-foreground mt-1">
+                        The selected process controls the checklist, custom fields, and communication templates.
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            </Section>
-          )}
+                {!isAdmin && !lead.process_template_id && (
+                  <div className="mt-3 border border-[#FDE68A] bg-[#FFFBEB] rounded-md p-2.5">
+                    <div className="text-[11px] text-[#92400E] font-medium">No process / service type assigned</div>
+                    <div className="text-[10px] text-[#92400E]/80 mt-1">
+                      Please contact admin to assign a process template.
+                    </div>
+                  </div>
+                )}
+              </Section>
 
 
-          {/* Custom Fields */}
-          {lead.process_template_id && (
-            <Section title="Custom fields">
-              <CustomFieldsPanel leadId={lead.id} templateId={lead.process_template_id ?? null} />
-            </Section>
-          )}
+
+              {/* Stage Aging / SLA */}
+              {(() => {
+                const aging = computeStageAging(
+                  { created_at: lead.created_at ?? null, updated_at: lead.updated_at ?? null },
+                  slaSettings,
+                  exactStageMovedAt,
+                );
+                const currentStageName = opsStages.find((s) => s.id === lead.stage_id)?.name ?? "—";
+                const lastMoved = new Date(aging.lastMovedAt);
+                const lastMovedText = Number.isFinite(lastMoved.getTime())
+                  ? lastMoved.toLocaleString(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+                  : "—";
+                return (
+                  <Section title="Stage aging">
+                    <div className="border border-line rounded-md bg-white p-3 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[11px] text-muted-foreground">Current stage</div>
+                        <div className="text-xs font-medium text-black truncate">{currentStageName}</div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[11px] text-muted-foreground">In this stage</div>
+                        <div className="text-xs text-black">{aging.days} day{aging.days === 1 ? "" : "s"}</div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[11px] text-muted-foreground">Status</div>
+                        <SlaChip status={aging.status} days={aging.days} />
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[11px] text-muted-foreground">Last moved</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {lastMovedText} <span className="opacity-70">· {aging.source}</span>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground/70 pt-1">
+                        Watch ≥ {slaSettings.watch_days}d · Overdue ≥ {slaSettings.overdue_days}d
+                      </div>
+                    </div>
+                  </Section>
+                );
+              })()}
+
+
+              {/* Readiness Checklist */}
+              <Section title="Readiness checklist">
+                <ReadinessChecklist
+                  leadId={lead.id}
+                  templateId={lead.process_template_id ?? null}
+                  onChange={(pct, blocked) => setReadinessSummary({ pct, blocked })}
+                />
+              </Section>
+
+              {/* Start Operations Process */}
+              {lead.intake_status !== "active" && lead.service_status === "not_started" && (
+                <Section title="Operations process">
+                  <button onClick={() => setShowStartProcess(true)} className="ipc-btn ipc-btn-black !text-xs">
+                    <Rocket className="w-3.5 h-3.5" /> Start Operations Process
+                  </button>
+                </Section>
+              )}
+
+              {/* Readiness completion → Move to next stage */}
+              {isReady && (
+                <Section title="Readiness complete">
+                  <div className="border border-[#BBF7D0] bg-[#F0FDF4] rounded-md p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-[#16A34A] text-white font-medium">
+                        <CheckCircle className="w-3 h-3" /> READY
+                      </span>
+                      <span className="text-xs text-[#166534] font-medium">All required onboarding checklist items are complete.</span>
+                    </div>
+                    <div className="text-[11px] text-[#166534]/80 mb-2">
+                      Current stage: <span className="font-medium">{currentStageObj?.name ?? "—"}</span>
+                      {targetStageObj && !alreadyAtOrAfterTarget && (<> · Next stage: <span className="font-medium">{targetStageObj.name}</span></>)}
+                    </div>
+                    {alreadyAtOrAfterTarget ? (
+                      <div className="text-[11px] text-muted-foreground italic">Already moved beyond readiness stage.</div>
+                    ) : !targetStageObj ? (
+                      <div className="text-[11px] text-[#92400E]">
+                        No target stage resolvable. Configure one in Operations CRM → Settings.
+                      </div>
+                    ) : canMoveReadiness ? (
+                      <button
+                        onClick={() => setShowReadinessMove(true)}
+                        className="ipc-btn ipc-btn-black !text-xs"
+                      >
+                        <ArrowRight className="w-3.5 h-3.5" /> Move to {targetStageObj.name}
+                      </button>
+                    ) : (
+                      <div className="text-[11px] text-muted-foreground italic">
+                        Only admins or the assigned owner can move this lead.
+                      </div>
+                    )}
+                  </div>
+                </Section>
+              )}
+
+              {/* Custom Fields */}
+              {lead.process_template_id && (
+                <Section title="Custom fields">
+                  <CustomFieldsPanel leadId={lead.id} templateId={lead.process_template_id ?? null} />
+                </Section>
+              )}
+            </TabsContent>
+
 
           {/* Communication Templates */}
           <Section title="Communication">
@@ -556,13 +616,100 @@ export default function OperationsLeadDrawer({
             )}
           </Section>
 
-          {/* Unified activity timeline */}
-          <Section title="Activity timeline">
-            <OperationsActivityTimeline
-              operationsLeadId={lead.id}
-              leadCreatedAt={(lead as any).created_at ?? null}
-            />
-          </Section>
+            </TabsContent>
+
+            <TabsContent value="activity" className="mt-0 space-y-6">
+              {/* Unified activity timeline */}
+              <Section title="Activity timeline">
+                <OperationsActivityTimeline
+                  operationsLeadId={lead.id}
+                  leadCreatedAt={(lead as any).created_at ?? null}
+                />
+              </Section>
+
+              {/* Timeline */}
+              <Section title="Service timeline">
+                {eventsLoading ? (
+                  <div className="text-[11px] text-muted-foreground">Loading…</div>
+                ) : serviceEvents.length === 0 ? (
+                  <div className="text-[11px] text-muted-foreground">No service events yet.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {serviceEvents.map((ev) => (
+                      <div key={ev.id} className="border border-line rounded-md p-2.5 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${eventTone(ev.event_type)}`}>{ev.event_type}</span>
+                            <span className="text-foreground">{ev.event_date}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{new Date(ev.created_at).toLocaleString()}</span>
+                        </div>
+                        {ev.reason && <div className="mt-1 text-[11px]"><span className="text-muted-foreground">Reason:</span> {ev.reason}</div>}
+                        {ev.note && <div className="mt-1 text-[11px] whitespace-pre-wrap">{ev.note}</div>}
+                        <div className="mt-1 text-[10px] text-muted-foreground">by {ev.created_by_name || "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+
+              {/* Notes */}
+              {lead.notes && (
+                <Section title="Notes">
+                  <div className="text-xs whitespace-pre-wrap text-foreground">{lead.notes}</div>
+                </Section>
+              )}
+            </TabsContent>
+
+            <TabsContent value="results" className="mt-0 space-y-6">
+              {/* Promised offers / services */}
+              <PromisedOffersPanel
+                operationsLeadId={lead.id}
+                paidPipelineLeadId={lead.paid_pipeline_lead_id}
+                crmLeadId={lead.crm_lead_id}
+                title="Services / Commitments"
+              />
+
+              {/* Delivery Tracking */}
+              <DeliveryTrackingSection
+                operationsLeadId={lead.id}
+                crmLeadId={lead.crm_lead_id}
+                paidPipelineLeadId={lead.paid_pipeline_lead_id}
+                actor={{ id: profile?.id ?? null, name: profile?.full_name ?? null }}
+                buyers={deliveryBuyers}
+              />
+
+              {/* Client Conversions (Phase C) */}
+              <ConversionsSection
+                leadId={lead.id}
+                leadName={lead.name}
+                assignedBuyerId={lead.assigned_media_buyer_id}
+                onChanged={onSaved}
+              />
+
+              {/* Team Result / Reward submissions */}
+              <TeamResultSubmissionPanel
+                operationsLeadId={lead.id}
+                crmLeadId={lead.crm_lead_id}
+                paidPipelineLeadId={lead.paid_pipeline_lead_id}
+                memberName={lead.name}
+              />
+            </TabsContent>
+          </div>
+        </Tabs>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-line bg-off/10 shrink-0">
+          <button 
+            onClick={primaryAction.onClick}
+            className="w-full ipc-btn ipc-btn-black flex items-center justify-center gap-2"
+          >
+            <primaryAction.icon className="w-4 h-4" />
+            {primaryAction.label}
+          </button>
+        </div>
+      </div>
+
 
 
 
@@ -576,34 +723,36 @@ export default function OperationsLeadDrawer({
             </Section>
           )}
 
-          {/* Service Summary */}
-          <Section title="Service summary">
-            <div className="grid grid-cols-2 gap-2">
-              <Card label="Package" value={(lead as any).service_package_snapshot?.name || lead.service_package_name || "—"} />
-              <Card label="Committed" value={`${calc.committedDays} days${lead.service_months ? ` · ${lead.service_months}m` : ""}`} />
-              <Card label="Status" value={SERVICE_STATUS_LABELS[status] || status} />
-              <Card label="Ads launch date" value={lead.ad_launch_date || "—"} />
-              <Card label="Active days used" value={`${calc.activeDaysUsed} / ${calc.committedDays}`} hint={status === "active" && calc.currentActivePeriodDays > 0 ? `incl. ${calc.currentActivePeriodDays} current` : undefined} />
-              <Card label="Paused days" value={`${calc.pausedDays}`} hint={status === "paused" && calc.currentPausedPeriodDays > 0 ? `incl. ${calc.currentPausedPeriodDays} current` : undefined} />
-              <Card label="Remaining days" value={`${calc.remainingDays}`} />
-              <Card label="Est. service end" value={calc.estimatedEndDate || "—"} />
-            </div>
-          </Section>
+              {/* Service Summary */}
+              <Section title="Service summary">
+                <div className="grid grid-cols-2 gap-2">
+                  <Card label="Package" value={(lead as any).service_package_snapshot?.name || lead.service_package_name || "—"} />
+                  <Card label="Committed" value={`${calc.committedDays} days${lead.service_months ? ` · ${lead.service_months}m` : ""}`} />
+                  <Card label="Status" value={SERVICE_STATUS_LABELS[status] || status} />
+                  <Card label="Ads launch date" value={lead.ad_launch_date || "—"} />
+                  <Card label="Active days used" value={`${calc.activeDaysUsed} / ${calc.committedDays}`} hint={status === "active" && calc.currentActivePeriodDays > 0 ? `incl. ${calc.currentActivePeriodDays} current` : undefined} />
+                  <Card label="Paused days" value={`${calc.pausedDays}`} hint={status === "paused" && calc.currentPausedPeriodDays > 0 ? `incl. ${calc.currentPausedPeriodDays} current` : undefined} />
+                  <Card label="Remaining days" value={`${calc.remainingDays}`} />
+                  <Card label="Est. service end" value={calc.estimatedEndDate || "—"} />
+                </div>
+              </Section>
 
-          {/* Service Controls */}
-          <Section title="Service controls">
-            <div className="flex flex-wrap gap-2">
-              {showStart && <Btn icon={Play} onClick={() => setAction("start")}>Mark Ads Started</Btn>}
-              {showPause && <Btn icon={Pause} onClick={() => setAction("pause")}>Pause Service</Btn>}
-              {showResume && <Btn icon={Play} onClick={() => setAction("resume")}>Resume Service</Btn>}
-              {showStop && <Btn icon={Square} onClick={() => setAction("stop")} tone="danger">Stop Service</Btn>}
-              {showComplete && <Btn icon={CheckCircle2} onClick={() => setAction("complete")}>Mark Completed</Btn>}
-              {showRestart && <Btn icon={RotateCcw} onClick={() => setAction("start")}>Restart Service</Btn>}
-              {!showStart && !showPause && !showResume && !showStop && !showComplete && !showRestart && (
-                <div className="text-[11px] text-muted-foreground">No actions available for this status.</div>
-              )}
-            </div>
-          </Section>
+              {/* Service Controls */}
+              <Section title="Service controls">
+                <div className="flex flex-wrap gap-2">
+                  {showStart && <Btn icon={Play} onClick={() => setAction("start")}>Mark Ads Started</Btn>}
+                  {showPause && <Btn icon={Pause} onClick={() => setAction("pause")}>Pause Service</Btn>}
+                  {showResume && <Btn icon={Play} onClick={() => setAction("resume")}>Resume Service</Btn>}
+                  {showStop && <Btn icon={Square} onClick={() => setAction("stop")} tone="danger">Stop Service</Btn>}
+                  {showComplete && <Btn icon={CheckCircle2} onClick={() => setAction("complete")}>Mark Completed</Btn>}
+                  {showRestart && <Btn icon={RotateCcw} onClick={() => setAction("start")}>Restart Service</Btn>}
+                  {!showStart && !showPause && !showResume && !showStop && !showComplete && !showRestart && (
+                    <div className="text-[11px] text-muted-foreground">No actions available for this status.</div>
+                  )}
+                </div>
+              </Section>
+            </TabsContent>
+
 
           {/* Client Conversions (Phase C) */}
           <ConversionsSection
