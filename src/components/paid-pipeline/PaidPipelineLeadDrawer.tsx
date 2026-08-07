@@ -864,11 +864,11 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                             <div className="flex gap-4">
                               <div className="flex-1">
                                 <div className="text-muted-foreground uppercase font-bold text-[9px]">Previous</div>
-                                <pre className="mt-1 overflow-x-auto">{JSON.stringify(a.old_values, null, 2)}</pre>
+                                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(a.old_values, null, 2)}</pre>
                               </div>
                               <div className="flex-1">
                                 <div className="text-muted-foreground uppercase font-bold text-[9px]">New</div>
-                                <pre className="mt-1 overflow-x-auto">{JSON.stringify(a.new_values, null, 2)}</pre>
+                                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(a.new_values, null, 2)}</pre>
                               </div>
                             </div>
                           </div>
