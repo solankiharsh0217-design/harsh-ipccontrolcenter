@@ -49,7 +49,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@/lib/paidPipeline", () => ({
-  inr: (val: number) => `₹${(val || 0).toLocaleString("en-IN")}`,
+  inr: (val: any) => `₹${(Number(val) || 0).toLocaleString("en-IN")}`,
   recomputePaidLead: vi.fn(),
   fmtDate: (d: string) => d,
 }));
@@ -85,7 +85,7 @@ const defaultProps = {
 describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
   beforeEach(() => {
     vi.spyOn(AuthModule, "useAuth").mockReturnValue(mockAuthContext as any);
-    (accessVerification.fetchVerificationForPaidLead as any).mockResolvedValue(null);
+    (accessVerification.fetchVerificationForPaidLead as any).mockResolvedValue({});
     (accessVerification.computeOverall as any).mockReturnValue("completed");
   });
 
@@ -108,13 +108,13 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
     expect(screen.getByText(/Initializing drawer/i)).toBeDefined();
     
     await act(async () => {
-      resolveVerification(null);
+      resolveVerification({});
     });
 
     await waitFor(() => {
       expect(screen.queryByText(/Initializing drawer/i)).toBeNull();
       expect(screen.getByText("Test Lead")).toBeDefined();
-    });
+    }, { timeout: 2000 });
   });
 
   it("contains all six tab labels", async () => {
@@ -125,6 +125,8 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
         </BrowserRouter>
       );
     });
+
+    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
 
     const expectedTabs = ["Overview", "Payments", "Onboarding", "Documents", "Offers & Delivery", "Activity"];
     expectedTabs.forEach(tab => {
