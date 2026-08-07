@@ -272,39 +272,43 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             <div className="flex-1 min-w-0">
               {editMode ? (
                 <div className="space-y-2">
-                  <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Full name" className="ipc-input !h-9 !text-sm w-full" />
+                  <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Full name" className="w-full h-9 px-3 border border-line rounded-md text-sm" />
                   <div className="flex gap-2">
-                    <button onClick={saveEdit} disabled={savingEdit} className="ipc-btn ipc-btn-black !h-8 !text-xs">Save</button>
-                    <button onClick={() => setEditMode(false)} className="ipc-btn ipc-btn-ghost !h-8 !text-xs">Cancel</button>
+                    <button onClick={saveEdit} disabled={savingEdit} className="h-8 px-4 bg-black text-white rounded-md text-xs font-medium hover:bg-black/90">Save</button>
+                    <button onClick={() => setEditMode(false)} className="h-8 px-4 border border-line rounded-md text-xs font-medium text-muted-foreground hover:bg-off">Cancel</button>
                   </div>
                 </div>
               ) : (
                 <>
                   <div className="flex items-center gap-2">
-                    <div className="font-serif text-[22px] leading-tight">{lead.full_name || "Unnamed"}</div>
-                    <button onClick={() => { setEditName(lead.full_name || ""); setEditEmail(lead.email || ""); setEditPhone(lead.phone || ""); setEditMode(true); }} className="p-1 hover:bg-off rounded"><Pencil className="w-3.5 h-3.5" /></button>
+                    <h2 className="font-serif text-2xl font-medium tracking-tight text-foreground">{lead.full_name || "Unnamed"}</h2>
+                    <button onClick={() => { setEditName(lead.full_name || ""); setEditEmail(lead.email || ""); setEditPhone(lead.phone || ""); setEditMode(true); }} className="p-1.5 hover:bg-off rounded-md text-muted-foreground"><Pencil className="w-3.5 h-3.5" /></button>
                   </div>
-                  <div className="font-sans text-xs text-muted-foreground mt-1">{lead.phone} · {lead.email}</div>
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] uppercase bg-off border border-line">{lead.program_name}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] uppercase bg-off border border-line">{lead.lead_type}</span>
+                  <div className="flex items-center gap-2 font-sans text-xs text-muted-foreground mt-1.5">
+                    <span>{lead.phone}</span>
+                    <span>•</span>
+                    <span>{lead.email}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] uppercase bg-off border border-line text-muted-foreground">{lead.program_name}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] uppercase bg-off border border-line text-muted-foreground">{lead.lead_type}</span>
                   </div>
                 </>
               )}
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-off rounded"><X className="w-4 h-4" /></button>
+            <button onClick={onClose} className="p-2 hover:bg-off rounded-md"><X className="w-4 h-4 text-muted-foreground" /></button>
           </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-            <div className="px-6 border-b border-line bg-off/50">
-              <TabsList className="bg-transparent h-10 w-full justify-start overflow-x-auto no-scrollbar">
-                <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
-                <TabsTrigger value="payments" className="text-xs">Payments</TabsTrigger>
-                <TabsTrigger value="onboarding" className="text-xs">Onboarding</TabsTrigger>
-                <TabsTrigger value="stage & handoff" className="text-xs">Stage & Handoff</TabsTrigger>
-                <TabsTrigger value="follow-ups & activity" className="text-xs">Activity</TabsTrigger>
+            <div className="px-6 border-b border-line bg-card/50">
+              <TabsList className="bg-transparent h-12 w-full justify-start overflow-x-auto no-scrollbar gap-6">
+                <TabsTrigger value="overview" className="h-12 border-b-2 border-transparent data-[state=active]:border-black data-[state=active]:text-black text-xs font-medium px-0">Overview</TabsTrigger>
+                <TabsTrigger value="payments" className="h-12 border-b-2 border-transparent data-[state=active]:border-black data-[state=active]:text-black text-xs font-medium px-0">Payments</TabsTrigger>
+                <TabsTrigger value="onboarding" className="h-12 border-b-2 border-transparent data-[state=active]:border-black data-[state=active]:text-black text-xs font-medium px-0">Onboarding</TabsTrigger>
+                <TabsTrigger value="stage & handoff" className="h-12 border-b-2 border-transparent data-[state=active]:border-black data-[state=active]:text-black text-xs font-medium px-0">Stage & Handoff</TabsTrigger>
+                <TabsTrigger value="follow-ups & activity" className="h-12 border-b-2 border-transparent data-[state=active]:border-black data-[state=active]:text-black text-xs font-medium px-0">Activity</TabsTrigger>
               </TabsList>
             </div>
             <TabsContent value="overview" className="flex-1 overflow-y-auto p-6 space-y-6">
