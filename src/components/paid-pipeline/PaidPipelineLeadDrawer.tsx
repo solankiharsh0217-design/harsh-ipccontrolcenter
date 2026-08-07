@@ -441,8 +441,8 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
           <div className="px-6 pb-4 flex flex-col gap-3">
             <TagPicker
-              entityType="paid_pipeline_lead"
-              entityId={lead.id}
+              paidLeadId={lead.id}
+              leadName={lead.name || undefined}
               className="w-full"
             />
             
