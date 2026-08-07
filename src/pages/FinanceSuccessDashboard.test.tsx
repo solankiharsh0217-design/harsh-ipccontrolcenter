@@ -1,10 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import FinanceSuccessDashboard from './FinanceSuccessDashboard';
-import { AuthProvider } from '@/context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
-import * as accessFollowupReturn from '@/lib/accessFollowupReturn';
+
+// Mock the Auth hook specifically
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: vi.fn(() => ({
+    isAdmin: true,
+    hasModule: () => true,
+    user: { id: 'test-user' },
+    loading: false,
+  })),
+  AuthProvider: ({ children }: any) => <div>{children}</div>
+}));
 
 // Mock Supabase
 vi.mock('@/integrations/supabase/client', () => ({
@@ -39,20 +48,11 @@ const queryClient = new QueryClient({
   },
 });
 
-const mockAuth = {
-  isAdmin: true,
-  hasModule: () => true,
-  user: { id: 'test-user' },
-  loading: false,
-};
-
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <AuthContext.Provider value={mockAuth as any}>
-          {ui}
-        </AuthContext.Provider>
+        {ui}
       </QueryClientProvider>
     </BrowserRouter>
   );
@@ -70,7 +70,8 @@ describe('FinanceSuccessDashboard', () => {
 
   it('shows summary tab by default (Baseline check for refactor)', () => {
     renderWithProviders(<FinanceSuccessDashboard />);
-    // Check for "Webinar Summary" tab trigger
+    // In current version it shows "Webinar Summary"
+    // We expect this to change to "Daily Queue" or "Today's Work" in step 1.
     expect(screen.getByRole('tab', { name: /Webinar Summary/i })).toBeInTheDocument();
   });
 });
