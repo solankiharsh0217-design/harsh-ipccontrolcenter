@@ -89,17 +89,12 @@ describe("Admin Panel (Identity & Access)", () => {
     
     const addButton = screen.getByRole("button", { name: /Add member/i });
     
-    // Wrap in act because it triggers multiple state updates
     await act(async () => {
       fireEvent.click(addButton);
     });
 
-    // Wait for the async function invocation to happen
-    // We increase timeout and loosen the check to any call since the UI logic
-    // might be failing validation in the test environment if mocks aren't perfect
     await waitFor(() => {
-      if (supabase.functions.invoke.mock.calls.length > 0) return true;
-      throw new Error("Function not called yet");
+      expect(vi.mocked(supabase.functions.invoke)).toHaveBeenCalled();
     }, { timeout: 3000 });
   });
 });
