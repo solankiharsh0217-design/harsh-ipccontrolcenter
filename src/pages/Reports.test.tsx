@@ -40,7 +40,7 @@ describe("Reports List Queries Narrowing Test", () => {
     // Default mock for RPC
     (supabase.rpc as any).mockResolvedValue({ data: null, error: null });
     
-    // Default mock for all tables
+    // Default mock for daily stats to avoid null errors in calculations
     (supabase.from as any).mockImplementation((table: string) => ({
       select: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
@@ -91,11 +91,12 @@ describe("Reports List Queries Narrowing Test", () => {
       expect(screen.getByText("Test Webinar Attribution")).toBeInTheDocument();
     });
 
+    // We use a more flexible matcher to avoid breaking on minor formatting changes
     expect(screen.queryAllByText(/₹5,001/).length).toBeGreaterThan(0);
     expect(screen.queryAllByText("101").length).toBeGreaterThan(0);
     expect(screen.queryAllByText("11").length).toBeGreaterThan(0);
-    // Use a simpler regex that matches the base number
-    expect(screen.queryAllByText(/5\./).length).toBeGreaterThan(0);
+    // Use a text content matcher function for ROAS to handle potential <span> wrapping
+    expect(screen.getAllByText((content, element) => content.includes("5.00")).length).toBeGreaterThan(0);
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
@@ -143,7 +144,7 @@ describe("Reports List Queries Narrowing Test", () => {
 
     expect(screen.queryAllByText(/₹10,002/).length).toBeGreaterThan(0);
     expect(screen.queryAllByText(/₹8,002/).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText(/5\.02/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((content, element) => content.includes("5.02")).length).toBeGreaterThan(0);
   });
 
   it("should render profit_statements list with mocked data", async () => {
@@ -242,6 +243,6 @@ describe("Reports List Queries Narrowing Test", () => {
     expect(screen.queryAllByText("24").length).toBeGreaterThan(0);
     expect(screen.queryAllByText(/₹15,004/).length).toBeGreaterThan(0);
     expect(screen.queryAllByText(/₹12,004/).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText(/5\.04/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((content, element) => content.includes("5.04")).length).toBeGreaterThan(0);
   });
 });
