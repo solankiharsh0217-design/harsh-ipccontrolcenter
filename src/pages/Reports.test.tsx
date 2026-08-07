@@ -104,13 +104,10 @@ describe("Reports List Queries Narrowing Test", () => {
     
     // Confirm media buyer name from join renders correctly
     // The initials function: "Buyer A" -> "BA"
-    // We check for the text BA which is rendered by initials(b.name)
     await waitFor(() => {
-      // Look for the text BA in the entire document
-      const elements = screen.queryAllByText((content, element) => {
-        return element?.textContent === "BA" && element?.className.includes("spend-av");
-      });
-      expect(elements.length).toBeGreaterThan(0);
+      const buyerAvatars = screen.queryAllByTestId("buyer-avatar");
+      expect(buyerAvatars.length).toBeGreaterThan(0);
+      expect(buyerAvatars[0]).toHaveTextContent("BA");
     }, { timeout: 3000 });
   });
 
