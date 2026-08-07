@@ -63,9 +63,10 @@ const mockLead = {
 };
 
 const mockStages = [
-  { id: "stage-1", name: "Inquiry", pipeline_id: "pipe-1" },
-  { id: "stage-2", name: "Token Paid", pipeline_id: "pipe-1" },
-];
+  { id: "stage-1", name: "Inquiry", pipeline_id: "pipe-1", color: "gray", position: 0, is_protected: false, is_won: false, is_lost: false },
+  { id: "stage-2", name: "Token Paid", pipeline_id: "pipe-1", color: "blue", position: 1, is_protected: false, is_won: false, is_lost: false },
+] as any[];
+
 
 describe("LeadDrawer Refactor Verification", () => {
   beforeEach(() => {
