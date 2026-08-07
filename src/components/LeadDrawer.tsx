@@ -125,9 +125,87 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     duplicateBehavior: matchingRule.duplicate_behavior,
   } : null;
 
+  const paidLeadId = lead ? ((lead as any).paid_pipeline_lead_id as string | null) : null;
+
+  const handlePaymentSaved = async () => {
+    const paidLeadId = (lead as any).paid_pipeline_lead_id;
+    if (paidLeadId && postPayAction === "setTokenPaid") {
+      await supabase.from("paid_pipeline_leads").update({ pipeline_stage: "Token Paid" } as any).eq("id", paidLeadId);
+      await recomputePaidLead(paidLeadId);
+      toast.success("Token recorded and stage set to Token Paid");
+    } else toast.success("Payment recorded");
+    setPostPayAction(null); setOpenPay(false);
+    await load(); onChanged();
+  };
+
+  const openTokenPayment = () => {
+    if (!paidLeadId) return;
+    setPayPrefill({ type: "First Token", category: "Token Amount", description: "Token payment", isToken: true });
+    setPostPayAction("setTokenPaid");
+    setOpenPay(true);
+  };
+
+  const primaryAction = useMemo(() => {
+    if (!lead) return null;
+
+    // 1. Convert to Paid Pipeline (highest priority if unpaid and unlinked)
+    const isUnpaid = lead.lead_type?.toLowerCase() === "unpaid";
+    const isUnlinked = !paidLeadId;
+    if (isUnpaid && isUnlinked) {
+      return {
+        label: "Send to Paid Onboarding",
+        onClick: () => setSendOnboardingOpen(true),
+        variant: "black" as const,
+      };
+    }
+
+    // 2. Conversion Rule Match (triggers ConvertToPaidModal)
+    const currentStageName = stagesById.get(lead.stage_id)?.name || null;
+    const activeConvRule = convRules.find(r => {
+      if (r.source_pipeline_id && r.source_pipeline_id !== lead.pipeline_id) return false;
+      if (r.trigger_stage_ids?.includes(lead.stage_id)) return true;
+      if (currentStageName && r.trigger_stage_names?.some(n => n.toLowerCase() === currentStageName.toLowerCase())) return true;
+      return false;
+    });
+    if (activeConvRule) {
+      return {
+        label: "Convert to Paid",
+        onClick: () => setConvertOpen(true),
+        variant: "black" as const,
+      };
+    }
+
+    // 3. Operations Handoff (isOpsEligible)
+    if (isOpsEligible && !inOps) {
+      return {
+        label: "Send to Operations",
+        onClick: () => setSendOpsOpen(true),
+        variant: "black" as const,
+      };
+    }
+
+    // 4. Record Token (if missing)
+    if (paidSnap && Number(paidSnap.deal_value) > 0 && !hasToken) {
+      return {
+        label: "Record Token",
+        onClick: openTokenPayment,
+        variant: "black" as const,
+      };
+    }
+
+    // Default fallback: Just allow updating status.
+    return {
+      label: "Update Status",
+      onClick: () => setCrmPickerOpen(true),
+      variant: "ghost" as const,
+    };
+  }, [lead, isOpsEligible, inOps, hasToken, paidSnap, convRules, stagesById, paidLeadId]);
+
   useEffect(() => {
     if (!lead) return;
     const hasDealValue = Number(lead.deal_value) > 0 || (paidSnap && Number(paidSnap.deal_value) > 0);
+    
+    // Default tab logic
     if (hasDealValue && !hasToken) { setActiveTab("payments"); return; }
     if (isOpsEligible && !inOps) { setActiveTab("stage & handoff"); return; }
     if (reminders.some(r => r.reminder_date < today)) { setActiveTab("follow-ups & activity"); return; }
@@ -172,25 +250,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }
   };
 
-  const handlePaymentSaved = async () => {
-    const paidLeadId = (lead as any).paid_pipeline_lead_id;
-    if (paidLeadId && postPayAction === "setTokenPaid") {
-      await supabase.from("paid_pipeline_leads").update({ pipeline_stage: "Token Paid" } as any).eq("id", paidLeadId);
-      await recomputePaidLead(paidLeadId);
-      toast.success("Token recorded and stage set to Token Paid");
-    } else toast.success("Payment recorded");
-    setPostPayAction(null); setOpenPay(false);
-    await load(); onChanged();
-  };
-
-  const paidLeadId = (lead as any).paid_pipeline_lead_id as string | null;
-  const openTokenPayment = () => {
-    if (!paidLeadId) return;
-    setPayPrefill({ type: "First Token", category: "Token Amount", description: "Token payment", isToken: true });
-    setPostPayAction("setTokenPaid");
-    setOpenPay(true);
-  };
-  
   const addStageInline = async () => {
     const name = newStageName.trim();
     if (!name) return;
@@ -202,6 +261,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
       if (data?.id) await moveStage(data.id);
     } finally { setAddingStage(false); }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
@@ -310,14 +370,39 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-line flex justify-between bg-white">
+        <div className="px-6 py-3 border-t border-line flex justify-between bg-white items-center">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
-          <button onClick={() => { load(); onChanged(); onClose(); }} className="ipc-btn ipc-btn-black">Save & Close</button>
+          
+          <div className="flex items-center gap-2">
+            {primaryAction && (
+              <button 
+                onClick={primaryAction.onClick}
+                className={`ipc-btn ${primaryAction.variant === "black" ? "ipc-btn-black" : "ipc-btn-ghost"}`}
+              >
+                {primaryAction.label}
+              </button>
+            )}
+            <button onClick={() => { load(); onChanged(); onClose(); }} className="ipc-btn ipc-btn-black">Save & Close</button>
+          </div>
         </div>
       </div>
       
       {sendOpsOpen && <SendToOperationsCrmModal candidateLeads={[lead as any]} sourceStages={[]} preSelectedIds={[lead.id]} prefill={rulePrefill as any} onClose={() => setSendOpsOpen(false)} onDone={() => { setSendOpsOpen(false); load(); }} />}
       {openPay && paidLeadId && <QuickAddPaymentModal leadId={paidLeadId} leadName={lead.full_name || undefined} prefill={payPrefill} onSaved={handlePaymentSaved} onClose={() => setOpenPay(false)} />}
+      {convertOpen && <ConvertToPaidModal lead={lead as any} agents={agents} onClose={() => setConvertOpen(false)} onConverted={() => { setConvertOpen(false); load(); onChanged(); }} />}
+      {sendOnboardingOpen && (
+        <SendToPaidOnboardingModal 
+          open={sendOnboardingOpen} 
+          onClose={() => setSendOnboardingOpen(false)} 
+          leadId={lead.id} 
+          leadName={lead.full_name || ""} 
+          leadEmail={lead.email} 
+          leadPhone={lead.phone} 
+          onDone={() => { setSendOnboardingOpen(false); load(); onChanged(); }} 
+        />
+      )}
+
     </div>
   );
 }
+
