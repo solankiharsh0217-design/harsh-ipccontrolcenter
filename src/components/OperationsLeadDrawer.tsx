@@ -34,6 +34,8 @@ import {
 } from "@/lib/operationsSla";
 import SlaChip from "@/components/operations/SlaChip";
 import type { Stage } from "@/lib/crmTypes";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 
 export interface OpsLeadFull {
   id: string;
