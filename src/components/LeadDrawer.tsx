@@ -260,9 +260,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     setActiveTab("overview");
   }, [leadId, !!lead, isOpsEligible, inOps, hasToken, reminders.length]);
 
-  const g = GRADE_STYLES[lead.grade];
-  const pipelineAllStages = stages.filter((s) => s.pipeline_id === lead.pipeline_id).sort((a, b) => a.position - b.position);
-  const pipelineStages = pipelineAllStages.filter((s) => (s as any).is_active !== false || s.id === lead.stage_id);
+  // ... redeclared variables removed via line_replace logic ...
 
   const moveStage = async (stageId: string) => {
     const prev = lead.stage_id;
