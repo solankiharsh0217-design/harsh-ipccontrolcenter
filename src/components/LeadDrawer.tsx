@@ -447,7 +447,25 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
 
         <div className="absolute right-0 top-0 h-full w-[560px] bg-white border-l border-line flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex-1 min-h-0 overflow-y-auto">
-        {/* Header */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+            <div className="px-6 border-b border-line bg-off/50">
+              <TabsList className="bg-transparent h-10 w-full justify-start overflow-x-auto no-scrollbar">
+                <TabsTrigger value="overview" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">Overview</TabsTrigger>
+                <TabsTrigger value="payments" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">Payments</TabsTrigger>
+                <TabsTrigger value="onboarding" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">Onboarding</TabsTrigger>
+                <TabsTrigger value="stage & handoff" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">Stage & Handoff</TabsTrigger>
+                <TabsTrigger value="follow-ups & activity" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">Follow-ups & Activity</TabsTrigger>
+                <TabsTrigger value="advanced" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm"><Settings className="w-3.5 h-3.5" /></TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="overview" className="flex-1 overflow-y-auto p-0 m-0">
+              <div className="p-6">
+                {/* ... Move sections 1-5 (Name/Header/Notes/Linked/Access) here ... */}
+              </div>
+            </TabsContent>
+            {/* ... Other tabs ... */}
+          </Tabs>
+        </div>
         <div className="px-6 py-5 border-b border-line">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
