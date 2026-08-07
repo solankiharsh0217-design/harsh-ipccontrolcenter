@@ -16,8 +16,8 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
 vi.mock("@/components/ui/tabs", () => ({
   Tabs: ({ children, value, onValueChange }: any) => (
     <div data-testid="mock-tabs" data-value={value} onClick={(e: any) => {
-      const target = e.target as HTMLElement;
-      if (target.getAttribute('role') === 'tab') {
+      const target = e.target.closest('[role="tab"]');
+      if (target) {
         onValueChange?.(target.getAttribute('data-value'));
       }
     }}>{children}</div>
@@ -30,6 +30,9 @@ vi.mock("@/components/ui/tabs", () => ({
     <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
   ),
 }));
+
+import * as AuthModule from "@/context/AuthContext";
+import * as accessVerification from "@/lib/accessVerification";
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
