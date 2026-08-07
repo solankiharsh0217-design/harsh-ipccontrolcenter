@@ -96,13 +96,11 @@ describe("Reports List Queries Narrowing Test", () => {
     expect(screen.queryAllByText("11").length).toBeGreaterThan(0);
     
     // We expect 5.00x based on 5001/1000. 
-    // Using a very loose regex to see what's actually there if this fails again.
     const roasElements = screen.queryAllByText(/×/);
     expect(roasElements.length).toBeGreaterThan(0);
     
     // Confirm media buyer name from join renders correctly
     // The initials function: "Buyer A" -> "BA"
-    // We check for initials "BA" appearing in the document
     expect(screen.getAllByText("BA").length).toBeGreaterThan(0);
   });
 
