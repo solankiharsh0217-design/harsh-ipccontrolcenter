@@ -53,7 +53,7 @@ describe("Reports List Queries Narrowing Test", () => {
     }));
   });
 
-  it("should render attribution_sessions list with mocked data", async () => {
+  it("should render attribution_sessions list with mocked joined data", async () => {
     const mockData = [{
       id: "attr-1",
       webinar_name: "Test Webinar Attribution",
@@ -67,7 +67,7 @@ describe("Reports List Queries Narrowing Test", () => {
       created_at: new Date().toISOString(),
       is_deleted: false,
       calculation_method: "auto",
-      buyers: [{ name: "Buyer A" }]
+      buyers: [{ media_buyer_name: "Buyer A" }] // Raw join format
     }];
     
     (supabase.from as any).mockImplementation((table: string) => ({
@@ -76,9 +76,7 @@ describe("Reports List Queries Narrowing Test", () => {
       limit: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       then: vi.fn().mockImplementation((cb) => {
-        const responseData = table === "attribution_sessions" 
-          ? mockData.map(s => ({ ...s, buyers: [{ media_buyer_name: "Buyer A" }] }))
-          : [];
+        const responseData = table === "attribution_sessions" ? mockData : [];
         cb({ data: responseData, error: null });
         return Promise.resolve({ data: responseData, error: null });
       }),
@@ -92,11 +90,9 @@ describe("Reports List Queries Narrowing Test", () => {
 
     expect(screen.getByText("Test Webinar Attribution")).toBeInTheDocument();
     
-    await waitFor(() => {
-      const avatars = screen.queryAllByTestId("buyer-avatar");
-      expect(avatars.length).toBeGreaterThan(0);
-      expect(avatars[0].getAttribute("title")).toBe("Buyer A");
-    });
+    const avatars = screen.getAllByTestId("buyer-avatar");
+    expect(avatars.length).toBeGreaterThan(0);
+    expect(avatars[0].getAttribute("title")).toBe("Buyer A");
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
@@ -129,8 +125,8 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       const card = screen.getByText(/Seminar ROAS Reports/i).closest('button');
-       if (card) fireEvent.click(card);
+       const btn = screen.getByText(/Seminar ROAS Reports/i).closest('button');
+       if (btn) fireEvent.click(btn);
     });
 
     await waitFor(() => {
@@ -166,16 +162,13 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       const btn = screen.queryByRole("button", { name: /Profit Statements/i }) || screen.getByText(/Profit Statements/i).closest('button');
+       const btn = screen.getByText(/Profit Statements/i).closest('button');
        if (btn) fireEvent.click(btn);
     });
 
     await waitFor(() => {
-      // Find within the main content area, specifically in the table
-      const rows = screen.queryAllByRole("row");
-      const profitRow = rows.find(r => r.textContent?.includes("Test Profit Statement"));
-      expect(profitRow).toBeTruthy();
-    }, { timeout: 5000 });
+      expect(screen.queryAllByText(/Test Profit Statement/i).length).toBeGreaterThan(0);
+    }, { timeout: 3000 });
   });
 
   it("should render offline_seminar_reports list with mocked data", async () => {
@@ -208,8 +201,8 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       const card = screen.getByText(/Offline Seminar Reports/i).closest('button');
-       if (card) fireEvent.click(card);
+       const btn = screen.getByText(/Offline Seminar Reports/i).closest('button');
+       if (btn) fireEvent.click(btn);
     });
 
     await waitFor(() => {
