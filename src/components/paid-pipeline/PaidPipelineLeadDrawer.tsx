@@ -901,9 +901,6 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
             </TabsContent>
           </Tabs>
         </div>
-      </div>
-
-
         {/* Sticky footer */}
         <div className="shrink-0 bg-white border-t border-line px-6 py-3 flex justify-end gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Close</button>
@@ -916,6 +913,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
           </button>
         </div>
       </div>
+
 
 
       {openPay && <QuickAddPaymentModal leadId={lead.id} leadName={lead.name || undefined} prefill={payPrefill || undefined} headerNote={payHeaderNote} onClose={() => { setOpenPay(false); setPostPayAction(null); }} onSaved={handlePaymentSaved} />}
