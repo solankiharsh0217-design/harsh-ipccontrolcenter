@@ -51,14 +51,18 @@ vi.mock("@/lib/paidPipelineVisibility", () => ({
   auditPaidPipelineVisibility: vi.fn().mockResolvedValue({ status: "ok", checks: [] }),
 }));
 
-// Mock Code of Conduct Panel to avoid complex rendering
-vi.mock("@/components/paid-pipeline/CodeOfConductPanel", () => ({
-  default: () => <div data-testid="coc-panel">CoC Panel</div>
-}));
-
-// Mock Access Verification Panel
-vi.mock("@/components/access-followup/AccessVerificationPanel", () => ({
-  default: () => <div data-testid="access-panel">Access Panel</div>
+// Mock UI Tabs to avoid Radix JSDOM issues
+vi.mock("@/components/ui/tabs", () => ({
+  Tabs: ({ children, defaultValue, onValueChange, value }: any) => {
+    return <div data-testid="mock-tabs">{children}</div>;
+  },
+  TabsList: ({ children }: any) => <div>{children}</div>,
+  TabsTrigger: ({ children, value, onClick }: any) => (
+    <button onClick={onClick}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: any) => (
+    <div data-testid={`content-${value}`}>{children}</div>
+  ),
 }));
 
 const mockLead = {
@@ -113,12 +117,8 @@ describe("PaidPipelineLeadDrawer - Handoff Logic Verification", () => {
       />
     );
 
-    // Click Onboarding tab - Try finding the trigger specifically
-    const onboardingTrigger = screen.getByRole("tab", { name: /onboarding/i });
-    fireEvent.click(onboardingTrigger);
-
-    // Wait for the button to appear in the DOM
-    const btn = await screen.findByTestId("trigger-stage-change", {}, { timeout: 3000 });
+    // The mock Tabs component renders all content, so we can just find the button
+    const btn = await screen.findByTestId("trigger-stage-change");
     fireEvent.click(btn);
 
     // Assertions
