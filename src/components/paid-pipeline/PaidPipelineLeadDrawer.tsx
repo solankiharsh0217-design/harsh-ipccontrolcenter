@@ -412,7 +412,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
       <div className="w-full max-w-[800px] bg-white flex flex-col h-[100dvh] overflow-hidden">
-        {/* New Sticky Header Shell */}
+        {/* Sticky Header */}
         <div className="shrink-0 bg-white border-b border-line z-20">
           <div className="px-6 py-4 flex justify-between items-start">
             <div className="flex-1 min-w-0">
@@ -432,7 +432,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
               </div>
             </div>
             <div className="flex items-center gap-2 ml-4">
-              <button className="ipc-btn ipc-btn-black !h-9 px-4">Save & Close</button>
+              <button onClick={onClose} className="ipc-btn ipc-btn-black !h-9 px-4">Save & Close</button>
               <button onClick={onClose} className="p-2 hover:bg-off rounded-full transition-colors">
                 <X className="w-5 h-5" />
               </button>
@@ -461,7 +461,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
             </button>
           </div>
 
-          {/* Tabs Skeleton */}
+          {/* Tabs List */}
           <div className="px-4 border-t border-line">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="w-full justify-start h-12 bg-transparent p-0 gap-6">
@@ -479,12 +479,11 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
           </div>
         </div>
 
-        {/* Existing Content Shell (Temporarily remains as is) */}
+        {/* Tab Contents */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsContent value="overview" className="m-0 focus-visible:ring-0">
               <div className="p-6 space-y-5">
-                {/* Consolidated Summary Block */}
                 <div className="rounded-xl border border-line bg-off/30 p-5">
                   <div className="grid grid-cols-3 gap-8">
                     <div className="space-y-1">
@@ -511,7 +510,6 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                   </div>
                 </div>
 
-                {/* Next Follow-up Section */}
                 {(() => {
                   const todayStr = new Date().toISOString().slice(0, 10);
                   const fu = lead.next_follow_up_date || lead.follow_up_date || lead.next_balance_follow_up_date || lead.finance_follow_up_date || null;
@@ -548,7 +546,6 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                   );
                 })()}
 
-                {/* Quick Status Section */}
                 <Section title="Quick status">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -579,9 +576,9 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                 </Section>
               </div>
             </TabsContent>
+
             <TabsContent value="payments" className="m-0 focus-visible:ring-0">
               <div className="p-6 space-y-6">
-                {/* Finance / EMI Section */}
                 <div className="rounded-xl border border-line bg-white shadow-sm overflow-hidden">
                   <div className="bg-off/50 px-4 py-3 border-b border-line flex items-center justify-between">
                     <h3 className="text-[13px] font-semibold text-foreground">Finance / EMI</h3>
@@ -607,7 +604,6 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                   </div>
                 </div>
 
-                {/* Payment History Section */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-[13px] font-semibold text-foreground">Payment History ({payments.length})</h3>
@@ -665,323 +661,246 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                 </div>
               </div>
             </TabsContent>
-          </Tabs>
 
-          {/* OLD HEADER (to be removed in future step) */}
-          <div className="hidden shrink-0 bg-white px-6 py-4 border-b border-line flex justify-between items-start opacity-50 grayscale pointer-events-none">
-
-            <div>
-              <div className="font-serif text-[22px]">{lead.name || "Untitled"}</div>
-              <div className="text-[12px] text-muted-foreground">{lead.email || "—"} · {lead.phone || "—"}</div>
-              {((lead as any).service_package_snapshot?.name || (lead as any).service_package?.name) && (
-                <div className="mt-1.5"><ServicePackageChip snapshot={(lead as any).service_package_snapshot} fallbackName={(lead as any).service_package?.name} compact={false} /></div>
-              )}
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                {lead.crm_lead_id && (
-                  <Link to={`/crm?lead=${lead.crm_lead_id}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
-                    Open in Calling CRM
-                  </Link>
-                )}
-                <button onClick={() => setOpenFin(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#15803D] text-white hover:opacity-90">
-                  Update Finance
-                </button>
-                <button onClick={openAddPayment} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-black text-white hover:opacity-90">
-                  + Add Payment
-                </button>
-                <button onClick={() => setOpenFu(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] border border-line hover:bg-off">
-                  Set Follow-up
-                </button>
-                {(hasToken || isAdmin) && (
-                  <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] bg-[#1D4ED8] text-white hover:opacity-90" title="Hand off this paid client to the Operations CRM service-delivery board">
-                    Send to Operations CRM
-                  </button>
-                )}
-              </div>
-            </div>
-            <button onClick={onClose} className="text-[20px] leading-none">×</button>
-          </div>
-
-        <div className="px-6 pt-4">
-          <div className="rounded-lg border border-line bg-off/40 px-3 py-2.5">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground">Lead Tags</div>
-            </div>
-            <TagPicker
-              paidLeadId={lead.id}
-              crmLeadId={lead.crm_lead_id || null}
-              leadName={lead.name || undefined}
-            />
-          </div>
-          <SuggestedNextActions
-            paidLeadId={lead.id}
-            crmLeadId={lead.crm_lead_id || null}
-            onApplied={() => { loadInner(); onChanged(); }}
-            onOpenFollowUp={() => setOpenFu(true)}
-            onOpenTokenPayment={openTokenPayment}
-          />
-          <div className="mt-4">
-            <PromisedOffersPanel
-              paidPipelineLeadId={lead.id}
-              crmLeadId={lead.crm_lead_id || null}
-              title="Services / Commitments"
-            />
-          </div>
-        </div>
-
-
-        <div className="p-6 space-y-5">
-
-          {/* Revenue snapshot, Payment Timeline, and Token Recording moved to Overview tab */}
-
-
-
-          {/* 1c. Linked Calling CRM Stage — high in drawer for quick stage sync */}
-          {(() => {
-            const current = crmStages.find(s => s.id === crmStageId) || null;
-            const chip = current ? stageChip(current.name, current.color) : null;
-            return (
-              <div className="rounded-xl border border-[#C7D2FE] bg-gradient-to-br from-[#EEF2FF] to-white p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[#3730A3]">🔗 Linked Calling CRM Stage</div>
-                    {!lead.crm_lead_id && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]">Not linked</span>
-                    )}
-                  </div>
-                  {lead.crm_lead_id && (
-                    <Link to={`/crm?lead=${lead.crm_lead_id}`} className="text-[11px] text-[#3730A3] hover:underline">Open in CRM ↗</Link>
-                  )}
-                  <button onClick={repairCrmLink} disabled={linkingCrm} className="text-[11px] px-2 py-0.5 rounded border border-[#C7D2FE] bg-white text-[#3730A3] hover:bg-[#EEF2FF] disabled:opacity-50" title="Ensure this paid buyer has a linked CRM lead visible in Paid — Onboarding">
-                    {linkingCrm ? "Repairing…" : "Repair CRM Link"}
-                  </button>
-                </div>
-
-                {!lead.crm_lead_id ? (
-                  <div className="space-y-2">
-                    <div className="text-[12px] text-[#3730A3]">No linked Calling CRM lead found. Repair CRM Link will search by email/phone and create one in Paid — Onboarding if none exists.</div>
-                    <button onClick={linkToCrm} disabled={linkingCrm} className="ipc-btn ipc-btn-black !h-9">
-                      {linkingCrm ? "Linking…" : "Link to Calling CRM lead"}
-                    </button>
-                  </div>
-
-                ) : (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
-                    {chip ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border" style={{ background: chip.bg, color: chip.text, borderColor: chip.border }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: chip.dot }} />
-                        {current!.name}
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded-full text-xs bg-off border border-line">—</span>
-                    )}
-                    <CrmStagePicker
-                      stages={crmStages}
-                      currentStageId={crmStageId}
-                      open={crmPickerOpen}
-                      onOpenChange={(v) => { setCrmPickerOpen(v); if (!v) setNewCrmStageName(""); }}
-                      newStageName={newCrmStageName}
-                      onNewStageNameChange={setNewCrmStageName}
-                      onChangeStage={changeCrmStage}
-                      onAddStage={addCrmStageInline}
-                      onDeleteStage={deleteCrmStageInline}
-                      addingStage={addingStage}
-                    />
-                  </div>
-                )}
-                <div className="text-[11px] text-muted-foreground mt-2">
-                  Changes here update the linked Calling CRM lead and trigger Operations handoff rules if matched.
-                </div>
-              </div>
-            );
-          })()}
-
-          {isAdmin && (
-            <details className="rounded-lg border border-dashed border-[#C7D2FE] bg-[#EEF2FF]/30 px-3 py-2 text-[11px]">
-              <summary className="cursor-pointer text-[11px] font-semibold text-[#3730A3] flex items-center gap-2 flex-wrap">
-                <span>🔍 Visibility Debug (admin)</span>
-                {visibilityAudit && (
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
-                    visibilityAudit.status === "included"
-                      ? "bg-[#DCFCE7] text-[#15803D] border-[#86EFAC]"
-                      : "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]"
-                  }`}>{visibilityAudit.status}</span>
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => { e.preventDefault(); loadAudit(); }}
-                  className="ml-auto text-[10.5px] underline text-[#3730A3]"
-                >Refresh</button>
-              </summary>
-              <div className="mt-2 space-y-1 text-[11px] text-[#1E1B4B]">
-                {auditLoading && <div className="text-muted-foreground">Checking visibility…</div>}
-                {!auditLoading && !visibilityAudit && <div className="text-muted-foreground">No audit data.</div>}
-                {!auditLoading && visibilityAudit && (() => {
-                  const a = visibilityAudit;
-                  const shouldBeInKanban = !!(a.linkedPipelineType === "paid" && !a.isArchived && !a.isDeleted);
-                  const row = (k: string, v: any) => (
-                    <div className="flex items-baseline gap-2"><span className="text-muted-foreground w-44 shrink-0">{k}</span><span className="font-mono break-all">{v ?? "—"}</span></div>
-                  );
+            <TabsContent value="onboarding" className="m-0 focus-visible:ring-0">
+              <div className="p-6 space-y-6">
+                {/* Linked Calling CRM Stage */}
+                {(() => {
+                  const current = crmStages.find(s => s.id === crmStageId) || null;
+                  const chip = current ? stageChip(current.name, current.color) : null;
                   return (
-                    <>
-                      <div className="text-[12px] font-medium">{a.reason}</div>
-                      {row("paid_pipeline_lead_id", a.paidPipelineLeadId)}
-                      {row("crm_lead_id", a.crmLeadId)}
-                      {row("source_unpaid_lead_id", a.sourceUnpaidLeadId)}
-                      {row("linked CRM pipeline", a.linkedPipelineName ? `${a.linkedPipelineName} (${a.linkedPipelineType || "?"})` : null)}
-                      {row("linked CRM stage", a.linkedStageName)}
-                      {row("archived", String(a.isArchived))}
-                      {row("soft-deleted", String(a.isDeleted))}
-                      {row("hidden from sales", String(a.hiddenFromSales))}
-                      {row("owner", a.ownerId)}
-                      {row("Kanban should include", shouldBeInKanban ? "yes" : "no")}
-                      {a.status !== "included" && a.repairable && (
-                        <div className="pt-2">
-                          <button
-                            onClick={async () => { await repairCrmLink(); await loadAudit(); }}
-                            disabled={linkingCrm}
-                            className="ipc-btn ipc-btn-black !h-7 !text-[11px]"
-                          >{linkingCrm ? "Repairing…" : "Repair CRM Link"}</button>
+                    <div className="rounded-xl border border-[#C7D2FE] bg-gradient-to-br from-[#EEF2FF] to-white p-4 shadow-sm">
+                      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div className="text-[11px] font-semibold uppercase tracking-wider text-[#3730A3]">🔗 Linked Calling CRM Stage</div>
+                          {!lead.crm_lead_id && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]">Not linked</span>
+                          )}
+                        </div>
+                        {lead.crm_lead_id && (
+                          <Link to={`/crm?lead=${lead.crm_lead_id}`} className="text-[11px] text-[#3730A3] hover:underline">Open in CRM ↗</Link>
+                        )}
+                        <button onClick={repairCrmLink} disabled={linkingCrm} className="text-[11px] px-2 py-0.5 rounded border border-[#C7D2FE] bg-white text-[#3730A3] hover:bg-[#EEF2FF] disabled:opacity-50" title="Ensure this paid buyer has a linked CRM lead visible in Paid — Onboarding">
+                          {linkingCrm ? "Repairing…" : "Repair CRM Link"}
+                        </button>
+                      </div>
+
+                      {!lead.crm_lead_id ? (
+                        <div className="space-y-2">
+                          <div className="text-[12px] text-[#3730A3]">No linked Calling CRM lead found. Repair CRM Link will search by email/phone and create one in Paid — Onboarding if none exists.</div>
+                          <button onClick={linkToCrm} disabled={linkingCrm} className="ipc-btn ipc-btn-black !h-9">
+                            {linkingCrm ? "Linking…" : "Link to Calling CRM lead"}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Current</span>
+                          {chip ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border" style={{ background: chip.bg, color: chip.text, borderColor: chip.border }}>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: chip.dot }} />
+                              {current!.name}
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-xs bg-off border border-line">—</span>
+                          )}
+                          <CrmStagePicker
+                            stages={crmStages}
+                            currentStageId={crmStageId}
+                            open={crmPickerOpen}
+                            onOpenChange={(v) => { setCrmPickerOpen(v); if (!v) setNewCrmStageName(""); }}
+                            newStageName={newCrmStageName}
+                            onNewStageNameChange={setNewCrmStageName}
+                            onChangeStage={changeCrmStage}
+                            onAddStage={addCrmStageInline}
+                            onDeleteStage={deleteCrmStageInline}
+                            addingStage={addingStage}
+                          />
                         </div>
                       )}
-                    </>
+                      <div className="text-[11px] text-muted-foreground mt-2">
+                        Changes here update the linked Calling CRM lead and trigger Operations handoff rules if matched.
+                      </div>
+                    </div>
                   );
                 })()}
-              </div>
-            </details>
-          )}
 
+                {/* Access Verification Panel */}
+                <AccessVerificationPanel
+                  memberLabel={lead.name || undefined}
+                  crmLeadId={lead.crm_lead_id || null}
+                  paidPipelineLeadId={lead.id}
+                  cocStatus={(lead as any).code_of_conduct_status || null}
+                  currentStageName={stage || null}
+                />
 
+                {/* Batch information */}
+                <Section title="Batch information">
+                  {!editBatch ? (
+                    <div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Field label="Paid batch" value={lead.paid_batch_name || "—"} />
+                        <Field label="Onboarding batch" value={lead.onboarding_batch_name || "—"} />
+                        <Field label="Product / Program" value={lead.product_name_snapshot || "—"} />
+                        <Field label="Revenue recognition" value={lead.revenue_recognition_rule || "Realized Revenue Only"} />
+                      </div>
+                      <button onClick={() => setEditBatch(true)} className="text-[11.5px] mt-2 text-[#2563EB] hover:underline">Edit batch details</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <QuickSaveInput fieldKey="paid_batch_name" label="Paid batch" value={paidBatch} onChange={setPaidBatch} placeholder="Diamond Token Buyers - May" />
+                        <QuickSaveInput fieldKey="onboarding_batch_name" label="Onboarding batch" value={onboardingBatch} onChange={setOnboardingBatch} placeholder="Diamond May 2026 Batch 1" />
+                        <QuickSaveInput fieldKey="revenue_recognition_rule" label="Revenue recognition rule" value={revRule} onChange={setRevRule} placeholder="Realized Revenue Only" />
+                      </div>
+                      <button onClick={() => setEditBatch(false)} className="text-[11.5px] mt-2 text-muted-foreground hover:text-black">Done editing</button>
+                    </div>
+                  )}
+                </Section>
 
-          <CodeOfConductPanel
-            paidLeadId={lead.id}
-            crmLeadId={lead.crm_lead_id || null}
-            memberName={lead.name || "Member"}
-            memberEmail={(lead as any).email || null}
-            memberPhone={(lead as any).phone || null}
-            programName={null}
-            dealValue={Number(lead.deal_value_including_gst || 0) || null}
-            evalSource="paid_pipeline"
-            evalPipelineId={crmPipelineId}
-            evalStageId={crmStageId}
-          />
-
-          <AccessVerificationPanel
-            memberLabel={lead.name || undefined}
-            crmLeadId={lead.crm_lead_id || null}
-            paidPipelineLeadId={lead.id}
-            cocStatus={(lead as any).code_of_conduct_status || null}
-            currentStageName={stage || null}
-          />
-
-          {/* Next Follow-up and Quick status moved to Overview tab */}
-
-
-
-          {/* 4. Batch information — read-only by default */}
-          <Section title="Batch information">
-            {!editBatch ? (
-              <div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Paid batch" value={lead.paid_batch_name || "—"} />
-                  <Field label="Onboarding batch" value={lead.onboarding_batch_name || "—"} />
-                  <Field label="Product / Program" value={lead.product_name_snapshot || "—"} />
-                  <Field label="Revenue recognition" value={lead.revenue_recognition_rule || "Realized Revenue Only"} />
-                </div>
-                {(!lead.paid_batch_name || !lead.onboarding_batch_name) && (
-                  <div className="text-[11px] text-muted-foreground mt-2">Some batch fields are missing from import.</div>
+                {/* Visibility Debug (Admin Only) */}
+                {isAdmin && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[13px] font-semibold text-foreground">Advanced Settings</h3>
+                      <button 
+                        onClick={() => setShowAdvanced(!showAdvanced)} 
+                        className="text-[11px] font-medium text-blue-600 hover:underline"
+                      >
+                        {showAdvanced ? "Hide" : "Show"} Debug Tools
+                      </button>
+                    </div>
+                    
+                    {showAdvanced && (
+                      <div className="rounded-lg border border-dashed border-[#C7D2FE] bg-[#EEF2FF]/30 px-3 py-2 text-[11px]">
+                        <div className="font-semibold text-[#3730A3] flex items-center gap-2 mb-2">
+                          <span>🔍 Visibility Debug (admin)</span>
+                          {visibilityAudit && (
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                              visibilityAudit.status === "included" ? "bg-[#DCFCE7] text-[#15803D] border-[#86EFAC]" : "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]"
+                            }`}>{visibilityAudit.status}</span>
+                          )}
+                          <button onClick={loadAudit} className="ml-auto text-[10.5px] underline text-[#3730A3]">Refresh</button>
+                        </div>
+                        <div className="space-y-1 text-[11px] text-[#1E1B4B]">
+                          {auditLoading && <div className="text-muted-foreground">Checking visibility…</div>}
+                          {!auditLoading && visibilityAudit && (() => {
+                            const a = visibilityAudit;
+                            const shouldBeInKanban = !!(a.linkedPipelineType === "paid" && !a.isArchived && !a.isDeleted);
+                            const row = (k: string, v: any) => (
+                              <div className="flex items-baseline gap-2"><span className="text-muted-foreground w-44 shrink-0">{k}</span><span className="font-mono break-all">{v ?? "—"}</span></div>
+                            );
+                            return (
+                              <>
+                                <div className="text-[12px] font-medium mb-1">{a.reason}</div>
+                                {row("paid_pipeline_lead_id", a.paidPipelineLeadId)}
+                                {row("crm_lead_id", a.crmLeadId)}
+                                {row("source_unpaid_lead_id", a.sourceUnpaidLeadId)}
+                                {row("linked CRM pipeline", a.linkedPipelineName ? `${a.linkedPipelineName} (${a.linkedPipelineType || "?"})` : null)}
+                                {row("linked CRM stage", a.linkedStageName)}
+                                {row("archived", String(a.isArchived))}
+                                {row("soft-deleted", String(a.isDeleted))}
+                                {row("hidden from sales", String(a.hiddenFromSales))}
+                                {row("owner", a.ownerId)}
+                                {row("Kanban should include", shouldBeInKanban ? "yes" : "no")}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
-                <button onClick={() => setEditBatch(true)} className="text-[11.5px] mt-2 text-[#2563EB] hover:underline">Edit batch details</button>
               </div>
-            ) : (
-              <div>
-                <div className="grid grid-cols-2 gap-3">
-                  <QuickSaveInput fieldKey="paid_batch_name" label="Paid batch" value={paidBatch} onChange={setPaidBatch} placeholder="Diamond Token Buyers - May" />
-                  <QuickSaveInput fieldKey="onboarding_batch_name" label="Onboarding batch" value={onboardingBatch} onChange={setOnboardingBatch} placeholder="Diamond May 2026 Batch 1" />
-                  <QuickSaveInput fieldKey="revenue_recognition_rule" label="Revenue recognition rule" value={revRule} onChange={setRevRule} placeholder="Realized Revenue Only" />
-                </div>
-                <button onClick={() => setEditBatch(false)} className="text-[11.5px] mt-2 text-muted-foreground hover:text-black">Done editing</button>
+            </TabsContent>
+
+            <TabsContent value="documents" className="m-0 focus-visible:ring-0">
+              <div className="p-6 space-y-6">
+                <CodeOfConductPanel
+                  paidLeadId={lead.id}
+                  crmLeadId={lead.crm_lead_id || null}
+                  memberName={lead.name || "Member"}
+                  memberEmail={(lead as any).email || null}
+                  memberPhone={(lead as any).phone || null}
+                  programName={null}
+                  dealValue={Number(lead.deal_value_including_gst || 0) || null}
+                  evalSource="paid_pipeline"
+                  evalPipelineId={crmPipelineId}
+                  evalStageId={crmStageId}
+                />
               </div>
-            )}
-          </Section>
+            </TabsContent>
 
-
-          {/* 7. WhatsApp templates — friendly cards */}
-          <Section title="WhatsApp templates">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {tpls.map(t => (
-                <div key={t.label} className="rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] p-3 flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center">W</span>
-                    <span className="text-[12.5px] font-medium text-[#15803D]">{t.label}</span>
+            <TabsContent value="offers & delivery" className="m-0 focus-visible:ring-0">
+              <div className="p-6 space-y-6">
+                <Section title="WhatsApp templates">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {tpls.map(t => (
+                      <div key={t.label} className="rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] p-3 flex flex-col gap-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center">W</span>
+                          <span className="text-[12.5px] font-medium text-[#15803D]">{t.label}</span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground line-clamp-2">{t.msg}</div>
+                        <div className="flex gap-1.5 mt-1">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(t.msg);
+                              setCopiedTpl(t.label);
+                              setTimeout(() => setCopiedTpl(null), 1200);
+                            }}
+                            className="flex-1 text-[11px] h-7 rounded border border-[#BBF7D0] bg-white hover:bg-[#DCFCE7] text-[#15803D]"
+                          >{copiedTpl === t.label ? "✓ Copied" : "Copy"}</button>
+                          <a href={waLink(t.msg)} target="_blank" rel="noreferrer" className="flex-1 text-[11px] h-7 rounded bg-[#25D366] text-white hover:opacity-90 flex items-center justify-center">Send</a>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="text-[11px] text-muted-foreground line-clamp-2">{t.msg}</div>
-                  <div className="flex gap-1.5 mt-1">
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(t.msg);
-                        setCopiedTpl(t.label);
-                        setTimeout(() => setCopiedTpl(null), 1200);
-                      }}
-                      className="flex-1 text-[11px] h-7 rounded border border-[#BBF7D0] bg-white hover:bg-[#DCFCE7] text-[#15803D]"
-                    >{copiedTpl === t.label ? "✓ Copied" : "Copy"}</button>
-                    <a href={waLink(t.msg)} target="_blank" rel="noreferrer" className="flex-1 text-[11px] h-7 rounded bg-[#25D366] text-white hover:opacity-90 flex items-center justify-center">Send</a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Section>
+                </Section>
 
-          {/* 8. Activity — collapsed */}
-          <Section
-            title="Activity"
-            right={<button onClick={() => setShowActivity(v => !v)} className="text-[11px] text-muted-foreground hover:text-black">{showActivity ? "Hide" : "Show"}</button>}
-          >
-            {!showActivity ? (
-              <div className="text-[12px] text-muted-foreground">{activity.length} entries · click Show to view.</div>
-            ) : activity.length === 0 ? (
-              <div className="text-[12px] text-muted-foreground">No activity yet.</div>
-            ) : (
-              <div className="space-y-2 max-h-[240px] overflow-y-auto">
-                {activity.map(a => (
-                  <div key={a.id} className="text-[11.5px] border-l-2 border-line pl-2">
-                    <div className="text-muted-foreground text-[10px]">{new Date(a.created_at).toLocaleString()} · {a.activity_type}</div>
-                    <div>{a.note}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-
-          {/* 9. Advanced — collapsed */}
-          <Section
-            title="Advanced · balance notes"
-            right={<button onClick={() => setShowAdvanced(v => !v)} className="text-[11px] text-muted-foreground hover:text-black">{showAdvanced ? "Hide" : "Show"}</button>}
-          >
-            {showAdvanced && (
-              <div className="space-y-3">
                 <div>
-                  <label className="qsi-label">Next balance follow-up</label>
-                  <input type="date" className="qsi-input" value={balDate} onChange={(e) => setBalDate(e.target.value)} />
-                </div>
-                <div>
-                  <label className="qsi-label">Balance description</label>
-                  <textarea className="qsi-input !h-auto py-2" rows={2} value={balDesc} onChange={(e) => setBalDesc(e.target.value)} placeholder="e.g. Student paid ₹1,000. Promised ₹6,000 by tomorrow." />
-                </div>
-                <div>
-                  <label className="qsi-label">Finance follow-up date</label>
-                  <input type="date" className="qsi-input" value={financeFu} onChange={(e) => setFinanceFu(e.target.value)} />
-                </div>
-                <div>
-                  <label className="qsi-label">Finance notes</label>
-                  <textarea className="qsi-input !h-auto py-2" rows={2} value={financeNotes} onChange={(e) => setFinanceNotes(e.target.value)} />
+                  <div className="text-[13px] font-semibold mb-3">Services / Commitments</div>
+                  <PromisedOffersPanel
+                    paidPipelineLeadId={lead.id}
+                    crmLeadId={lead.crm_lead_id || null}
+                    title=""
+                  />
                 </div>
               </div>
-            )}
-          </Section>
+            </TabsContent>
+
+            <TabsContent value="activity" className="m-0 focus-visible:ring-0">
+              <div className="p-6">
+                <div className="space-y-4">
+                  {activity.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-[13px]">No activity logs found.</div>
+                  ) : (
+                    activity.map((a: any) => (
+                      <div key={a.id} className="relative pl-6 pb-6 border-l border-line last:pb-0">
+                        <div className="absolute left-[-5px] top-1 w-2.5 h-2.5 rounded-full bg-line" />
+                        <div className="text-[11px] text-muted-foreground mb-1">{fmtDate(a.created_at)}</div>
+                        <div className="text-[13px] font-medium">{a.summary || a.action_label || a.action_type}</div>
+                        {a.old_values && (
+                          <div className="mt-1.5 text-[11px] bg-off p-2 rounded border border-line">
+                            <div className="flex gap-4">
+                              <div className="flex-1">
+                                <div className="text-muted-foreground uppercase font-bold text-[9px]">Previous</div>
+                                <pre className="mt-1 overflow-x-auto">{JSON.stringify(a.old_values, null, 2)}</pre>
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-muted-foreground uppercase font-bold text-[9px]">New</div>
+                                <pre className="mt-1 overflow-x-auto">{JSON.stringify(a.new_values, null, 2)}</pre>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
-        </div>
-
         {/* Sticky footer */}
         <div className="shrink-0 bg-white border-t border-line px-6 py-3 flex justify-end gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Close</button>
@@ -994,6 +913,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
           </button>
         </div>
       </div>
+
 
 
       {openPay && <QuickAddPaymentModal leadId={lead.id} leadName={lead.name || undefined} prefill={payPrefill || undefined} headerNote={payHeaderNote} onClose={() => { setOpenPay(false); setPostPayAction(null); }} onSaved={handlePaymentSaved} />}
