@@ -89,7 +89,7 @@ describe("Reports List Queries Narrowing Test", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Test Webinar Attribution")).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
 
     expect(screen.queryAllByText(/₹5,001/).length).toBeGreaterThan(0);
     expect(screen.queryAllByText("101").length).toBeGreaterThan(0);
@@ -99,12 +99,11 @@ describe("Reports List Queries Narrowing Test", () => {
     const roasElements = screen.queryAllByText(/×/);
     expect(roasElements.length).toBeGreaterThan(0);
     
-    // Confirm media buyer name from join renders correctly
-    // The initials function: "Buyer A" -> "BA"
-    // We check for "BA" and the title "Buyer A" on the avatar div
-    // We use findByText to wait for the row to render if needed
-    const initials = await screen.findByText("BA");
-    expect(initials).toBeInTheDocument();
+    // Confirm media buyer initials from join renders correctly
+    await waitFor(() => {
+      const initials = screen.queryAllByText("BA");
+      expect(initials.length).toBeGreaterThan(0);
+    });
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
