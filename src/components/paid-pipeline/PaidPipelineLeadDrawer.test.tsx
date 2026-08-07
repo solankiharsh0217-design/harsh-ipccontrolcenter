@@ -32,37 +32,51 @@ vi.mock("@/lib/paidPipeline", () => ({
   fmtDate: (d: string) => d,
 }));
 
-vi.mock("@/lib/auditLog", () => ({
-  logActivity: vi.fn(),
-  logPaidLeadDiff: vi.fn(),
+// Mock the Tabs component because Radix Tabs can be tricky in JSDOM
+vi.mock("@/components/ui/tabs", () => ({
+  Tabs: ({ children, value, onValueChange }: any) => (
+    <div data-testid="mock-tabs" data-value={value} onClick={(e: any) => {
+      const target = e.target.closest('[role="tab"]');
+      if (target) {
+        onValueChange?.(target.getAttribute('data-value'));
+      }
+    }}>{children}</div>
+  ),
+  TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
+  TabsTrigger: ({ children, value }: any) => (
+    <button role="tab" data-value={value}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: any) => (
+    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
+  ),
 }));
-
-const mockLead = {
-  id: "lead-123",
-  name: "Test Lead",
-  email: "test@example.com",
-  phone: "9876543210",
-  pipeline_stage: "New",
-  balance_pending: 1000,
-  total_collected: 2000,
-  token_amount_collected: 3000,
-  deal_value_including_gst: 5000,
-  finance_required: true,
-  finance_amount_approved: 500,
-  finance_amount_disbursed: 250,
-} as any;
-
-const mockPayments = [
-  { id: "p1", payment_date: "2024-01-01", payment_type: "Token", payment_mode: "UPI", amount: 1000, description: "Desc 1" },
-  { id: "p2", payment_date: "2024-01-02", payment_type: "Part", payment_mode: "Bank", amount: 2000, description: "Desc 2" },
-  { id: "p3", payment_date: "2024-01-03", payment_type: "Full", payment_mode: "Cash", amount: 3000, description: "Desc 3" },
-];
 
 const mockAuthContext = {
   user: { id: "user-123" },
   isAdmin: true,
-  loading: false,
-  signOut: vi.fn(),
+};
+
+const mockLead = {
+  id: "l1",
+  full_name: "Test Lead",
+  pipeline_stage: "New",
+  balance_pending: 1000,
+  total_collected: 500,
+  token_amount_collected: 100,
+  finance_emi_status: "Approved",
+  finance_emi_amount: 500,
+  finance_collected_amount: 250,
+  payments: [
+    { id: "p1", amount: 200, description: "Desc 1", created_at: "2024-01-01" },
+    { id: "p2", amount: 200, description: "Desc 2", created_at: "2024-01-02" },
+    { id: "p3", amount: 100, description: "Desc 3", created_at: "2024-01-03" },
+  ]
+};
+
+const defaultProps = {
+  stages: ["New", "Balance Pending", "Fully Paid"],
+  agents: [],
+  onChanged: vi.fn(),
 };
 
 describe("PaidPipelineLeadDrawer", () => {
@@ -76,38 +90,10 @@ describe("PaidPipelineLeadDrawer", () => {
   });
 
   it("matches finance data across Overview and Payments tabs", async () => {
-    const { supabase } = await import("@/integrations/supabase/client");
-    
-    (supabase.from as any).mockImplementation((table: string) => {
-      const base = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-        single: vi.fn().mockResolvedValue({ data: null, error: null }),
-      };
-
-      if (table === "paid_pipeline_payments") {
-        return {
-          ...base,
-          order: vi.fn().mockResolvedValue({ data: mockPayments, error: null }),
-        };
-      }
-      return base;
-    });
-
     await act(async () => {
       render(
         <BrowserRouter>
-          <PaidPipelineLeadDrawer
-            lead={mockLead}
-            onClose={vi.fn()}
-            stages={[]}
-            agents={[]}
-            onChanged={vi.fn()}
-          />
+          <PaidPipelineLeadDrawer {...defaultProps} lead={mockLead as any} open={true} onClose={vi.fn()} />
         </BrowserRouter>
       );
     });
@@ -125,15 +111,11 @@ describe("PaidPipelineLeadDrawer", () => {
     // 3. Verify content
     await waitFor(() => {
         expect(screen.getByText(/Finance \/ EMI/i)).toBeInTheDocument();
-        // Payment history record (Description check)
-        // The mock lead has payments: [{ id: "p1", amount: 200, description: "Desc 1", ... }]
         expect(screen.getByText(/Desc 1/i)).toBeInTheDocument();
         expect(screen.getAllByText("₹1,000").length).toBeGreaterThan(0);
-    });
         
         // Verify row count
         const rows = document.querySelectorAll('tbody tr');
-        // The table body should have 3 rows for our mock payments
         expect(rows.length).toBe(3);
     }, { timeout: 4000 });
   });
