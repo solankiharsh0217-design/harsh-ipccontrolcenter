@@ -299,7 +299,7 @@ export default function TeamPerformanceDashboard() {
 
   return (
     <div className="max-w-[1280px]">
-      <PageHead title="Team Performance Dashboard" sub="Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required." />
+      <PageHead title="Team Performance Dashboard" sub="Attendance, KPI completion, scores, pending reviews, and reward liability at a glance." />
 
       {/* ── Filter bar (standardized pattern) ─────────────────── */}
       <SectionLabel>Filters</SectionLabel>
