@@ -33,9 +33,9 @@ vi.mock("@/context/AuthContext", () => ({
 vi.mock("@/lib/accessVerification", () => ({
   fetchVerificationForPaidLead: vi.fn().mockResolvedValue(null),
   computeOverall: vi.fn().mockReturnValue("completed"),
-  WHATSAPP_LABELS: { onboarding: "Onboarding", verify: "Verify" },
-  APP_LOGIN_LABELS: { onboarding: "App Onboarding", verify: "App Verify" },
-  CALL_LABELS: { onboarding: "Call Onboarding", verify: "Call Verify" },
+  WHATSAPP_LABELS: { unknown: "Unknown", invite_sent: "Invite sent", not_joined: "Not joined", joined_verified: "Joined — verified", link_issue: "Link issue" },
+  APP_LOGIN_LABELS: { unknown: "Unknown", never_logged_in: "Never logged in", logged_in: "Logged in", access_issue: "Access issue" },
+  CALL_LABELS: { not_called: "Not called", no_answer: "No answer", connected: "Connected", follow_up_needed: "Follow-up needed", resolved: "Resolved" },
 }));
 
 vi.mock("@/lib/format", () => ({
