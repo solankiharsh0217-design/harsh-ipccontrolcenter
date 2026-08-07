@@ -103,7 +103,7 @@ describe("PaidPipelineLeadDrawer Logic", () => {
 
     // Wait for the loader to clear
     await waitFor(() => {
-      expect(screen.queryByText(/Initializing drawer…/i)).toBeNull();
+      expect(screen.queryByText(/Initializing drawer/i)).toBeNull();
     });
 
     // Click the Onboarding tab trigger (the button itself)
