@@ -30,7 +30,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; onClose: () => void; stages: string[]; agents: { id: string; full_name: string }[]; onChanged: () => void }) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    const isTokenMissing = Number(lead.token_amount_collected || 0) === 0;
+    const isBalancePending = Number(lead.balance_pending || 0) > 0;
+    const cocStatus = (lead as any).code_of_conduct_status;
+    const isCocWaiting = !cocStatus || cocStatus === "pending" || cocStatus === "sent";
+    const isOpsReady = /Operations Ready/i.test(lead.pipeline_stage || "");
+    
+    if (isTokenMissing || isBalancePending) return "payments";
+    if (isCocWaiting) return "documents";
+    if (isOpsReady) return "offers & delivery";
+    return "overview";
+  });
   const { user, isAdmin } = useAuth();
   const [visibilityAudit, setVisibilityAudit] = useState<VisibilityAudit | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -473,20 +484,46 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
           {/* Quick Action Bar */}
           <div className="px-6 py-2 bg-off/30 border-t border-line flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            {(() => {
+              const isTokenMissing = Number(lead.token_amount_collected || 0) === 0;
+              const isBalancePending = Number(lead.balance_pending || 0) > 0;
+              const isOpsReady = /Operations Ready/i.test(lead.pipeline_stage || "");
+              
+              if (isTokenMissing) {
+                return (
+                  <button onClick={openTokenPayment} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-[#16A34A] bg-[#16A34A] text-white hover:bg-[#15803D] transition-colors shadow-sm">
+                    <Plus className="w-3.5 h-3.5" /> Record Token Payment
+                  </button>
+                );
+              }
+              if (isBalancePending) {
+                return (
+                  <button onClick={openAddPayment} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm">
+                    <Plus className="w-3.5 h-3.5" /> Add Payment
+                  </button>
+                );
+              }
+              if (isOpsReady) {
+                return (
+                  <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm">
+                    <Send className="w-3.5 h-3.5" /> Send to Operations CRM
+                  </button>
+                );
+              }
+              return (
+                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
+                  <RefreshCw className="w-3.5 h-3.5" /> Update Status
+                </button>
+              );
+            })()}
+
+            <div className="w-px h-4 bg-line mx-1" />
+
             <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
               <Phone className="w-3.5 h-3.5" /> Call
             </button>
             <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors text-green-600">
               <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-            </button>
-            <button onClick={openAddPayment} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
-              <Plus className="w-3.5 h-3.5" /> Add Payment
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
-              <RefreshCw className="w-3.5 h-3.5" /> Update Status
-            </button>
-            <button onClick={() => setSendOpsOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors text-blue-600">
-              <Send className="w-3.5 h-3.5" /> Send to Operations CRM
             </button>
             <button className="inline-flex items-center px-2 py-1.5 rounded-md border border-line bg-white hover:bg-off transition-colors">
               <MoreHorizontal className="w-3.5 h-3.5" />
