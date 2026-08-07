@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LoadingState } from "@/components/ui-bits";
 import {
   AccessVerification, WHATSAPP_LABELS, APP_LOGIN_LABELS, CALL_LABELS,
   computeOverall, fetchVerificationForPaidLead, fetchVerificationForCrmLead,
@@ -59,7 +60,7 @@ export default function AccessVerificationPanel(props: Props) {
       </div>
 
       {loading ? (
-        <div className="text-xs text-muted-foreground">Loading…</div>
+        <LoadingState />
       ) : (
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div>
