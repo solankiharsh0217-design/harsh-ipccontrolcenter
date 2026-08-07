@@ -124,7 +124,8 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       fireEvent.click(screen.getByText(/Seminar ROAS Reports/i));
+       const btn = screen.getByRole("button", { name: /Seminar ROAS Reports/i });
+       fireEvent.click(btn);
     });
 
     await waitFor(() => {
@@ -162,7 +163,8 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       fireEvent.click(screen.getByText(/Profit Statements/i));
+       const btn = screen.getByRole("button", { name: /Profit Statements/i });
+       fireEvent.click(btn);
     });
 
     await waitFor(() => {
@@ -202,7 +204,8 @@ describe("Reports List Queries Narrowing Test", () => {
     renderReports();
 
     await waitFor(() => {
-       fireEvent.click(screen.getByText(/Offline Seminar Reports/i));
+       const btn = screen.getByRole("button", { name: /Offline Seminar Reports/i });
+       fireEvent.click(btn);
     });
 
     await waitFor(() => {
