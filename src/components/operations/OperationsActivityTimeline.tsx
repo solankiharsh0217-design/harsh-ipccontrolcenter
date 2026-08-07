@@ -257,7 +257,7 @@ export default function OperationsActivityTimeline({
         <LoadingState />
       ) : filtered.length === 0 ? (
         <div className="border border-line rounded-md p-3 bg-off/40">
-          <EmptyState title="No operations activity logged yet." />
+          <EmptyState title="No operations activity logged yet." hint="Stage moves, communications, checklist actions, and service events will appear here." bordered />
           <div className="text-[10px] text-muted-foreground mt-1">
             Stage moves, communications, checklist actions, and service events will appear here.
           </div>
