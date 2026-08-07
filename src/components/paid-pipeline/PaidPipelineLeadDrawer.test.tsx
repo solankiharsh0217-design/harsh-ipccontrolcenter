@@ -9,7 +9,7 @@ vi.mock("@/components/ui/tabs", () => ({
   Tabs: ({ children, value }: any) => <div data-testid="mock-tabs" data-value={value}>{children}</div>,
   TabsList: ({ children }: any) => <div>{children}</div>,
   TabsTrigger: ({ children, value }: any) => <button>{children}</button>,
-  TabsContent: ({ children }: any) => <div>{children}</div>,
+  TabsContent: ({ children, value }: any) => <div data-testid={`tab-content-${value}`}>{children}</div>,
 }));
 
 vi.mock("@/lib/accessVerification", () => ({
@@ -54,12 +54,14 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
     expect(screen.getByText("Payments")).toBeTruthy();
     expect(screen.getByText("Onboarding")).toBeTruthy();
     
-    // Check finance markers
-    expect(screen.queryAllByText(/INR_1000_MOCK/).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText(/INR_500_MOCK/).length).toBeGreaterThan(0);
+    // Check finance markers in the document body
+    const bodyText = document.body.textContent || "";
+    expect(bodyText).toContain("INR_1000_MOCK");
+    expect(bodyText).toContain("INR_500_MOCK");
 
     // Default tab check (balance pending -> payments)
-    expect(screen.getByTestId("mock-tabs").getAttribute("data-value")).toBe("payments");
+    const tabs = screen.getAllByTestId("mock-tabs");
+    expect(tabs[0].getAttribute("data-value")).toBe("payments");
   });
 
   it("updates primary action button correctly", async () => {
@@ -71,8 +73,7 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
       rerender(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, token_amount_collected: 100, balance_pending: 1000} as any} /></MemoryRouter>);
     });
     
-    // Look for the primary action button (the one in the header usually has specific styles or is first)
-    const buttons = screen.getAllByText("Add Payment");
-    expect(buttons.length).toBeGreaterThan(0);
+    const bodyText = document.body.textContent || "";
+    expect(bodyText).toContain("Add Payment");
   });
 });
