@@ -23,7 +23,7 @@ import OperationsActivityTimeline from "@/components/operations/OperationsActivi
 import OperationsLinkedRecordsCard from "@/components/operations/OperationsLinkedRecordsCard";
 import StartProcessModal from "@/components/operations/StartProcessModal";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
-import { Mail, Rocket, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
+import { Mail, Rocket, ArrowRight, CheckCircle } from "lucide-react";
 import {
   getReadinessSettings, resolveReadinessTargetStage, isAtOrAfterTarget,
   moveOperationsLeadStage, type ReadinessSettings,
@@ -35,6 +35,7 @@ import {
 import SlaChip from "@/components/operations/SlaChip";
 import type { Stage } from "@/lib/crmTypes";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { LoadingState } from "@/components/ui-bits";
 
 
 export interface OpsLeadFull {
@@ -571,7 +572,7 @@ export default function OperationsLeadDrawer({
           {/* Communication history */}
           <Section title="Communication history">
             {eventsLoading ? (
-              <div className="text-[11px] text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Loading…</div>
+              <LoadingState />
             ) : commEvents.length === 0 ? (
               <div className="text-[11px] text-muted-foreground">No communication logged yet.</div>
             ) : (
@@ -623,7 +624,7 @@ export default function OperationsLeadDrawer({
               {/* Timeline */}
               <Section title="Service timeline">
                 {eventsLoading ? (
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Loading…</div>
+                  <LoadingState />
                 ) : serviceEvents.length === 0 ? (
                   <div className="text-[11px] text-muted-foreground">No service events yet.</div>
                 ) : (

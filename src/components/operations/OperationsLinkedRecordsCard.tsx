@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink, Link2, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { LoadingState } from "@/components/ui-bits";
 
 interface Props {
   operationsLeadId: string;
@@ -258,7 +259,7 @@ export default function OperationsLinkedRecordsCard({
               <Lock className="w-3 h-3 mt-0.5" /> {restrictedMessage("crm", crmReason)}
             </div>
           ) : (
-            <div className="text-[11px] text-muted-foreground mt-1">Loading…</div>
+            <div className="mt-1"><LoadingState /></div>
           )}
         </div>
 
@@ -308,7 +309,7 @@ export default function OperationsLinkedRecordsCard({
               <Lock className="w-3 h-3 mt-0.5" /> {restrictedMessage("paid", paidReason)}
             </div>
           ) : (
-            <div className="text-[11px] text-muted-foreground mt-1">Loading…</div>
+            <div className="mt-1"><LoadingState /></div>
           )}
         </div>
       </div>
