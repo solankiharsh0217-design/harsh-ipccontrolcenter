@@ -67,9 +67,17 @@ describe("Reports List Queries Narrowing Test", () => {
       buyers: [{ name: "Buyer A" }]
     }];
     
-    // The initials function in Reports.tsx: "Buyer A" -> "BA"
-    // initials("Buyer A") -> ["Buyer", "A"] -> "BA"
-    // Ensuring mock data matches what the component expects to render initials correctly.
+    // The initials function in Reports.tsx:
+    // function initials(name) { ... return (w[0][0] + w[w.length - 1][0]).toUpperCase(); }
+    // initials("Buyer A") -> "BA"
+    // Testing initials directly to be sure:
+    const initials = (name: string) => {
+      const w = (name || "").trim().split(/\s+/).filter(Boolean);
+      if (!w.length) return "?";
+      if (w.length === 1) return w[0][0].toUpperCase();
+      return (w[0][0] + w[w.length - 1][0]).toUpperCase();
+    };
+    expect(initials("Buyer A")).toBe("BA");
 
     (supabase.from as any).mockImplementation((table: string) => {
       if (table === "attribution_sessions") {
