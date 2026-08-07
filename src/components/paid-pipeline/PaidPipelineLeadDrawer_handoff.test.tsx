@@ -7,18 +7,21 @@ import * as cocRules from "@/lib/codeOfConductRules";
 import { MemoryRouter } from "react-router-dom";
 
 // Mock Supabase
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockReturnValue({ data: {}, error: null }),
-      update: vi.fn().mockReturnThis(),
-    })),
-  },
-}));
+vi.mock("@/integrations/supabase/client", () => {
+  const mockQuery = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    update: vi.fn().mockReturnThis(),
+  };
+  return {
+    supabase: {
+      from: vi.fn().mockReturnValue(mockQuery),
+    },
+  };
+});
 
 // Mock Auth
 vi.mock("@/context/AuthContext", () => ({

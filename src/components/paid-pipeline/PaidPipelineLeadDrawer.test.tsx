@@ -110,12 +110,12 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
   it("defaults to Onboarding tab when access verification is incomplete", async () => {
     (accessVerification.computeOverall as any).mockReturnValue("incomplete");
     
-    // Lead with no other blockers: token paid, balance zero, CoC completed
+    // Lead with no other blockers: token paid, balance zero, and CoC marked as Completed
     const readyForVerificationLead = {
       ...mockLead,
       token_amount_collected: 500,
       balance_pending: 0,
-      coc_status: "Completed"
+      code_of_conduct_status: "Completed" // Must match the property name used in resolveDefaultTab logic
     };
 
     await act(async () => {
