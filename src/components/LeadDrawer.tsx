@@ -125,7 +125,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     duplicateBehavior: matchingRule.duplicate_behavior,
   } : null;
 
-  const paidLeadId = (lead as any).paid_pipeline_lead_id as string | null;
+  const paidLeadId = lead ? ((lead as any).paid_pipeline_lead_id as string | null) : null;
 
   const handlePaymentSaved = async () => {
     const paidLeadId = (lead as any).paid_pipeline_lead_id;
