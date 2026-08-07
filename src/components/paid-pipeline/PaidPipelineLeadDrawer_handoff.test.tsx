@@ -43,33 +43,28 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-// Mock Auth
 vi.mock("@/context/AuthContext", () => ({
   useAuth: () => ({ user: { id: "user-123" }, isAdmin: true }),
 }));
 
-// Mock Operations CRM lib
 vi.mock("@/lib/operationsCrm", () => ({
   getActiveHandoffRules: vi.fn().mockResolvedValue([]),
   findRuleForStage: vi.fn().mockReturnValue(null),
   isRuleAutoReady: vi.fn().mockReturnValue(false),
-  applyAutoHandoff: vi.fn().mockResolvedValue({ inserted: 0, updated: 0 }),
+  applyAutoHandoff: vi.fn().mockResolvedValue({ inserted: 0, updated: 0, skipped: 0, buyerCounts: {} }),
 }));
 
-// Mock Code of Conduct lib
 vi.mock("@/lib/codeOfConductRules", () => ({
   evaluateStageTrigger: vi.fn().mockResolvedValue({ action: "none" }),
 }));
 
-// Mock auditLog to prevent errors
 vi.mock("@/lib/auditLog", () => ({
   logActivity: vi.fn().mockResolvedValue({}),
 }));
 
-// Mock the sub-components to bypass Radix complexity
 vi.mock("@/components/crm/CrmStagePicker", () => ({
   default: ({ onChangeStage }: any) => (
-    <select role="combobox" aria-label="CRM Stage Picker" onChange={(e) => onChangeStage(e.target.value)}>
+    <select aria-label="CRM Stage Picker" onChange={(e) => onChangeStage(e.target.value)}>
       <option value="">—</option>
       <option value="stage-new">New Stage</option>
     </select>
@@ -113,67 +108,37 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
   afterEach(cleanup);
 
   it("should trigger Operations handoff and CoC evaluation when CRM stage changes", async () => {
-    // 1. Setup mocks to simulate a rule match
-    vi.spyOn(operationsCrm, "getActiveHandoffRules").mockResolvedValue([{ id: "rule-1", name: "Auto Rule", mode: "auto" } as any]);
-    vi.spyOn(operationsCrm, "findRuleForStage").mockReturnValue({ id: "rule-1", name: "Auto Rule", mode: "auto" } as any);
+    vi.spyOn(operationsCrm, "getActiveHandoffRules").mockResolvedValue([{ id: "rule-1", mode: "auto" } as any]);
+    vi.spyOn(operationsCrm, "findRuleForStage").mockReturnValue({ id: "rule-1", mode: "auto" } as any);
     vi.spyOn(operationsCrm, "isRuleAutoReady").mockReturnValue(true);
     vi.spyOn(operationsCrm, "applyAutoHandoff").mockResolvedValue({ inserted: 1, updated: 0, skipped: 0, buyerCounts: {} } as any);
-    vi.spyOn(cocRules, "evaluateStageTrigger").mockResolvedValue({ action: "auto_sent", rule: { name: "CoC Rule" } } as any);
+    vi.spyOn(cocRules, "evaluateStageTrigger").mockResolvedValue({ action: "auto_sent" } as any);
 
-    // 2. Mock Supabase responses for loadInner
     (supabase.from as any).mockImplementation((table: string) => {
-      const q = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn(),
-        update: vi.fn().mockReturnThis(),
-      };
-      
-      if (table === "leads") {
-        q.maybeSingle.mockResolvedValue({ data: { id: "crm-123", stage_id: "stage-old", pipeline_id: "pipe-1" }, error: null });
-      } else if (table === "stages") {
-        q.order.mockResolvedValue({ data: [{ id: "stage-new", name: "New Stage", is_active: true }], error: null });
-      } else {
-        q.maybeSingle.mockResolvedValue({ data: {}, error: null });
-        q.limit.mockResolvedValue({ data: [], error: null });
-      }
+      const q = createMockQuery();
+      if (table === "leads") q.maybeSingle.mockResolvedValue({ data: { id: "crm-123", stage_id: "stage-old" }, error: null });
+      if (table === "stages") q.order.mockResolvedValue({ data: [{ id: "stage-new", name: "New Stage" }], error: null });
       return q;
     });
 
     await act(async () => {
       render(
         <MemoryRouter>
-          <PaidPipelineLeadDrawer
-            lead={mockLead as any}
-            onClose={() => {}}
-            stages={["New"]}
-            agents={[]}
-            onChanged={() => {}}
-          />
+          <PaidPipelineLeadDrawer lead={mockLead as any} onClose={() => {}} stages={[]} agents={[]} onChanged={() => {}} />
         </MemoryRouter>
       );
     });
 
-    // 3. Wait for initialization
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
-    // 4. Navigate to Onboarding tab
-    const onboardingTab = await screen.findByRole("tab", { name: /onboarding/i });
-    fireEvent.click(onboardingTab);
+    fireEvent.click(screen.getByRole("tab", { name: /onboarding/i }));
 
-    // 5. Find the stage picker (CrmStagePicker) and trigger a change
-    const stagePicker = await screen.findByRole("combobox", { name: /CRM Stage Picker/i });
-    
+    const picker = await screen.findByLabelText("CRM Stage Picker");
     await act(async () => {
-      fireEvent.change(stagePicker, { target: { value: "stage-new" } });
+      fireEvent.change(picker, { target: { value: "stage-new" } });
     });
 
-    // 6. Assert downstream evaluations were called
     await waitFor(() => {
-      expect(operationsCrm.getActiveHandoffRules).toHaveBeenCalled();
       expect(operationsCrm.applyAutoHandoff).toHaveBeenCalled();
       expect(cocRules.evaluateStageTrigger).toHaveBeenCalled();
     });
