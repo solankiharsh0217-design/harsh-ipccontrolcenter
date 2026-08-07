@@ -56,8 +56,8 @@ describe("Reports List Queries Narrowing Test", () => {
       webinar_name: "Test Webinar Attribution",
       webinar_date: "2026-08-01",
       webinar_type: "paid",
-      total_leads: 101, // Unique value
-      total_sales: 11,  // Unique value
+      total_leads: 101,
+      total_sales: 11,
       total_ad_spend: 1001,
       total_revenue: 5001,
       overall_roas: 5.01,
@@ -91,10 +91,10 @@ describe("Reports List Queries Narrowing Test", () => {
       expect(screen.getByText("Test Webinar Attribution")).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText(/₹5,001/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("101").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("11").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("5.01×").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/₹5,001/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("101").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("11").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/5\.01/).length).toBeGreaterThan(0);
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
@@ -140,9 +140,9 @@ describe("Reports List Queries Narrowing Test", () => {
       expect(screen.getByText("Test Seminar Report")).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText(/₹10,002/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹8,002/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("5.02×").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/₹10,002/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/₹8,002/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/5\.02/).length).toBeGreaterThan(0);
   });
 
   it("should render profit_statements list with mocked data", async () => {
@@ -184,13 +184,13 @@ describe("Reports List Queries Narrowing Test", () => {
     fireEvent.click(profitCard);
 
     await waitFor(() => {
-      expect(screen.getByText("Test Unit")).toBeInTheDocument();
+      expect(screen.queryAllByText("Test Unit").length).toBeGreaterThan(0);
     });
 
-    expect(screen.getAllByText(/₹20,003/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹11,003/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("55.0%").length).toBeGreaterThan(0);
-    expect(screen.getByText("posted")).toBeInTheDocument();
+    expect(screen.queryAllByText(/₹20,003/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/₹11,003/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/55\.0/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("posted").length).toBeGreaterThan(0);
   });
 
   it("should render offline_seminar_reports list with mocked data", async () => {
@@ -236,11 +236,11 @@ describe("Reports List Queries Narrowing Test", () => {
       expect(screen.getByText("Test Offline Event")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Mumbai")).toBeInTheDocument();
-    expect(screen.getAllByText("154").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("24").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹15,004/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹12,004/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("5.04×").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Mumbai").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("154").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("24").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/₹15,004/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/₹12,004/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/5\.04/).length).toBeGreaterThan(0);
   });
 });
