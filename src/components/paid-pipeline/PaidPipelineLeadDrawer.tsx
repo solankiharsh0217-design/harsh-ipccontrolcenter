@@ -455,6 +455,8 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
   const chip = stageChip(stage, "gray");
 
+  if (!tabResolved) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose} />
