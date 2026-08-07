@@ -4,6 +4,7 @@ import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import * as operationsCrm from "@/lib/operationsCrm";
 import * as cocRules from "@/lib/codeOfConductRules";
+import { MemoryRouter } from "react-router-dom";
 
 // Mock Supabase
 vi.mock("@/integrations/supabase/client", () => ({
@@ -37,6 +38,11 @@ vi.mock("@/lib/codeOfConductRules", () => ({
   evaluateStageTrigger: vi.fn(),
 }));
 
+// Mock visibility audit
+vi.mock("@/lib/paidPipelineVisibility", () => ({
+  auditPaidPipelineVisibility: vi.fn().mockResolvedValue({ status: "ok", checks: [] }),
+}));
+
 // Mock the sub-components to bypass Radix complexity
 vi.mock("@/components/crm/CrmStagePicker", () => ({
   default: ({ onChangeStage }: any) => (
@@ -46,18 +52,11 @@ vi.mock("@/components/crm/CrmStagePicker", () => ({
   ),
 }));
 
-// Mock visibility audit
-vi.mock("@/lib/paidPipelineVisibility", () => ({
-  auditPaidPipelineVisibility: vi.fn().mockResolvedValue({ status: "ok", checks: [] }),
-}));
-
 // Mock UI Tabs to avoid Radix JSDOM issues
 vi.mock("@/components/ui/tabs", () => ({
-  Tabs: ({ children, defaultValue, onValueChange, value }: any) => {
-    return <div data-testid="mock-tabs">{children}</div>;
-  },
+  Tabs: ({ children }: any) => <div>{children}</div>,
   TabsList: ({ children }: any) => <div>{children}</div>,
-  TabsTrigger: ({ children, value, onClick }: any) => (
+  TabsTrigger: ({ children, onClick }: any) => (
     <button onClick={onClick}>{children}</button>
   ),
   TabsContent: ({ children, value }: any) => (
@@ -108,13 +107,15 @@ describe("PaidPipelineLeadDrawer - Handoff Logic Verification", () => {
     (cocRules.evaluateStageTrigger as any).mockResolvedValue({ action: "auto_sent", rule: { name: "CoC Rule" } });
 
     render(
-      <PaidPipelineLeadDrawer
-        lead={mockLead as any}
-        onClose={() => {}}
-        stages={["New"]}
-        agents={[]}
-        onChanged={() => {}}
-      />
+      <MemoryRouter>
+        <PaidPipelineLeadDrawer
+          lead={mockLead as any}
+          onClose={() => {}}
+          stages={["New"]}
+          agents={[]}
+          onChanged={() => {}}
+        />
+      </MemoryRouter>
     );
 
     // The mock Tabs component renders all content, so we can just find the button
