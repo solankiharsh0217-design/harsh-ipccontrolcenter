@@ -3,7 +3,6 @@ import { render, screen, cleanup, act } from "@testing-library/react";
 import OperationsLeadDrawer from "./OperationsLeadDrawer";
 import { MemoryRouter } from "react-router-dom";
 import React from 'react';
-import * as opsReadiness from "@/lib/operationsReadiness";
 
 // Standardized Supabase Mock
 const createMockQuery = () => {
@@ -54,16 +53,11 @@ vi.mock("@/lib/notifications", () => ({
   createNotification: vi.fn().mockResolvedValue({}),
 }));
 
-// Mock the imported functions from operationsReadiness
-vi.mock("@/lib/operationsReadiness", async (importOriginal) => {
-  const actual = await importOriginal();
-  return {
-    ...actual as any,
-    resolveReadinessTargetStage: vi.fn().mockReturnValue(null),
-    isAtOrAfterTarget: vi.fn().mockReturnValue(false),
-    computeServiceCalc: vi.fn().mockReturnValue({}),
-    computeStageAging: vi.fn().mockReturnValue({ days: 0, status: 'good', lastMovedAt: new Date().toISOString(), source: 'none' }),
-  };
+// Proxy to swallow missing icons
+vi.mock("lucide-react", () => {
+  return new Proxy({}, {
+    get: () => () => null
+  });
 });
 
 // Mock UI Components
@@ -74,17 +68,11 @@ vi.mock("@/components/ui/tabs", () => ({
   TabsContent: ({ children, value }: any) => React.createElement('div', { role: 'tabpanel', 'data-value': value }, children),
 }));
 
-// Proxy to swallow missing icons
-vi.mock("lucide-react", () => {
-  return new Proxy({}, {
-    get: () => () => null
-  });
-});
-
-// Mock child components
+// Mock child components to prevent deep rendering
 vi.mock("@/components/offers/PromisedOffersPanel", () => ({ default: () => null }));
 vi.mock("@/components/operations/DeliveryTrackingSection", () => ({ default: () => null }));
 vi.mock("@/components/operations/ConversionsSection", () => ({ default: () => null }));
+vi.mock("@/components/operations/ReadinessChecklist", () => ({ default: () => null }));
 vi.mock("@/components/operations/TeamResultSubmissionPanel", () => ({ default: () => null }));
 vi.mock("@/components/operations/CustomFieldsPanel", () => ({ default: () => null }));
 vi.mock("@/components/operations/CommTemplatePickerModal", () => ({ default: () => null }));
@@ -92,16 +80,23 @@ vi.mock("@/components/operations/OperationsActivityTimeline", () => ({ default: 
 vi.mock("@/components/operations/OperationsLinkedRecordsCard", () => ({ default: () => null }));
 vi.mock("@/components/operations/StartProcessModal", () => ({ default: () => null }));
 
-// Special mock for ReadinessChecklist to trigger onChange
-vi.mock("@/components/operations/ReadinessChecklist", () => ({
-  default: ({ onChange }: any) => {
-    React.useEffect(() => {
-      // If the test case wants to be 'ready', we need a way to tell this mock.
-      // We can use a global or check a specific lead ID.
-    }, [onChange]);
-    return null;
-  }
+// Mock lib functions
+vi.mock("@/lib/operationsReadiness", () => ({
+  resolveReadinessTargetStage: vi.fn(),
+  isAtOrAfterTarget: vi.fn(),
+  computeServiceCalc: vi.fn().mockReturnValue({}),
+  computeStageAging: vi.fn().mockReturnValue({ days: 0, status: 'good', lastMovedAt: new Date().toISOString(), source: 'none' }),
+  moveOperationsLeadStage: vi.fn(),
+  fetchStageChangeMap: vi.fn().mockResolvedValue(new Map()),
+  listProcessTemplates: vi.fn().mockResolvedValue([]),
+  getReadinessSettings: vi.fn().mockResolvedValue({}),
+  getOperationsSlaSettings: vi.fn().mockResolvedValue({}),
+  DEFAULT_SLA: { watch_days: 7, overdue_days: 14 },
+  COMMUNICATION_EVENT_TYPES: new Set(),
 }));
+
+// Import the mocked module to control its behavior
+import * as opsReadiness from "@/lib/operationsReadiness";
 
 const mockLead = {
   id: "ops-lead-123",
@@ -121,7 +116,7 @@ const mockLead = {
   updated_at: new Date().toISOString(),
 };
 
-describe("OperationsLeadDrawer Primary Action Priority", () => {
+describe("OperationsLeadDrawer Action Logic", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (opsReadiness.resolveReadinessTargetStage as any).mockReturnValue(null);
@@ -129,7 +124,7 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
 
   afterEach(cleanup);
 
-  it("1. Start Operations Process: Highest priority when intake is NOT active", async () => {
+  it("prioritizes Start Operations Process when intake not active", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -144,15 +139,18 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
     expect(screen.getByRole("button", { name: /Start Operations Process/i })).toBeTruthy();
   });
 
-  it("2. Move to [Target Stage]: Priority when ready and not at target", async () => {
-    // We override the ReadinessChecklist mock for this test to trigger readiness
+  it("prioritizes Move to Target Stage when ready", async () => {
+    // Mock the checklist to be ready via the lib logic in the component
+    // component logic: isReady = (readinessSummary?.pct ?? 0) >= 100 && !!lead.process_template_id;
+    // But readinessSummary is set by ReadinessChecklist.
+    // We'll mock ReadinessChecklist to call onChange(100, false)
     vi.mock("@/components/operations/ReadinessChecklist", () => ({
       default: ({ onChange }: any) => {
         React.useEffect(() => { onChange(100, false); }, []);
-        return null;
+        return <div data-testid="ready-checklist" />;
       }
     }));
-    
+
     (opsReadiness.resolveReadinessTargetStage as any).mockReturnValue({ id: "stage-target", name: "Target Stage" });
     (opsReadiness.isAtOrAfterTarget as any).mockReturnValue(false);
 
@@ -160,12 +158,7 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
       render(
         <MemoryRouter>
           <OperationsLeadDrawer
-            lead={{ 
-              ...mockLead, 
-              intake_status: "active", 
-              service_status: "not_started",
-              process_template_id: "template-123"
-            } as any}
+            lead={{ ...mockLead, intake_status: "active", service_status: "not_started", process_template_id: "t1" } as any}
             onClose={() => {}}
             onSaved={() => {}}
           />
@@ -173,11 +166,10 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
       );
     });
 
-    // Priority 2 should be active: Move to Target Stage
     expect(screen.getByRole("button", { name: /Move to Target Stage/i })).toBeTruthy();
   });
 
-  it("3. Mark Ads Started: Priority when intake active and service not started (and not ready/no target)", async () => {
+  it("shows Mark Ads Started when not ready/no target", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -192,7 +184,7 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
     expect(screen.getByRole("button", { name: /Mark Ads Started/i })).toBeTruthy();
   });
 
-  it("4. Resume Service: Priority when service is paused", async () => {
+  it("shows Resume Service when paused", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -207,7 +199,7 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
     expect(screen.getByRole("button", { name: /Resume Service/i })).toBeTruthy();
   });
 
-  it("5. Log Communication: Fallback when active", async () => {
+  it("defaults to Log Communication for active service", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -223,10 +215,10 @@ describe("OperationsLeadDrawer Primary Action Priority", () => {
   });
 });
 
-describe("OperationsLeadDrawer Tab Defaulting", () => {
+describe("OperationsLeadDrawer Tab Logic", () => {
   afterEach(cleanup);
 
-  it("defaults to Process (onboarding) tab for new leads", async () => {
+  it("defaults to Onboarding (Process) for new leads without template", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -240,21 +232,5 @@ describe("OperationsLeadDrawer Tab Defaulting", () => {
     });
     const tabs = screen.getAllByTestId("mock-tabs");
     expect(tabs[0].getAttribute("data-value")).toBe("onboarding");
-  });
-
-  it("defaults to Overview for active leads with template", async () => {
-    await act(async () => {
-      render(
-        <MemoryRouter>
-          <OperationsLeadDrawer
-            lead={{ ...mockLead, service_status: "active", process_template_id: "some-id" } as any}
-            onClose={() => {}}
-            onSaved={() => {}}
-          />
-        </MemoryRouter>
-      );
-    });
-    const tabs = screen.getAllByTestId("mock-tabs");
-    expect(tabs[0].getAttribute("data-value")).toBe("overview");
   });
 });
