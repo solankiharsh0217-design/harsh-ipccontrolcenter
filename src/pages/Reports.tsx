@@ -1133,15 +1133,7 @@ function AttributionSection({
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <div style={{ display: "flex" }}>
                         {(s.buyers || []).slice(0, 4).map((b, i) => (
-                          <div 
-                            key={b.name + i} 
-                            className="spend-av" 
-                            title={b.name} 
-                            data-testid="buyer-avatar"
-                            data-buyer-name={b.name}
-                          >
-                            {initials(b.name)}
-                          </div>
+                          <div key={b.name + i} className="spend-av" title={b.name} data-testid="buyer-avatar">{initials(b.name)}</div>
                         ))}
                       </div>
                       <span style={{ fontSize: 11, color: "#888" }}>{s.buyers?.length || 0}</span>
