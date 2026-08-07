@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
   Plus, Search, X as XIcon, RefreshCw, GripVertical,
-  Pencil, Trash2,
+  Pencil, Trash2, Loader2,
 } from "lucide-react";
 import { ensureOperationsPipeline, SERVICE_STATUS_COLORS, SERVICE_STATUS_LABELS, computeServiceCalc } from "@/lib/operationsCrm";
 import { ensureSeedTemplate, listProcessTemplates } from "@/lib/operationsTemplates";
