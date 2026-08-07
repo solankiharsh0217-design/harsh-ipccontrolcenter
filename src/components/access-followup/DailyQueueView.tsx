@@ -234,50 +234,6 @@ export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember, re
         ))}
       </div>
 
-      {/* Owner workload */}
-      <div className="border border-border rounded-lg bg-background">
-        <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-          <div className="font-medium text-sm">Owner Workload</div>
-          <div className="text-[11px] text-muted-foreground">
-            {activeOwners} active owner{activeOwners === 1 ? "" : "s"}
-            {mostOverloaded && ` · Most loaded: ${mostOverloaded.ownerName} (${mostOverloaded.incomplete})`}
-            {counts.unassigned > 0 && ` · ${counts.unassigned} unassigned`}
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40">
-              <tr>
-                <th className="text-left px-3 py-2">Owner</th>
-                <th className="text-right px-3 py-2">Incomplete</th>
-                <th className="text-right px-3 py-2">Due Today</th>
-                <th className="text-right px-3 py-2">Overdue</th>
-                <th className="text-right px-3 py-2">Never Called</th>
-                <th className="text-right px-3 py-2">No Follow-up</th>
-                <th className="text-right px-3 py-2">Completed Today</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ownerWorkload.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 py-4 text-center text-muted-foreground">No members in scope.</td></tr>
-              ) : ownerWorkload.map((w) => (
-                <tr key={w.ownerId || "__u__"} className="border-t border-border">
-                  <td className="px-3 py-2">
-                    <div className={w.ownerId ? "font-medium" : "text-muted-foreground italic"}>{w.ownerName}</div>
-                  </td>
-                  <td className="px-3 py-2 text-right font-medium">{w.incomplete}</td>
-                  <td className="px-3 py-2 text-right">{w.due_today}</td>
-                  <td className="px-3 py-2 text-right text-red-700">{w.overdue || ""}</td>
-                  <td className="px-3 py-2 text-right">{w.never_called || ""}</td>
-                  <td className="px-3 py-2 text-right">{w.no_followup || ""}</td>
-                  <td className="px-3 py-2 text-right text-emerald-700">{w.completed_today || ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* Completed today (when card selected) */}
       {card === "completed_today" && (
         <div className="border border-border rounded-lg bg-background">
@@ -429,6 +385,50 @@ export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember, re
           )}
         </div>
       )}
+
+      {/* Owner workload */}
+      <div className="border border-border rounded-lg bg-background">
+        <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+          <div className="font-medium text-sm">Owner Workload</div>
+          <div className="text-[11px] text-muted-foreground">
+            {activeOwners} active owner{activeOwners === 1 ? "" : "s"}
+            {mostOverloaded && ` · Most loaded: ${mostOverloaded.ownerName} (${mostOverloaded.incomplete})`}
+            {counts.unassigned > 0 && ` · ${counts.unassigned} unassigned`}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40">
+              <tr>
+                <th className="text-left px-3 py-2">Owner</th>
+                <th className="text-right px-3 py-2">Incomplete</th>
+                <th className="text-right px-3 py-2">Due Today</th>
+                <th className="text-right px-3 py-2">Overdue</th>
+                <th className="text-right px-3 py-2">Never Called</th>
+                <th className="text-right px-3 py-2">No Follow-up</th>
+                <th className="text-right px-3 py-2">Completed Today</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ownerWorkload.length === 0 ? (
+                <tr><td colSpan={7} className="px-3 py-4 text-center text-muted-foreground">No members in scope.</td></tr>
+              ) : ownerWorkload.map((w) => (
+                <tr key={w.ownerId || "__u__"} className="border-t border-border">
+                  <td className="px-3 py-2">
+                    <div className={w.ownerId ? "font-medium" : "text-muted-foreground italic"}>{w.ownerName}</div>
+                  </td>
+                  <td className="px-3 py-2 text-right font-medium">{w.incomplete}</td>
+                  <td className="px-3 py-2 text-right">{w.due_today}</td>
+                  <td className="px-3 py-2 text-right text-red-700">{w.overdue || ""}</td>
+                  <td className="px-3 py-2 text-right">{w.never_called || ""}</td>
+                  <td className="px-3 py-2 text-right">{w.no_followup || ""}</td>
+                  <td className="px-3 py-2 text-right text-emerald-700">{w.completed_today || ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {assignFor && (
         <AssignOwnerModal
