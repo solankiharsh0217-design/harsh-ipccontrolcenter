@@ -4,7 +4,7 @@ import { X, Clock, User, ArrowRight, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { logActivity } from "@/lib/auditLog";
 import { inr } from "@/lib/format";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 
 interface Props {
   leadId: string;
@@ -66,7 +66,7 @@ export default function ConversionHistoryDrawer({ leadId, onClose }: Props) {
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-3">
           {loading && <LoadingState />}
-          {!loading && rows.length === 0 && <div className="text-sm text-muted-foreground">No conversion events recorded.</div>}
+          {!loading && rows.length === 0 && <EmptyState title="No conversion events recorded." />}
           {rows.map((r) => (
             <div key={r.id} className="rounded-lg border border-line p-3 space-y-1.5">
               <div className="flex items-center gap-2">

@@ -35,7 +35,7 @@ import {
 import SlaChip from "@/components/operations/SlaChip";
 import type { Stage } from "@/lib/crmTypes";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 
 
 export interface OpsLeadFull {
@@ -574,7 +574,7 @@ export default function OperationsLeadDrawer({
             {eventsLoading ? (
               <LoadingState />
             ) : commEvents.length === 0 ? (
-              <div className="text-[11px] text-muted-foreground">No communication logged yet.</div>
+              <EmptyState title="No communication logged yet." />
             ) : (
               <div className="space-y-2">
                 {commEvents.map((ev) => (
@@ -626,7 +626,7 @@ export default function OperationsLeadDrawer({
                 {eventsLoading ? (
                   <LoadingState />
                 ) : serviceEvents.length === 0 ? (
-                  <div className="text-[11px] text-muted-foreground">No service events yet.</div>
+                  <EmptyState title="No service events yet." />
                 ) : (
                   <div className="space-y-2">
                     {serviceEvents.map((ev) => (
