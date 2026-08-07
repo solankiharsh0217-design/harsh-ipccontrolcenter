@@ -256,12 +256,7 @@ export default function OperationsActivityTimeline({
       {loading ? (
         <LoadingState />
       ) : filtered.length === 0 ? (
-        <div className="border border-line rounded-md p-3 bg-off/40">
-          <EmptyState title="No operations activity logged yet." />
-          <div className="text-[10px] text-muted-foreground mt-1">
-            Stage moves, communications, checklist actions, and service events will appear here.
-          </div>
-        </div>
+        <EmptyState title="No operations activity logged yet." hint="Stage moves, communications, checklist actions, and service events will appear here." bordered />
       ) : (
         <ol className="relative border-l border-line/70 ml-2 space-y-3">
           {filtered.map((it) => (
