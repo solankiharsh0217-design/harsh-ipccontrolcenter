@@ -85,8 +85,8 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
 
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
-    expect(screen.getAllByText(/VAL_1000_END/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/VAL_500_END/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/VAL_100_END/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText((c) => c.includes("VAL_1000_END")).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText((c) => c.includes("VAL_500_END")).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText((c) => c.includes("VAL_100_END")).length).toBeGreaterThan(0);
   });
 });

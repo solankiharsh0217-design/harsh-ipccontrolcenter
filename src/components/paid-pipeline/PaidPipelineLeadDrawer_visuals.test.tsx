@@ -169,9 +169,10 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
     
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
-    // Use getAllByText and check for at least one match to handle duplicates
-    expect(screen.getAllByText(/VAL_1000_END/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/VAL_500_END/).length).toBeGreaterThan(0);
+    // Balance (1000)
+    expect(screen.queryAllByText((content) => content.includes("VAL_1000_END")).length).toBeGreaterThan(0);
+    // Collected (500)
+    expect(screen.queryAllByText((content) => content.includes("VAL_500_END")).length).toBeGreaterThan(0);
   });
 
   it("primary action button label changes correctly", async () => {
