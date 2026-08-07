@@ -242,26 +242,6 @@ export default function OperationsLeadDrawer({
   const showComplete = status === "active";
   const showRestart  = status === "stopped" || status === "completed";
 
-  // ── Readiness completion / move logic ─────────────────────────
-  const isReady = (readinessSummary?.pct ?? 0) >= 100 && !!lead.process_template_id;
-  const currentStageObj = useMemo(
-    () => opsStages.find((s) => s.id === lead.stage_id) ?? null,
-    [opsStages, lead.stage_id],
-  );
-  const targetStageObj = useMemo(
-    () => resolveReadinessTargetStage(
-      opsStages,
-      lead.stage_id ?? null,
-      readinessSettings?.operations_readiness_target_stage_id ?? null,
-    ),
-    [opsStages, lead.stage_id, readinessSettings],
-  );
-  const alreadyAtOrAfterTarget = !!targetStageObj && isAtOrAfterTarget(
-    opsStages, lead.stage_id ?? null, targetStageObj.id,
-  );
-  const canMoveReadiness = !!(profile?.id) && (
-    isAdmin || (!!lead.assigned_media_buyer_id && lead.assigned_media_buyer_id === profile.id)
-  );
 
   const doMove = async (kind: "readiness_manual_move" | "readiness_auto_move") => {
     if (!targetStageObj) { toast.error("No target stage configured or resolvable."); return; }
