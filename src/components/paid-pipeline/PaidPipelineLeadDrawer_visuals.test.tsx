@@ -57,6 +57,9 @@ vi.mock("@/lib/auditLog", () => ({
 vi.mock("@/lib/accessVerification", () => ({
   fetchVerificationForPaidLead: vi.fn(),
   computeOverall: vi.fn(),
+  WHATSAPP_LABELS: { unknown: "Unknown", joined_verified: "Joined — verified" },
+  APP_LOGIN_LABELS: { unknown: "Unknown", logged_in: "Logged in" },
+  CALL_LABELS: { not_called: "Not called" },
 }));
 
 const mockAuthContext = {
