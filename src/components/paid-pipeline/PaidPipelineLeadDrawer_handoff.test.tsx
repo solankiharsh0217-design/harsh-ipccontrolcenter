@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
@@ -41,6 +41,33 @@ vi.mock("@/lib/codeOfConductRules", () => ({
   evaluateStageTrigger: vi.fn(),
 }));
 
+// Mock the sub-components to bypass Radix complexity
+vi.mock("@/components/crm/CrmStagePicker", () => ({
+  default: ({ onChangeStage }: any) => (
+    <select role="combobox" onChange={(e) => onChangeStage(e.target.value)}>
+      <option value="">—</option>
+      <option value="stage-new">New Stage</option>
+    </select>
+  ),
+}));
+
+// Mock UI Tabs to avoid Radix JSDOM issues
+vi.mock("@/components/ui/tabs", () => ({
+  Tabs: ({ children, value, onValueChange }: any) => (
+    <div data-testid="mock-tabs" data-value={value} onClick={(e: any) => {
+      const target = (e.target as HTMLElement).closest('[role="tab"]');
+      if (target) onValueChange?.(target.getAttribute('data-value'));
+    }}>{children}</div>
+  ),
+  TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
+  TabsTrigger: ({ children, value }: any) => (
+    <button role="tab" data-value={value} aria-label={value}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: any) => (
+    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
+  ),
+}));
+
 const mockLead = {
   id: "lead-123",
   name: "Test Lead",
@@ -57,6 +84,8 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  afterEach(cleanup);
 
   it("should trigger Operations handoff and CoC evaluation when CRM stage changes", async () => {
     // 1. Setup mocks to simulate a rule match
@@ -102,7 +131,7 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
       </MemoryRouter>
     );
 
-    // 3. Wait for initialization to complete
+    // 3. Wait for initialization
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
     // 4. Navigate to Onboarding tab
@@ -113,11 +142,7 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     const pickerTrigger = await screen.findByRole("combobox");
     fireEvent.change(pickerTrigger, { target: { value: "stage-new" } });
 
-
-
-
-
-    // 5. Assert downstream evaluations were called
+    // 6. Assert downstream evaluations were called
     await waitFor(() => {
       // Check Operations Handoff
       expect(getActiveHandoffRules).toHaveBeenCalled();
