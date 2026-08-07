@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { LoadingState } from "@/components/ui-bits";
 import {
   MessageSquare, ClipboardCopy, ArrowRight, Play, Pause, Square, CheckCircle2, RotateCcw,
   FileText, Sparkles, Activity, Mail, StickyNote,
@@ -253,7 +254,7 @@ export default function OperationsActivityTimeline({
       </div>
 
       {loading ? (
-        <div className="text-[11px] text-muted-foreground">Loading…</div>
+        <LoadingState />
       ) : filtered.length === 0 ? (
         <div className="border border-line rounded-md p-3 bg-off/40">
           <div className="text-xs text-foreground">No operations activity logged yet.</div>

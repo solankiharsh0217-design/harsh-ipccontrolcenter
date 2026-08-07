@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Upload, RefreshCw } from "lucide-react";
+import { LoadingState } from "@/components/ui-bits";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import OperationsImportModal from "@/components/operations/OperationsImportModal";
@@ -72,7 +73,7 @@ export default function OperationsIntakeTab({
       </div>
 
       {loading ? (
-        <div className="text-sm text-muted-foreground py-12 text-center">Loading…</div>
+        <LoadingState block />
       ) : leads.length === 0 ? (
         <div className="border border-dashed border-line rounded-xl bg-off/40 py-12 px-6 text-center">
           <div className="font-serif text-lg text-black mb-1">Intake is empty</div>
