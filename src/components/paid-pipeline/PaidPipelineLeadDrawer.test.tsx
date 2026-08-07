@@ -84,10 +84,14 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
       );
     });
 
-    await waitFor(() => expect(screen.queryByText((content) => content.includes("Initializing drawer"))).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
 
-    expect(screen.getAllByText(/₹1,000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹500/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹100/).length).toBeGreaterThan(0);
+    const findAmount = (val: string) => screen.getAllByText((content, element) => {
+      return element?.tagName.toLowerCase() !== 'script' && content.includes(val);
+    });
+
+    expect(findAmount("₹1,000").length).toBeGreaterThan(0);
+    expect(findAmount("₹500").length).toBeGreaterThan(0);
+    expect(findAmount("₹100").length).toBeGreaterThan(0);
   });
 });
