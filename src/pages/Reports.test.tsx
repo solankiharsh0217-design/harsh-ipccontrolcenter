@@ -169,7 +169,7 @@ describe("Reports List Queries Narrowing Test", () => {
     });
 
     await waitFor(() => {
-      const cell = screen.getAllByText("Test BU Profit").find(el => el.tagName === "TD");
+      const cell = screen.queryAllByText("Test BU Profit").find(el => el.tagName === "TD");
       expect(cell).toBeTruthy();
     }, { timeout: 3000 });
   });
