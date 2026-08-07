@@ -307,10 +307,13 @@ export default function OperationsCrm() {
             Service delivery for paid clients · media buying, ads tracking, conversions, rewards.
           </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={load} className="ipc-btn ipc-btn-ghost !h-9 !text-xs" title="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
-          {isAdmin && <button onClick={addStage} className="ipc-btn ipc-btn-ghost !h-9 !text-xs"><Plus className="w-3.5 h-3.5" /> Add Stage</button>}
+        <div className="flex items-center gap-2">
+          <div className="bg-white border border-line rounded-md p-1 flex items-center gap-1">
+            <button onClick={load} className="ipc-btn ipc-btn-ghost !h-7 !w-7 !p-0" title="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
+            {isAdmin && <button onClick={addStage} className="ipc-btn ipc-btn-ghost !h-7 !text-[11px] px-2"><Plus className="w-3.5 h-3.5" /> Add Stage</button>}
+          </div>
         </div>
+
       </div>
 
       {/* Metric strip — only on Reports & Rewards tabs (keeps Active tab clean) */}

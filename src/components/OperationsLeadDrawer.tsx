@@ -616,13 +616,100 @@ export default function OperationsLeadDrawer({
             )}
           </Section>
 
-          {/* Unified activity timeline */}
-          <Section title="Activity timeline">
-            <OperationsActivityTimeline
-              operationsLeadId={lead.id}
-              leadCreatedAt={(lead as any).created_at ?? null}
-            />
-          </Section>
+            </TabsContent>
+
+            <TabsContent value="activity" className="mt-0 space-y-6">
+              {/* Unified activity timeline */}
+              <Section title="Activity timeline">
+                <OperationsActivityTimeline
+                  operationsLeadId={lead.id}
+                  leadCreatedAt={(lead as any).created_at ?? null}
+                />
+              </Section>
+
+              {/* Timeline */}
+              <Section title="Service timeline">
+                {eventsLoading ? (
+                  <div className="text-[11px] text-muted-foreground">Loading…</div>
+                ) : serviceEvents.length === 0 ? (
+                  <div className="text-[11px] text-muted-foreground">No service events yet.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {serviceEvents.map((ev) => (
+                      <div key={ev.id} className="border border-line rounded-md p-2.5 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${eventTone(ev.event_type)}`}>{ev.event_type}</span>
+                            <span className="text-foreground">{ev.event_date}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{new Date(ev.created_at).toLocaleString()}</span>
+                        </div>
+                        {ev.reason && <div className="mt-1 text-[11px]"><span className="text-muted-foreground">Reason:</span> {ev.reason}</div>}
+                        {ev.note && <div className="mt-1 text-[11px] whitespace-pre-wrap">{ev.note}</div>}
+                        <div className="mt-1 text-[10px] text-muted-foreground">by {ev.created_by_name || "—"}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+
+              {/* Notes */}
+              {lead.notes && (
+                <Section title="Notes">
+                  <div className="text-xs whitespace-pre-wrap text-foreground">{lead.notes}</div>
+                </Section>
+              )}
+            </TabsContent>
+
+            <TabsContent value="results" className="mt-0 space-y-6">
+              {/* Promised offers / services */}
+              <PromisedOffersPanel
+                operationsLeadId={lead.id}
+                paidPipelineLeadId={lead.paid_pipeline_lead_id}
+                crmLeadId={lead.crm_lead_id}
+                title="Services / Commitments"
+              />
+
+              {/* Delivery Tracking */}
+              <DeliveryTrackingSection
+                operationsLeadId={lead.id}
+                crmLeadId={lead.crm_lead_id}
+                paidPipelineLeadId={lead.paid_pipeline_lead_id}
+                actor={{ id: profile?.id ?? null, name: profile?.full_name ?? null }}
+                buyers={deliveryBuyers}
+              />
+
+              {/* Client Conversions (Phase C) */}
+              <ConversionsSection
+                leadId={lead.id}
+                leadName={lead.name}
+                assignedBuyerId={lead.assigned_media_buyer_id}
+                onChanged={onSaved}
+              />
+
+              {/* Team Result / Reward submissions */}
+              <TeamResultSubmissionPanel
+                operationsLeadId={lead.id}
+                crmLeadId={lead.crm_lead_id}
+                paidPipelineLeadId={lead.paid_pipeline_lead_id}
+                memberName={lead.name}
+              />
+            </TabsContent>
+          </div>
+        </Tabs>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-line bg-off/10 shrink-0">
+          <button 
+            onClick={primaryAction.onClick}
+            className="w-full ipc-btn ipc-btn-black flex items-center justify-center gap-2"
+          >
+            <primaryAction.icon className="w-4 h-4" />
+            {primaryAction.label}
+          </button>
+        </div>
+      </div>
+
 
 
 
