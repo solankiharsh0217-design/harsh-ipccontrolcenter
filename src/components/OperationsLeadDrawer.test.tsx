@@ -4,7 +4,7 @@ import OperationsLeadDrawer from "./OperationsLeadDrawer";
 import { MemoryRouter } from "react-router-dom";
 import React from 'react';
 
-// Standardized Supabase Mock
+// Standardized Supabase Mock for all Drawer tests
 const createMockQuery = () => {
   const query = {
     select: vi.fn().mockReturnThis(),
@@ -53,32 +53,77 @@ vi.mock("@/lib/notifications", () => ({
   createNotification: vi.fn().mockResolvedValue({}),
 }));
 
+// Mock lucide-react with flat exports to avoid hoisting/initialization errors
+vi.mock("lucide-react", () => {
+  const MockIcon = (props: any) => React.createElement('div', props);
+  return {
+    X: MockIcon,
+    XIcon: MockIcon,
+    ExternalLink: MockIcon,
+    Play: MockIcon,
+    Pause: MockIcon,
+    Rocket: MockIcon,
+    ArrowRight: MockIcon,
+    Mail: MockIcon,
+    ClipboardCopy: MockIcon,
+    CheckCircle: MockIcon,
+    CheckCircle2: MockIcon,
+    RotateCcw: MockIcon,
+    Square: MockIcon,
+    ChevronDown: MockIcon,
+    ChevronRight: MockIcon,
+    AlertCircle: MockIcon,
+    Check: MockIcon,
+  };
+});
+
 // Mock UI Components
 vi.mock("@/components/ui/tabs", () => ({
-  Tabs: ({ children, value }: any) => React.createElement('div', { 'data-testid': 'mock-tabs', 'data-value': value }, children),
-  TabsList: ({ children }: any) => React.createElement('div', { role: 'tablist' }, children),
-  TabsTrigger: ({ children, value }: any) => React.createElement('button', { role: 'tab', 'data-value': value }, children),
-  TabsContent: ({ children, value }: any) => React.createElement('div', { role: 'tabpanel', 'data-value': value }, children),
+  Tabs: ({ children, value, onValueChange }: any) => (
+    <div data-testid="mock-tabs" data-value={value}>{children}</div>
+  ),
+  TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
+  TabsTrigger: ({ children, value }: any) => (
+    <button role="tab" data-value={value}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: any) => (
+    <div role="tabpanel" data-value={value}>{children}</div>
+  ),
 }));
-
-// Proxy to swallow missing icons
-vi.mock("lucide-react", () => {
-  return new Proxy({}, {
-    get: () => () => null
-  });
-});
 
 // Mock child components
 vi.mock("@/components/offers/PromisedOffersPanel", () => ({ default: () => null }));
 vi.mock("@/components/operations/DeliveryTrackingSection", () => ({ default: () => null }));
 vi.mock("@/components/operations/ConversionsSection", () => ({ default: () => null }));
-vi.mock("@/components/operations/ReadinessChecklist", () => ({ default: () => null }));
 vi.mock("@/components/operations/TeamResultSubmissionPanel", () => ({ default: () => null }));
 vi.mock("@/components/operations/CustomFieldsPanel", () => ({ default: () => null }));
 vi.mock("@/components/operations/CommTemplatePickerModal", () => ({ default: () => null }));
 vi.mock("@/components/operations/OperationsActivityTimeline", () => ({ default: () => null }));
 vi.mock("@/components/operations/OperationsLinkedRecordsCard", () => ({ default: () => null }));
 vi.mock("@/components/operations/StartProcessModal", () => ({ default: () => null }));
+vi.mock("@/components/operations/ReadinessChecklist", () => ({ 
+  default: ({ onChange }: any) => {
+    React.useEffect(() => { onChange(0, false); }, [onChange]);
+    return null;
+  }
+}));
+
+// Mock readiness lib functions
+vi.mock("@/lib/operationsReadiness", () => ({
+  resolveReadinessTargetStage: vi.fn(),
+  isAtOrAfterTarget: vi.fn().mockReturnValue(false),
+  computeServiceCalc: vi.fn().mockReturnValue({}),
+  computeStageAging: vi.fn().mockReturnValue({ days: 0, status: 'good', lastMovedAt: new Date().toISOString(), source: 'none' }),
+  moveOperationsLeadStage: vi.fn(),
+  fetchStageChangeMap: vi.fn().mockResolvedValue(new Map()),
+  listProcessTemplates: vi.fn().mockResolvedValue([]),
+  getReadinessSettings: vi.fn().mockResolvedValue({}),
+  getOperationsSlaSettings: vi.fn().mockResolvedValue({}),
+  DEFAULT_SLA: { watch_days: 7, overdue_days: 14 },
+  COMMUNICATION_EVENT_TYPES: new Set(),
+}));
+
+import * as opsReadiness from "@/lib/operationsReadiness";
 
 const mockLead = {
   id: "ops-lead-123",
@@ -86,90 +131,88 @@ const mockLead = {
   email: "test@example.com",
   phone: "123456789",
   product_name: "Test Product",
-  service_status: "not_started",
-  intake_status: "pending",
+  service_status: "active",
+  intake_status: "active",
   total_active_days: 0,
   total_paused_days: 0,
   assigned_media_buyer_id: "user-123",
+  process_template_id: "template-123",
+  stage_id: "stage-current",
+  pipeline_id: "pipe-123",
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
 };
 
 describe("OperationsLeadDrawer Logic", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (opsReadiness.resolveReadinessTargetStage as any).mockReturnValue(null);
   });
 
   afterEach(cleanup);
 
-  it("Start Operations Process priority", async () => {
-    await act(async () => {
-      render(
-        React.createElement(MemoryRouter, null, 
-          React.createElement(OperationsLeadDrawer, {
-            lead: { ...mockLead, intake_status: "pending", service_status: "not_started" } as any,
-            onClose: () => {},
-            onSaved: () => {}
-          })
-        )
-      );
-    });
+  it("prioritizes actions correctly", async () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <OperationsLeadDrawer
+          lead={{ ...mockLead, intake_status: "pending", service_status: "not_started" } as any}
+          onClose={() => {}}
+          onSaved={() => {}}
+        />
+      </MemoryRouter>
+    );
     expect(screen.getByRole("button", { name: /Start Operations Process/i })).toBeTruthy();
-  });
 
-  it("Mark Ads Started priority", async () => {
     await act(async () => {
-      render(
-        React.createElement(MemoryRouter, null, 
-          React.createElement(OperationsLeadDrawer, {
-            lead: { ...mockLead, intake_status: "active", service_status: "not_started" } as any,
-            onClose: () => {},
-            onSaved: () => {}
-          })
-        )
+      rerender(
+        <MemoryRouter>
+          <OperationsLeadDrawer
+            lead={{ ...mockLead, intake_status: "active", service_status: "not_started" } as any}
+            onClose={() => {}}
+            onSaved={() => {}}
+          />
+        </MemoryRouter>
       );
     });
     expect(screen.getByRole("button", { name: /Mark Ads Started/i })).toBeTruthy();
-  });
 
-  it("Resume Service priority", async () => {
     await act(async () => {
-      render(
-        React.createElement(MemoryRouter, null, 
-          React.createElement(OperationsLeadDrawer, {
-            lead: { ...mockLead, intake_status: "active", service_status: "paused" } as any,
-            onClose: () => {},
-            onSaved: () => {}
-          })
-        )
+      rerender(
+        <MemoryRouter>
+          <OperationsLeadDrawer
+            lead={{ ...mockLead, intake_status: "active", service_status: "paused" } as any}
+            onClose={() => {}}
+            onSaved={() => {}}
+          />
+        </MemoryRouter>
       );
     });
     expect(screen.getByRole("button", { name: /Resume Service/i })).toBeTruthy();
-  });
 
-  it("Log Communication default", async () => {
     await act(async () => {
-      render(
-        React.createElement(MemoryRouter, null, 
-          React.createElement(OperationsLeadDrawer, {
-            lead: { ...mockLead, intake_status: "active", service_status: "active" } as any,
-            onClose: () => {},
-            onSaved: () => {}
-          })
-        )
+      rerender(
+        <MemoryRouter>
+          <OperationsLeadDrawer
+            lead={{ ...mockLead, intake_status: "active", service_status: "active" } as any}
+            onClose={() => {}}
+            onSaved={() => {}}
+          />
+        </MemoryRouter>
       );
     });
     expect(screen.getByRole("button", { name: /Log Communication/i })).toBeTruthy();
   });
 
-  it("defaults to Onboarding tab", async () => {
+  it("defaults to Onboarding tab correctly", async () => {
     await act(async () => {
       render(
-        React.createElement(MemoryRouter, null, 
-          React.createElement(OperationsLeadDrawer, {
-            lead: { ...mockLead, service_status: "not_started" } as any,
-            onClose: () => {},
-            onSaved: () => {}
-          })
-        )
+        <MemoryRouter>
+          <OperationsLeadDrawer
+            lead={{ ...mockLead, service_status: "not_started", process_template_id: null } as any}
+            onClose={() => {}}
+            onSaved={() => {}}
+          />
+        </MemoryRouter>
       );
     });
     const tabs = screen.getAllByTestId("mock-tabs");
