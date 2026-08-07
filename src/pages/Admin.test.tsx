@@ -48,15 +48,24 @@ describe("Admin Panel (Identity & Access)", () => {
     } as any);
 
     // Mock initial loads
-    (supabase.from as any).mockImplementation((table: string) => ({
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockImplementation(() => {
-        if (table === "profiles") return { data: [], error: null };
-        if (table === "attendance_logs") return { data: [], count: 0, error: null };
-        return { data: [], error: null };
-      }),
-    }));
+    (supabase.from as any).mockImplementation((table: string) => {
+      const mockObj = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        insert: vi.fn().mockReturnThis(),
+        update: vi.fn().mockReturnThis(),
+        delete: vi.fn().mockReturnThis(),
+        upsert: vi.fn().mockReturnThis(),
+        then: vi.fn((resolve) => {
+          if (table === "profiles") resolve({ data: [], error: null });
+          else if (table === "attendance_logs") resolve({ data: [], count: 0, error: null });
+          else if (table === "company_role_catalog") resolve({ data: [], error: null });
+          else resolve({ data: [], error: null });
+        }),
+      };
+      return mockObj;
+    });
   });
 
   it("renders correctly", () => {
