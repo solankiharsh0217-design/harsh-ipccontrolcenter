@@ -295,7 +295,7 @@ export default function TeamPerformanceDashboard() {
 
   const uniqueRoles = useMemo(() => Array.from(new Set(members.map((m) => (m.role || "").trim()).filter(Boolean))).sort(), [members]);
 
-  if (authLoading) return <div className="p-8 font-sans text-sm text-muted-foreground">Loading…</div>;
+  if (authLoading) return <div className="p-8 font-sans text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />Loading…</div>;
   if (!isAdmin) return <Navigate to="/my-today" replace />;
 
   return (
