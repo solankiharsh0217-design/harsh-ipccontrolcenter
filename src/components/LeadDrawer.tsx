@@ -129,6 +129,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     if (!lead) return null;
 
     // 1. Convert to Paid Pipeline (highest priority if unpaid and unlinked)
+    // Mirroring legacy priority: check if lead_type is 'unpaid' and no paid_pipeline_lead_id exists.
     const isUnpaid = lead.lead_type?.toLowerCase() === "unpaid";
     const isUnlinked = !(lead as any).paid_pipeline_lead_id;
     if (isUnpaid && isUnlinked) {
@@ -140,6 +141,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }
 
     // 2. Conversion Rule Match (triggers ConvertToPaidModal)
+    // Preserving logic: if a conversion rule matches current stage, this takes precedence over ops handoff.
     const currentStageName = stagesById.get(lead.stage_id)?.name || null;
     const activeConvRule = convRules.find(r => {
       if (r.source_pipeline_id && r.source_pipeline_id !== lead.pipeline_id) return false;
@@ -156,6 +158,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }
 
     // 3. Operations Handoff (isOpsEligible)
+    // Preserving logic: if eligible for ops and not already in ops.
     if (isOpsEligible && !inOps) {
       return {
         label: "Send to Operations",
@@ -165,6 +168,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }
 
     // 4. Record Token (if missing)
+    // Preserving logic: if there is a deal value but no token amount yet.
     if (paidSnap && Number(paidSnap.deal_value) > 0 && !hasToken) {
       return {
         label: "Record Token",
@@ -173,13 +177,14 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
       };
     }
 
-    // Default: Just Update Status
+    // Default fallback: Just allow updating status.
     return {
       label: "Update Status",
       onClick: () => setCrmPickerOpen(true),
       variant: "ghost" as const,
     };
   }, [lead, isOpsEligible, inOps, hasToken, paidSnap, convRules, stagesById]);
+
 
 
   useEffect(() => {
@@ -389,8 +394,19 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
       
       {sendOpsOpen && <SendToOperationsCrmModal candidateLeads={[lead as any]} sourceStages={[]} preSelectedIds={[lead.id]} prefill={rulePrefill as any} onClose={() => setSendOpsOpen(false)} onDone={() => { setSendOpsOpen(false); load(); }} />}
       {openPay && paidLeadId && <QuickAddPaymentModal leadId={paidLeadId} leadName={lead.full_name || undefined} prefill={payPrefill} onSaved={handlePaymentSaved} onClose={() => setOpenPay(false)} />}
-      {convertOpen && <ConvertToPaidModal lead={lead as any} onClose={() => setConvertOpen(false)} onConverted={() => { setConvertOpen(false); load(); onChanged(); }} />}
-      {sendOnboardingOpen && <SendToPaidOnboardingModal leads={[lead as any]} onClose={() => setSendOnboardingOpen(false)} onDone={() => { setSendOnboardingOpen(false); load(); onChanged(); }} />}
+      {convertOpen && <ConvertToPaidModal lead={lead as any} agents={agents} onClose={() => setConvertOpen(false)} onConverted={() => { setConvertOpen(false); load(); onChanged(); }} />}
+      {sendOnboardingOpen && (
+        <SendToPaidOnboardingModal 
+          open={sendOnboardingOpen} 
+          onClose={() => setSendOnboardingOpen(false)} 
+          leadId={lead.id} 
+          leadName={lead.full_name || ""} 
+          leadEmail={lead.email} 
+          leadPhone={lead.phone} 
+          onDone={() => { setSendOnboardingOpen(false); load(); onChanged(); }} 
+        />
+      )}
+
     </div>
   );
 }
