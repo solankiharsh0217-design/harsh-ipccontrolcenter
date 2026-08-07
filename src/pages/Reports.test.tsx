@@ -112,11 +112,13 @@ describe("Reports List Queries Narrowing Test", () => {
     expect(roasElements.length).toBeGreaterThan(0);
     
     // Confirm media buyer name from join renders correctly
-    // Since initials() and data-testid might have issues in the test env,
-    // we confirm that the "buyers" count renders correctly adjacent to the avatars.
+    // Since initials() might behave differently in JSDOM, we check if the initials container
+    // or the buyer count span exists and has the expected data.
     await waitFor(() => {
-      const buyerCount = screen.getByText("1");
-      expect(buyerCount).toBeInTheDocument();
+      const buyerAvatars = screen.getAllByTestId("buyer-avatar");
+      expect(buyerAvatars.length).toBeGreaterThan(0);
+      // We check the title attribute which we added to the div in Reports.tsx
+      expect(buyerAvatars[0]).toHaveAttribute("title", "Buyer A");
     }, { timeout: 3000 });
   });
 
