@@ -56,11 +56,11 @@ describe("Reports List Queries Narrowing Test", () => {
       webinar_name: "Test Webinar Attribution",
       webinar_date: "2026-08-01",
       webinar_type: "paid",
-      total_leads: 100,
-      total_sales: 10,
-      total_ad_spend: 1000,
-      total_revenue: 5000,
-      overall_roas: 5,
+      total_leads: 101, // Unique value
+      total_sales: 11,  // Unique value
+      total_ad_spend: 1001,
+      total_revenue: 5001,
+      overall_roas: 5.01,
       created_at: new Date().toISOString(),
       is_deleted: false,
       calculation_method: "auto",
@@ -91,11 +91,10 @@ describe("Reports List Queries Narrowing Test", () => {
       expect(screen.getByText("Test Webinar Attribution")).toBeInTheDocument();
     });
 
-    // Use getAllByText for values that appear in both summary cards and table rows
-    expect(screen.getAllByText(/₹5,000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("100").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("10").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("5.00×").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/₹5,001/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("101").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("11").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("5.01×").length).toBeGreaterThan(0);
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
@@ -104,12 +103,12 @@ describe("Reports List Queries Narrowing Test", () => {
       webinar_name: "Test Seminar Report",
       total_webinar_days: 3,
       watch_point_percent: 50,
-      total_revenue_including_gst: 10000,
-      total_ad_spend_including_gst: 2000,
-      total_conversions: 20,
-      profit_after_gst: 8000,
-      cpa: 100,
-      roas: 5,
+      total_revenue_including_gst: 10002,
+      total_ad_spend_including_gst: 2002,
+      total_conversions: 22,
+      profit_after_gst: 8002,
+      cpa: 102,
+      roas: 5.02,
       is_deleted: false,
       created_at: new Date().toISOString()
     }];
@@ -141,9 +140,9 @@ describe("Reports List Queries Narrowing Test", () => {
       expect(screen.getByText("Test Seminar Report")).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText(/₹10,000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹8,000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("5.00×").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/₹10,002/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/₹8,002/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("5.02×").length).toBeGreaterThan(0);
   });
 
   it("should render profit_statements list with mocked data", async () => {
@@ -152,12 +151,12 @@ describe("Reports List Queries Narrowing Test", () => {
       business_unit: "Test Unit",
       statement_month: "2026-07-01",
       status: "posted",
-      total_revenue: 20000,
-      total_cogs: 5000,
-      gross_profit: 15000,
-      total_payroll: 4000,
-      net_profit: 11000,
-      net_margin: 55,
+      total_revenue: 20003,
+      total_cogs: 5003,
+      gross_profit: 15003,
+      total_payroll: 4003,
+      net_profit: 11003,
+      net_margin: 55.03,
       is_deleted: false
     }];
 
@@ -188,8 +187,8 @@ describe("Reports List Queries Narrowing Test", () => {
       expect(screen.getByText("Test Unit")).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText(/₹20,000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹11,000/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/₹20,003/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/₹11,003/).length).toBeGreaterThan(0);
     expect(screen.getAllByText("55.0%").length).toBeGreaterThan(0);
     expect(screen.getByText("posted")).toBeInTheDocument();
   });
@@ -200,12 +199,12 @@ describe("Reports List Queries Narrowing Test", () => {
       event_name: "Test Offline Event",
       event_date: "2026-08-05",
       city: "Mumbai",
-      tickets_sold: 150,
-      program_sales_count: 25,
-      total_cost: 3000,
-      total_realized_revenue: 15000,
-      net_profit: 12000,
-      realized_roas: 5,
+      tickets_sold: 154,
+      program_sales_count: 24,
+      total_cost: 3004,
+      total_realized_revenue: 15004,
+      net_profit: 12004,
+      realized_roas: 5.04,
       is_deleted: false,
       created_at: new Date().toISOString()
     }];
@@ -238,10 +237,10 @@ describe("Reports List Queries Narrowing Test", () => {
     });
 
     expect(screen.getByText("Mumbai")).toBeInTheDocument();
-    expect(screen.getAllByText("150").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("25").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹15,000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/₹12,000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("5.00×").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("154").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("24").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/₹15,004/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/₹12,004/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("5.04×").length).toBeGreaterThan(0);
   });
 });
