@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -27,7 +27,7 @@ export default function InvoiceItemCatalogPage() {
   useEffect(() => { refresh(); }, []);
 
   if (!isAdmin) return <div className="p-8 text-sm">Admin access required.</div>;
-  if (loading) return <div className="p-8 text-sm">Loading…</div>;
+  if (loading) return <div className="p-8"><LoadingState /></div>;
 
   const addCat = async () => {
     if (!newCat.trim()) return;

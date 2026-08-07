@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,7 +67,7 @@ export default function InvoiceSettingsPage() {
   };
 
   if (!isAdmin) return <div className="p-8 text-sm">Admin access required.</div>;
-  if (loading) return <div className="p-8 text-sm">Loading…</div>;
+  if (loading) return <div className="p-8"><LoadingState /></div>;
 
   return (
     <div className="max-w-[900px]">
