@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHead, Tag } from "@/components/ui-bits";
+import { PageHead, Tag, LoadingRow } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -287,7 +287,7 @@ export default function AuditLog() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</td></tr>}
+            {loading && <LoadingRow colSpan={9} />}
             {!loading && pageRows.length === 0 && <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No activity in this range.</td></tr>}
             {pageRows.map((r) => (
               <tr key={r.id} className="border-t border-line hover:bg-off/50">

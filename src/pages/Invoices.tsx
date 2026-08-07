@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingRow } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -128,7 +128,7 @@ export default function InvoicesPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</td></tr>}
+            {loading && <LoadingRow colSpan={9} />}
             {!loading && rows.length === 0 && (
               <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No invoices yet.</td></tr>
             )}
