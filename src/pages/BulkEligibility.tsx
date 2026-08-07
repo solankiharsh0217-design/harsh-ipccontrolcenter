@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingRow } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -201,7 +201,7 @@ export default function BulkEligibility() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={3 + FLAGS.length} className="py-6 text-center text-muted-foreground">Loading…</td></tr>}
+            {loading && <LoadingRow colSpan={3 + FLAGS.length} />}
             {!loading && filtered.length === 0 && <tr><td colSpan={3 + FLAGS.length} className="py-6 text-center text-muted-foreground">No users match the current filter.</td></tr>}
             {filtered.map(r => (
               <tr key={r.id} className={selected.has(r.id) ? "bg-off" : "hover:bg-off"}>

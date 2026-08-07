@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { LoadingRow } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -633,7 +634,7 @@ export default function FollowUpCommandCenter() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
+            {loading && <LoadingRow colSpan={12} />}
             {!loading && filtered.length === 0 && <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">No follow-ups match.</td></tr>}
             {filtered.map(f => {
               const l = f.paid_pipeline_lead_id ? leadMap[f.paid_pipeline_lead_id] : undefined;
