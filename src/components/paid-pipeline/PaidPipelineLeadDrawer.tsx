@@ -903,52 +903,6 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
         </div>
       </div>
 
-            right={<button onClick={() => setShowActivity(v => !v)} className="text-[11px] text-muted-foreground hover:text-black">{showActivity ? "Hide" : "Show"}</button>}
-          >
-            {!showActivity ? (
-              <div className="text-[12px] text-muted-foreground">{activity.length} entries · click Show to view.</div>
-            ) : activity.length === 0 ? (
-              <div className="text-[12px] text-muted-foreground">No activity yet.</div>
-            ) : (
-              <div className="space-y-2 max-h-[240px] overflow-y-auto">
-                {activity.map(a => (
-                  <div key={a.id} className="text-[11.5px] border-l-2 border-line pl-2">
-                    <div className="text-muted-foreground text-[10px]">{new Date(a.created_at).toLocaleString()} · {a.activity_type}</div>
-                    <div>{a.note}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-
-          {/* 9. Advanced — collapsed */}
-          <Section
-            title="Advanced · balance notes"
-            right={<button onClick={() => setShowAdvanced(v => !v)} className="text-[11px] text-muted-foreground hover:text-black">{showAdvanced ? "Hide" : "Show"}</button>}
-          >
-            {showAdvanced && (
-              <div className="space-y-3">
-                <div>
-                  <label className="qsi-label">Next balance follow-up</label>
-                  <input type="date" className="qsi-input" value={balDate} onChange={(e) => setBalDate(e.target.value)} />
-                </div>
-                <div>
-                  <label className="qsi-label">Balance description</label>
-                  <textarea className="qsi-input !h-auto py-2" rows={2} value={balDesc} onChange={(e) => setBalDesc(e.target.value)} placeholder="e.g. Student paid ₹1,000. Promised ₹6,000 by tomorrow." />
-                </div>
-                <div>
-                  <label className="qsi-label">Finance follow-up date</label>
-                  <input type="date" className="qsi-input" value={financeFu} onChange={(e) => setFinanceFu(e.target.value)} />
-                </div>
-                <div>
-                  <label className="qsi-label">Finance notes</label>
-                  <textarea className="qsi-input !h-auto py-2" rows={2} value={financeNotes} onChange={(e) => setFinanceNotes(e.target.value)} />
-                </div>
-              </div>
-            )}
-          </Section>
-        </div>
-        </div>
 
         {/* Sticky footer */}
         <div className="shrink-0 bg-white border-t border-line px-6 py-3 flex justify-end gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
