@@ -212,11 +212,11 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     setActiveTab("overview");
   }, [leadId, !!lead, isOpsEligible, inOps, hasToken, reminders.length]);
 
-  if (!lead) return (
+  return (!lead ? (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
       <div className="absolute right-0 top-0 h-full w-[560px] bg-white p-8" onClick={(e) => e.stopPropagation()}>Loading</div>
     </div>
-  );
+  ) : (
 
   const saveEdit = async () => {
     const name = editName.trim();
