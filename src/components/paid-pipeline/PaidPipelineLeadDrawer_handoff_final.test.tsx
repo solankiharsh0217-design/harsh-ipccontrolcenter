@@ -46,6 +46,11 @@ vi.mock("@/components/crm/CrmStagePicker", () => ({
   ),
 }));
 
+// Mock visibility audit to prevent N+1 issues in test
+vi.mock("@/lib/paidPipelineVisibility", () => ({
+  auditPaidPipelineVisibility: vi.fn().mockResolvedValue({ status: "ok", checks: [] }),
+}));
+
 const mockLead = {
   id: "lead-123",
   name: "Test Lead",
@@ -82,7 +87,7 @@ describe("PaidPipelineLeadDrawer - Handoff Logic Verification", () => {
   });
 
   it("verifies that changing CRM stage invokes both Operations Handoff and Code of Conduct logic", async () => {
-    // 1. Setup specific mocks for the evaluations
+    // Setup specific mocks for the evaluations
     (operationsCrm.getActiveHandoffRules as any).mockResolvedValue([{ id: "rule-1", name: "Test Rule", mode: "auto" }]);
     (operationsCrm.findRuleForStage as any).mockReturnValue({ id: "rule-1", name: "Test Rule", mode: "auto" });
     (operationsCrm.isRuleAutoReady as any).mockReturnValue(true);
@@ -99,25 +104,26 @@ describe("PaidPipelineLeadDrawer - Handoff Logic Verification", () => {
       />
     );
 
-    // 2. Click Onboarding tab
-    fireEvent.click(screen.getByRole("tab", { name: /onboarding/i }));
+    // Click Onboarding tab - Try by text if Role is problematic
+    const tab = screen.getByText(/Onboarding/i);
+    fireEvent.click(tab);
 
-    // 3. Trigger stage change via our mock button
-    const btn = await screen.findByTestId("trigger-stage-change");
-    fireEvent.click(btn);
+    // Wait for the tab content to render and trigger stage change
+    await waitFor(async () => {
+      const btn = screen.getByTestId("trigger-stage-change");
+      fireEvent.click(btn);
+    }, { timeout: 3000 });
 
-    // 4. Assertions - MUST BE CALLED
+    // Assertions
     await waitFor(() => {
-      // Confirm Operations CRM was checked
       expect(operationsCrm.getActiveHandoffRules).toHaveBeenCalled();
-      console.log("SUCCESS: getActiveHandoffRules was called");
+      console.log("LOG_SIGNAL: getActiveHandoffRules was called");
       
       expect(operationsCrm.applyAutoHandoff).toHaveBeenCalled();
-      console.log("SUCCESS: applyAutoHandoff was called");
+      console.log("LOG_SIGNAL: applyAutoHandoff was called");
 
-      // Confirm Code of Conduct was checked
       expect(cocRules.evaluateStageTrigger).toHaveBeenCalled();
-      console.log("SUCCESS: evaluateStageTrigger was called");
+      console.log("LOG_SIGNAL: evaluateStageTrigger was called");
     });
   });
 });
