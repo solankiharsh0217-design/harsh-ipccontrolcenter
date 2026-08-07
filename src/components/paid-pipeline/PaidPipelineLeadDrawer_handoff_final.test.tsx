@@ -46,9 +46,19 @@ vi.mock("@/components/crm/CrmStagePicker", () => ({
   ),
 }));
 
-// Mock visibility audit to prevent N+1 issues in test
+// Mock visibility audit
 vi.mock("@/lib/paidPipelineVisibility", () => ({
   auditPaidPipelineVisibility: vi.fn().mockResolvedValue({ status: "ok", checks: [] }),
+}));
+
+// Mock Code of Conduct Panel to avoid complex rendering
+vi.mock("@/components/paid-pipeline/CodeOfConductPanel", () => ({
+  default: () => <div data-testid="coc-panel">CoC Panel</div>
+}));
+
+// Mock Access Verification Panel
+vi.mock("@/components/access-followup/AccessVerificationPanel", () => ({
+  default: () => <div data-testid="access-panel">Access Panel</div>
 }));
 
 const mockLead = {
@@ -87,14 +97,12 @@ describe("PaidPipelineLeadDrawer - Handoff Logic Verification", () => {
   });
 
   it("verifies that changing CRM stage invokes both Operations Handoff and Code of Conduct logic", async () => {
-    // Setup specific mocks for the evaluations
     (operationsCrm.getActiveHandoffRules as any).mockResolvedValue([{ id: "rule-1", name: "Test Rule", mode: "auto" }]);
     (operationsCrm.findRuleForStage as any).mockReturnValue({ id: "rule-1", name: "Test Rule", mode: "auto" });
     (operationsCrm.isRuleAutoReady as any).mockReturnValue(true);
     (operationsCrm.applyAutoHandoff as any).mockResolvedValue({ inserted: 1, updated: 0 });
     (cocRules.evaluateStageTrigger as any).mockResolvedValue({ action: "auto_sent", rule: { name: "CoC Rule" } });
 
-    // Force default tab to Onboarding for the test
     render(
       <PaidPipelineLeadDrawer
         lead={mockLead as any}
@@ -105,19 +113,12 @@ describe("PaidPipelineLeadDrawer - Handoff Logic Verification", () => {
       />
     );
 
-    // Instead of clicking the tab which is failing in JSDOM, 
-    // let's look for the tab list and click the button with text "Onboarding"
-    const tabs = screen.getAllByRole("tab");
-    const onboardingTab = tabs.find(t => t.textContent?.includes("Onboarding"));
-    if (onboardingTab) {
-      fireEvent.click(onboardingTab);
-    } else {
-      // Fallback: just find any element with text Onboarding and click it
-      fireEvent.click(screen.getByText(/Onboarding/));
-    }
+    // Click Onboarding tab - Try finding the trigger specifically
+    const onboardingTrigger = screen.getByRole("tab", { name: /onboarding/i });
+    fireEvent.click(onboardingTrigger);
 
-    // Wait for the trigger to be available
-    const btn = await screen.findByTestId("trigger-stage-change");
+    // Wait for the button to appear in the DOM
+    const btn = await screen.findByTestId("trigger-stage-change", {}, { timeout: 3000 });
     fireEvent.click(btn);
 
     // Assertions
