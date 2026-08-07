@@ -112,11 +112,9 @@ describe("Reports List Queries Narrowing Test", () => {
     expect(roasElements.length).toBeGreaterThan(0);
     
     // Confirm media buyer name from join renders correctly
-    // Since complex DOM structure might not be fully available in the snapshot,
-    // we verify the data is present in the rendered output.
     await waitFor(() => {
-      const allText = screen.getByRole('main', { hidden: true }).textContent;
-      expect(allText).toContain("Test Webinar Attribution");
+      const summaryValue = screen.getByText("₹5,001");
+      expect(summaryValue).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 
