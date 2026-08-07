@@ -86,15 +86,22 @@ describe("PaidPipelineLeadDrawer Logic", () => {
     (operationsCrm.getActiveHandoffRules as any).mockResolvedValue([]);
     (cocRules.evaluateStageTrigger as any).mockResolvedValue({ action: "none" });
 
-    render(
-      <PaidPipelineLeadDrawer
-        lead={mockLead as any}
-        onClose={() => {}}
-        stages={["New"]}
-        agents={[]}
-        onChanged={() => {}}
-      />
-    );
+    await act(async () => {
+      render(
+        <PaidPipelineLeadDrawer
+          lead={mockLead as any}
+          onClose={() => {}}
+          stages={["New"]}
+          agents={[]}
+          onChanged={() => {}}
+        />
+      );
+    });
+
+    // Wait for the loader to clear
+    await waitFor(() => {
+      expect(screen.queryByText(/Initializing drawer…/i)).toBeNull();
+    });
 
     // Click the Onboarding tab trigger (the button itself)
     const onboardingTab = screen.getByRole("tab", { name: /onboarding/i });
