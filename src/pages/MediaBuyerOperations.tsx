@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingRow } from "@/components/ui-bits";
 import { getEligibleAssignees, type EligibleAssignee } from "@/lib/eligibleAssignees";
 import type { MBCase } from "@/lib/mediaBuyerOps";
 import { autoAssignRoundRobin, createCase, SERVICE_DURATION_PRESETS, CALL_SLA_DAYS } from "@/lib/mediaBuyerOps";
@@ -229,7 +229,7 @@ export default function MediaBuyerOperations() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Loading…</td></tr>
+                <LoadingRow colSpan={9} />
               ) : effectiveCases.length === 0 ? (
                 <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No cases match.</td></tr>
               ) : effectiveCases.map((c) => {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { PageHead, SectionLabel, Tag } from "@/components/ui-bits";
+import { PageHead, SectionLabel, Tag, LoadingRow } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -438,7 +438,7 @@ export default function SystemRefinementChecklist() {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">Loading...</td></tr>}
+              {loading && <LoadingRow colSpan={11} />}
               {!loading && filtered.length === 0 && <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">No items.</td></tr>}
               {filtered.map((r) => (
                 <tr key={r.id} className="border-b border-line hover:bg-off/40">

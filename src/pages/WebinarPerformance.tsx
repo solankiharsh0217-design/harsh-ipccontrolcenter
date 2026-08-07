@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingRow } from "@/components/ui-bits";
 import { inr, pct, num } from "@/lib/roas/format";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/auditLog";
@@ -460,7 +460,7 @@ export default function WebinarPerformance() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={18} className="py-6 px-3 text-center text-muted-foreground">Loading…</td></tr>}
+            {loading && <LoadingRow colSpan={18} />}
             {!loading && filtered.length === 0 && (
               <tr><td colSpan={18} className="py-10 px-3 text-center">
                 <div className="font-serif text-[15px] text-black mb-1">No webinar reports found for this period.</div>
