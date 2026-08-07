@@ -68,10 +68,9 @@ describe('FinanceSuccessDashboard', () => {
     expect(screen.getByText(/Finance Success Dashboard/i)).toBeInTheDocument();
   });
 
-  it('shows summary tab by default (Baseline check for refactor)', () => {
+  it('shows Today\'s Work tab by default after refactor', () => {
     renderWithProviders(<FinanceSuccessDashboard />);
-    // In current version it shows "Webinar Summary"
-    // We expect this to change to "Daily Queue" or "Today's Work" in step 1.
-    expect(screen.getByRole('tab', { name: /Webinar Summary/i })).toBeInTheDocument();
+    // After refactor, the default tab is "work" with label "Today's Work"
+    expect(screen.getByRole('tab', { name: /Today's Work/i })).toBeInTheDocument();
   });
 });
