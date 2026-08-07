@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { LoadingState } from "@/components/ui-bits";
 import type { EligibleAssignee } from "@/lib/eligibleAssignees";
 import {
   type MBCase, type MBServicePeriod,
@@ -50,7 +51,7 @@ export default function CaseDrawer({ caseId, onClose, canEdit, isAdmin, buyers }
   if (loading || !c) {
     return (
       <div className="fixed inset-0 z-50 bg-black/40 flex justify-end" onClick={onClose}>
-        <div className="w-full max-w-2xl bg-white p-6">Loading…</div>
+        <div className="w-full max-w-2xl bg-white p-6"><LoadingState /></div>
       </div>
     );
   }
