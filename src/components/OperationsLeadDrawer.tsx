@@ -128,7 +128,29 @@ export default function OperationsLeadDrawer({
   const [exactStageMovedAt, setExactStageMovedAt] = useState<string | null>(null);
   const [deliveryBuyers, setDeliveryBuyers] = useState<{ id: string; full_name: string }[]>([]);
 
+  // ── Readiness completion / move logic ─────────────────────────
+  const isReady = (readinessSummary?.pct ?? 0) >= 100 && !!lead.process_template_id;
+  const currentStageObj = useMemo(
+    () => opsStages.find((s) => s.id === lead.stage_id) ?? null,
+    [opsStages, lead.stage_id],
+  );
+  const targetStageObj = useMemo(
+    () => resolveReadinessTargetStage(
+      opsStages,
+      lead.stage_id ?? null,
+      readinessSettings?.operations_readiness_target_stage_id ?? null,
+    ),
+    [opsStages, lead.stage_id, readinessSettings],
+  );
+  const alreadyAtOrAfterTarget = !!targetStageObj && isAtOrAfterTarget(
+    opsStages, lead.stage_id ?? null, targetStageObj.id,
+  );
+  const canMoveReadiness = !!(profile?.id) && (
+    isAdmin || (!!lead.assigned_media_buyer_id && lead.assigned_media_buyer_id === profile.id)
+  );
+
   useEffect(() => {
+
     if (lead.service_status === "not_started" || !lead.process_template_id) {
       setActiveTab("onboarding");
     } else if (isReady && !alreadyAtOrAfterTarget) {
