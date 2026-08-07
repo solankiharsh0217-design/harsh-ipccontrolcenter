@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/auditLog";
 import MediaBuyerAliasManager from "@/components/admin/MediaBuyerAliasManager";
 import OperationsHandoffRulesPanel from "@/components/admin/OperationsHandoffRulesPanel";
 import OperationsRewardRulesPanel from "@/components/admin/OperationsRewardRulesPanel";
+import { LoadingState } from "@/components/ui-bits";
 
 
 const MS = "master_settings";
@@ -266,7 +267,7 @@ function BusinessProfileSection() {
     logActivity({ module_key: MS, module_label: MSL, action_type: "business_profile_updated", entity_type: "business_profile", new_values: form, summary: "Business profile updated." });
   };
 
-  if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
+  if (loading) return <LoadingState />;
   const F = (key: string) => ({ value: form[key] ?? "", onChange: (e: any) => setForm({ ...form, [key]: e.target.value }) });
 
   return (
@@ -709,7 +710,7 @@ function RecoverySettingsSection() {
     logActivity({ module_key: MS, module_label: MSL, action_type: "recovery_threshold_updated", entity_type: "payment_recovery_settings", new_values: s, summary: "Payment recovery thresholds updated." });
   };
 
-  if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
+  if (loading) return <LoadingState />;
 
   return (
     <div className={cardCls + " p-6"}>
@@ -791,7 +792,7 @@ function EligibilitySection() {
     logActivity({ module_key: MS, module_label: MSL, action_type: "eligibility_default_updated", entity_type: "eligibility_default", entity_label: role, old_values: { [flag]: cur[flag] ?? false }, new_values: { [flag]: val }, summary: `Eligibility default for ${role}: ${flag} ${val ? "enabled" : "disabled"}.` });
   };
 
-  if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
+  if (loading) return <LoadingState />;
 
   return (
     <div className={cardCls + " p-6"}>
@@ -859,7 +860,7 @@ function WhatsAppTemplatesSection() {
     logActivity({ module_key: MS, module_label: MSL, action_type: "whatsapp_template_updated", entity_type: "whatsapp_template", entity_label: label, new_values: { template: v }, summary: `WhatsApp template '${label}' updated.` });
   };
 
-  if (loading) return <div className="font-sans text-[13px] text-muted-foreground">Loading…</div>;
+  if (loading) return <LoadingState />;
 
   return (
     <div className={cardCls + " p-6"}>
