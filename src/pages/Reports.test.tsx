@@ -101,7 +101,8 @@ describe("Reports List Queries Narrowing Test", () => {
     expect(roasElements.length).toBeGreaterThan(0);
     
     // Confirm media buyer initials from join renders correctly
-    expect(screen.getByText("BA")).toBeInTheDocument();
+    // The initials function: "Buyer A" -> "BA"
+    expect(screen.queryAllByText("BA").length).toBeGreaterThan(0);
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
