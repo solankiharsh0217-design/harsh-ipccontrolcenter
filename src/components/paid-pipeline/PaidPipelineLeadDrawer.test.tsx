@@ -78,16 +78,49 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
     expect(hasCorrectTab).toBe(true);
   });
 
-  it("updates primary action button correctly", async () => {
+  it("updates primary action button correctly across all stages", async () => {
+    // 1. New lead (No token)
     const { rerender } = render(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, token_amount_collected: 0} as any} /></MemoryRouter>);
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
     expect(screen.getByText("Record Token Payment")).toBeTruthy();
 
+    // 2. Token paid, balance pending
     await act(async () => {
       rerender(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, token_amount_collected: 100, balance_pending: 1000} as any} /></MemoryRouter>);
     });
+    expect(screen.getByText("Add Payment")).toBeTruthy();
+
+    // 3. Fully paid, not yet Operations Ready
+    await act(async () => {
+      rerender(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, balance_pending: 0, pipeline_stage: "Paid"} as any} /></MemoryRouter>);
+    });
+    expect(screen.getByText("Update Status")).toBeTruthy();
+
+    // 4. Operations Ready
+    await act(async () => {
+      rerender(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, balance_pending: 0, pipeline_stage: "Operations Ready"} as any} /></MemoryRouter>);
+    });
+    expect(screen.getByText("Send to Operations CRM")).toBeTruthy();
+  });
+
+  it("defaults to Onboarding tab when access verification is incomplete", async () => {
+    (accessVerification.computeOverall as any).mockReturnValue("incomplete");
     
-    const bodyText = document.body.textContent || "";
-    expect(bodyText).toContain("Add Payment");
+    // Lead with no other blockers: token paid, balance zero, CoC completed
+    const readyForVerificationLead = {
+      ...mockLead,
+      token_amount_collected: 500,
+      balance_pending: 0,
+      coc_status: "Completed"
+    };
+
+    await act(async () => {
+      render(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={readyForVerificationLead as any} /></MemoryRouter>);
+    });
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
+
+    const tabs = screen.getAllByTestId("mock-tabs");
+    const activeTab = tabs[0].getAttribute("data-value");
+    expect(activeTab).toBe("onboarding");
   });
 });
