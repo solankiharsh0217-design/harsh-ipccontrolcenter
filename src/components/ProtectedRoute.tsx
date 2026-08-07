@@ -1,11 +1,12 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { ReactNode } from "react";
+import { LoadingState } from "@/components/ui-bits";
 import type { ModuleKey } from "@/lib/modules";
 
 export default function ProtectedRoute({ children, adminOnly, moduleKey }: { children: ReactNode; adminOnly?: boolean; moduleKey?: ModuleKey }) {
   const { user, profile, isAdmin, hasModule, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-sans text-sm text-muted-foreground">Loading…</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><LoadingState /></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (profile && profile.status === "pending" && !isAdmin) {
     return (

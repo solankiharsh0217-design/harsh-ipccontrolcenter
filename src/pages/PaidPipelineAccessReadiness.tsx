@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { LoadingState } from "@/components/ui-bits";
 import { toast } from "sonner";
 import { inr, FINAL_STAGES, DROP_STAGES } from "@/lib/paidPipeline";
 import { createNotification, notifyAdmins } from "@/lib/notifications";
@@ -269,7 +270,7 @@ export default function PaidPipelineAccessReadiness() {
       </div>
 
       {loading ? (
-        <div className="text-center text-sm text-muted-foreground py-12">Loading…</div>
+        <LoadingState block />
       ) : filtered.length === 0 ? (
         <div className="text-center text-sm text-muted-foreground py-12 border border-dashed border-line rounded">No members match these filters.</div>
       ) : (

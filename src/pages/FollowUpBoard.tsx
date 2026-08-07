@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { LoadingState } from "@/components/ui-bits";
 import { toast } from "sonner";
 import { saveCentralFollowUp } from "@/lib/followUps";
 import { logActivity } from "@/lib/auditLog";
@@ -599,7 +600,7 @@ export default function FollowUpBoard() {
       )}
 
       {loading ? (
-        <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>
+        <LoadingState block />
       ) : filtered.length === 0 ? (
         <div className="p-12 text-center text-sm text-muted-foreground border border-dashed border-line rounded-lg">No follow-ups match your filters.</div>
       ) : (
