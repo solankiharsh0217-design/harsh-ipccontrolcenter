@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, EmptyRow } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { getGstAwareAdSpend } from "@/lib/roas/gst";
@@ -637,7 +637,7 @@ export default function FounderDashboard() {
                 </thead>
                 <tbody>
                   {Object.values(data.team).length === 0 ? (
-                    <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground text-xs">No team data yet.</td></tr>
+                    <EmptyRow colSpan={8} title="No team data yet." />
                   ) : Object.values(data.team)
                     .sort((a: any, b: any) => b.revenue - a.revenue)
                     .map((t: any, i) => (
@@ -672,7 +672,7 @@ export default function FounderDashboard() {
                 </thead>
                 <tbody>
                   {Object.values(data.marketing).length === 0 ? (
-                    <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground text-xs">No marketing data yet.</td></tr>
+                    <EmptyRow colSpan={6} title="No marketing data yet." />
                   ) : Object.values(data.marketing)
                     .sort((a: any, b: any) => b.revenue - a.revenue)
                     .map((m: any, i) => (
@@ -713,7 +713,7 @@ export default function FounderDashboard() {
                 </thead>
                 <tbody>
                   {Object.values(data.financePartners).length === 0 ? (
-                    <tr><td colSpan={8} className="px-4 py-6 text-center text-muted-foreground text-xs">No finance cases yet.</td></tr>
+                    <EmptyRow colSpan={8} title="No finance cases yet." />
                   ) : Object.values(data.financePartners).map((p: any, i) => {
                     const success = p.total > 0 ? ((p.disbursed / p.total) * 100).toFixed(0) + "%" : NA;
                     return (
