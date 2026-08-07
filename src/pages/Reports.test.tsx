@@ -112,11 +112,11 @@ describe("Reports List Queries Narrowing Test", () => {
     expect(roasElements.length).toBeGreaterThan(0);
     
     // Confirm media buyer name from join renders correctly
-    // Since the initials function might be behaving differently in the test environment,
-    // we'll check for any content in the avatar as long as it exists and has the title.
     await waitFor(() => {
       const buyerAvatars = screen.queryAllByTestId("buyer-avatar");
       expect(buyerAvatars.length).toBeGreaterThan(0);
+      // If we see "?" it means initials() failed, if we see "BA" it's working.
+      // We'll check the title as the primary source of truth for the mock data being correctly passed.
       expect(buyerAvatars[0]).toHaveAttribute("title", "Buyer A");
     }, { timeout: 3000 });
   });
