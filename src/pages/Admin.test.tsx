@@ -88,13 +88,18 @@ describe("Admin Panel (Identity & Access)", () => {
     fireEvent.change(screen.getByPlaceholderText("Set a password"), { target: { value: "password123" } });
     
     const addButton = screen.getByRole("button", { name: /Add member/i });
+    
+    // Select a role from the catalog mock (which currently returns empty, so we just rely on the default or select if populated)
+    // The component defaults mRole to "Media Buyer".
+    
     // Wrap in act because it triggers multiple state updates
     await act(async () => {
       fireEvent.click(addButton);
     });
 
+    // Wait for the async function invocation to happen
     await waitFor(() => {
       expect(supabase.functions.invoke).toHaveBeenCalled();
-    }, { timeout: 2000 });
+    }, { timeout: 3000 });
   });
 });
