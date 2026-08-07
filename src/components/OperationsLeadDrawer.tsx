@@ -112,6 +112,8 @@ export default function OperationsLeadDrawer({
   onSaved: () => void;
 }) {
   const { profile, isAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState("overview");
+
   const [events, setEvents] = useState<ServiceEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [action, setAction] = useState<ActionType | null>(null);
