@@ -26,8 +26,6 @@ vi.mock("@/components/ui/tabs", () => ({
   TabsTrigger: ({ children, value }: any) => <button role="tab" data-value={value} data-state={value === 'overview' ? 'active' : 'inactive'}>{children}</button>,
   TabsContent: ({ children, value }: any) => <div role="tabpanel" data-value={value}>{children}</div>,
 }));
-import * as AuthModule from "@/context/AuthContext";
-import * as accessVerification from "@/lib/accessVerification";
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
