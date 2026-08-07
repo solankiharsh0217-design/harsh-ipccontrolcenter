@@ -103,12 +103,15 @@ describe("Reports List Queries Narrowing Test", () => {
     expect(roasElements.length).toBeGreaterThan(0);
     
     // Confirm media buyer name from join renders correctly
-    // We check for the title "Buyer A" which is always on the avatar div
+    // The initials function: "Buyer A" -> "BA"
+    // We check for the text BA which is rendered by initials(b.name)
     await waitFor(() => {
-      const buyerAvatars = document.querySelectorAll('.spend-av');
-      const hasBuyerA = Array.from(buyerAvatars).some(el => el.getAttribute('title') === "Buyer A");
-      expect(hasBuyerA).toBe(true);
-    });
+      // Look for the text BA in the entire document
+      const elements = screen.queryAllByText((content, element) => {
+        return element?.textContent === "BA" && element?.className.includes("spend-av");
+      });
+      expect(elements.length).toBeGreaterThan(0);
+    }, { timeout: 3000 });
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
