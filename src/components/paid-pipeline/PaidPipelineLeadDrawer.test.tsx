@@ -5,6 +5,20 @@ import { MemoryRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 import * as accessVerification from "@/lib/accessVerification";
 
+// Mock the Tabs component to be predictable in JSDOM
+vi.mock("@/components/ui/tabs", () => ({
+  Tabs: ({ children, value }: any) => (
+    <div data-testid="mock-tabs" data-value={value}>{children}</div>
+  ),
+  TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
+  TabsTrigger: ({ children, value }: any) => (
+    <button role="tab" data-value={value} aria-label={value}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: any) => (
+    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
+  ),
+}));
+
 vi.mock("@/lib/accessVerification", () => ({
   fetchVerificationForPaidLead: vi.fn(),
   computeOverall: vi.fn(),
@@ -23,6 +37,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     limit: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    update: vi.fn().mockReturnThis(),
     auth: {
       getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-123" } }, error: null }),
     },
@@ -53,6 +68,7 @@ const mockLead = {
   balance_pending: 1000,
   total_collected: 500,
   token_amount_collected: 100,
+  deal_value_including_gst: 1500
 };
 
 const defaultProps = {
@@ -83,16 +99,18 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
       );
     });
 
-    await waitFor(() => expect(screen.queryByTestId("drawer-loader")).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
 
-    const hasFinance = (val: string) => screen.queryAllByText((content, element) => {
-      const text = element?.textContent || "";
-      return text.includes(val);
-    }).length > 0;
+    const hasFinance = (val: string) => {
+      const elements = screen.queryAllByText((content, element) => {
+        const text = element?.textContent || "";
+        return text.includes(val);
+      });
+      return elements.length > 0;
+    };
 
     expect(hasFinance("INR_1000_MOCK")).toBe(true);
     expect(hasFinance("INR_500_MOCK")).toBe(true);
     expect(hasFinance("INR_100_MOCK")).toBe(true);
   });
 });
-

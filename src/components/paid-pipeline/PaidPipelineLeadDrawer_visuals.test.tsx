@@ -169,10 +169,13 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
       );
     });
     
-    // Check for "Add Payment" in the primary action button
-    const buttons = screen.getAllByRole("button");
-    const addPaymentBtn = buttons.find(b => b.textContent === "Add Payment");
-    expect(addPaymentBtn).toBeTruthy();
+    // Check for "Add Payment" in the primary action button text nodes
+    await waitFor(() => {
+      const addPaymentFound = screen.queryAllByText((content, element) => {
+        return element?.tagName.toLowerCase() === 'button' && content === 'Add Payment';
+      });
+      expect(addPaymentFound.length).toBeGreaterThan(0);
+    });
   });
 
   it("defaults to correct tab based on blockers", async () => {
@@ -185,7 +188,8 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
     });
     await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
     
-    const tabs = screen.getAllByTestId("mock-tabs");
-    expect(tabs[0].getAttribute("data-value")).toBe("payments");
+    // Find the wrapper that holds the state
+    const tabWrappers = screen.getAllByTestId("mock-tabs");
+    expect(tabWrappers[0].getAttribute("data-value")).toBe("payments");
   });
 });
