@@ -6,190 +6,226 @@ export default function AdminCenter() {
   const nav = useNavigate();
   const { isAdmin, hasModule } = useAuth();
 
-  const cards = [
+  const sections = [
     {
-      title: "Master Settings",
-      desc: "Business profile, products, CRM stages, recovery thresholds, and templates.",
-      cta: "Open Master Settings",
-      to: "/master-settings",
-      show: isAdmin || hasModule("master_settings"),
+      label: "People",
+      cards: [
+        {
+          title: "Team Directory",
+          desc: "Team members, roles, departments, and contact information.",
+          cta: "Open Team Directory",
+          to: "/team",
+          show: isAdmin || hasModule("team"),
+        },
+        {
+          title: "Admin Panel",
+          desc: "Access requests, module access, and admin-level controls.",
+          cta: "Open Admin Panel",
+          to: "/admin",
+          show: isAdmin,
+        },
+        {
+          title: "Access Templates",
+          desc: "Reusable module access presets. Apply a template to any team member in one click.",
+          cta: "Manage Access Templates",
+          to: "/admin-center/access-templates",
+          show: isAdmin,
+        },
+        {
+          title: "Assignment Eligibility Setup",
+          desc: "Bulk enable or disable lead assignment eligibility for multiple team members at once.",
+          cta: "Open Eligibility Setup",
+          to: "/admin-center/eligibility",
+          show: isAdmin,
+        },
+        {
+          title: "Media Buyer Dashboard Preview",
+          desc: "View each media buyer's work dashboard, pending calls, active ad clients, and overdue tasks.",
+          cta: "Open Media Buyer Desk",
+          to: "/media-buyer-operations",
+          show: isAdmin || hasModule("media_buyer_operations"),
+        },
+      ],
     },
     {
-      title: "Team Directory",
-      desc: "Team members, roles, departments, and contact information.",
-      cta: "Open Team Directory",
-      to: "/team",
-      show: isAdmin || hasModule("team"),
+      label: "Business Configuration",
+      cards: [
+        {
+          title: "Master Settings",
+          desc: "Business profile, products, CRM stages, recovery thresholds, and templates.",
+          cta: "Open Master Settings",
+          to: "/master-settings",
+          show: isAdmin || hasModule("master_settings"),
+        },
+        {
+          title: "Company Settings",
+          desc: "Set legal name, GSTIN, address, bank details, branding (logo/signature/stamp) and email sender used on invoices.",
+          cta: "Open Company Settings",
+          to: "/admin-center/company-settings",
+          show: isAdmin,
+        },
+        {
+          title: "Invoice Settings",
+          desc: "Configure invoice numbering, default GST rates, tax mode, HSN/SAC and standard invoice text.",
+          cta: "Open Invoice Settings",
+          to: "/admin-center/invoice-settings",
+          show: isAdmin,
+        },
+        {
+          title: "Invoice Item Catalog",
+          desc: "Manage reusable invoice items, categories, default rates, HSN/SAC, and tax status.",
+          cta: "Open Item Catalog",
+          to: "/admin-center/item-catalog",
+          show: isAdmin,
+        },
+        {
+          title: "Offer Catalog",
+          desc: "Manage promised services, bonuses, and offer presets.",
+          cta: "Open Offer Catalog",
+          to: "/admin-center/offer-catalog",
+          show: isAdmin,
+        },
+        {
+          title: "Service Packages / Tiers",
+          desc: "Define the service tiers (Normal, Specialized, Premium…) you can attach during paid lead import. Carries from Calling CRM → Paid Pipeline → Operations.",
+          cta: "Open Service Packages",
+          to: "/admin-center/service-packages",
+          show: isAdmin,
+        },
+        {
+          title: "Lead Conversion Rules",
+          desc: "Configure which CRM stages trigger Send to Paid Onboarding, default destination, owner policy, and follow-up handling.",
+          cta: "Open Conversion Rules",
+          to: "/admin-center/conversion-rules",
+          show: isAdmin,
+        },
+        {
+          title: "SAC / HSN Master",
+          desc: "Curate the SAC/HSN code list used by the invoice editor's tax-code finder.",
+          cta: "Open SAC/HSN Master",
+          to: "/admin-center/tax-codes",
+          show: isAdmin,
+        },
+      ],
     },
     {
-      title: "Access Templates",
-      desc: "Reusable module access presets. Apply a template to any team member in one click.",
-      cta: "Manage Access Templates",
-      to: "/admin-center/access-templates",
-      show: isAdmin,
+      label: "Communication",
+      cards: [
+        {
+          title: "Notifications",
+          desc: "View and manage in-app notifications and alerts.",
+          cta: "Open Notifications",
+          to: "/notifications",
+          show: isAdmin || hasModule("notifications"),
+        },
+        {
+          title: "Code of Conduct",
+          desc: "Configure the Diamond Membership agreement template and track every signing request, status, and signed record.",
+          cta: "Open Code of Conduct",
+          to: "/admin-center/code-of-conduct",
+          show: isAdmin,
+        },
+      ],
     },
     {
-      title: "Admin Panel",
-      desc: "Access requests, module access, and admin-level controls.",
-      cta: "Open Admin Panel",
-      to: "/admin",
-      show: isAdmin,
+      label: "Performance",
+      cards: [
+        {
+          title: "Team Performance Dashboard",
+          desc: "Executive view of team productivity: attendance, KPI completion, scores, pending reviews, reward liability, and people needing attention — all in one place.",
+          cta: "Open Team Performance Dashboard",
+          to: "/team-performance",
+          show: isAdmin,
+        },
+        {
+          title: "Team Performance OS",
+          desc: "Set-and-forget KPIs. Manage the KPI library, role-based templates, and assign KPIs to team members.",
+          cta: "Open Team Performance",
+          to: "/team-performance/admin",
+          show: isAdmin,
+        },
+        {
+          title: "KPI Review & Scorecard",
+          desc: "Review submitted KPI proofs, approve or reject with notes, mark overdue KPIs missed, and inspect daily/weekly/monthly scorecards per team member.",
+          cta: "Open KPI Review",
+          to: "/team-performance/review",
+          show: isAdmin,
+        },
+        {
+          title: "KPI Rewards",
+          desc: "Configure reward rules, generate reward earnings from approved KPI performance, and track approvals and payouts.",
+          cta: "Open KPI Rewards",
+          to: "/team-performance/rewards",
+          show: isAdmin,
+        },
+      ],
     },
     {
-      title: "Team Performance Dashboard",
-      desc: "Executive view of team productivity: attendance, KPI completion, scores, pending reviews, reward liability, and people needing attention — all in one place.",
-      cta: "Open Team Performance Dashboard",
-      to: "/team-performance",
-      show: isAdmin,
+      label: "Resources & System",
+      cards: [
+        {
+          title: "IPC Resource Library",
+          desc: "Upload, organize, and share team resources, files, templates, links, and assets.",
+          cta: "Manage Resource Library",
+          to: "/admin-center/resource-library",
+          show: isAdmin,
+        },
+        {
+          title: "Audit Log",
+          desc: "History of important changes across the Control Center.",
+          cta: "Open Audit Log",
+          to: "/audit-log",
+          show: isAdmin || hasModule("audit_log"),
+        },
+        {
+          title: "Lead Rescue Search",
+          desc: "Find any lead — including converted, hidden, archived, or unlinked — across CRM and Paid Pipeline.",
+          cta: "Open Lead Rescue",
+          to: "/admin-center/lead-rescue",
+          show: isAdmin,
+        },
+        {
+          title: "System Refinement Checklist",
+          desc: "Track QA issues, functional gaps, data accuracy checks, and refinement tasks before finalizing the Business OS.",
+          cta: "Open Checklist",
+          to: "/admin-center/system-refinement",
+          show: isAdmin,
+        },
+      ],
     },
-    {
-      title: "Team Performance OS",
-      desc: "Set-and-forget KPIs. Manage the KPI library, role-based templates, and assign KPIs to team members. Daily/weekly/monthly instances generate automatically in Phase 2.",
-      cta: "Open Team Performance",
-      to: "/team-performance/admin",
-      show: isAdmin,
-    },
-    {
-      title: "KPI Review & Scorecard",
-      desc: "Review submitted KPI proofs, approve or reject with notes, mark overdue KPIs missed, and inspect daily/weekly/monthly scorecards per team member.",
-      cta: "Open KPI Review",
-      to: "/team-performance/review",
-      show: isAdmin,
-    },
-    {
-      title: "KPI Rewards",
-      desc: "Configure reward rules, generate reward earnings from approved KPI performance, and track approvals and payouts. Internal tracking only.",
-      cta: "Open KPI Rewards",
-      to: "/team-performance/rewards",
-      show: isAdmin,
-    },
-    {
-      title: "Audit Log",
-      desc: "History of important changes across the Control Center.",
-      cta: "Open Audit Log",
-      to: "/audit-log",
-      show: isAdmin || hasModule("audit_log"),
-    },
-    {
-      title: "Notifications",
-      desc: "View and manage in-app notifications and alerts.",
-      cta: "Open Notifications",
-      to: "/notifications",
-      show: isAdmin || hasModule("notifications"),
-    },
-    {
-      title: "System Refinement Checklist",
-      desc: "Track QA issues, functional gaps, data accuracy checks, and refinement tasks before finalizing the Business OS.",
-      cta: "Open Checklist",
-      to: "/admin-center/system-refinement",
-      show: isAdmin,
-    },
-    {
-      title: "Lead Conversion Rules",
-      desc: "Configure which CRM stages trigger Send to Paid Onboarding, default destination, owner policy, and follow-up handling.",
-      cta: "Open Conversion Rules",
-      to: "/admin-center/conversion-rules",
-      show: isAdmin,
-    },
-    {
-      title: "Lead Rescue Search",
-      desc: "Find any lead — including converted, hidden, archived, or unlinked — across CRM and Paid Pipeline. Restore visibility or repair broken links.",
-      cta: "Open Lead Rescue",
-      to: "/admin-center/lead-rescue",
-      show: isAdmin,
-    },
-    {
-      title: "Assignment Eligibility Setup",
-      desc: "Bulk enable or disable lead assignment eligibility for multiple team members at once.",
-      cta: "Open Eligibility Setup",
-      to: "/admin-center/eligibility",
-      show: isAdmin,
-    },
-    {
-      title: "Code of Conduct",
-      desc: "Configure the Diamond Membership agreement template and track every signing request, status, and signed record.",
-      cta: "Open Code of Conduct",
-      to: "/admin-center/code-of-conduct",
-      show: isAdmin,
-    },
-    {
-      title: "Company Settings",
-      desc: "Set legal name, GSTIN, address, bank details, branding (logo/signature/stamp) and email sender used on invoices.",
-      cta: "Open Company Settings",
-      to: "/admin-center/company-settings",
-      show: isAdmin,
-    },
-    {
-      title: "Invoice Settings",
-      desc: "Configure invoice numbering, default GST rates, tax mode, HSN/SAC and standard invoice text.",
-      cta: "Open Invoice Settings",
-      to: "/admin-center/invoice-settings",
-      show: isAdmin,
-    },
-    {
-      title: "Invoice Item Catalog",
-      desc: "Manage reusable invoice items, categories, default rates, HSN/SAC, and tax status.",
-      cta: "Open Item Catalog",
-      to: "/admin-center/item-catalog",
-      show: isAdmin,
-    },
-    {
-      title: "Offer Catalog",
-      desc: "Manage promised services, bonuses, and offer presets.",
-      cta: "Open Offer Catalog",
-      to: "/admin-center/offer-catalog",
-      show: isAdmin,
-    },
-    {
-      title: "IPC Resource Library",
-      desc: "Upload, organize, and share team resources, files, templates, links, and assets.",
-      cta: "Manage Resource Library",
-      to: "/admin-center/resource-library",
-      show: isAdmin,
-    },
-    {
-      title: "Service Packages / Tiers",
-      desc: "Define the service tiers (Normal, Specialized, Premium…) you can attach during paid lead import. Carries from Calling CRM → Paid Pipeline → Operations.",
-      cta: "Open Service Packages",
-      to: "/admin-center/service-packages",
-      show: isAdmin,
-    },
-    {
-      title: "SAC / HSN Master",
-      desc: "Curate the SAC/HSN code list used by the invoice editor's tax-code finder.",
-      cta: "Open SAC/HSN Master",
-      to: "/admin-center/tax-codes",
-      show: isAdmin,
-    },
-    {
-      title: "Media Buyer Dashboard Preview",
-      desc: "View each media buyer's work dashboard, pending calls, active ad clients, and overdue tasks.",
-      cta: "Open Media Buyer Desk",
-      to: "/media-buyer-operations",
-      show: isAdmin || hasModule("media_buyer_operations"),
-    },
-  ].filter((c) => c.show);
+  ].map(s => ({
+    ...s,
+    cards: s.cards.filter(c => c.show)
+  })).filter(s => s.cards.length > 0);
+
 
   return (
     <div className="max-w-[1060px]">
       <PageHead title="Admin Center" sub="Manage settings, access, team members, audit history, and system controls." />
-      <SectionLabel>Modules</SectionLabel>
-      {cards.length === 0 ? (
+      
+      {sections.length === 0 ? (
         <div className="border border-line rounded-xl bg-white px-[22px] py-8 font-sans text-[13px] text-muted-foreground">
           You don't have access to any modules in this center.
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-3.5">
-          {cards.map((c) => (
-            <div key={c.to} className="rounded-xl border border-line bg-white pt-[26px] px-[22px] pb-5 flex flex-col">
-              <div className="font-serif text-xl font-medium text-black mb-2 leading-tight">{c.title}</div>
-              <div className="font-sans text-xs font-light text-muted-foreground leading-[1.7] mb-5 flex-1">{c.desc}</div>
-              <button
-                onClick={() => nav(c.to)}
-                className="font-sans text-[12px] font-medium text-white bg-black hover:bg-[#222] transition-colors rounded-md px-4 py-2.5 self-start"
-              >
-                {c.cta} →
-              </button>
+        <div className="space-y-10">
+          {sections.map((section) => (
+            <div key={section.label}>
+              <SectionLabel>{section.label}</SectionLabel>
+              <div className="grid grid-cols-3 gap-3.5">
+                {section.cards.map((c) => (
+                  <div key={c.to} className="rounded-xl border border-line bg-white pt-[26px] px-[22px] pb-5 flex flex-col">
+                    <div className="font-serif text-xl font-medium text-black mb-2 leading-tight">{c.title}</div>
+                    <div className="font-sans text-xs font-light text-muted-foreground leading-[1.7] mb-5 flex-1">{c.desc}</div>
+                    <button
+                      onClick={() => nav(c.to)}
+                      className="font-sans text-[12px] font-medium text-white bg-black hover:bg-[#222] transition-colors rounded-md px-4 py-2.5 self-start"
+                    >
+                      {c.cta} →
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -203,7 +239,7 @@ export default function AdminCenter() {
               Hard Wipe All Lead Data
             </div>
             <div className="font-sans text-xs font-light text-red-900/80 leading-[1.7] mb-5 flex-1">
-              Permanently delete all CRM leads, batches, paid pipeline buyers, payments, operations clients, follow-ups, tag assignments, and lead-linked notifications — including active, archived, and soft-deleted records. Team, settings, stages, tags, templates, and rules are preserved.
+              Permanently delete all CRM leads, batches, paid pipeline buyers, payments, operations clients, follow-ups, tag assignments, and lead-linked notifications.
             </div>
             <button
               onClick={() => nav("/admin-center/clean-slate")}
@@ -214,6 +250,7 @@ export default function AdminCenter() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
