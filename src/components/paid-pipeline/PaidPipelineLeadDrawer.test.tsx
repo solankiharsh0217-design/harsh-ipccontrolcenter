@@ -8,7 +8,7 @@ import * as accessVerification from "@/lib/accessVerification";
 vi.mock("@/components/ui/tabs", () => ({
   Tabs: ({ children, value }: any) => <div data-testid="mock-tabs" data-value={value}>{children}</div>,
   TabsList: ({ children }: any) => <div>{children}</div>,
-  TabsTrigger: ({ children }: any) => <button>{children}</button>,
+  TabsTrigger: ({ children, value }: any) => <button>{children}</button>,
   TabsContent: ({ children, value }: any) => <div data-testid={`tab-content-${value}`}>{children}</div>,
 }));
 
@@ -42,6 +42,11 @@ vi.mock("@/lib/paidPipeline", () => ({
   inr: (val: any) => `INR_${val}_MOCK`,
   recomputePaidLead: vi.fn(),
   fmtDate: (d: string) => d,
+}));
+
+// Mock auditLog to prevent TypeError during tests
+vi.mock("@/lib/auditLog", () => ({
+  logActivity: vi.fn().mockResolvedValue({}),
 }));
 
 const mockAuthContext = { user: { id: "u" }, isAdmin: true };
