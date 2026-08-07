@@ -392,21 +392,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     onChanged();
   };
 
-  const today = new Date().toISOString().slice(0, 10);
-  const currentStage = pipelineStages.find((s) => s.id === lead.stage_id);
-  const matchingRule = findRuleForStage(opsRules, lead.pipeline_id, lead.stage_id, stagesById);
-  const isOpsEligible = !!matchingRule;
-  const inOps = opsLeadId !== null;
-  const rulePrefill = matchingRule ? {
-    serviceDays: matchingRule.default_service_days ?? null,
-    packageName: matchingRule.default_service_package ?? null,
-    assignMethod: matchingRule.default_assignment_method,
-    singleBuyerId: matchingRule.default_single_buyer_id,
-    duplicateBehavior: matchingRule.duplicate_behavior,
-  } : null;
-
   const paidLeadId = (lead as any).paid_pipeline_lead_id as string | null;
-  const hasToken = !!paidSnap && Number(paidSnap.token_amount_collected || 0) > 0;
 
   const openTokenPayment = () => {
     if (!paidLeadId) { toast.error("This lead is not linked to a Paid Pipeline buyer yet."); return; }
