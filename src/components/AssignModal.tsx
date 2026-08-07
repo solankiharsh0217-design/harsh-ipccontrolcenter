@@ -5,6 +5,7 @@ import { X, Users, ArrowRight } from "lucide-react";
 import { logActivity } from "@/lib/auditLog";
 import { createNotification } from "@/lib/notifications";
 import { moduleAliases } from "@/lib/eligibleAssignees";
+import { LoadingState } from "@/components/ui-bits";
 
 type EligibilityFlag =
   | "can_receive_calling_crm_leads"
@@ -295,7 +296,7 @@ export default function AssignModal(props: Props) {
             <div>
               <label className="form-label">Select role</label>
               {loading ? (
-                <div className="text-xs text-muted-foreground">Loading roles…</div>
+                <LoadingState label="Loading roles…" />
               ) : rolesList.length === 0 ? (
                 <div className="p-3 rounded-lg bg-[#FFFBEB] border border-[#FDE68A] text-xs">
                   No active team members found. Add members from Admin Center / Team Directory first.
