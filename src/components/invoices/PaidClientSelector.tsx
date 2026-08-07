@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { searchPaidClients } from "@/lib/invoices/api";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 
 interface Props {
   open: boolean;
@@ -35,7 +35,7 @@ export default function PaidClientSelector({ open, onOpenChange, onSelect }: Pro
         <Input autoFocus placeholder="Search by name, email, phone, program" value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="max-h-[420px] overflow-y-auto mt-2 text-[12.5px]">
           {loading && <div className="p-3"><LoadingState /></div>}
-          {!loading && rows.length === 0 && <div className="text-muted-foreground p-3">No paid clients found.</div>}
+          {!loading && rows.length === 0 && <div className="p-3"><EmptyState title="No paid clients found." /></div>}
           {!loading && rows.map((r) => (
             <button key={r.id} onClick={() => { onSelect(r.id); onOpenChange(false); }} className="w-full text-left px-3 py-2 border-b border-line/50 hover:bg-off">
               <div className="font-medium">{r.name || "—"}</div>
