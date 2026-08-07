@@ -101,8 +101,8 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     fireEvent.click(onboardingTab);
 
     // 4. Find the stage picker (CrmStagePicker) and trigger a change
-    // Search for the container that has the specific style or icon
-    await screen.findByText(/Current/i);
+    // Search by text part that is definitely present in the Onboarding tab
+    await screen.findByText(/Batch information/i);
     
     // The picker renders a button with the current stage name or "—"
     const pickerTrigger = screen.getByRole("button", { name: /—|New Stage/ });
@@ -111,6 +111,7 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     // Find the new stage in the list and click it
     const newStageOption = await screen.findByText("New Stage");
     fireEvent.click(newStageOption);
+
 
 
 
