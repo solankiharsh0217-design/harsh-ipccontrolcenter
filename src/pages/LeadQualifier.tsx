@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo } from "react";
-import { PageHead } from "@/components/ui-bits";
+import { PageHead, EmptyRow } from "@/components/ui-bits";
 import {
   parseZoomCsv, parseRegistrationAndZoom, detectFileColumns,
   leadsToCsv, downloadCsv,
@@ -386,7 +386,7 @@ export default function LeadQualifier() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No leads in this category.</td></tr>}
+              {filtered.length === 0 && <EmptyRow colSpan={7} title="No leads in this category." />}
               {filtered.slice(0, 500).map((l) => {
                 const g = GRADE_STYLES[l.grade as keyof typeof GRADE_STYLES];
                 if (tab === "true-absentee" || tab === "non-attendee") {
