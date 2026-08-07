@@ -61,7 +61,8 @@ describe("Admin Panel (Identity & Access)", () => {
 
   it("renders correctly", () => {
     renderWithRouter(<Admin />);
-    expect(screen.getByText("Admin Panel")).toBeDefined();
+    // Use getAllByText for titles that might appear in breadcrumbs/navigation
+    expect(screen.getAllByText("Admin Panel").length).toBeGreaterThan(0);
     expect(screen.getByText("Add team member directly")).toBeDefined();
   });
 
