@@ -50,7 +50,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@/lib/paidPipeline", () => ({
-  inr: (val: any) => `₹${(Number(val) || 0).toLocaleString("en-IN")}`,
+  inr: (val: any) => `INR_FORMATTED_${val}`,
   recomputePaidLead: vi.fn(),
   fmtDate: (d: string) => d,
 }));
@@ -174,11 +174,9 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
     
     await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
 
-    // Check figures by finding the parent container or matching against the unique currency string
-    // The drawer renders them with inr(value)
-    expect(screen.getAllByText("₹1,000").length).toBe(1); // Balance
-    expect(screen.getAllByText("₹500").length).toBe(1);   // Collected
-    expect(screen.getAllByText("₹100").length).toBe(1);   // Token
+    expect(screen.getAllByText("INR_FORMATTED_1000").length).toBe(1); // Balance
+    expect(screen.getAllByText("INR_FORMATTED_500").length).toBe(1);   // Collected
+    expect(screen.getAllByText("INR_FORMATTED_100").length).toBe(1);   // Token
   });
 
   it("primary action button label changes correctly based on stage", async () => {
