@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Trophy, CheckCircle2, XCircle, Clock, ExternalLink, IndianRupee, Users, Timer, Wallet, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 import {
   listSubmissions, approveSubmission, rejectSubmission, updateRewardAmount,
   listPayoutsForMonth, upsertPayout, setPayoutStatus,
@@ -199,7 +199,7 @@ export default function OperationsRewards() {
         <div className="bg-white border border-line rounded-lg">
           <div className="px-3 py-2 border-b border-line font-serif text-sm">Monthly reward summary — {month}</div>
           {memberBreakdown.length === 0 ? (
-            <div className="p-6 text-center text-xs text-muted-foreground">No approved results for this month yet.</div>
+            <EmptyState title="No approved results for this month yet." center />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -258,7 +258,7 @@ export default function OperationsRewards() {
           {loading ? (
             <div className="p-6"><LoadingState /></div>
           ) : rows.length === 0 ? (
-            <div className="p-6 text-center text-xs text-muted-foreground">No {tab} submissions.</div>
+            <EmptyState title={`No ${tab} submissions.`} center />
           ) : (
             <div className="divide-y divide-line">
               {rows.map(r => (

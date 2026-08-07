@@ -4,7 +4,7 @@ import {
   type RewardRule,
 } from "@/lib/operationsConversions";
 import { supabase } from "@/integrations/supabase/client";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 
 interface BuyerRow {
   id: string;
@@ -84,7 +84,7 @@ export default function MediaBuyerPerformancePanel({ leads, month }: {
       {loading ? (
         <div className="p-4"><LoadingState /></div>
       ) : rows.length === 0 ? (
-        <div className="p-4 text-xs text-muted-foreground text-center">No media buyers with assigned clients yet.</div>
+        <EmptyState title="No media buyers with assigned clients yet." center />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
