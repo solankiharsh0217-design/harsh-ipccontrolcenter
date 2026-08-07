@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { supabase } from "@/integrations/supabase/client";
-import { getActiveHandoffRules, findRuleForStage, isRuleAutoReady, applyAutoHandoff } from "@/lib/operationsCrm";
+import * as operationsCrm from "@/lib/operationsCrm";
 import * as cocRules from "@/lib/codeOfConductRules";
 import { MemoryRouter } from "react-router-dom";
 
@@ -11,6 +11,7 @@ vi.mock("@/integrations/supabase/client", () => {
   const mockQuery = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(), // Added or
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     maybeSingle: vi.fn().mockResolvedValue({ data: {}, error: null }),
@@ -44,7 +45,7 @@ vi.mock("@/lib/codeOfConductRules", () => ({
 // Mock the sub-components to bypass Radix complexity
 vi.mock("@/components/crm/CrmStagePicker", () => ({
   default: ({ onChangeStage }: any) => (
-    <select role="combobox" onChange={(e) => onChangeStage(e.target.value)}>
+    <select role="combobox" aria-label="CRM Stage Picker" onChange={(e) => onChangeStage(e.target.value)}>
       <option value="">—</option>
       <option value="stage-new">New Stage</option>
     </select>
@@ -89,10 +90,10 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
 
   it("should trigger Operations handoff and CoC evaluation when CRM stage changes", async () => {
     // 1. Setup mocks to simulate a rule match
-    (getActiveHandoffRules as any).mockResolvedValue([{ id: "rule-1", name: "Auto Rule", mode: "auto" }]);
-    (findRuleForStage as any).mockReturnValue({ id: "rule-1", name: "Auto Rule", mode: "auto" });
-    (isRuleAutoReady as any).mockReturnValue(true);
-    (applyAutoHandoff as any).mockResolvedValue({ inserted: 1, updated: 0 });
+    (operationsCrm.getActiveHandoffRules as any).mockResolvedValue([{ id: "rule-1", name: "Auto Rule", mode: "auto" }]);
+    (operationsCrm.findRuleForStage as any).mockReturnValue({ id: "rule-1", name: "Auto Rule", mode: "auto" });
+    (operationsCrm.isRuleAutoReady as any).mockReturnValue(true);
+    (operationsCrm.applyAutoHandoff as any).mockResolvedValue({ inserted: 1, updated: 0 });
     (cocRules.evaluateStageTrigger as any).mockResolvedValue({ action: "auto_sent", rule: { name: "CoC Rule" } });
 
     // 2. Mock Supabase responses for loadInner
@@ -101,21 +102,22 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockReturnValue({ data: { id: "crm-123", stage_id: "stage-old", pipeline_id: "pipe-1" }, error: null }),
+          maybeSingle: vi.fn().mockResolvedValue({ data: { id: "crm-123", stage_id: "stage-old", pipeline_id: "pipe-1" }, error: null }),
         };
       }
       if (table === "stages") {
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          order: vi.fn().mockReturnValue({ data: [{ id: "stage-new", name: "New Stage", is_active: true }], error: null }),
+          order: vi.fn().mockResolvedValue({ data: [{ id: "stage-new", name: "New Stage", is_active: true }], error: null }),
         };
       }
       return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
+        or: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnValue({ data: [], error: null }),
+        limit: vi.fn().mockResolvedValue({ data: [], error: null }),
       };
     });
 
@@ -139,18 +141,15 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     fireEvent.click(onboardingTab);
 
     // 5. Find the stage picker (CrmStagePicker) and trigger a change
-    // Using getAllByRole because there's also a temperature selector on the page
-    const stagePicker = await screen.findByRole("combobox", {
-      name: (content, element) => element?.tagName === "SELECT" && element.innerHTML.includes("New Stage")
-    } as any);
+    const stagePicker = await screen.findByRole("combobox", { name: /CRM Stage Picker/i });
     fireEvent.change(stagePicker, { target: { value: "stage-new" } });
 
     // 6. Assert downstream evaluations were called
     await waitFor(() => {
       // Check Operations Handoff
-      expect(getActiveHandoffRules).toHaveBeenCalled();
-      expect(findRuleForStage).toHaveBeenCalled();
-      expect(applyAutoHandoff).toHaveBeenCalled();
+      expect(operationsCrm.getActiveHandoffRules).toHaveBeenCalled();
+      expect(operationsCrm.findRuleForStage).toHaveBeenCalled();
+      expect(operationsCrm.applyAutoHandoff).toHaveBeenCalled();
 
       // Check Code of Conduct
       expect(cocRules.evaluateStageTrigger).toHaveBeenCalledWith(expect.objectContaining({
