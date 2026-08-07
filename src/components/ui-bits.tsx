@@ -50,3 +50,5 @@ export const LoadingRow = ({ colSpan, label = "Loading…" }: { colSpan: number;
     </td>
   </tr>
 );
+
+export const EmptyState = ({ title, hint, bordered = false, center = false, className = "" }: { title: string; hint?: string; bordered?: boolean; center?: boolean; className?: string }) => (  <div className={`font-sans text-muted-foreground ${bordered ? "border border-dashed border-line rounded-lg py-12 px-4 text-center text-sm" : `text-[12px] py-6 ${center ? "text-center" : ""}`} ${className}`}>    <div>{title}</div>    {hint && <div className="text-[12px] opacity-80 mt-1">{hint}</div>}  </div>);export const EmptyRow = ({ colSpan, title, hint }: { colSpan: number; title: string; hint?: string }) => (  <tr>    <td colSpan={colSpan} className="px-3 py-8">      <div className="text-center font-sans text-sm text-muted-foreground">        <div>{title}</div>        {hint && <div className="text-[12px] opacity-80 mt-1">{hint}</div>}      </div>    </td>  </tr>);
