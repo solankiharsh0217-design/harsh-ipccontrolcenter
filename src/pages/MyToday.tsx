@@ -19,6 +19,7 @@ import SubmitKpiModal from "@/components/team-performance/SubmitKpiModal";
 import { fetchMyTodayReminders, generateMyReminders, markReminderRead, dismissReminder, fetchTpSettings, type TpReminder } from "@/lib/tpReminders";
 import { useActivityHeartbeat } from "@/hooks/useActivityHeartbeat";
 import { evaluateActiveWorkKpis, isActiveWorkKpi, activeWorkTarget } from "@/lib/activeWorkAutoApprove";
+import { LoadingState } from "@/components/ui-bits";
 
 const MOD = { module_key: "team_performance", module_label: "Team Performance" };
 
@@ -292,7 +293,7 @@ export default function MyToday() {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <div className="text-sm text-muted-foreground">Loading…</div>
+              <LoadingState />
             ) : !session ? (
               <>
                 <div className="text-sm text-muted-foreground">Start your day by checking in.</div>
@@ -366,7 +367,7 @@ export default function MyToday() {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <div className="text-sm text-muted-foreground">Loading…</div>
+              <LoadingState />
             ) : stats.total === 0 ? (
               <div className="text-sm text-muted-foreground">
                 {assignmentCount === 0
@@ -449,8 +450,8 @@ export default function MyToday() {
           <CardTitle className="text-base font-sans">Today's tasks</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-sm text-muted-foreground py-6">Loading…</div>
+        {loading ? (
+          <div className="py-6"><LoadingState /></div>
           ) : genError ? (
             <div className="text-sm text-rose-600 py-6">
               Could not load today's KPIs. Please refresh or contact admin.
