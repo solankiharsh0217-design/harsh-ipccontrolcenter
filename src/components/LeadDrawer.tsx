@@ -125,14 +125,67 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     duplicateBehavior: matchingRule.duplicate_behavior,
   } : null;
 
+  const primaryAction = useMemo(() => {
+    if (!lead) return null;
+
+    // 1. Convert to Paid Pipeline (highest priority if unpaid and unlinked)
+    const isUnpaid = lead.lead_type === "Unpaid";
+    const isUnlinked = !(lead as any).paid_pipeline_lead_id;
+    if (isUnpaid && isUnlinked) {
+      return {
+        label: "Send to Paid Onboarding",
+        onClick: () => setSendOnboardingOpen(true),
+        variant: "black" as const,
+      };
+    }
+
+    // 2. Conversion Rule Match (triggers ConvertToPaidModal)
+    const activeConvRule = convRules.find(r => r.pipeline_id === lead.pipeline_id && r.stage_id === lead.stage_id);
+    if (activeConvRule) {
+      return {
+        label: "Convert to Paid",
+        onClick: () => setConvertOpen(true),
+        variant: "black" as const,
+      };
+    }
+
+    // 3. Operations Handoff (isOpsEligible)
+    if (isOpsEligible && !inOps) {
+      return {
+        label: "Send to Operations",
+        onClick: () => setSendOpsOpen(true),
+        variant: "black" as const,
+      };
+    }
+
+    // 4. Record Token (if missing)
+    if (paidSnap && Number(paidSnap.deal_value) > 0 && !hasToken) {
+      return {
+        label: "Record Token",
+        onClick: openTokenPayment,
+        variant: "black" as const,
+      };
+    }
+
+    // Default: Just Update Status
+    return {
+      label: "Update Status",
+      onClick: () => setCrmPickerOpen(true),
+      variant: "ghost" as const,
+    };
+  }, [lead, isOpsEligible, inOps, hasToken, paidSnap, convRules]);
+
   useEffect(() => {
     if (!lead) return;
     const hasDealValue = Number(lead.deal_value) > 0 || (paidSnap && Number(paidSnap.deal_value) > 0);
+    
+    // Default tab logic
     if (hasDealValue && !hasToken) { setActiveTab("payments"); return; }
     if (isOpsEligible && !inOps) { setActiveTab("stage & handoff"); return; }
     if (reminders.some(r => r.reminder_date < today)) { setActiveTab("follow-ups & activity"); return; }
     setActiveTab("overview");
   }, [leadId, !!lead, isOpsEligible, inOps, hasToken, reminders.length]);
+
 
   if (!lead) return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
