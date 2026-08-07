@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { BrowserRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
+import * as accessVerification from "@/lib/accessVerification";
+
+vi.mock("@/lib/accessVerification", () => ({
+  fetchVerificationForPaidLead: vi.fn().mockResolvedValue(null),
+  computeOverall: vi.fn().mockReturnValue("completed"),
+}));
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
