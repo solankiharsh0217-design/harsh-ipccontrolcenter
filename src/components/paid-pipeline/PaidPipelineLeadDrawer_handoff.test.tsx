@@ -101,7 +101,10 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     fireEvent.click(onboardingTab);
 
     // 4. Find the stage picker (CrmStagePicker) and trigger a change
-    await screen.findByText(/🔗 Linked Calling CRM Stage/i);
+    // Using a more flexible matcher for the split text "🔗 Linked Calling CRM Stage"
+    await screen.findByText((content, element) => {
+      return element?.textContent?.includes("Linked Calling CRM Stage") ?? false;
+    });
     
     // The picker renders a button with the current stage name or "—"
     const pickerTrigger = screen.getByRole("button", { name: /—|New Stage/ });
@@ -110,6 +113,7 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     // Find the new stage in the list and click it
     const newStageOption = await screen.findByText("New Stage");
     fireEvent.click(newStageOption);
+
 
 
     // 5. Assert downstream evaluations were called
