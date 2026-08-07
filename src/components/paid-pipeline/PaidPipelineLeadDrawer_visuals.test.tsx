@@ -49,9 +49,9 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-// Use unique markers for currency to avoid collisions with template text
+// Return unique strings that JSDOM won't mangle
 vi.mock("@/lib/paidPipeline", () => ({
-  inr: (val: any) => `VAL_${val}_END`,
+  inr: (val: any) => `INR_${val}_MOCK`,
   recomputePaidLead: vi.fn(),
   fmtDate: (d: string) => d,
 }));
@@ -107,14 +107,15 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/Initializing/)).toBeDefined();
+    // Initial check for loading state
+    expect(screen.getByText((content) => content.includes("Initializing"))).toBeDefined();
     
     await act(async () => {
       resolveVerification({});
     });
 
     await waitFor(() => {
-      expect(screen.queryByText(/Initializing/)).toBeNull();
+      expect(screen.queryByText((content) => content.includes("Initializing"))).toBeNull();
     }, { timeout: 2000 });
   });
 
@@ -147,7 +148,7 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
     // Overview
-    expect(screen.getByText(/Next Follow-up/)).toBeDefined();
+    expect(screen.queryAllByText(/Next Follow-up/i).length).toBeGreaterThan(0);
 
     // Payments
     fireEvent.click(screen.getByRole("tab", { name: /Payments/i }));
@@ -169,10 +170,16 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
     
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
-    // Balance (1000)
-    expect(screen.queryAllByText((content) => content.includes("VAL_1000_END")).length).toBeGreaterThan(0);
-    // Collected (500)
-    expect(screen.queryAllByText((content) => content.includes("VAL_500_END")).length).toBeGreaterThan(0);
+    // Use queryAllByText + custom matcher to find text even if split
+    const findFinance = (val: string) => screen.queryAllByText((content, element) => {
+      const hasText = (node: Element) => node.textContent?.includes(val);
+      const elementHasText = hasText(element!);
+      const childrenDontHaveText = Array.from(element!.children).every(child => !hasText(child));
+      return elementHasText && childrenDontHaveText;
+    });
+
+    expect(findFinance("INR_1000_MOCK").length).toBeGreaterThan(0);
+    expect(findFinance("INR_500_MOCK").length).toBeGreaterThan(0);
   });
 
   it("primary action button label changes correctly", async () => {

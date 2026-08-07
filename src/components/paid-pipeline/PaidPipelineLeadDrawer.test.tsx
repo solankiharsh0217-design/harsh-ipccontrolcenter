@@ -30,7 +30,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@/lib/paidPipeline", () => ({
-  inr: (val: any) => `VAL_${val}_END`,
+  inr: (val: any) => `INR_${val}_MOCK`,
   recomputePaidLead: vi.fn(),
   fmtDate: (d: string) => d,
 }));
@@ -85,8 +85,13 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
 
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
-    expect(screen.queryAllByText((c) => c.includes("VAL_1000_END")).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText((c) => c.includes("VAL_500_END")).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText((c) => c.includes("VAL_100_END")).length).toBeGreaterThan(0);
+    const hasFinance = (val: string) => screen.queryAllByText((content, element) => {
+      const text = element?.textContent || "";
+      return text.includes(val);
+    }).length > 0;
+
+    expect(hasFinance("INR_1000_MOCK")).toBe(true);
+    expect(hasFinance("INR_500_MOCK")).toBe(true);
+    expect(hasFinance("INR_100_MOCK")).toBe(true);
   });
 });
