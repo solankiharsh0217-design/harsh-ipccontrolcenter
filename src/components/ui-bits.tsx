@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 export const PageHead = ({ title, sub, back }: { title: string; sub?: string; back?: boolean }) => (
   <>
@@ -31,3 +32,21 @@ export const Tag = ({ type, children }: { type: "info"|"update"|"urgent"; childr
     </span>
   );
 };
+
+export const LoadingState = ({ label = "Loading…", size = "sm", block = false, className = "" }: { label?: string; size?: "sm" | "md"; block?: boolean; className?: string }) => (
+  <div role="status" aria-live="polite" className={`flex items-center gap-2 font-sans text-muted-foreground ${block ? "justify-center py-12 text-sm" : "text-[12px]"} ${className}`}>
+    <Loader2 aria-hidden="true" className={`${size === "md" ? "w-5 h-5" : "w-4 h-4"} animate-spin shrink-0`} />
+    <span>{label}</span>
+  </div>
+);
+
+export const LoadingRow = ({ colSpan, label = "Loading…" }: { colSpan: number; label?: string }) => (
+  <tr>
+    <td colSpan={colSpan} className="px-3 py-8">
+      <div role="status" aria-live="polite" className="flex items-center justify-center gap-2 font-sans text-sm text-muted-foreground">
+        <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin shrink-0" />
+        <span>{label}</span>
+      </div>
+    </td>
+  </tr>
+);
