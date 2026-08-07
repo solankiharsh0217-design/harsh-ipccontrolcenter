@@ -129,6 +129,15 @@ export default function OperationsLeadDrawer({
   const [deliveryBuyers, setDeliveryBuyers] = useState<{ id: string; full_name: string }[]>([]);
 
   useEffect(() => {
+    if (lead.service_status === "not_started" || !lead.process_template_id) {
+      setActiveTab("onboarding");
+    } else if (isReady && !alreadyAtOrAfterTarget) {
+      setActiveTab("onboarding");
+    }
+  }, [lead.id, lead.service_status, lead.process_template_id, isReady, alreadyAtOrAfterTarget]);
+
+  useEffect(() => {
+
     let cancel = false;
     (async () => {
       const { data } = await supabase
