@@ -839,12 +839,11 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                 />
 
                 <SuggestedNextActions
-                  lead={lead as any}
-                  payments={payments}
-                  onRecordToken={openTokenPayment}
-                  onAddPayment={openAddPayment}
-                  onSetNextFollowUp={openFu}
-                  onOpenFinance={openFin}
+                  paidLeadId={lead.id}
+                  crmLeadId={lead.crm_lead_id || null}
+                  onApplied={() => { loadInner(); onChanged(); }}
+                  onOpenFollowUp={() => setOpenFu(true)}
+                  onOpenTokenPayment={openTokenPayment}
                 />
               </div>
             </TabsContent>
