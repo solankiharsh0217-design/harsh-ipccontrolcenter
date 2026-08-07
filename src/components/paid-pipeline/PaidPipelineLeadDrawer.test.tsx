@@ -8,6 +8,9 @@ import * as accessVerification from "@/lib/accessVerification";
 vi.mock("@/lib/accessVerification", () => ({
   fetchVerificationForPaidLead: vi.fn().mockResolvedValue(null),
   computeOverall: vi.fn().mockReturnValue("completed"),
+  WHATSAPP_LABELS: { unknown: "Unknown", joined_verified: "Joined — verified" },
+  APP_LOGIN_LABELS: { unknown: "Unknown", logged_in: "Logged in" },
+  CALL_LABELS: { not_called: "Not called" },
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
