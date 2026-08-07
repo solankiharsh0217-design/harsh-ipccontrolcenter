@@ -34,6 +34,7 @@ vi.mock("@/lib/accessVerification", () => ({
   fetchVerificationForPaidLead: vi.fn().mockResolvedValue(null),
   computeOverall: vi.fn().mockReturnValue("completed"),
   WHATSAPP_LABELS: { onboarding: "Onboarding", verify: "Verify" },
+  APP_LOGIN_LABELS: { onboarding: "App Onboarding", verify: "App Verify" },
 }));
 
 vi.mock("@/lib/format", () => ({
