@@ -474,7 +474,7 @@ export default function OperationsCrm() {
 
 
       {loading ? (
-        <LoadingState />
+        <LoadingState block />
       ) : stages.length === 0 ? (
         <div className="text-sm text-muted-foreground py-12 text-center border border-dashed border-line rounded-lg">
           No stages yet. <button className="underline text-black" onClick={addStage}>Add the first stage</button>.

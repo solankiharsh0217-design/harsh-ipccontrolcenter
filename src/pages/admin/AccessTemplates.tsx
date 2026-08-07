@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ export default function AccessTemplatesAdmin() {
 
       {loading ? (
         <div className="rounded-xl border border-line bg-white p-8 flex items-center gap-2 text-muted-foreground text-[13px]">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          <LoadingState />
         </div>
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-line bg-white p-8 text-center font-sans text-[13px] text-muted-foreground">

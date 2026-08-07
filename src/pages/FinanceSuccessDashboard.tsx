@@ -1056,7 +1056,7 @@ export default function FinanceSuccessDashboard() {
             </TableHeader>
             <TableBody>
               {leadsLoading ? (
-                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">Loading…</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="py-6"><LoadingState /></TableCell></TableRow>
               ) : byWebinar.length === 0 ? (
                 <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">No data.</TableCell></TableRow>
               ) : (

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
 import { inr, fmtDate, downloadCsv, DEFAULT_FINANCE_PARTNERS } from "@/lib/paidPipeline";
 import { logActivity, logBulkPaidLeadDiff } from "@/lib/auditLog";
 import { getEligibleAssignees, type EligibleAssignee } from "@/lib/eligibleAssignees";
@@ -489,7 +489,7 @@ export default function PaymentRecovery() {
 
   const openInPaidPipeline = (id: string) => nav(`/paid-pipeline?lead=${id}`);
 
-  if (loading) return <div className="p-10 text-sm text-muted-foreground">Loading…</div>;
+  if (loading) return <div className="p-10"><LoadingState /></div>;
 
   return (
     <>
