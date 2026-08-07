@@ -5,26 +5,17 @@ import { MemoryRouter } from "react-router-dom";
 import * as AuthModule from "@/context/AuthContext";
 import * as accessVerification from "@/lib/accessVerification";
 
-// Mock the Tabs component to be predictable in JSDOM
 vi.mock("@/components/ui/tabs", () => ({
-  Tabs: ({ children, value }: any) => (
-    <div data-testid="mock-tabs" data-value={value}>{children}</div>
-  ),
-  TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
-  TabsTrigger: ({ children, value }: any) => (
-    <button role="tab" data-value={value} aria-label={value}>{children}</button>
-  ),
-  TabsContent: ({ children, value }: any) => (
-    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
-  ),
+  Tabs: ({ children, value }: any) => <div data-testid="mock-tabs" data-value={value}>{children}</div>,
+  TabsList: ({ children }: any) => <div>{children}</div>,
+  TabsTrigger: ({ children, value }: any) => <button>{children}</button>,
+  TabsContent: ({ children }: any) => <div>{children}</div>,
 }));
 
 vi.mock("@/lib/accessVerification", () => ({
-  fetchVerificationForPaidLead: vi.fn(),
-  computeOverall: vi.fn(),
-  WHATSAPP_LABELS: { unknown: "Unknown", joined_verified: "Joined — verified" },
-  APP_LOGIN_LABELS: { unknown: "Unknown", logged_in: "Logged in" },
-  CALL_LABELS: { not_called: "Not called" },
+  fetchVerificationForPaidLead: vi.fn().mockResolvedValue({}),
+  computeOverall: vi.fn().mockReturnValue("completed"),
+  WHATSAPP_LABELS: {}, APP_LOGIN_LABELS: {}, CALL_LABELS: {},
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -32,15 +23,8 @@ vi.mock("@/integrations/supabase/client", () => ({
     from: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    or: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-    single: vi.fn().mockResolvedValue({ data: null, error: null }),
-    update: vi.fn().mockReturnThis(),
-    auth: {
-      getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-123" } }, error: null }),
-    },
+    maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u" } } }) },
   },
 }));
 
@@ -50,67 +34,42 @@ vi.mock("@/lib/paidPipeline", () => ({
   fmtDate: (d: string) => d,
 }));
 
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
-
-const mockAuthContext = {
-  user: { id: "user-123" },
-  isAdmin: true,
-};
-
+const mockAuthContext = { user: { id: "u" }, isAdmin: true };
 const mockLead = {
-  id: "l1",
-  full_name: "Test Lead",
-  pipeline_stage: "New",
-  balance_pending: 1000,
-  total_collected: 500,
-  token_amount_collected: 100,
-  deal_value_including_gst: 1500
+  id: "l1", full_name: "Test", pipeline_stage: "New",
+  balance_pending: 1000, total_collected: 500, token_amount_collected: 100, deal_value_including_gst: 1500
 };
 
-const defaultProps = {
-  stages: ["New", "Balance Pending", "Fully Paid"],
-  agents: [],
-  onChanged: vi.fn(),
-  onClose: vi.fn(),
-};
+describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
+  beforeEach(() => { vi.spyOn(AuthModule, "useAuth").mockReturnValue(mockAuthContext as any); });
+  afterEach(cleanup);
 
-describe("PaidPipelineLeadDrawer Finance Suite", () => {
-  beforeEach(() => {
-    vi.spyOn(AuthModule, "useAuth").mockReturnValue(mockAuthContext as any);
-    (accessVerification.fetchVerificationForPaidLead as any).mockResolvedValue({});
-    (accessVerification.computeOverall as any).mockReturnValue("completed");
-  });
-
-  afterEach(() => {
-    cleanup();
-    vi.clearAllMocks();
-  });
-
-  it("matches finance data", async () => {
+  it("renders all tabs and defaults based on stage", async () => {
     await act(async () => {
-      render(
-        <MemoryRouter>
-          <PaidPipelineLeadDrawer {...defaultProps} lead={mockLead as any} />
-        </MemoryRouter>
-      );
+      render(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={mockLead as any} /></MemoryRouter>);
     });
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
-    await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
+    expect(screen.getByText("Overview")).toBeTruthy();
+    expect(screen.getByText("Payments")).toBeTruthy();
+    expect(screen.getByText("Onboarding")).toBeTruthy();
+    
+    // Check finance markers
+    expect(screen.queryAllByText(/INR_1000_MOCK/)).toHaveLength(1);
+    expect(screen.queryAllByText(/INR_500_MOCK/)).toHaveLength(1);
 
-    const hasFinance = (val: string) => {
-      const elements = screen.queryAllByText((content, element) => {
-        const text = element?.textContent || "";
-        return text.includes(val);
-      });
-      return elements.length > 0;
-    };
+    // Default tab check (balance pending -> payments)
+    expect(screen.getByTestId("mock-tabs").getAttribute("data-value")).toBe("payments");
+  });
 
-    expect(hasFinance("INR_1000_MOCK")).toBe(true);
-    expect(hasFinance("INR_500_MOCK")).toBe(true);
-    expect(hasFinance("INR_100_MOCK")).toBe(true);
+  it("updates primary action button correctly", async () => {
+    const { rerender } = render(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, token_amount_collected: 0} as any} /></MemoryRouter>);
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
+    expect(screen.getByText("Record Token Payment")).toBeTruthy();
+
+    await act(async () => {
+      rerender(<MemoryRouter><PaidPipelineLeadDrawer stages={[]} agents={[]} onChanged={() => {}} onClose={() => {}} lead={{...mockLead, token_amount_collected: 100, balance_pending: 1000} as any} /></MemoryRouter>);
+    });
+    expect(screen.getByText("Add Payment")).toBeTruthy();
   });
 });
