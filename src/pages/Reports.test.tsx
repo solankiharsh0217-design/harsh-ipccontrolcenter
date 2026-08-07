@@ -67,7 +67,7 @@ describe("Reports List Queries Narrowing Test", () => {
       created_at: new Date().toISOString(),
       is_deleted: false,
       calculation_method: "auto",
-      buyers: [{ media_buyer_name: "Buyer A" }] // Raw join format
+      buyers: [{ media_buyer_name: "Buyer A" }] 
     }];
     
     (supabase.from as any).mockImplementation((table: string) => ({
@@ -137,13 +137,14 @@ describe("Reports List Queries Narrowing Test", () => {
   it("should render profit_statements list with mocked data", async () => {
     const mockData = [{
       id: "profit-1",
-      method: "webinar",
-      webinar_name: "Test Profit Statement",
+      business_unit: "Test BU",
+      statement_month: "2026-08-01",
       total_revenue: 15003,
-      total_ad_spend: 3003,
-      other_expenses: 503,
+      gross_profit: 3003,
+      total_payroll: 503,
       net_profit: 11500,
-      roas: 5.03,
+      net_margin: 5.03,
+      status: "posted",
       is_deleted: false,
       created_at: new Date().toISOString()
     }];
@@ -167,7 +168,7 @@ describe("Reports List Queries Narrowing Test", () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryAllByText(/Test Profit Statement/i).length).toBeGreaterThan(0);
+      expect(screen.getByText("Test BU")).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 
@@ -179,10 +180,10 @@ describe("Reports List Queries Narrowing Test", () => {
       event_date: "2026-08-01",
       total_leads: 154,
       total_sales: 24,
-      total_revenue: 15004,
-      total_ad_spend: 3000,
+      total_realized_revenue: 15004,
+      total_cost: 3000,
       net_profit: 12004,
-      roas: 5.04,
+      realized_roas: 5.04,
       is_deleted: false,
       created_at: new Date().toISOString()
     }];
