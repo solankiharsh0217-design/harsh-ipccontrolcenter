@@ -157,6 +157,43 @@ vi.mock("@/lib/operationsReadiness", () => ({
   COMMUNICATION_EVENT_TYPES: new Set(),
 }));
 
+// Mock operationsCrm
+vi.mock("@/lib/operationsCrm", () => ({
+  SERVICE_STATUS_COLORS: {
+    not_started: "bg-gray-100",
+    active: "bg-green-100",
+    paused: "bg-amber-100",
+    stopped: "bg-red-100",
+    completed: "bg-indigo-100",
+  },
+  SERVICE_STATUS_LABELS: {
+    not_started: "Not Started",
+    active: "Active",
+    paused: "Paused",
+    stopped: "Stopped",
+    completed: "Completed",
+  },
+  COMMS_TEMPLATES: {},
+  computeServiceCalc: vi.fn().mockReturnValue({
+    committedDays: 0,
+    activeDaysUsed: 0,
+    pausedDays: 0,
+    remainingDays: 0,
+    estimatedEndDate: null,
+  }),
+  todayStr: () => new Date().toISOString().split('T')[0],
+  daysBetween: (a: string, b: string) => {
+    if (!a || !b) return 0;
+    return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000);
+  },
+  addDays: (date: string, days: number) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  },
+  monthsToDays: (m: number) => Math.round((m || 0) * 30),
+}));
+
 import * as opsReadiness from "@/lib/operationsReadiness";
 
 const mockLead = {
