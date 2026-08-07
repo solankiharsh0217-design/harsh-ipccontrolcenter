@@ -295,7 +295,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
               )}
             </TabsContent>
             <TabsContent value="follow-ups & activity" className="flex-1 overflow-y-auto p-6 space-y-6">
-              <FastFollowUpComposer leadId={lead.id} leadName={lead.full_name || undefined} onSaved={load} />
+              <FastFollowUpComposer crmLeadId={lead.id} leadName={lead.full_name || undefined} onSaved={load} />
               <div className="space-y-3">
                 <div className="text-[11px] font-semibold uppercase">Activity History</div>
                 {activities.map(a => (
