@@ -112,13 +112,12 @@ describe("Reports List Queries Narrowing Test", () => {
     expect(roasElements.length).toBeGreaterThan(0);
     
     // Confirm media buyer name from join renders correctly
-    // Since initials() might behave differently in JSDOM, we check if the initials container
-    // or the buyer count span exists and has the expected data.
+    // Since initials() might behave differently in JSDOM, we check if the initials container exists.
     await waitFor(() => {
       const buyerAvatars = screen.getAllByTestId("buyer-avatar");
       expect(buyerAvatars.length).toBeGreaterThan(0);
-      // We check the title attribute which we added to the div in Reports.tsx
-      expect(buyerAvatars[0]).toHaveAttribute("title", "Buyer A");
+      // Verify that the title attribute is present (it contains the buyer name)
+      expect(buyerAvatars[0].getAttribute("title")).toBe("Buyer A");
     }, { timeout: 3000 });
   });
 
