@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, EmptyRow } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -360,7 +360,7 @@ export default function Admin() {
             </tr>
           </thead>
           <tbody>
-            {logs.length === 0 && <tr><td colSpan={4} className="py-6 px-3.5 font-sans text-sm text-muted-foreground text-center">No logins recorded today yet.</td></tr>}
+            {logs.length === 0 && <EmptyRow colSpan={4} title="No logins recorded today yet." />}
             {logs.map(l => (
               <tr key={l.id} className="hover:bg-off transition-colors">
                 <td className="py-3 px-3.5 border-b border-line last:border-b-0 font-serif text-base font-medium">{l.full_name}</td>
