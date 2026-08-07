@@ -99,11 +99,13 @@ describe("Reports List Queries Narrowing Test", () => {
     const roasElements = screen.queryAllByText(/×/);
     expect(roasElements.length).toBeGreaterThan(0);
     
+    // Debug output if it fails
+    if (screen.queryAllByText("BA").length === 0) {
+      console.log("Current body:", screen.debug());
+    }
+    
     // Confirm media buyer initials from join renders correctly
-    await waitFor(() => {
-      const initials = screen.queryAllByText("BA");
-      expect(initials.length).toBeGreaterThan(0);
-    });
+    expect(screen.queryAllByText("BA").length).toBeGreaterThan(0);
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
