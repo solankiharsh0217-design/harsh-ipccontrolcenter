@@ -77,27 +77,19 @@ describe("Reports List Queries Narrowing Test", () => {
       buyers: [{ name: "Buyer A" }]
     }];
     
-    // The initials function in Reports.tsx:
-    // function initials(name) { ... return (w[0][0] + w[w.length - 1][0]).toUpperCase(); }
-    // initials("Buyer A") -> "BA"
-    // Testing initials directly to be sure:
-    const initials = (name: string) => {
-      const w = (name || "").trim().split(/\s+/).filter(Boolean);
-      if (!w.length) return "?";
-      if (w.length === 1) return w[0][0].toUpperCase();
-      return (w[0][0] + w[w.length - 1][0]).toUpperCase();
-    };
-    expect(initials("Buyer A")).toBe("BA");
+    (supabase.from as any).mockImplementation((table: string) => ({
+      select: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      then: vi.fn().mockImplementation((cb) => cb({ data: table === "attribution_sessions" ? mockData : [], error: null })),
+    }));
 
-    (supabase.from as any).mockImplementation((table: string) => {
-      if (table === "attribution_sessions") {
-        return {
-          select: vi.fn().mockReturnThis(),
-          order: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockReturnThis(),
-          then: vi.fn().mockImplementation((cb) => cb({ data: mockData, error: null })),
-        };
-      }
+    renderReports();
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Webinar Attribution")).toBeInTheDocument();
+    });
       return {
         select: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
