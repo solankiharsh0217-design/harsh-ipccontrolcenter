@@ -832,39 +832,20 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
             <TabsContent value="offers & delivery" className="m-0 focus-visible:ring-0">
               <div className="p-6 space-y-6">
-                <Section title="WhatsApp templates">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {tpls.map(t => (
-                      <div key={t.label} className="rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] p-3 flex flex-col gap-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center">W</span>
-                          <span className="text-[12.5px] font-medium text-[#15803D]">{t.label}</span>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground line-clamp-2">{t.msg}</div>
-                        <div className="flex gap-1.5 mt-1">
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(t.msg);
-                              setCopiedTpl(t.label);
-                              setTimeout(() => setCopiedTpl(null), 1200);
-                            }}
-                            className="flex-1 text-[11px] h-7 rounded border border-[#BBF7D0] bg-white hover:bg-[#DCFCE7] text-[#15803D]"
-                          >{copiedTpl === t.label ? "✓ Copied" : "Copy"}</button>
-                          <a href={waLink(t.msg)} target="_blank" rel="noreferrer" className="flex-1 text-[11px] h-7 rounded bg-[#25D366] text-white hover:opacity-90 flex items-center justify-center">Send</a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Section>
+                <PromisedOffersPanel
+                  paidPipelineLeadId={lead.id}
+                  crmLeadId={lead.crm_lead_id || null}
+                  title="Promised Offers"
+                />
 
-                <div>
-                  <div className="text-[13px] font-semibold mb-3">Services / Commitments</div>
-                  <PromisedOffersPanel
-                    paidPipelineLeadId={lead.id}
-                    crmLeadId={lead.crm_lead_id || null}
-                    title=""
-                  />
-                </div>
+                <SuggestedNextActions
+                  lead={lead as any}
+                  payments={payments}
+                  onRecordToken={openTokenPayment}
+                  onAddPayment={openAddPayment}
+                  onSetNextFollowUp={openFu}
+                  onOpenFinance={openFin}
+                />
               </div>
             </TabsContent>
 
