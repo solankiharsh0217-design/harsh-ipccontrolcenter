@@ -348,37 +348,39 @@ export default function OperationsLeadDrawer({
           
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
-          {/* Client Profile */}
-          <Section title="Client profile">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Email" value={lead.email || "—"} />
-              <Field label="Phone" value={lead.phone || "—"} />
-              <Field label="Product / Program" value={lead.product_name || "—"} />
-              <Field label="Batch" value={lead.batch_name || "—"} />
-              <Field label="Media buyer" value={lead.assigned_media_buyer_name || "Unassigned"} />
-            </div>
-            <div className="flex gap-2 flex-wrap mt-3">
-              {lead.crm_lead_id && (
-                <button onClick={openCrmLink} className="ipc-btn ipc-btn-ghost !text-xs">
-                  <ExternalLink className="w-3 h-3" /> Open in Calling CRM
-                </button>
-              )}
-              {lead.paid_pipeline_lead_id && (
-                <button onClick={() => window.open(`/paid-pipeline?lead=${lead.paid_pipeline_lead_id}`, "_blank")} className="ipc-btn ipc-btn-ghost !text-xs">
-                  <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
-                </button>
-              )}
-            </div>
-          </Section>
+            <TabsContent value="overview" className="mt-0 space-y-6">
+              {/* Client Profile */}
+              <Section title="Client profile">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Email" value={lead.email || "—"} />
+                  <Field label="Phone" value={lead.phone || "—"} />
+                  <Field label="Product / Program" value={lead.product_name || "—"} />
+                  <Field label="Batch" value={lead.batch_name || "—"} />
+                  <Field label="Media buyer" value={lead.assigned_media_buyer_name || "Unassigned"} />
+                </div>
+                <div className="flex gap-2 flex-wrap mt-3">
+                  {lead.crm_lead_id && (
+                    <button onClick={openCrmLink} className="ipc-btn ipc-btn-ghost !text-xs">
+                      <ExternalLink className="w-3 h-3" /> Open in Calling CRM
+                    </button>
+                  )}
+                  {lead.paid_pipeline_lead_id && (
+                    <button onClick={() => window.open(`/paid-pipeline?lead=${lead.paid_pipeline_lead_id}`, "_blank")} className="ipc-btn ipc-btn-ghost !text-xs">
+                      <ExternalLink className="w-3 h-3" /> Open in Paid Pipeline
+                    </button>
+                  )}
+                </div>
+              </Section>
 
-          {/* Linked Records */}
-          <OperationsLinkedRecordsCard
-            operationsLeadId={lead.id}
-            operationsLeadName={lead.name}
-            operationsStatusLabel={SERVICE_STATUS_LABELS[status] || status}
-            crmLeadId={lead.crm_lead_id}
-            paidPipelineLeadId={lead.paid_pipeline_lead_id}
-          />
+              {/* Linked Records */}
+              <OperationsLinkedRecordsCard
+                operationsLeadId={lead.id}
+                operationsLeadName={lead.name}
+                operationsStatusLabel={SERVICE_STATUS_LABELS[status] || status}
+                crmLeadId={lead.crm_lead_id}
+                paidPipelineLeadId={lead.paid_pipeline_lead_id}
+              />
+
 
           {/* Process / Intake summary */}
           <Section title="Process / Intake">
