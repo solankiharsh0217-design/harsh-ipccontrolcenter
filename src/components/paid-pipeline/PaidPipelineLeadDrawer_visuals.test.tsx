@@ -23,8 +23,12 @@ vi.mock("@/components/ui/tabs", () => ({
     }}>{children}</div>
   ),
   TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
-  TabsTrigger: ({ children, value }: any) => <button role="tab" data-value={value} data-state={value === 'overview' ? 'active' : 'inactive'}>{children}</button>,
-  TabsContent: ({ children, value }: any) => <div role="tabpanel" data-value={value}>{children}</div>,
+  TabsTrigger: ({ children, value, 'data-state': dataState }: any) => (
+    <button role="tab" data-value={value} data-state={dataState}>{children}</button>
+  ),
+  TabsContent: ({ children, value }: any) => (
+    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
+  ),
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
