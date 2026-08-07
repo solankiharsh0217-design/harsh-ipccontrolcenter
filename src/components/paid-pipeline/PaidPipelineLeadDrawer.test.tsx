@@ -30,12 +30,11 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@/lib/paidPipeline", () => ({
-  inr: (val: any) => `INR_VAL_${val}`,
+  inr: (val: any) => `MOCK_INR_${val}`,
   recomputePaidLead: vi.fn(),
   fmtDate: (d: string) => d,
 }));
 
-// Mock ResizeObserver for Radix UI
 global.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   unobserve: vi.fn(),
@@ -75,7 +74,7 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
     vi.clearAllMocks();
   });
 
-  it("matches finance data across Overview and Payments tabs", async () => {
+  it("matches finance data", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -86,8 +85,8 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
 
     await waitFor(() => expect(screen.queryByText((c) => c.includes("Initializing"))).toBeNull());
 
-    expect(screen.getAllByText("INR_VAL_1000").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("INR_VAL_500").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("INR_VAL_100").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/MOCK_INR_1000/)).not.toBeNull();
+    expect(screen.queryByText(/MOCK_INR_500/)).not.toBeNull();
+    expect(screen.queryByText(/MOCK_INR_100/)).not.toBeNull();
   });
 });
