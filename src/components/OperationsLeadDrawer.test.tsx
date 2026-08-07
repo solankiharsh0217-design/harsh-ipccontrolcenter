@@ -50,17 +50,42 @@ vi.mock("@/lib/notifications", () => ({
   createNotification: vi.fn().mockResolvedValue({}),
 }));
 
-// Mock lucide-react with the Proxy to handle all icons including XIcon
+// Mock lucide-react with a flat object of components to avoid Proxy/React.createElement issues in hoisted mocks
 vi.mock("lucide-react", () => {
-  const MockIcon = (props: any) => React.createElement('div', props);
-  return new Proxy({}, {
-    get: (target, prop) => {
-      if (prop === '__esModule') return true;
-      return MockIcon;
-    }
-  });
+  const MockIcon = (props: any) => <div {...props} />;
+  return {
+    X: MockIcon,
+    XIcon: MockIcon,
+    ExternalLink: MockIcon,
+    Play: MockIcon,
+    Pause: MockIcon,
+    Square: MockIcon,
+    CheckCircle: MockIcon,
+    CheckCircle2: MockIcon,
+    RotateCcw: MockIcon,
+    ClipboardCopy: MockIcon,
+    Mail: MockIcon,
+    Rocket: MockIcon,
+    ArrowRight: MockIcon,
+    Settings: MockIcon,
+    Clock: MockIcon,
+    AlertCircle: MockIcon,
+    Check: MockIcon,
+    ChevronDown: MockIcon,
+    ChevronRight: MockIcon,
+    MoreVertical: MockIcon,
+    FileText: MockIcon,
+    Activity: MockIcon,
+    Truck: MockIcon,
+    Target: MockIcon,
+    Users: MockIcon,
+    Phone: MockIcon,
+    User: MockIcon,
+    Calendar: MockIcon,
+    Globe: MockIcon,
+    Layout: MockIcon,
+  };
 });
-
 
 // Mock UI Components with simple divs
 vi.mock("@/components/ui/tabs", () => ({
@@ -74,15 +99,6 @@ vi.mock("@/components/ui/tabs", () => ({
 vi.mock("@/components/offers/PromisedOffersPanel", () => ({ default: () => <div /> }));
 vi.mock("@/components/operations/DeliveryTrackingSection", () => ({ default: () => <div /> }));
 vi.mock("@/components/operations/ConversionsSection", () => ({ default: () => <div /> }));
-vi.mock("@/components/operations/ReadinessChecklist", () => ({ 
-  default: ({ onChange }: any) => {
-    React.useEffect(() => {
-      const timer = setTimeout(() => onChange(0, false), 0);
-      return () => clearTimeout(timer);
-    }, [onChange]);
-    return <div />;
-  }
-}));
 vi.mock("@/components/operations/TeamResultSubmissionPanel", () => ({ default: () => <div /> }));
 vi.mock("@/components/operations/CustomFieldsPanel", () => ({ default: () => <div /> }));
 vi.mock("@/components/operations/CommTemplatePickerModal", () => ({ default: () => <div /> }));
@@ -108,6 +124,19 @@ vi.mock("@/lib/operationsReadiness", () => ({
 
 import * as opsReadiness from "@/lib/operationsReadiness";
 
+// Mock ReadinessChecklist to be able to trigger state change
+vi.mock("@/components/operations/ReadinessChecklist", () => ({
+  default: ({ onChange }: any) => {
+    // If the test case provides a specific lead ID that is "ready", we trigger 100%
+    React.useEffect(() => {
+      // Small delay to ensure state updates land
+      const timer = setTimeout(() => onChange(0, false), 0);
+      return () => clearTimeout(timer);
+    }, [onChange]);
+    return <div data-testid="readiness-checklist" />;
+  }
+}));
+
 const mockLead = {
   id: "ops-lead-123",
   name: "Test Client",
@@ -126,7 +155,7 @@ const mockLead = {
   updated_at: new Date().toISOString(),
 };
 
-describe("OperationsLeadDrawer Action Logic", () => {
+describe("OperationsLeadDrawer Priority Logic", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (opsReadiness.resolveReadinessTargetStage as any).mockReturnValue(null);
@@ -134,7 +163,7 @@ describe("OperationsLeadDrawer Action Logic", () => {
 
   afterEach(cleanup);
 
-  it("1. Start Operations Process priority", async () => {
+  it("prioritizes Start Operations Process when intake is not active", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -149,14 +178,15 @@ describe("OperationsLeadDrawer Action Logic", () => {
     expect(screen.getByRole("button", { name: /Start Operations Process/i })).toBeTruthy();
   });
 
-  it("2. Move to [Target Stage] priority", async () => {
-    // Override lib mocks to force ready state
+  it("prioritizes Move to Target Stage when ready (requires mock override)", async () => {
+    // We override the ReadinessChecklist mock for this test
     vi.mock("@/components/operations/ReadinessChecklist", () => ({
       default: ({ onChange }: any) => {
-        React.useEffect(() => { onChange(100, false); }, []);
+        React.useEffect(() => { onChange(100, false); }, [onChange]);
         return <div />;
       }
     }));
+    
     (opsReadiness.resolveReadinessTargetStage as any).mockReturnValue({ id: "stage-target", name: "Target Stage" });
     (opsReadiness.isAtOrAfterTarget as any).mockReturnValue(false);
 
@@ -171,10 +201,11 @@ describe("OperationsLeadDrawer Action Logic", () => {
         </MemoryRouter>
       );
     });
+
     expect(screen.getByRole("button", { name: /Move to Target Stage/i })).toBeTruthy();
   });
 
-  it("3. Mark Ads Started priority", async () => {
+  it("shows Mark Ads Started when not ready/at target", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -189,7 +220,7 @@ describe("OperationsLeadDrawer Action Logic", () => {
     expect(screen.getByRole("button", { name: /Mark Ads Started/i })).toBeTruthy();
   });
 
-  it("4. Resume Service priority", async () => {
+  it("shows Resume Service when paused", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -204,7 +235,7 @@ describe("OperationsLeadDrawer Action Logic", () => {
     expect(screen.getByRole("button", { name: /Resume Service/i })).toBeTruthy();
   });
 
-  it("5. Log Communication fallback", async () => {
+  it("defaults to Log Communication for active clients", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -220,10 +251,10 @@ describe("OperationsLeadDrawer Action Logic", () => {
   });
 });
 
-describe("OperationsLeadDrawer Tab Logic", () => {
+describe("OperationsLeadDrawer Tab Defaulting", () => {
   afterEach(cleanup);
 
-  it("defaults to Onboarding (Process) correctly", async () => {
+  it("defaults to Process (onboarding) for new/incomplete leads", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
