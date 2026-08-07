@@ -99,7 +99,7 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     vi.spyOn(operationsCrm, "getActiveHandoffRules").mockResolvedValue([{ id: "rule-1", name: "Auto Rule", mode: "auto" } as any]);
     vi.spyOn(operationsCrm, "findRuleForStage").mockReturnValue({ id: "rule-1", name: "Auto Rule", mode: "auto" } as any);
     vi.spyOn(operationsCrm, "isRuleAutoReady").mockReturnValue(true);
-    vi.spyOn(operationsCrm, "applyAutoHandoff").mockResolvedValue({ inserted: 1, updated: 0 });
+    vi.spyOn(operationsCrm, "applyAutoHandoff").mockResolvedValue({ inserted: 1, updated: 0, skipped: 0, buyerCounts: {} } as any);
     vi.spyOn(cocRules, "evaluateStageTrigger").mockResolvedValue({ action: "auto_sent", rule: { name: "CoC Rule" } } as any);
 
     // 2. Mock Supabase responses for loadInner
