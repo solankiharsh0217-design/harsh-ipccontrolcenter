@@ -83,7 +83,7 @@ describe("PaidPipelineLeadDrawer Finance Suite", () => {
       );
     });
 
-    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
+    await waitFor(() => expect(screen.queryByTestId("drawer-loader")).toBeNull());
 
     const hasFinance = (val: string) => screen.queryAllByText((content, element) => {
       const text = element?.textContent || "";
