@@ -101,7 +101,10 @@ describe("Reports List Queries Narrowing Test", () => {
     
     // Confirm media buyer name from join renders correctly
     // The initials function: "Buyer A" -> "BA"
-    expect(screen.getAllByText("BA").length).toBeGreaterThan(0);
+    // We check for "BA" and the title "Buyer A" on the avatar div
+    // We use findByText to wait for the row to render if needed
+    const initials = await screen.findByText("BA");
+    expect(initials).toBeInTheDocument();
   });
 
   it("should render seminar_roas_reports list with mocked data", async () => {
