@@ -213,8 +213,11 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
   }, [leadId, !!lead, isOpsEligible, inOps, hasToken, reminders.length]);
 
   if (!lead) return (
-    <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
-      <div className="absolute right-0 top-0 h-full w-[560px] bg-white p-8" onClick={(e) => e.stopPropagation()}>Loading…</div>
+    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-white p-8 rounded-lg flex items-center gap-3 shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        <span className="text-sm font-medium">Loading details...</span>
+      </div>
     </div>
   );
 
@@ -316,13 +319,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
             </TabsContent>
             <TabsContent value="payments" className="flex-1 overflow-y-auto p-6">
               {(paidSnap || Number(lead.deal_value) > 0) && (
-                <div className="rounded-lg border border-line bg-off/40 p-3">
-                  <div className="text-[11px] font-semibold uppercase mb-2">Financial Summary</div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div className="p-1.5 rounded bg-white border border-line text-[10px]">Deal<br/>{inr(paidSnap?.deal_value ?? lead.deal_value)}</div>
-                    <div className="p-1.5 rounded bg-white border border-line text-[10px]">Token<br/>{paidSnap ? inr(paidSnap.token_amount_collected) : "—"}</div>
-                    <div className="p-1.5 rounded bg-white border border-line text-[10px]">Paid<br/>{paidSnap ? inr(paidSnap.total_collected) : "—"}</div>
-                    <div className="p-1.5 rounded bg-white border border-line text-[10px]">Bal<br/>{paidSnap ? inr(paidSnap.balance_pending) : "—"}</div>
+                <div className="rounded-lg border border-line bg-card p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Financial Summary</div>
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className="p-2.5 rounded bg-background border border-line text-[11px] flex flex-col justify-center gap-0.5"><span className="text-muted-foreground uppercase text-[9px]">Deal</span><span className="font-medium">{inr(paidSnap?.deal_value ?? lead.deal_value)}</span></div>
+                    <div className="p-2.5 rounded bg-background border border-line text-[11px] flex flex-col justify-center gap-0.5"><span className="text-muted-foreground uppercase text-[9px]">Token</span><span className="font-medium">{paidSnap ? inr(paidSnap.token_amount_collected) : "—"}</span></div>
+                    <div className="p-2.5 rounded bg-background border border-line text-[11px] flex flex-col justify-center gap-0.5"><span className="text-muted-foreground uppercase text-[9px]">Paid</span><span className="font-medium">{paidSnap ? inr(paidSnap.total_collected) : "—"}</span></div>
+                    <div className="p-2.5 rounded bg-background border border-line text-[11px] flex flex-col justify-center gap-0.5"><span className="text-muted-foreground uppercase text-[9px]">Bal</span><span className="font-medium">{paidSnap ? inr(paidSnap.balance_pending) : "—"}</span></div>
                   </div>
                   {paidLeadId && (
                     <div className="mt-4 flex gap-2">
