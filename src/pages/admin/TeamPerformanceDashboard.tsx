@@ -46,25 +46,36 @@ const Card = ({ label, value, sub, onClick, tone }: { label: string; value: stri
   <button
     onClick={onClick}
     disabled={!onClick}
-    className={`text-left rounded-xl border bg-white px-4 py-3.5 transition-colors ${onClick ? "hover:border-black cursor-pointer" : "cursor-default"} ${tone === "danger" ? "border-red-200" : tone === "warn" ? "border-amber-200" : "border-line"}`}
+    className={`text-left rounded-lg border bg-card px-3 py-2.5 transition-colors ${onClick ? "hover:border-foreground cursor-pointer" : "cursor-default"} ${tone === "danger" ? "border-danger/40" : tone === "warn" ? "border-warn/40" : "border-line"}`}
   >
-    <div className="font-sans text-[10px] font-medium tracking-[0.08em] uppercase text-muted-foreground mb-1.5">{label}</div>
-    <div className={`font-serif text-2xl leading-none ${tone === "danger" ? "text-red-700" : tone === "warn" ? "text-amber-700" : "text-black"}`}>{value}</div>
-    {sub && <div className="font-sans text-[11px] text-muted-foreground mt-1.5">{sub}</div>}
+    <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
+    <div className={`font-serif text-[19px] mt-0.5 leading-tight ${tone === "danger" ? "text-danger" : tone === "warn" ? "text-warn" : "text-foreground"}`}>{value}</div>
+    {sub && <div className="font-sans text-[11px] text-muted-foreground mt-1">{sub}</div>}
   </button>
+);
+
+const Panel = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={`rounded-lg border border-line bg-card overflow-hidden ${className}`}>{children}</div>
+);
+
+const FilterSelect = ({ value, onChange, label, options }: { value: string; onChange: (v: string) => void; label: string; options: { v: string; l: string }[] }) => (
+  <select className="h-9 border border-line rounded-md px-2 text-[12.5px] bg-card" value={value} onChange={(e) => onChange(e.target.value)}>
+    <option value="">{label}</option>
+    {options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+  </select>
 );
 
 const StatusPill = ({ status }: { status: string }) => {
   const cls: Record<string, string> = {
-    approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    submitted: "bg-blue-50 text-blue-700 border-blue-200",
-    pending: "bg-slate-50 text-slate-600 border-slate-200",
-    rejected: "bg-red-50 text-red-700 border-red-200",
-    missed: "bg-amber-50 text-amber-700 border-amber-200",
-    waived: "bg-neutral-50 text-neutral-500 border-neutral-200",
-    pending_approval: "bg-blue-50 text-blue-700 border-blue-200",
-    paid: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    cancelled: "bg-neutral-50 text-neutral-500 border-neutral-200",
+    approved: "bg-success/10 text-success border-success/30",
+    submitted: "bg-accent text-accent-foreground border-line",
+    pending: "bg-off text-muted-foreground border-line",
+    rejected: "bg-danger/10 text-danger border-danger/30",
+    missed: "bg-warn/10 text-warn border-warn/30",
+    waived: "bg-off text-muted-foreground border-line",
+    pending_approval: "bg-accent text-accent-foreground border-line",
+    paid: "bg-success/10 text-success border-success/30",
+    cancelled: "bg-off text-muted-foreground border-line",
   };
   return (
     <span className={`inline-block px-2 py-0.5 rounded-[4px] font-sans text-[10px] font-medium capitalize border ${cls[status] ?? "bg-off border-line text-muted-foreground"}`}>
@@ -72,6 +83,7 @@ const StatusPill = ({ status }: { status: string }) => {
     </span>
   );
 };
+
 
 export default function TeamPerformanceDashboard() {
   const nav = useNavigate();
