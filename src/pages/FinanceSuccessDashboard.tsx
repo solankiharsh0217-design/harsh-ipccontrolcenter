@@ -107,10 +107,10 @@ export default function FinanceSuccessDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlPipelineId = searchParams.get("pipelineId");
   const tabParam = searchParams.get("tab");
-  const activeTab = tabParam === "incomplete" || tabParam === "access" || tabParam === "summary" ? tabParam : "summary";
+  const activeTab = tabParam === "incomplete" || tabParam === "summary" || tabParam === "analytics" ? tabParam : "work";
   const setActiveTab = (v: string) => {
     const sp = new URLSearchParams(searchParams);
-    if (v === "summary") sp.delete("tab"); else sp.set("tab", v);
+    if (v === "work") sp.delete("tab"); else sp.set("tab", v);
     setSearchParams(sp, { replace: true });
   };
   const [fromDate, setFromDate] = useState("");
