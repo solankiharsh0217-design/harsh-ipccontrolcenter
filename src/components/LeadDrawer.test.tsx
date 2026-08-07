@@ -10,6 +10,9 @@ vi.mock("@/integrations/supabase/client", () => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           maybeSingle: vi.fn(),
+          not: vi.fn(() => ({
+            maybeSingle: vi.fn(),
+          })),
           order: vi.fn(() => ({
             eq: vi.fn(() => ({
               order: vi.fn(),
@@ -79,6 +82,9 @@ describe("LeadDrawer Refactor Verification", () => {
           maybeSingle: vi.fn().mockResolvedValue({ 
             data: table === "leads" ? mockLead : (table === "paid_pipeline_leads" ? { id: "paid-1", deal_value: 1000, total_collected: 0 } : null), 
             error: null 
+          }),
+          not: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
           }),
           order: vi.fn().mockReturnValue({ data: [], error: null }),
         }),
