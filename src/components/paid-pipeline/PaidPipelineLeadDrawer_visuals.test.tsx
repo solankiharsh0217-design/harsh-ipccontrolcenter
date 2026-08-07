@@ -49,8 +49,9 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
+// Use the real formatted values from the component's render in the mock
 vi.mock("@/lib/paidPipeline", () => ({
-  inr: (val: any) => `INR_FORMATTED_${val}`,
+  inr: (val: any) => `₹${(Number(val) || 0).toLocaleString("en-IN")}`,
   recomputePaidLead: vi.fn(),
   fmtDate: (d: string) => d,
 }));
@@ -174,9 +175,10 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
     
     await waitFor(() => expect(screen.queryByText(/Initializing drawer/i)).toBeNull());
 
-    expect(screen.getAllByText("INR_FORMATTED_1000").length).toBe(1); // Balance
-    expect(screen.getAllByText("INR_FORMATTED_500").length).toBe(1);   // Collected
-    expect(screen.getAllByText("INR_FORMATTED_100").length).toBe(1);   // Token
+    // Matches the actual displayed values exactly
+    expect(screen.getAllByText("₹1,000").length).toBe(1); 
+    expect(screen.getAllByText("₹500").length).toBe(1);   
+    expect(screen.getAllByText("₹100").length).toBe(1);   
   });
 
   it("primary action button label changes correctly based on stage", async () => {
