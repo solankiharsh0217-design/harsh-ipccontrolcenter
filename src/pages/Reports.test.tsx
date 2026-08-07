@@ -138,7 +138,7 @@ describe("Reports List Queries Narrowing Test", () => {
   it("should render profit_statements list with mocked data", async () => {
     const mockData = [{
       id: "profit-1",
-      business_unit: "Test BU",
+      business_unit: "Test BU Profit",
       statement_month: "2026-08-01",
       total_revenue: 15003,
       gross_profit: 3003,
@@ -169,7 +169,8 @@ describe("Reports List Queries Narrowing Test", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Test BU")).toBeInTheDocument();
+      const cell = screen.getAllByText("Test BU Profit").find(el => el.tagName === "TD");
+      expect(cell).toBeTruthy();
     }, { timeout: 3000 });
   });
 
