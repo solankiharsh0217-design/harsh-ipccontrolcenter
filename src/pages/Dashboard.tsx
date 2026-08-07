@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { greeting, formatDateShort } from "@/lib/format";
-import { PageHead, SectionLabel, Tag } from "@/components/ui-bits";
+import { PageHead, SectionLabel, Tag, EmptyState } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import MyTasksWidget from "@/components/tasks/MyTasksWidget";
 
@@ -117,7 +117,7 @@ export default function Dashboard() {
           <div className="font-sans text-[11px] font-medium text-black uppercase tracking-[0.1em]">Latest notices</div>
           <Link to="/announcements" className="font-sans text-[11px] text-muted-foreground hover:text-gold transition-colors">View all →</Link>
         </div>
-        {anns.length === 0 && <div className="px-[22px] py-8 font-sans text-[13px] text-muted-foreground">No announcements yet.</div>}
+        {anns.length === 0 && <EmptyState title="No announcements yet." />}
         {anns.map(a => (
           <div key={a.id} className="px-[22px] py-4 border-b border-line last:border-b-0 hover:bg-off transition-colors">
             <div className="mb-2"><Tag type={a.tag_type}>{a.tag_type}</Tag></div>
