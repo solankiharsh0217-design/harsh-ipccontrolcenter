@@ -50,16 +50,13 @@ vi.mock("@/lib/notifications", () => ({
   createNotification: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock("lucide-react", () => ({
-  Rocket: () => <div />,
-  Play: () => <div />,
-  Mail: () => <div />,
-  ArrowRight: () => <div />,
-  XIcon: () => <div />,
-  CheckCircle: () => <div />,
-  ExternalLink: () => <div />,
-  ClipboardCopy: () => <div />,
-}));
+// Mock lucide-react with the Proxy to handle all icons including XIcon
+vi.mock("lucide-react", () => {
+  const MockIcon = () => <div />;
+  return new Proxy({}, {
+    get: (target, prop) => MockIcon
+  });
+});
 
 // Mock UI Components with simple divs
 vi.mock("@/components/ui/tabs", () => ({
@@ -76,7 +73,6 @@ vi.mock("@/components/operations/ConversionsSection", () => ({ default: () => <d
 vi.mock("@/components/operations/ReadinessChecklist", () => ({ 
   default: ({ onChange }: any) => {
     React.useEffect(() => {
-      // Small delay to ensure state updates don't cause infinite loops in tests
       const timer = setTimeout(() => onChange(0, false), 0);
       return () => clearTimeout(timer);
     }, [onChange]);
@@ -106,6 +102,8 @@ vi.mock("@/lib/operationsReadiness", () => ({
   isCommunicationEvent: (type: string) => ["communication_copied", "communication_sent", "communication_failed", "communication_logged"].includes(type),
 }));
 
+import * as opsReadiness from "@/lib/operationsReadiness";
+
 const mockLead = {
   id: "ops-lead-123",
   name: "Test Client",
@@ -124,10 +122,15 @@ const mockLead = {
   updated_at: new Date().toISOString(),
 };
 
-describe("OperationsLeadDrawer Logic", () => {
+describe("OperationsLeadDrawer Action Logic", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (opsReadiness.resolveReadinessTargetStage as any).mockReturnValue(null);
+  });
+
   afterEach(cleanup);
 
-  it("Start Operations Process priority", async () => {
+  it("1. Start Operations Process priority", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -142,7 +145,32 @@ describe("OperationsLeadDrawer Logic", () => {
     expect(screen.getByRole("button", { name: /Start Operations Process/i })).toBeTruthy();
   });
 
-  it("Mark Ads Started priority", async () => {
+  it("2. Move to [Target Stage] priority", async () => {
+    // Override lib mocks to force ready state
+    vi.mock("@/components/operations/ReadinessChecklist", () => ({
+      default: ({ onChange }: any) => {
+        React.useEffect(() => { onChange(100, false); }, []);
+        return <div />;
+      }
+    }));
+    (opsReadiness.resolveReadinessTargetStage as any).mockReturnValue({ id: "stage-target", name: "Target Stage" });
+    (opsReadiness.isAtOrAfterTarget as any).mockReturnValue(false);
+
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <OperationsLeadDrawer
+            lead={{ ...mockLead, intake_status: "active", service_status: "not_started", process_template_id: "t1" } as any}
+            onClose={() => {}}
+            onSaved={() => {}}
+          />
+        </MemoryRouter>
+      );
+    });
+    expect(screen.getByRole("button", { name: /Move to Target Stage/i })).toBeTruthy();
+  });
+
+  it("3. Mark Ads Started priority", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -157,7 +185,7 @@ describe("OperationsLeadDrawer Logic", () => {
     expect(screen.getByRole("button", { name: /Mark Ads Started/i })).toBeTruthy();
   });
 
-  it("Resume Service priority", async () => {
+  it("4. Resume Service priority", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -172,7 +200,7 @@ describe("OperationsLeadDrawer Logic", () => {
     expect(screen.getByRole("button", { name: /Resume Service/i })).toBeTruthy();
   });
 
-  it("Log Communication fallback", async () => {
+  it("5. Log Communication fallback", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
@@ -186,8 +214,12 @@ describe("OperationsLeadDrawer Logic", () => {
     });
     expect(screen.getByRole("button", { name: /Log Communication/i })).toBeTruthy();
   });
+});
 
-  it("defaults to Onboarding tab correctly", async () => {
+describe("OperationsLeadDrawer Tab Logic", () => {
+  afterEach(cleanup);
+
+  it("defaults to Onboarding (Process) correctly", async () => {
     await act(async () => {
       render(
         <MemoryRouter>
