@@ -1,0 +1,60 @@
+  const changeCrmStage = async (newStageId: string) => {
+    if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) { setCrmPickerOpen(false); return; }
+    const oldName = crmStages.find(s => s.id === crmStageId)?.name || "—";
+    const newName = crmStages.find(s => s.id === newStageId)?.name || "—";
+    const prevId = crmStageId;
+    setCrmStageId(newStageId);
+    setCrmPickerOpen(false);
+    const { error } = await supabase.from("leads").update({ stage_id: newStageId }).eq("id", lead.crm_lead_id);
+    if (error) {
+      setCrmStageId(prevId);
+      toast.error("Failed to update CRM stage");
+      return;
+    }
+    logActivity({
+      module_key: "paid_pipeline", module_label: "Paid Pipeline",
+      action_type: "paid_pipeline_updated_linked_crm_stage",
+      entity_type: "lead", entity_id: lead.crm_lead_id, entity_label: lead.name || undefined,
+      old_values: { stage: oldName },
+      new_values: { stage: newName },
+      metadata: { paid_pipeline_lead_id: lead.id, crm_lead_id: lead.crm_lead_id, old_stage: oldName, new_stage: newName, changed_by: user?.id || null },
+      summary: `Linked CRM stage changed from '${oldName}' to '${newName}' from Paid Pipeline drawer.`,
+    });
+    toast.success("Calling CRM stage updated.");
+
+    // Trigger Operations handoff evaluation for this stage change
+    try {
+      const rules = await getActiveHandoffRules();
+      const stagesById = new Map(crmStages.map(s => [s.id, { id: s.id, name: s.name }]));
+      const rule = findRuleForStage(rules, crmPipelineId, newStageId, stagesById as any);
+      if (rule) {
+        if (rule.mode === "auto" && isRuleAutoReady(rule)) {
+          const res = await applyAutoHandoff(rule, [{
+            id: lead.crm_lead_id, full_name: lead.name, email: lead.email, phone: lead.phone,
+            program_name: lead.product_name_snapshot || null, paid_pipeline_lead_id: lead.id,
+          }], user?.id || null);
+          if (res.inserted > 0) toast.success("Auto-sent to Operations CRM");
+          else if (res.updated > 0) toast.info("Operations CRM record updated");
+        } else if (rule.mode === "suggest") {
+          toast.info(`Operations handoff suggested: ${rule.name}`);
+        }
+      }
+    } catch (e) { /* non-fatal */ }
+
+    // Code of Conduct trigger evaluation
+    try {
+      const { evaluateStageTrigger } = await import("@/lib/codeOfConductRules");
+      const res = await evaluateStageTrigger({
+        source: "paid_pipeline", pipelineId: crmPipelineId, stageId: newStageId,
+        crmLeadId: lead.crm_lead_id, paidPipelineLeadId: lead.id,
+        memberName: lead.name || "Member", memberEmail: lead.email, memberPhone: lead.phone,
+        programName: lead.product_name_snapshot, dealValue: (lead as any).deal_value,
+      });
+      if (res.action === "auto_sent") toast.success(`Code of Conduct auto-sent (rule: ${res.rule?.name})`);
+      else if (res.action === "suggested") toast.info(`Code of Conduct suggested: ${res.rule?.name}`);
+      else if (res.action === "auto_send_failed") toast.error(`CoC auto-send failed: ${res.message}`);
+    } catch (e) { /* non-fatal */ }
+
+
+    onChanged();
+  };
