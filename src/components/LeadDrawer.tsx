@@ -463,9 +463,30 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
                 {/* ... Move sections 1-5 (Name/Header/Notes/Linked/Access) here ... */}
               </div>
             </TabsContent>
-            {/* ... Other tabs ... */}
+            <TabsContent value="payments" className="flex-1 overflow-y-auto p-6">
+              <h3 className="text-sm font-medium mb-4">Financials</h3>
+            </TabsContent>
+            <TabsContent value="onboarding" className="flex-1 overflow-y-auto p-6">
+              <h3 className="text-sm font-medium mb-4">Onboarding Status</h3>
+            </TabsContent>
+            <TabsContent value="stage & handoff" className="flex-1 overflow-y-auto p-6">
+              <h3 className="text-sm font-medium mb-4">CRM Stage & Handoff</h3>
+            </TabsContent>
+            <TabsContent value="follow-ups & activity" className="flex-1 overflow-y-auto p-6">
+              <h3 className="text-sm font-medium mb-4">Follow-ups & Activity</h3>
+            </TabsContent>
+            <TabsContent value="advanced" className="flex-1 overflow-y-auto p-6">
+              <h3 className="text-sm font-medium mb-4">Advanced Settings</h3>
+            </TabsContent>
           </Tabs>
         </div>
+        <div className="hidden">
+          {/* ... Rest of existing layout to be moved ... */}
+        </div>
+      </div>
+    </div>
+  );
+};
         <div className="px-6 py-5 border-b border-line">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
