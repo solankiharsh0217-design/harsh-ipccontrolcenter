@@ -48,7 +48,7 @@ export const REFINEMENT_SEED: SeedItem[] = [
     "Send to Paid Pipeline works.",
     "View Source Reports link works from Webinar Performance.",
     "CSV/PDF exports work.",
-    "Paste the raw `vitest run` output showing all 33 test names and pass/fail status, plus the raw `bunx tsgo --noEmit` output. Just the two command outputs, nothing else.",
+    "No import-sheet language appears where existing API data is used.",
     "Reports are not hidden because of missing new fields.",
     "Deleted/restored reports are handled safely.",
     "Report actions are logged in Audit Log.",
