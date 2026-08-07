@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, X as XIcon, ExternalLink, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 import {
   listPendingConversions, listAllConversionsForMonth,
   approveConversion, rejectConversion,
@@ -162,7 +162,7 @@ export default function OpsConversionsTab({ isAdmin, onOpenLead, onChanged }: Pr
         {loading ? (
           <LoadingState block />
         ) : filtered.length === 0 ? (
-          <div className="p-6 text-xs text-muted-foreground text-center">No conversions match the current filters.</div>
+          <EmptyState title="No conversions match the current filters." center />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
