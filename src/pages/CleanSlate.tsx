@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/auditLog";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 type Counts = Record<string, number | boolean | string | null>;
 
