@@ -103,14 +103,14 @@ describe("PaidPipelineLeadDrawer Visuals and Defaults", () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Initializing drawer…/i)).toBeDefined();
+    expect(screen.getByText(/Initializing drawer/i)).toBeDefined();
     
     await act(async () => {
       resolveVerification(null);
     });
 
     await waitFor(() => {
-      expect(screen.queryByText(/Initializing drawer…/i)).toBeNull();
+      expect(screen.queryByText(/Initializing drawer/i)).toBeNull();
       expect(screen.getByText("Test")).toBeDefined();
     });
   });
