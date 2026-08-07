@@ -440,19 +440,28 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-line flex justify-between bg-white items-center">
-          <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
+        <div className="px-6 py-4 border-t border-line flex items-center justify-between bg-white shadow-sm">
+          <button onClick={onClose} className="h-10 px-6 border border-line rounded-md text-sm font-medium hover:bg-off transition-colors">Cancel</button>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {primaryAction && (
               <button 
                 onClick={primaryAction.onClick}
-                className={`ipc-btn ${primaryAction.variant === "black" ? "ipc-btn-black" : "ipc-btn-ghost"}`}
+                className={`h-10 px-6 rounded-md text-sm font-medium transition-all ${
+                  primaryAction.variant === "black" 
+                    ? "bg-black text-white hover:bg-black/90 shadow-md active:scale-[0.98]" 
+                    : "border border-line text-foreground hover:bg-off"
+                }`}
               >
                 {primaryAction.label}
               </button>
             )}
-            <button onClick={() => { load(); onChanged(); onClose(); }} className="ipc-btn ipc-btn-black">Save & Close</button>
+            <button 
+              onClick={() => { load(); onChanged(); onClose(); }} 
+              className="h-10 px-6 bg-black text-white rounded-md text-sm font-medium hover:bg-black/90 shadow-md active:scale-[0.98]"
+            >
+              Save & Close
+            </button>
           </div>
         </div>
       </div>
