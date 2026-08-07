@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 import {
   MessageSquare, ClipboardCopy, ArrowRight, Play, Pause, Square, CheckCircle2, RotateCcw,
   FileText, Sparkles, Activity, Mail, StickyNote,
@@ -257,7 +257,7 @@ export default function OperationsActivityTimeline({
         <LoadingState />
       ) : filtered.length === 0 ? (
         <div className="border border-line rounded-md p-3 bg-off/40">
-          <div className="text-xs text-foreground">No operations activity logged yet.</div>
+          <EmptyState title="No operations activity logged yet." />
           <div className="text-[10px] text-muted-foreground mt-1">
             Stage moves, communications, checklist actions, and service events will appear here.
           </div>

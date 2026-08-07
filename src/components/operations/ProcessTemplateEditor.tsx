@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EmptyState } from "@/components/ui-bits";
 import { X as XIcon, Plus, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -145,7 +146,7 @@ export default function ProcessTemplateEditor({
                   <button onClick={() => setItems(items.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-[#991B1B]"><Trash2 className="w-3 h-3" /></button>
                 </div>
               ))}
-              {items.length === 0 && <div className="text-[11px] text-muted-foreground italic">No checklist items yet.</div>}
+              {items.length === 0 && <EmptyState title="No checklist items yet." />}
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 import type { EligibleAssignee } from "@/lib/eligibleAssignees";
 import {
   type MBCase, type MBServicePeriod,
@@ -153,7 +153,7 @@ export default function CaseDrawer({ caseId, onClose, canEdit, isAdmin, buyers }
 
         {/* Emails */}
         <Section title="Email proof history">
-          {emails.length === 0 ? <div className="text-[12px] text-muted-foreground">No emails yet.</div> : (
+          {emails.length === 0 ? <EmptyState title="No emails yet." /> : (
             <div className="space-y-2">
               {emails.map((e) => (
                 <div key={e.id} className="border border-line rounded-md p-3 text-[12px]">
@@ -171,7 +171,7 @@ export default function CaseDrawer({ caseId, onClose, canEdit, isAdmin, buyers }
 
         {/* Timeline */}
         <Section title="Timeline">
-          {events.length === 0 ? <div className="text-[12px] text-muted-foreground">No events yet.</div> : (
+          {events.length === 0 ? <EmptyState title="No events yet." /> : (
             <ol className="border-l border-line ml-2 space-y-2">
               {events.map((ev) => (
                 <li key={ev.id} className="pl-3 relative">
