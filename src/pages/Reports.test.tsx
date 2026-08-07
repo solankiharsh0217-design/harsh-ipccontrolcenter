@@ -165,24 +165,19 @@ describe("Reports List Queries Narrowing Test", () => {
 
     renderReports();
 
+    // Click the card and wait for the table to appear. 
+    // In JSDOM, clicking sometimes needs a bit of a wait for state to update.
     await waitFor(() => {
        const card = screen.getByText(/Profit Statements/i).closest('button');
        if (card) fireEvent.click(card);
     });
 
+    // Check for the report name in the table
     await waitFor(() => {
-      // Use a custom matcher to find the text even if split
-      const found = screen.queryByText((content, element) => {
-        const hasText = (node: Element) => node.textContent === "Test Profit Statement";
-        const elementHasText = hasText(element as Element);
-        const childrenDontHaveText = Array.from(element?.children || []).every(
-          child => !hasText(child)
-        );
-        return elementHasText && childrenDontHaveText;
-      }) || screen.queryByText(/Test Profit Statement/);
-      
+      // Use queryByText with regex or custom matcher to be safer
+      const found = screen.queryByText(/Test Profit Statement/i);
       expect(found).toBeInTheDocument();
-    }, { timeout: 5000 });
+    }, { timeout: 3000 });
   });
 
   it("should render offline_seminar_reports list with mocked data", async () => {
