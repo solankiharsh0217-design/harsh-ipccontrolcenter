@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import FinanceSuccessDashboard from './FinanceSuccessDashboard';
-import { AuthContext } from '@/context/AuthContext';
+import { AuthProvider } from '@/context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import * as accessFollowupReturn from '@/lib/accessFollowupReturn';
