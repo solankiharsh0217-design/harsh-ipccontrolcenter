@@ -370,14 +370,28 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-line flex justify-between bg-white">
+        <div className="px-6 py-3 border-t border-line flex justify-between bg-white items-center">
           <button onClick={onClose} className="ipc-btn ipc-btn-ghost">Cancel</button>
-          <button onClick={() => { load(); onChanged(); onClose(); }} className="ipc-btn ipc-btn-black">Save & Close</button>
+          
+          <div className="flex items-center gap-2">
+            {primaryAction && (
+              <button 
+                onClick={primaryAction.onClick}
+                className={`ipc-btn ${primaryAction.variant === "black" ? "ipc-btn-black" : "ipc-btn-ghost"}`}
+              >
+                {primaryAction.label}
+              </button>
+            )}
+            <button onClick={() => { load(); onChanged(); onClose(); }} className="ipc-btn ipc-btn-black">Save & Close</button>
+          </div>
         </div>
       </div>
       
       {sendOpsOpen && <SendToOperationsCrmModal candidateLeads={[lead as any]} sourceStages={[]} preSelectedIds={[lead.id]} prefill={rulePrefill as any} onClose={() => setSendOpsOpen(false)} onDone={() => { setSendOpsOpen(false); load(); }} />}
       {openPay && paidLeadId && <QuickAddPaymentModal leadId={paidLeadId} leadName={lead.full_name || undefined} prefill={payPrefill} onSaved={handlePaymentSaved} onClose={() => setOpenPay(false)} />}
+      {convertOpen && <ConvertToPaidModal lead={lead as any} onClose={() => setConvertOpen(false)} onConverted={() => { setConvertOpen(false); load(); onChanged(); }} />}
+      {sendOnboardingOpen && <SendToPaidOnboardingModal leads={[lead as any]} onClose={() => setSendOnboardingOpen(false)} onDone={() => { setSendOnboardingOpen(false); load(); onChanged(); }} />}
     </div>
   );
 }
+
