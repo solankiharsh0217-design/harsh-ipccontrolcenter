@@ -568,13 +568,6 @@ export default function OperationsLeadDrawer({
             </TabsContent>
 
 
-          {/* Communication Templates */}
-          <Section title="Communication">
-            <button onClick={() => setShowCommModal(true)} className="ipc-btn ipc-btn-black !text-xs">
-              <Mail className="w-3.5 h-3.5" /> Send / Log Communication
-            </button>
-          </Section>
-
           {/* Communication history */}
           <Section title="Communication history">
             {eventsLoading ? (
