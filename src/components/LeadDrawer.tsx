@@ -125,13 +125,32 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     duplicateBehavior: matchingRule.duplicate_behavior,
   } : null;
 
+  const paidLeadId = (lead as any).paid_pipeline_lead_id as string | null;
+
+  const handlePaymentSaved = async () => {
+    const paidLeadId = (lead as any).paid_pipeline_lead_id;
+    if (paidLeadId && postPayAction === "setTokenPaid") {
+      await supabase.from("paid_pipeline_leads").update({ pipeline_stage: "Token Paid" } as any).eq("id", paidLeadId);
+      await recomputePaidLead(paidLeadId);
+      toast.success("Token recorded and stage set to Token Paid");
+    } else toast.success("Payment recorded");
+    setPostPayAction(null); setOpenPay(false);
+    await load(); onChanged();
+  };
+
+  const openTokenPayment = () => {
+    if (!paidLeadId) return;
+    setPayPrefill({ type: "First Token", category: "Token Amount", description: "Token payment", isToken: true });
+    setPostPayAction("setTokenPaid");
+    setOpenPay(true);
+  };
+
   const primaryAction = useMemo(() => {
     if (!lead) return null;
 
     // 1. Convert to Paid Pipeline (highest priority if unpaid and unlinked)
-    // Mirroring legacy priority: check if lead_type is 'unpaid' and no paid_pipeline_lead_id exists.
     const isUnpaid = lead.lead_type?.toLowerCase() === "unpaid";
-    const isUnlinked = !(lead as any).paid_pipeline_lead_id;
+    const isUnlinked = !paidLeadId;
     if (isUnpaid && isUnlinked) {
       return {
         label: "Send to Paid Onboarding",
@@ -141,7 +160,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }
 
     // 2. Conversion Rule Match (triggers ConvertToPaidModal)
-    // Preserving logic: if a conversion rule matches current stage, this takes precedence over ops handoff.
     const currentStageName = stagesById.get(lead.stage_id)?.name || null;
     const activeConvRule = convRules.find(r => {
       if (r.source_pipeline_id && r.source_pipeline_id !== lead.pipeline_id) return false;
@@ -158,7 +176,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }
 
     // 3. Operations Handoff (isOpsEligible)
-    // Preserving logic: if eligible for ops and not already in ops.
     if (isOpsEligible && !inOps) {
       return {
         label: "Send to Operations",
@@ -168,7 +185,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }
 
     // 4. Record Token (if missing)
-    // Preserving logic: if there is a deal value but no token amount yet.
     if (paidSnap && Number(paidSnap.deal_value) > 0 && !hasToken) {
       return {
         label: "Record Token",
@@ -183,9 +199,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
       onClick: () => setCrmPickerOpen(true),
       variant: "ghost" as const,
     };
-  }, [lead, isOpsEligible, inOps, hasToken, paidSnap, convRules, stagesById]);
-
-
+  }, [lead, isOpsEligible, inOps, hasToken, paidSnap, convRules, stagesById, paidLeadId]);
 
   useEffect(() => {
     if (!lead) return;
@@ -197,7 +211,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     if (reminders.some(r => r.reminder_date < today)) { setActiveTab("follow-ups & activity"); return; }
     setActiveTab("overview");
   }, [leadId, !!lead, isOpsEligible, inOps, hasToken, reminders.length]);
-
 
   if (!lead) return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
@@ -237,25 +250,6 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }
   };
 
-  const handlePaymentSaved = async () => {
-    const paidLeadId = (lead as any).paid_pipeline_lead_id;
-    if (paidLeadId && postPayAction === "setTokenPaid") {
-      await supabase.from("paid_pipeline_leads").update({ pipeline_stage: "Token Paid" } as any).eq("id", paidLeadId);
-      await recomputePaidLead(paidLeadId);
-      toast.success("Token recorded and stage set to Token Paid");
-    } else toast.success("Payment recorded");
-    setPostPayAction(null); setOpenPay(false);
-    await load(); onChanged();
-  };
-
-  const paidLeadId = (lead as any).paid_pipeline_lead_id as string | null;
-  const openTokenPayment = () => {
-    if (!paidLeadId) return;
-    setPayPrefill({ type: "First Token", category: "Token Amount", description: "Token payment", isToken: true });
-    setPostPayAction("setTokenPaid");
-    setOpenPay(true);
-  };
-  
   const addStageInline = async () => {
     const name = newStageName.trim();
     if (!name) return;
@@ -267,6 +261,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
       if (data?.id) await moveStage(data.id);
     } finally { setAddingStage(false); }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 bg-black/30" onClick={onClose}>
