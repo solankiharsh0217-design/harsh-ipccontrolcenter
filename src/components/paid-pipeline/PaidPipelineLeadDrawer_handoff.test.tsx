@@ -6,24 +6,42 @@ import * as operationsCrm from "@/lib/operationsCrm";
 import * as cocRules from "@/lib/codeOfConductRules";
 import { MemoryRouter } from "react-router-dom";
 
-// Mock Supabase
-vi.mock("@/integrations/supabase/client", () => {
-  const mockQuery = {
+// Standardized Supabase Mock for all Drawer tests
+const createMockQuery = () => {
+  const query = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    neq: vi.fn().mockReturnThis(),
+    gt: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    lt: vi.fn().mockReturnThis(),
+    lte: vi.fn().mockReturnThis(),
+    like: vi.fn().mockReturnThis(),
+    ilike: vi.fn().mockReturnThis(),
+    is: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    contains: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn().mockResolvedValue({ data: {}, error: null }),
-    single: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    range: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    single: vi.fn().mockResolvedValue({ data: null, error: null }),
     update: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    upsert: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    delete: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    rpc: vi.fn().mockResolvedValue({ data: {}, error: null }),
   };
-  return {
-    supabase: {
-      from: vi.fn().mockReturnValue(mockQuery),
-    },
-  };
-});
+  return query;
+};
+
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: vi.fn().mockImplementation(() => createMockQuery()),
+    rpc: vi.fn().mockResolvedValue({ data: {}, error: null }),
+  },
+}));
 
 // Mock Auth
 vi.mock("@/context/AuthContext", () => ({
