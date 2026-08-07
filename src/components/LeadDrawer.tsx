@@ -129,7 +129,7 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     if (!lead) return null;
 
     // 1. Convert to Paid Pipeline (highest priority if unpaid and unlinked)
-    const isUnpaid = lead.lead_type === "Unpaid";
+    const isUnpaid = lead.lead_type?.toLowerCase() === "unpaid";
     const isUnlinked = !(lead as any).paid_pipeline_lead_id;
     if (isUnpaid && isUnlinked) {
       return {
@@ -140,7 +140,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     }
 
     // 2. Conversion Rule Match (triggers ConvertToPaidModal)
-    const activeConvRule = convRules.find(r => r.pipeline_id === lead.pipeline_id && r.stage_id === lead.stage_id);
+    const currentStageName = stagesById.get(lead.stage_id)?.name || null;
+    const activeConvRule = convRules.find(r => {
+      if (r.source_pipeline_id && r.source_pipeline_id !== lead.pipeline_id) return false;
+      if (r.trigger_stage_ids?.includes(lead.stage_id)) return true;
+      if (currentStageName && r.trigger_stage_names?.some(n => n.toLowerCase() === currentStageName.toLowerCase())) return true;
+      return false;
+    });
     if (activeConvRule) {
       return {
         label: "Convert to Paid",
@@ -173,7 +179,8 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
       onClick: () => setCrmPickerOpen(true),
       variant: "ghost" as const,
     };
-  }, [lead, isOpsEligible, inOps, hasToken, paidSnap, convRules]);
+  }, [lead, isOpsEligible, inOps, hasToken, paidSnap, convRules, stagesById]);
+
 
   useEffect(() => {
     if (!lead) return;
