@@ -171,8 +171,10 @@ describe("Reports List Queries Narrowing Test", () => {
     });
 
     await waitFor(() => {
-      const elements = screen.queryAllByText(/Test Profit Statement/i);
-      expect(elements.length).toBeGreaterThan(0);
+      // Find within the main content area, specifically in the table
+      const rows = screen.queryAllByRole("row");
+      const profitRow = rows.find(r => r.textContent?.includes("Test Profit Statement"));
+      expect(profitRow).toBeTruthy();
     }, { timeout: 5000 });
   });
 
