@@ -94,6 +94,7 @@ describe("PaidPipelineLeadDrawer - Handoff Logic Verification", () => {
     (operationsCrm.applyAutoHandoff as any).mockResolvedValue({ inserted: 1, updated: 0 });
     (cocRules.evaluateStageTrigger as any).mockResolvedValue({ action: "auto_sent", rule: { name: "CoC Rule" } });
 
+    // Force default tab to Onboarding for the test
     render(
       <PaidPipelineLeadDrawer
         lead={mockLead as any}
@@ -104,15 +105,20 @@ describe("PaidPipelineLeadDrawer - Handoff Logic Verification", () => {
       />
     );
 
-    // Click Onboarding tab - Try by text if Role is problematic
-    const tab = screen.getByText(/Onboarding/i);
-    fireEvent.click(tab);
+    // Instead of clicking the tab which is failing in JSDOM, 
+    // let's look for the tab list and click the button with text "Onboarding"
+    const tabs = screen.getAllByRole("tab");
+    const onboardingTab = tabs.find(t => t.textContent?.includes("Onboarding"));
+    if (onboardingTab) {
+      fireEvent.click(onboardingTab);
+    } else {
+      // Fallback: just find any element with text Onboarding and click it
+      fireEvent.click(screen.getByText(/Onboarding/));
+    }
 
-    // Wait for the tab content to render and trigger stage change
-    await waitFor(async () => {
-      const btn = screen.getByTestId("trigger-stage-change");
-      fireEvent.click(btn);
-    }, { timeout: 3000 });
+    // Wait for the trigger to be available
+    const btn = await screen.findByTestId("trigger-stage-change");
+    fireEvent.click(btn);
 
     // Assertions
     await waitFor(() => {
