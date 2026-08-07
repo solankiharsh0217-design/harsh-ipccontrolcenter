@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, X as XIcon, ExternalLink } from "lucide-react";
+import { LoadingState } from "@/components/ui-bits";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -51,7 +52,7 @@ export default function PendingApprovalsPanel({ onChanged, onOpenLead }: { onCha
         <div className="text-[10px] text-muted-foreground">{rows.length} pending</div>
       </div>
       {loading ? (
-        <div className="p-4 text-xs text-muted-foreground">Loading…</div>
+        <div className="p-4"><LoadingState /></div>
       ) : rows.length === 0 ? (
         <div className="p-4 text-xs text-muted-foreground text-center">All caught up. No pending approvals.</div>
       ) : (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil } from "lucide-react";
+import { LoadingState } from "@/components/ui-bits";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -87,7 +88,7 @@ export default function OperationsSettingsTab({ isAdmin }: { isAdmin: boolean })
   if (!isAdmin) {
     return <div className="text-sm text-muted-foreground py-12 text-center">Only admins can edit Operations settings.</div>;
   }
-  if (loading) return <div className="text-sm text-muted-foreground py-12 text-center">Loading…</div>;
+  if (loading) return <LoadingState block />;
 
   return (
     <div className="space-y-6">
