@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LoadingState } from "@/components/ui-bits";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -230,7 +231,7 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false, leg
       </div>
 
       {loading ? (
-        <div className="text-[11px] text-muted-foreground">Loading…</div>
+        <LoadingState />
       ) : rows.length === 0 ? (
         <div className="text-[11px] text-muted-foreground">No session attendance recorded yet.</div>
       ) : (
