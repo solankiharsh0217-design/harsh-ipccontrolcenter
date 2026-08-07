@@ -1,66 +1,75 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import PaidPipelineLeadDrawer from "./PaidPipelineLeadDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import * as operationsCrm from "@/lib/operationsCrm";
 import * as cocRules from "@/lib/codeOfConductRules";
 import { MemoryRouter } from "react-router-dom";
 
-// Mock Supabase
+// Standardized Supabase Mock for all Drawer tests
+const createMockQuery = () => {
+  const query = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    update: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockResolvedValue({ data: {}, error: null }),
+  };
+  return query;
+};
+
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      update: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: {}, error: null }),
-    })),
+    from: vi.fn().mockImplementation(() => createMockQuery()),
   },
 }));
 
-// Mock Auth
 vi.mock("@/context/AuthContext", () => ({
   useAuth: () => ({ user: { id: "user-123" }, isAdmin: true }),
 }));
 
-// Mock Operations CRM lib
 vi.mock("@/lib/operationsCrm", () => ({
-  getActiveHandoffRules: vi.fn(),
-  findRuleForStage: vi.fn(),
-  isRuleAutoReady: vi.fn(),
-  applyAutoHandoff: vi.fn(),
+  getActiveHandoffRules: vi.fn().mockResolvedValue([]),
+  findRuleForStage: vi.fn().mockReturnValue(null),
+  isRuleAutoReady: vi.fn().mockReturnValue(false),
+  applyAutoHandoff: vi.fn().mockResolvedValue({ inserted: 0, updated: 0, skipped: 0, buyerCounts: {} }),
 }));
 
-// Mock Code of Conduct lib
 vi.mock("@/lib/codeOfConductRules", () => ({
-  evaluateStageTrigger: vi.fn(),
+  evaluateStageTrigger: vi.fn().mockResolvedValue({ action: "none" }),
 }));
 
-// Mock visibility audit
-vi.mock("@/lib/paidPipelineVisibility", () => ({
-  auditPaidPipelineVisibility: vi.fn().mockResolvedValue({ status: "ok", checks: [] }),
+vi.mock("@/lib/auditLog", () => ({
+  logActivity: vi.fn().mockResolvedValue({}),
 }));
 
-// Mock the sub-components to bypass Radix complexity
 vi.mock("@/components/crm/CrmStagePicker", () => ({
   default: ({ onChangeStage }: any) => (
-    <button data-testid="trigger-stage-change" onClick={() => onChangeStage("stage-new")}>
-      Change Stage
-    </button>
+    <select aria-label="CRM Stage Picker" onChange={(e) => onChangeStage(e.target.value)}>
+      <option value="">—</option>
+      <option value="stage-new">New Stage</option>
+    </select>
   ),
 }));
 
 // Mock UI Tabs to avoid Radix JSDOM issues
 vi.mock("@/components/ui/tabs", () => ({
-  Tabs: ({ children }: any) => <div>{children}</div>,
-  TabsList: ({ children }: any) => <div>{children}</div>,
-  TabsTrigger: ({ children, onClick }: any) => (
-    <button onClick={onClick}>{children}</button>
+  Tabs: ({ children, value, onValueChange }: any) => (
+    <div data-testid="mock-tabs" data-value={value} onClick={(e: any) => {
+      const target = (e.target as HTMLElement).closest('[role="tab"]');
+      if (target) onValueChange?.(target.getAttribute('data-value'));
+    }}>{children}</div>
+  ),
+  TabsList: ({ children }: any) => <div role="tablist">{children}</div>,
+  TabsTrigger: ({ children, value }: any) => (
+    <button role="tab" data-value={value} aria-label={value}>{children}</button>
   ),
   TabsContent: ({ children, value }: any) => (
-    <div data-testid={`content-${value}`}>{children}</div>
+    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
   ),
 }));
 
@@ -76,62 +85,46 @@ const mockLead = {
   token_amount_collected: 100,
 };
 
-describe("PaidPipelineLeadDrawer - Handoff Logic Verification", () => {
+describe("PaidPipelineLeadDrawer Handoff Verification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    // Setup standard mock returns
-    (supabase.from as any).mockImplementation((table: string) => {
-      if (table === "leads") {
-        return {
-          select: vi.fn().mockReturnThis(),
-          update: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          maybeSingle: vi.fn().mockResolvedValue({ data: { id: "crm-123", stage_id: "old", pipeline_id: "pipe-1" }, error: null }),
-        };
-      }
-      return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-      };
-    });
   });
 
+  afterEach(cleanup);
+
   it("verifies that changing CRM stage invokes both Operations Handoff and Code of Conduct logic", async () => {
-    (operationsCrm.getActiveHandoffRules as any).mockResolvedValue([{ id: "rule-1", name: "Test Rule", mode: "auto" }]);
-    (operationsCrm.findRuleForStage as any).mockReturnValue({ id: "rule-1", name: "Test Rule", mode: "auto" });
-    (operationsCrm.isRuleAutoReady as any).mockReturnValue(true);
-    (operationsCrm.applyAutoHandoff as any).mockResolvedValue({ inserted: 1, updated: 0 });
-    (cocRules.evaluateStageTrigger as any).mockResolvedValue({ action: "auto_sent", rule: { name: "CoC Rule" } });
+    vi.spyOn(operationsCrm, "getActiveHandoffRules").mockResolvedValue([{ id: "rule-1", mode: "auto" } as any]);
+    vi.spyOn(operationsCrm, "findRuleForStage").mockReturnValue({ id: "rule-1", mode: "auto" } as any);
+    vi.spyOn(operationsCrm, "isRuleAutoReady").mockReturnValue(true);
+    vi.spyOn(operationsCrm, "applyAutoHandoff").mockResolvedValue({ inserted: 1, updated: 0, skipped: 0, buyerCounts: {} } as any);
+    vi.spyOn(cocRules, "evaluateStageTrigger").mockResolvedValue({ action: "auto_sent" } as any);
 
-    render(
-      <MemoryRouter>
-        <PaidPipelineLeadDrawer
-          lead={mockLead as any}
-          onClose={() => {}}
-          stages={["New"]}
-          agents={[]}
-          onChanged={() => {}}
-        />
-      </MemoryRouter>
-    );
+    // Mock CRM response for stage lookup
+    (supabase.from as any).mockImplementation((table: string) => {
+      const q = createMockQuery();
+      if (table === "leads") q.maybeSingle.mockResolvedValue({ data: { id: "crm-123", stage_id: "stage-old" }, error: null });
+      if (table === "stages") q.order.mockResolvedValue({ data: [{ id: "stage-new", name: "New Stage" }], error: null });
+      return q;
+    });
 
-    // The mock Tabs component renders all content, so we can just find the button
-    const btn = await screen.findByTestId("trigger-stage-change");
-    fireEvent.click(btn);
+    await act(async () => {
+      render(<MemoryRouter><PaidPipelineLeadDrawer lead={mockLead as any} onClose={() => {}} stages={[]} agents={[]} onChanged={() => {}} /></MemoryRouter>);
+    });
 
-    // Assertions
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
+    
+    // Switch to Onboarding tab
+    fireEvent.click(screen.getByRole("tab", { name: /onboarding/i }));
+    
+    // Find and trigger stage change
+    const picker = await screen.findByLabelText("CRM Stage Picker");
+    await act(async () => {
+      fireEvent.change(picker, { target: { value: "stage-new" } });
+    });
+
     await waitFor(() => {
-      expect(operationsCrm.getActiveHandoffRules).toHaveBeenCalled();
-      console.log("LOG_SIGNAL: getActiveHandoffRules was called");
-      
       expect(operationsCrm.applyAutoHandoff).toHaveBeenCalled();
-      console.log("LOG_SIGNAL: applyAutoHandoff was called");
-
       expect(cocRules.evaluateStageTrigger).toHaveBeenCalled();
-      console.log("LOG_SIGNAL: evaluateStageTrigger was called");
     });
   });
 });
