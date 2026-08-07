@@ -6,6 +6,7 @@ import {
   type RewardRule,
 } from "@/lib/operationsConversions";
 import { logActivity } from "@/lib/auditLog";
+import { LoadingState } from "@/components/ui-bits";
 
 const empty: Partial<RewardRule> = {
   rule_name: "",
@@ -85,7 +86,7 @@ export default function OperationsRewardRulesPanel() {
           <div>Rule</div><div>Period</div><div>Metric</div><div className="text-right">Target</div><div className="text-right">Reward</div><div>Status</div><div className="text-right">Actions</div>
         </div>
         {loading ? (
-          <div className="px-4 py-8 text-center text-xs text-muted-foreground">Loading…</div>
+          <div className="px-4"><LoadingState block /></div>
         ) : rows.length === 0 ? (
           <div className="px-4 py-8 text-center text-xs text-muted-foreground">No reward rules yet.</div>
         ) : rows.map((r) => (

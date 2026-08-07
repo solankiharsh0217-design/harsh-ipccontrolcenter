@@ -12,6 +12,7 @@ import {
   type DuplicateBehavior,
   isRuleAutoReady,
 } from "@/lib/operationsCrm";
+import { LoadingState } from "@/components/ui-bits";
 
 interface Pipeline { id: string; name: string; type: string }
 interface Stage { id: string; pipeline_id: string; name: string; position: number }
@@ -186,7 +187,7 @@ export default function OperationsHandoffRulesPanel() {
       </div>
 
       {loading ? (
-        <div className="text-sm text-muted-foreground py-8 text-center">Loading…</div>
+        <LoadingState block />
       ) : rules.length === 0 ? (
         <div className="border border-dashed border-line rounded-lg p-6 text-center text-sm text-muted-foreground">
           No handoff rules yet. Create one to route Calling CRM leads into Operations CRM automatically.

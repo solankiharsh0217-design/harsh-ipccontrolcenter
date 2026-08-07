@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import RuleCard from "./coc/RuleCard";
 import PostSendWizard, { type PostSendRule } from "./coc/PostSendWizard";
 import type { Pipeline, Stage, Template } from "./coc/StageTriggerWizard";
+import { LoadingState } from "@/components/ui-bits";
 
 interface Props {
   pipelines: Pipeline[];
@@ -63,7 +64,7 @@ export default function PostSendAutomationRulesSection({ pipelines, stages, temp
       </div>
 
       {loading ? (
-        <div className="text-[12px] text-muted-foreground">Loading…</div>
+        <LoadingState />
       ) : rules.length === 0 ? (
         <div className="bg-white border border-dashed border-line rounded-xl p-6 text-center text-[12px] text-muted-foreground">No post-send rules yet.</div>
       ) : (

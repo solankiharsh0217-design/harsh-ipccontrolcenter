@@ -13,6 +13,7 @@ import {
   computeProductGst,
 } from "@/lib/roas/seminarProduct";
 import { inr } from "@/lib/format";
+import { LoadingState } from "@/components/ui-bits";
 
 interface Props {
   onClose: () => void;
@@ -147,7 +148,7 @@ export default function SeminarProductManagerModal({ onClose, onChanged }: Props
                 </button>
               )}
               {loading ? (
-                <div style={{ padding: 20, textAlign: "center", color: "var(--mt)", fontSize: 12 }}>Loading…</div>
+                <div style={{ padding: 20 }}><LoadingState label="Loading catalog…" /></div>
               ) : rows.length === 0 ? (
                 <div style={{ padding: 20, textAlign: "center", color: "var(--mt)", fontSize: 12 }}>No products yet.</div>
               ) : (
