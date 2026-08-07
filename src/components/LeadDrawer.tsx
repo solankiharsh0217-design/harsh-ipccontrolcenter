@@ -215,6 +215,13 @@ export default function LeadDrawer({ leadId, stages, agents, onClose, onChanged,
     loadActiveConversionRules().then(setConvRules).catch(() => setConvRules([])); 
   }, []);
 
+  const today = new Date().toISOString().slice(0, 10);
+  const currentStage = pipelineStages.find((s) => s.id === lead.stage_id);
+  const matchingRule = findRuleForStage(opsRules, lead.pipeline_id, lead.stage_id, stagesById);
+  const isOpsEligible = !!matchingRule;
+  const inOps = opsLeadId !== null;
+  const hasToken = !!paidSnap && Number(paidSnap.token_amount_collected || 0) > 0;
+
   // Determine default tab on open
   useEffect(() => {
     if (!lead) return;
