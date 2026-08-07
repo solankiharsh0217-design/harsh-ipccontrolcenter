@@ -108,6 +108,40 @@ vi.mock("@/components/operations/ReadinessChecklist", () => ({
   }
 }));
 
+// Mock sonner
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    message: vi.fn(),
+  },
+}));
+
+// Mock operationsSla
+vi.mock("@/lib/operationsSla", () => ({
+  getOperationsSlaSettings: vi.fn().mockResolvedValue({ watch_days: 3, overdue_days: 6 }),
+  fetchStageChangeMap: vi.fn().mockResolvedValue(new Map()),
+  computeStageAging: vi.fn().mockReturnValue({ days: 0, status: 'on_track', lastMovedAt: new Date().toISOString(), source: 'estimated' }),
+  DEFAULT_SLA: { watch_days: 3, overdue_days: 6 },
+}));
+
+// Mock SlaChip
+vi.mock("@/components/operations/SlaChip", () => ({
+  default: () => null,
+}));
+
+// Mock operationsTemplates
+vi.mock("@/lib/operationsTemplates", () => ({
+  listProcessTemplates: vi.fn().mockResolvedValue([]),
+  getChecklistItems: vi.fn().mockResolvedValue([]),
+  getTemplateFields: vi.fn().mockResolvedValue([]),
+  listCommunicationTemplates: vi.fn().mockResolvedValue([]),
+  getChecklistState: vi.fn().mockResolvedValue([]),
+  getCustomValues: vi.fn().mockResolvedValue([]),
+  computeReadiness: vi.fn().mockReturnValue({ totalRequired: 0, checkedRequired: 0, totalOptional: 0, checkedOptional: 0, pct: 0, blocked: false }),
+}));
+
 // Mock readiness lib functions
 vi.mock("@/lib/operationsReadiness", () => ({
   resolveReadinessTargetStage: vi.fn(),
