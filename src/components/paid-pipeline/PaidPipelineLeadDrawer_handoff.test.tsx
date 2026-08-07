@@ -139,8 +139,10 @@ describe("PaidPipelineLeadDrawer - changeCrmStage Logic", () => {
     fireEvent.click(onboardingTab);
 
     // 5. Find the stage picker (CrmStagePicker) and trigger a change
-    const pickerTrigger = await screen.findByRole("combobox");
-    fireEvent.change(pickerTrigger, { target: { value: "stage-new" } });
+    // Using getAllByRole because there's also a temperature selector on the page
+    const pickers = await screen.findAllByRole("combobox");
+    const stagePicker = pickers.find(p => p.innerHTML.includes("New Stage")) || pickers[1];
+    fireEvent.change(stagePicker, { target: { value: "stage-new" } });
 
     // 6. Assert downstream evaluations were called
     await waitFor(() => {
