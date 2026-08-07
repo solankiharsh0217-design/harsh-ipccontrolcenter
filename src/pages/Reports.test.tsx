@@ -46,6 +46,7 @@ describe("Reports List Queries Narrowing Test", () => {
       order: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
       then: vi.fn().mockImplementation((cb) => {
         cb({ data: [], error: null });
         return Promise.resolve({ data: [], error: null });
