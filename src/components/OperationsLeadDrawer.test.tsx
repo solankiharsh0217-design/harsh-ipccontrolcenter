@@ -52,11 +52,15 @@ vi.mock("@/lib/notifications", () => ({
 
 // Mock lucide-react with the Proxy to handle all icons including XIcon
 vi.mock("lucide-react", () => {
-  const MockIcon = () => <div />;
+  const MockIcon = (props: any) => React.createElement('div', props);
   return new Proxy({}, {
-    get: (target, prop) => MockIcon
+    get: (target, prop) => {
+      if (prop === '__esModule') return true;
+      return MockIcon;
+    }
   });
 });
+
 
 // Mock UI Components with simple divs
 vi.mock("@/components/ui/tabs", () => ({
