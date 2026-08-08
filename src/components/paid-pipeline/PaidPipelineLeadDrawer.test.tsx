@@ -73,7 +73,11 @@ vi.mock("@/lib/operationsCrm", () => ({
 
 vi.mock("@/lib/codeOfConductRules", () => ({
   evaluateStageTrigger: vi.fn().mockResolvedValue({ action: "none" }),
+  loadActiveCoCRules: vi.fn().mockResolvedValue([]),
+  getCandidateSources: vi.fn().mockReturnValue(["paid_pipeline"]),
+  findMatchingRuleDetailed: vi.fn().mockResolvedValue({ rule: null, diagnostics: {} }),
 }));
+
 
 vi.mock("@/components/crm/CrmStagePicker", () => ({
   default: ({ onChangeStage, open }: any) => (
