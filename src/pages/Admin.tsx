@@ -318,7 +318,7 @@ export default function Admin() {
 
       <SectionLabel>Pending access requests</SectionLabel>
       <div className="border border-line rounded-xl bg-white mb-7 overflow-hidden">
-        {pending.length === 0 && <div className="px-5 py-6 font-sans text-sm text-muted-foreground">No pending requests.</div>}
+        {pending.length === 0 && <EmptyState title="No pending requests." />}
         {pending.map(p => (
           <div key={p.id} className="flex items-center gap-3 py-3.5 px-5 border-b border-line last:border-b-0">
             <div className="flex-1">

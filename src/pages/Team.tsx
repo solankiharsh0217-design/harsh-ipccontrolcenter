@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHead } from "@/components/ui-bits";
+import { PageHead, EmptyState } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { initials, formatTime, formatDateShort } from "@/lib/format";
 import { useAuth } from "@/context/AuthContext";
@@ -445,7 +445,7 @@ export default function Team() {
           </div>
         );
       })()}
-      {visible.length === 0 && <div className="font-sans text-sm text-muted-foreground">No members in this view.</div>}
+      {visible.length === 0 && <EmptyState title="No members in this view." />}
       <div className="grid grid-cols-2 gap-3">
         {visible.map((m, i) => {
           const alt = i % 2 === 1;

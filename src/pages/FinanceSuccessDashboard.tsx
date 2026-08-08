@@ -1096,7 +1096,7 @@ export default function FinanceSuccessDashboard() {
         <CardHeader><CardTitle className="text-base">Stuck by current stage (excludes Dead / Refund)</CardTitle></CardHeader>
         <CardContent>
           {stuckAnalysis.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No stuck members in the current filter.</div>
+            <EmptyState title="No stuck members in the current filter." />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {stuckAnalysis.map(([stage, count]) => (
