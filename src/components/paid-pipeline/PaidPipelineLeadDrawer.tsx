@@ -279,18 +279,29 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
       const handoffRule = findRuleForStage(rules, crmPipelineId, newStageId, stagesById as any);
       const willHandoff = !!handoffRule && handoffRule.mode === "auto" && isRuleAutoReady(handoffRule);
 
-      const { loadActiveCoCRules, findMatchingRuleDetailed } = await import("@/lib/codeOfConductRules");
+      const { loadActiveCoCRules, findMatchingRuleDetailed, getCandidateSources } = await import("@/lib/codeOfConductRules");
       const cocRulesList = await loadActiveCoCRules();
-      const { rule: cocRule } = await findMatchingRuleDetailed({
-        rules: cocRulesList,
+      // Mirror evaluateStageTrigger's source resolution exactly: it passes source
+      // "paid_pipeline" plus the same lead ids, and getCandidateSources expands that set.
+      const candidateSources = getCandidateSources({
         source: "paid_pipeline",
-        pipelineId: crmPipelineId,
-        stageId: newStageId,
-        stageName: targetName,
         crmLeadId: lead.crm_lead_id,
         paidPipelineLeadId: lead.id,
       });
-      const willSendCoc = !!cocRule && cocRule.is_active && cocRule.mode === "auto_send";
+      let willSendCoc = false;
+      for (const candidateSource of candidateSources) {
+        const { rule: cocRule } = await findMatchingRuleDetailed({
+          rules: cocRulesList,
+          source: candidateSource,
+          pipelineId: crmPipelineId,
+          stageId: newStageId,
+          stageName: targetName,
+          crmLeadId: lead.crm_lead_id,
+          paidPipelineLeadId: lead.id,
+        });
+        if (cocRule && cocRule.is_active && cocRule.mode === "auto_send") { willSendCoc = true; break; }
+      }
+
 
       preview = { stageId: newStageId, stageName: targetName, willHandoff, willSendCoc, unknown: false };
     } catch (e) {
