@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { PageHead } from "@/components/ui-bits";
+import { PageHead, EmptyState } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { logActivity } from "@/lib/auditLog";
@@ -288,7 +288,7 @@ export default function LeadRescueSearch() {
       </div>
 
       {ran && rows.length === 0 && !busy && (
-        <div className="rounded-xl border border-line bg-off p-6 text-sm text-muted-foreground">No records found for "{q}".</div>
+        <EmptyState title={`No records found for "${q}".`} bordered />
       )}
 
       {rows.length > 0 && (

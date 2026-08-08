@@ -39,7 +39,7 @@ import type { UniversalSearchResult } from "@/lib/universalSearch";
 import ServicePackageChip from "@/components/ServicePackageChip";
 import { getVisiblePaidOnboardingLeads } from "@/lib/paidOnboardingVisibility";
 import CountHealthPanel from "@/components/crm/CountHealthPanel";
-import { EmptyRow } from "@/components/ui-bits";
+import { EmptyRow, EmptyState } from "@/components/ui-bits";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
@@ -2269,7 +2269,7 @@ export default function Crm() {
             </div>
             <div className="text-[12px] text-muted-foreground mb-3">Use this to inspect or clean wrong/empty batches. Pick the batch you want to move into the correct pipeline.</div>
             <div className="space-y-1.5">
-              {batchesWithType.length === 0 && <div className="text-sm text-muted-foreground">No batches available.</div>}
+              {batchesWithType.length === 0 && <EmptyState title="No batches available." />}
               {batchesWithType.map(b => {
                 const pipe = pipelines.find(p => p.id === b.pipelineId);
                 return (
