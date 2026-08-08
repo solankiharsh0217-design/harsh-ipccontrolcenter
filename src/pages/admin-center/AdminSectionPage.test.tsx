@@ -21,6 +21,16 @@ const renderWithRouter = (ui: React.ReactElement) => {
   return render(ui, { wrapper: BrowserRouter });
 };
 
+const EXPECTED_ADMIN_FUNCTIONS = [
+  "Team Directory", "Admin Panel", "Access Templates", "Assignment Eligibility Setup", "Media Buyer Dashboard Preview",
+  "Master Settings", "Company Settings", "Invoice Settings", "Invoice Item Catalog", "Offer Catalog", "Service Packages / Tiers", "Lead Conversion Rules", "SAC / HSN Master",
+  "Notifications", "Code of Conduct",
+  "Team Performance Dashboard", "Team Performance OS", "KPI Review & Scorecard", "KPI Rewards",
+  "IPC Resource Library", "Audit Log", "Lead Rescue Search", "System Refinement Checklist"
+];
+
+const EXPECTED_SLUGS = ["people", "business-configuration", "communication", "performance", "resources-system"];
+
 describe("AdminSectionPage Reachability", () => {
   it("covers all 23 non-DangerZone admin functions across the five slugs", () => {
     vi.spyOn(AuthContext, "useAuth").mockReturnValue({
@@ -28,14 +38,24 @@ describe("AdminSectionPage Reachability", () => {
       hasModule: () => true,
     } as any);
 
-    const slugs = ["people", "business-configuration", "communication", "performance", "resources-system"];
+    const sections = getAdminSections(true, () => true);
+    const actualSlugs = sections.map(s => s.slug);
+    expect(actualSlugs).toEqual(EXPECTED_SLUGS);
+
+    const fullInventory = sections.flatMap(s => s.cards);
+    const actualTitles = fullInventory.map(c => c.title);
+    
+    // Check that we have exactly the expected titles (no missing, no extra)
+    expect(actualTitles.sort()).toEqual([...EXPECTED_ADMIN_FUNCTIONS].sort());
+    expect(fullInventory.length).toBe(23);
+
     const allRenderedDestinations = new Set<string>();
     const allRenderedLabels = new Set<string>();
 
-    slugs.forEach(slug => {
+    EXPECTED_SLUGS.forEach(slug => {
       const { unmount } = renderWithRouter(<AdminSectionPage slug={slug} />);
       
-      const section = getAdminSections(true, () => true).find(s => s.slug === slug);
+      const section = sections.find(s => s.slug === slug);
       if (section) {
         section.cards.forEach(card => {
           expect(screen.getByText(card.title)).toBeDefined();
@@ -46,10 +66,6 @@ describe("AdminSectionPage Reachability", () => {
       unmount();
     });
 
-    // Get the expected inventory from the source of truth
-    const fullInventory = getAdminSections(true, () => true).flatMap(s => s.cards);
-    
-    expect(fullInventory.length).toBe(23);
     expect(allRenderedLabels.size).toBe(23);
     expect(allRenderedDestinations.size).toBe(23);
 
