@@ -2365,6 +2365,25 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                           </ul>
                         </div>
                       )}
+                      {preflight.rowsGstGrossedUp > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-sky-50 border border-sky-200 text-[11px] text-sky-900">
+                          GST conversion — the mapped Deal Value column <b>{mapping.deal_value}</b> is <b>excluding GST</b>. {preflight.rowsGstGrossedUp} row(s) will be grossed up at <b>{gstRateInfo.rate}%</b> (source: {gstRateInfo.source}) before being stored as GST-inclusive. Token, Collected and Balance are <b>not</b> converted.
+                          <ul className="mt-1 ml-3 list-disc">
+                            {preflight.gstConversionSamples.map((s, i) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {preflight.rowsGstRateUnresolved > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                          ⚠ The Deal Value column <b>{mapping.deal_value}</b> says <b>excluding GST</b>, but no GST rate could be resolved ({gstRateInfo.source}). {preflight.rowsGstRateUnresolved} row(s) will be stored <b>exactly as written, with no conversion</b> — no rate is ever assumed. Pick an Offer with a GST rate, or set a default GST rate in invoice settings.
+                        </div>
+                      )}
+                      {mapping.deal_value && dealValueGstMode === "inclusive" && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-muted/40 border border-border text-[11px] text-muted-foreground">
+                          Deal Value column <b>{mapping.deal_value}</b> is already <b>including GST</b> — stored as-is, no conversion.
+                        </div>
+                      )}
+
                       {leadType !== "paid" && mapping.token && preflight.projectedTokenRevenue > 0 && (
                         <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
                           Tokens are mapped but the lead type is <b>Unpaid</b>. Token payments are only recorded when importing into a <b>Paid</b> pipeline.
