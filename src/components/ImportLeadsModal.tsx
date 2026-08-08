@@ -203,7 +203,7 @@ const recordTokenPayment = async (args: {
   const { error } = await supabase.from("paid_pipeline_payments" as any).insert({
     paid_pipeline_lead_id: paidLeadId,
     payment_type: "Token",
-    payment_category: "token",
+    payment_category: "Token Amount",
     amount,
     payment_mode: "Import",
     payment_date: paymentDate || new Date().toISOString().slice(0, 10),
@@ -211,6 +211,49 @@ const recordTokenPayment = async (args: {
     is_token: true,
     is_final_payment: false,
     payment_description: `Token collected on import from ${sourceLabel || `segment "${segmentName}"`}`,
+    is_deleted: false,
+    created_by: createdBy,
+  } as any);
+  if (error) throw error;
+  return "created";
+};
+
+// Insert the NON-token remainder (collected above the token) as its own payment row.
+// Same guard style + dedupe-by-reference idempotency as recordTokenPayment, but with a
+// distinct reference suffix so it can never collide with the token row.
+const recordBalancePayment = async (args: {
+  paidLeadId: string;
+  amount: number;
+  segmentName: string;
+  createdBy: string | null;
+  paymentDate?: string | null;
+  rowRef?: string | null;
+  sourceLabel?: string | null;
+}): Promise<"created" | "duplicate" | "skipped"> => {
+  const { paidLeadId, amount, segmentName, createdBy, paymentDate, rowRef, sourceLabel } = args;
+  if (!paidLeadId || !(amount > 0)) return "skipped";
+  const reference = rowRef
+    ? `Import · ${segmentName} · row ${rowRef} · balance`
+    : `Import · ${segmentName} · balance`;
+  const { data: existing } = await supabase
+    .from("paid_pipeline_payments" as any)
+    .select("id")
+    .eq("paid_pipeline_lead_id", paidLeadId)
+    .eq("payment_reference", reference)
+    .eq("is_deleted", false)
+    .maybeSingle();
+  if ((existing as any)?.id) return "duplicate";
+  const { error } = await supabase.from("paid_pipeline_payments" as any).insert({
+    paid_pipeline_lead_id: paidLeadId,
+    payment_type: "Balance Payment",
+    payment_category: "Balance Payment",
+    amount,
+    payment_mode: "Import",
+    payment_date: paymentDate || new Date().toISOString().slice(0, 10),
+    payment_reference: reference,
+    is_token: false,
+    is_final_payment: false,
+    payment_description: `Collected (non-token) on import from ${sourceLabel || `segment "${segmentName}"`}`,
     is_deleted: false,
     created_by: createdBy,
   } as any);
@@ -1227,7 +1270,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             const rowMeta = resolveRowMeta(normEmail(lead.email), normPhone(lead.phone));
             const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || dealValue || 0);
             const rowToken = rowMeta.token > 0 ? rowMeta.token : 0;
-            const rowCollected = rowMeta.collected > 0 ? rowMeta.collected : rowToken;
+            const rowCollected = rowMeta.collected > 0 ? rowMeta.collected : 0;
             const rowBalance = rowMeta.balance > 0
               ? rowMeta.balance
               : Math.max((rowDeal || 0) - (rowCollected || 0), 0);
@@ -1241,6 +1284,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               rowRef,
               sourceLabel,
             };
+            const rowRemainder = Math.max((rowCollected || 0) - (rowToken || 0), 0);
+            const balancePaymentArgs = { ...tokenPaymentArgs, amount: rowRemainder };
             const handleTokenResult = (result: "created" | "duplicate" | "skipped") => {
               if (result === "created") paymentRowsCreated++;
               else if (result === "duplicate") paymentRowsDuplicate++;
@@ -1253,6 +1298,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 await recordTokenPayment({ paidLeadId: lead.paid_pipeline_lead_id, ...tokenPaymentArgs })
                   .then(handleTokenResult)
                   .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+              }
+              if (rowRemainder > 0) {
+                await recordBalancePayment({ paidLeadId: lead.paid_pipeline_lead_id, ...balancePaymentArgs })
+                  .then(handleTokenResult)
+                  .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] balance payment insert failed", e); });
               }
               await runRecompute(lead.paid_pipeline_lead_id);
               continue;
@@ -1275,7 +1325,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               phone: lead.phone,
               product_name_snapshot: lead.program_name || productName || null,
               deal_value_including_gst: rowDeal,
-              token_amount_collected: rowCollected,
+              token_amount_collected: rowToken,
               source_webinar: segmentName,
               pipeline_stage: "Payment Confirmed",
               payment_status: rowCollected > 0
@@ -1348,6 +1398,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               await recordTokenPayment({ paidLeadId, ...tokenPaymentArgs })
                 .then(handleTokenResult)
                 .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+            }
+
+            // Non-token remainder (collected above the token) as its own payment row.
+            if (paidLeadId && rowRemainder > 0) {
+              await recordBalancePayment({ paidLeadId, ...balancePaymentArgs })
+                .then(handleTokenResult)
+                .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] balance payment insert failed", e); });
             }
 
             // Recompute rollups for every created/updated paid lead, including
