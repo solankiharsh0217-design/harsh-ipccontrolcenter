@@ -1,4 +1,4 @@
-import { AdminSectionPage } from "./AdminSectionPage";
+import AdminSectionPage from "./AdminSectionPage";
 
 const CommunicationPage = () => {
   return <AdminSectionPage slug="communication" />;
