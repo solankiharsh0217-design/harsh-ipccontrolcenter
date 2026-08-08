@@ -377,6 +377,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     rowsWithDealValue: number;
     rowsTokenExceedsDeal: number;
     rowsMissingDealValue: number; // import-eligible rows with no per-record deal value
+    rowsAmbiguousAmount: number;  // rows where a money cell held multiple numbers
+    ambiguousAmountSamples: string[]; // "Row 4 · Token Amount: \"2 EMI 60000\""
 
     projectedRevenue: number;   // Sum of deal_value (fallback to global dealValue) for import-eligible rows
     projectedTokenRevenue: number; // Sum of tokens for import-eligible rows
