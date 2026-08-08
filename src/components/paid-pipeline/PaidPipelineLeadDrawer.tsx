@@ -27,9 +27,29 @@ import type { Lead, Batch, Payment } from "@/pages/PaidPipeline";
 import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink, Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/ui-bits";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { fetchVerificationForPaidLead, computeOverall } from "@/lib/accessVerification";
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+type StageChangePreview = {
+  stageId: string;
+  stageName: string;
+  willHandoff: boolean;
+  willSendCoc: boolean;
+  unknown: boolean;
+};
+
 
 export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; onClose: () => void; stages: string[]; agents: { id: string; full_name: string }[]; onChanged: () => void }) {
   const [activeTab, setActiveTab] = useState((lead as any).default_tab_override || "overview");
@@ -122,6 +142,9 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
   const [newCrmStageName, setNewCrmStageName] = useState("");
   const [addingStage, setAddingStage] = useState(false);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
+  const [stagePreview, setStagePreview] = useState<StageChangePreview | null>(null);
+  const [confirmingStage, setConfirmingStage] = useState(false);
+
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
@@ -283,6 +306,8 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
   };
 
   const performCrmStageChange = async (newStageId: string) => {
+    if (!lead.crm_lead_id) return;
+
 
     const oldName = crmStages.find(s => s.id === crmStageId)?.name || "—";
     const newName = crmStages.find(s => s.id === newStageId)?.name || "—";
