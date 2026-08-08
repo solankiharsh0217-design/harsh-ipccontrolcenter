@@ -352,9 +352,9 @@ export async function backfillRecomputePaidLeads(
 
   const preById = new Map(preRows.map((r) => [String(r.id), r]));
 
-  // Resume mode classification pass. `preRows` is the live stored state read at run
-  // start, i.e. the snapshot row for this run. Each lead is classified against both
-  // that snapshot row and its computed target before any processing begins.
+  // Resume mode classification pass. `preRows` is the operator-supplied verified
+  // pre-state manifest (never a fresh database read). Each lead is classified against
+  // that manifest row and its computed target before any processing begins.
   const alreadyWritten = new Set<string>();
   if (allowPartialResume) {
     let notYetWritten = 0;
