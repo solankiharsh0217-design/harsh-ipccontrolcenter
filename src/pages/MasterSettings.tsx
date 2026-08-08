@@ -6,7 +6,7 @@ import { logActivity } from "@/lib/auditLog";
 import MediaBuyerAliasManager from "@/components/admin/MediaBuyerAliasManager";
 import OperationsHandoffRulesPanel from "@/components/admin/OperationsHandoffRulesPanel";
 import OperationsRewardRulesPanel from "@/components/admin/OperationsRewardRulesPanel";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 
 
 const MS = "master_settings";
@@ -365,7 +365,7 @@ function ProductsSection() {
         <div className="grid grid-cols-[2fr_120px_120px_140px_180px_100px] bg-off px-4 py-2.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-sans">
           <div>Name</div><div>Price</div><div>Token</div><div>GST</div><div>Revenue Rule</div><div className="text-right">Actions</div>
         </div>
-        {rows.length === 0 && <div className="px-4 py-10 text-center font-sans text-[13px] text-muted-foreground">No products yet</div>}
+        {rows.length === 0 && <EmptyState title="No products yet" />}
         {rows.map((r) => (
           <div key={r.id} className="grid grid-cols-[2fr_120px_120px_140px_180px_100px] px-4 py-3 border-t border-line items-center hover:bg-off/50">
             <div className="font-serif text-[15px] text-black">{r.product_name} {!r.is_active && <span className="ml-2 text-[10px] text-muted-foreground">(inactive)</span>}</div>
@@ -499,7 +499,7 @@ function PPSettingsGroup({ title, subtitle, groups }:
         <div className="grid grid-cols-[1fr_80px_100px_140px] bg-off px-4 py-2.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-sans">
           <div>Label</div><div>Sort</div><div>Active</div><div className="text-right">Actions</div>
         </div>
-        {filtered.length === 0 && <div className="px-4 py-10 text-center font-sans text-[13px] text-muted-foreground">No entries</div>}
+        {filtered.length === 0 && <EmptyState title="No entries" />}
         {filtered.map((r) => (
           <div key={r.id} className="grid grid-cols-[1fr_80px_100px_140px] px-4 py-3 border-t border-line items-center hover:bg-off/50">
             {editing?.id === r.id ? (
@@ -661,7 +661,7 @@ function CrmPipelinesSection() {
             <button className={btnPrimary} onClick={addStage}>Add Stage</button>
           </div>
           <div className="border border-line rounded-lg overflow-hidden">
-            {pStages.length === 0 && <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">No stages</div>}
+            {pStages.length === 0 && <EmptyState title="No stages" />}
             {pStages.map((s) => (
               <div key={s.id} className="flex items-center px-4 py-3 border-b border-line last:border-b-0">
                 <span className="text-[12px] text-muted-foreground w-8">#{s.position + 1}</span>
@@ -937,7 +937,7 @@ function GeneralDropdownsSection() {
         <div className="grid grid-cols-[200px_1fr_100px] bg-off px-4 py-2.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-sans">
           <div>Field Key</div><div>Value</div><div className="text-right">Actions</div>
         </div>
-        {filtered.length === 0 && <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">No entries</div>}
+        {filtered.length === 0 && <EmptyState title="No entries" />}
         {filtered.map(r => (
           <div key={r.id} className="grid grid-cols-[200px_1fr_100px] px-4 py-2.5 border-t border-line items-center hover:bg-off/50">
             <div className="font-sans text-[12px] text-muted-foreground">{r.field_key}</div>
@@ -1037,7 +1037,7 @@ function TagsSection() {
         <div className="grid grid-cols-[1fr_140px_100px_100px_120px] bg-off px-4 py-2.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-sans">
           <div>Name</div><div>Scope</div><div>Usage</div><div>Active</div><div className="text-right">Actions</div>
         </div>
-        {tags.length === 0 && <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">No tags</div>}
+        {tags.length === 0 && <EmptyState title="No tags" />}
         {tags.map((t) => (
           <div key={t.id} className="grid grid-cols-[1fr_140px_100px_100px_120px] px-4 py-3 border-t border-line items-center hover:bg-off/50">
             <div className="flex items-center gap-2">
@@ -1159,7 +1159,7 @@ function StageSyncRulesSection() {
         <div className="grid grid-cols-[1.4fr_2fr_2fr_90px_100px] bg-off px-4 py-2.5 text-[10px] uppercase tracking-[0.1em] text-muted-foreground font-sans">
           <div>Rule</div><div>When</div><div>Suggest</div><div>Active</div><div className="text-right">Actions</div>
         </div>
-        {rows.length === 0 && <div className="px-4 py-10 text-center text-[13px] text-muted-foreground">No custom rules yet</div>}
+        {rows.length === 0 && <EmptyState title="No custom rules yet" />}
         {rows.map(r => (
           <div key={r.id} className="grid grid-cols-[1.4fr_2fr_2fr_90px_100px] px-4 py-3 border-t border-line items-center hover:bg-off/50">
             <div className="font-serif text-[14px]">{r.rule_name}</div>
