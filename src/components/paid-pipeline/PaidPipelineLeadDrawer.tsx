@@ -576,9 +576,21 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
             <div className="w-px h-4 bg-line mx-1" />
 
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
-              <Phone className="w-3.5 h-3.5" /> Call
-            </button>
+            {lead.phone ? (
+              <a 
+                href={`tel:${lead.phone.replace(/[^\d+]/g, "")}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors"
+              >
+                <Phone className="w-3.5 h-3.5" /> Call
+              </a>
+            ) : (
+              <button 
+                disabled 
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white opacity-50 cursor-not-allowed"
+              >
+                <Phone className="w-3.5 h-3.5" /> Call
+              </button>
+            )}
             <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors text-green-600">
               <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
             </button>
