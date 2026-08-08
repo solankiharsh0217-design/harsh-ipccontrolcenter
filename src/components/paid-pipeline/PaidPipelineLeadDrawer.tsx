@@ -27,9 +27,29 @@ import type { Lead, Batch, Payment } from "@/pages/PaidPipeline";
 import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink, Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/ui-bits";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { fetchVerificationForPaidLead, computeOverall } from "@/lib/accessVerification";
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+type StageChangePreview = {
+  stageId: string;
+  stageName: string;
+  willHandoff: boolean;
+  willSendCoc: boolean;
+  unknown: boolean;
+};
+
 
 export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, onChanged }: { lead: Lead; onClose: () => void; stages: string[]; agents: { id: string; full_name: string }[]; onChanged: () => void }) {
   const [activeTab, setActiveTab] = useState((lead as any).default_tab_override || "overview");
@@ -122,6 +142,9 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
   const [newCrmStageName, setNewCrmStageName] = useState("");
   const [addingStage, setAddingStage] = useState(false);
   const [sendOpsOpen, setSendOpsOpen] = useState(false);
+  const [stagePreview, setStagePreview] = useState<StageChangePreview | null>(null);
+  const [confirmingStage, setConfirmingStage] = useState(false);
+
 
   const loadInner = async () => {
     const [{ data: p }, { data: a }] = await Promise.all([
@@ -248,6 +271,44 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
   const changeCrmStage = async (newStageId: string) => {
     if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) { setCrmPickerOpen(false); return; }
+    const targetName = crmStages.find(s => s.id === newStageId)?.name || "—";
+    let preview: StageChangePreview;
+    try {
+      const rules = await getActiveHandoffRules();
+      const stagesById = new Map(crmStages.map(s => [s.id, { id: s.id, name: s.name }]));
+      const handoffRule = findRuleForStage(rules, crmPipelineId, newStageId, stagesById as any);
+      const willHandoff = !!handoffRule && handoffRule.mode === "auto" && isRuleAutoReady(handoffRule);
+
+      const { loadActiveCoCRules, findMatchingRuleDetailed } = await import("@/lib/codeOfConductRules");
+      const cocRulesList = await loadActiveCoCRules();
+      const { rule: cocRule } = await findMatchingRuleDetailed({
+        rules: cocRulesList,
+        source: "paid_pipeline",
+        pipelineId: crmPipelineId,
+        stageId: newStageId,
+        stageName: targetName,
+        crmLeadId: lead.crm_lead_id,
+        paidPipelineLeadId: lead.id,
+      });
+      const willSendCoc = !!cocRule && cocRule.is_active && cocRule.mode === "auto_send";
+
+      preview = { stageId: newStageId, stageName: targetName, willHandoff, willSendCoc, unknown: false };
+    } catch (e) {
+      preview = { stageId: newStageId, stageName: targetName, willHandoff: false, willSendCoc: false, unknown: true };
+    }
+
+    if (!preview.unknown && !preview.willHandoff && !preview.willSendCoc) {
+      await performCrmStageChange(newStageId);
+      return;
+    }
+    setStagePreview(preview);
+    setCrmPickerOpen(false);
+  };
+
+  const performCrmStageChange = async (newStageId: string) => {
+    if (!lead.crm_lead_id) return;
+
+
     const oldName = crmStages.find(s => s.id === crmStageId)?.name || "—";
     const newName = crmStages.find(s => s.id === newStageId)?.name || "—";
     const prevId = crmStageId;
@@ -1036,6 +1097,51 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
       {openFu && <QuickFollowUpModal leadId={lead.id} leadName={lead.name || undefined} crmLeadId={lead.crm_lead_id || null} defaults={{ priority: temperature || "Normal" }} onClose={() => setOpenFu(false)} onSaved={() => { loadInner(); onChanged(); }} />}
       {openFin && <QuickFinanceModal lead={lead as any} onClose={() => setOpenFin(false)} onSaved={() => { loadInner(); onChanged(); }} />}
       {sendOpsOpen && <SendPaidToOpsModal lead={lead as any} onClose={() => setSendOpsOpen(false)} onDone={() => onChanged()} />}
+
+      <AlertDialog open={!!stagePreview} onOpenChange={(o) => { if (!o) { setStagePreview(null); setConfirmingStage(false); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move to "{stagePreview?.stageName}"?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-1.5">
+                {stagePreview?.unknown ? (
+                  <div>Automated actions may fire for this stage and could not be verified. Continue only if you are sure.</div>
+                ) : (
+                  <>
+                    {stagePreview?.willSendCoc && (
+                      <div>A Code of Conduct email will be sent to {lead.email || "no email on file"}.</div>
+                    )}
+                    {stagePreview?.willHandoff && (
+                      <div>An Operations CRM record will be created or updated for this buyer.</div>
+                    )}
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setStagePreview(null); setConfirmingStage(false); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={confirmingStage}
+              onClick={async (e) => {
+                e.preventDefault();
+                const pending = stagePreview;
+                if (!pending) return;
+                setConfirmingStage(true);
+                try {
+                  await performCrmStageChange(pending.stageId);
+                } finally {
+                  setConfirmingStage(false);
+                  setStagePreview(null);
+                }
+              }}
+            >
+              Confirm stage change
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
