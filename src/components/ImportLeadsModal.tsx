@@ -1425,7 +1425,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             // Never inherit the modal-level dealValue — that would manufacture booked
             // revenue that does not exist in the source. Missing values stay 0 and are
             // flagged in the review step instead.
-            const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || 0);
+            // BUG 5 — GST: the sheet figure is grossed up ONLY when the mapped Deal
+            // Value header is explicitly "excluding GST" AND a rate resolved. The
+            // CRM lead's own deal_value is already stored inclusive — never converted.
+            const sheetDeal = rowMeta.deal_value > 0 ? applyDealGst(rowMeta.deal_value) : 0;
+            const rowDeal = sheetDeal > 0 ? sheetDeal : Number(lead.deal_value || 0);
+
             const rowToken = rowMeta.token > 0 ? rowMeta.token : 0;
             const rowCollected = rowMeta.collected > 0 ? rowMeta.collected : 0;
             const rowBalance = rowMeta.balance > 0
