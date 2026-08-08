@@ -25,6 +25,7 @@ import ServicePackageChip from "@/components/ServicePackageChip";
 import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 import type { Lead, Batch, Payment } from "@/pages/PaidPipeline";
 import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink, Loader2 } from "lucide-react";
+import { EmptyState } from "@/components/ui-bits";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { fetchVerificationForPaidLead, computeOverall } from "@/lib/accessVerification";
 
@@ -738,9 +739,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                   </div>
                   
                   {payments.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-line p-8 text-center">
-                      <div className="text-[12px] text-muted-foreground">No payments recorded for this lead yet.</div>
-                    </div>
+                    <EmptyState title="No payments recorded for this lead yet." bordered />
                   ) : (
                     <div className="rounded-xl border border-line bg-white shadow-sm overflow-hidden">
                       <table className="w-full text-[12px]">
@@ -977,7 +976,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
               <div className="p-6">
                 <div className="space-y-4">
                   {activity.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-[13px]">No activity logs found.</div>
+                    <EmptyState title="No activity logs found." center />
                   ) : (
                     activity.map((a: any) => (
                       <div key={a.id} className="relative pl-6 pb-6 border-l border-line last:pb-0">

@@ -12,7 +12,7 @@ import {
   type DuplicateBehavior,
   isRuleAutoReady,
 } from "@/lib/operationsCrm";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 
 interface Pipeline { id: string; name: string; type: string }
 interface Stage { id: string; pipeline_id: string; name: string; position: number }
@@ -189,9 +189,7 @@ export default function OperationsHandoffRulesPanel() {
       {loading ? (
         <LoadingState block />
       ) : rules.length === 0 ? (
-        <div className="border border-dashed border-line rounded-lg p-6 text-center text-sm text-muted-foreground">
-          No handoff rules yet. Create one to route Calling CRM leads into Operations CRM automatically.
-        </div>
+        <EmptyState title="No handoff rules yet." hint="Create one to route Calling CRM leads into Operations CRM automatically." bordered />
       ) : (
         <div className="border border-line rounded-lg bg-white divide-y">
           {rules.map((r) => {
