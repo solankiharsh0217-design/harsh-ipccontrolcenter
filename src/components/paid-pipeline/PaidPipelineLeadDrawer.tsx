@@ -27,6 +27,7 @@ import type { Lead, Batch, Payment } from "@/pages/PaidPipeline";
 import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink, Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/ui-bits";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -134,6 +135,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
   const [showActivity, setShowActivity] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedTpl, setCopiedTpl] = useState<string | null>(null);
+  const [waOpen, setWaOpen] = useState(false);
   const [crmStages, setCrmStages] = useState<CrmStagePickerStage[]>([]);
   const [crmStageId, setCrmStageId] = useState<string | null>(null);
   const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
@@ -585,30 +587,39 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
               leadName={lead.name || undefined}
             />
             
-            <Section title="WhatsApp templates">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {tpls.map(t => (
-                  <div key={t.label} className="rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] p-3 flex flex-col gap-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center">W</span>
-                      <span className="text-[12.5px] font-medium text-[#15803D]">{t.label}</span>
+            <Collapsible open={waOpen} onOpenChange={setWaOpen}>
+              <CollapsibleTrigger className="w-full flex items-center justify-between rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] px-3 py-2 text-[12.5px] font-medium text-[#15803D] hover:bg-[#DCFCE7] transition-colors">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center">W</span>
+                  WhatsApp Templates
+                </span>
+                <span className="text-[11px]">{waOpen ? "Hide" : "Show"}</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2">
+                  {tpls.map(t => (
+                    <div key={t.label} className="rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] p-3 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-[#25D366] text-white text-[10px] flex items-center justify-center">W</span>
+                        <span className="text-[12.5px] font-medium text-[#15803D]">{t.label}</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground line-clamp-2">{t.msg}</div>
+                      <div className="flex gap-1.5 mt-1">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(t.msg);
+                            setCopiedTpl(t.label);
+                            setTimeout(() => setCopiedTpl(null), 1200);
+                          }}
+                          className="flex-1 text-[11px] h-7 rounded border border-[#BBF7D0] bg-white hover:bg-[#DCFCE7] text-[#15803D]"
+                        >{copiedTpl === t.label ? "✓ Copied" : "Copy"}</button>
+                        <a href={waLink(t.msg)} target="_blank" rel="noreferrer" className="flex-1 text-[11px] h-7 rounded bg-[#25D366] text-white hover:opacity-90 flex items-center justify-center">Send</a>
+                      </div>
                     </div>
-                    <div className="text-[11px] text-muted-foreground line-clamp-2">{t.msg}</div>
-                    <div className="flex gap-1.5 mt-1">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(t.msg);
-                          setCopiedTpl(t.label);
-                          setTimeout(() => setCopiedTpl(null), 1200);
-                        }}
-                        className="flex-1 text-[11px] h-7 rounded border border-[#BBF7D0] bg-white hover:bg-[#DCFCE7] text-[#15803D]"
-                      >{copiedTpl === t.label ? "✓ Copied" : "Copy"}</button>
-                      <a href={waLink(t.msg)} target="_blank" rel="noreferrer" className="flex-1 text-[11px] h-7 rounded bg-[#25D366] text-white hover:opacity-90 flex items-center justify-center">Send</a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Section>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           {/* Quick Action Bar */}

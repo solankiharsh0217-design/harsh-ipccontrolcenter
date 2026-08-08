@@ -152,6 +152,41 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
     expect(screen.getByRole("tab", { name: /Activity/i })).toBeTruthy();
   });
 
+  it("collapses WhatsApp templates by default and reveals them when the trigger is clicked", async () => {
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <PaidPipelineLeadDrawer
+            lead={mockLead as any}
+            onClose={() => {}}
+            stages={["New", "Paid"]}
+            agents={[]}
+            onChanged={() => {}}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
+
+    expect(screen.queryByText("Token Received")).toBeNull();
+    expect(screen.queryByText("Balance Reminder")).toBeNull();
+    expect(screen.queryByText("EMI Documents")).toBeNull();
+    expect(screen.queryByText("Welcome / Onboarding")).toBeNull();
+
+    const trigger = screen.getByRole("button", { name: /WhatsApp Templates/i });
+    await act(async () => {
+      fireEvent.click(trigger);
+    });
+
+    expect(screen.getByText("Token Received")).toBeTruthy();
+    expect(screen.getByText("Balance Reminder")).toBeTruthy();
+    expect(screen.getByText("EMI Documents")).toBeTruthy();
+    expect(screen.getByText("Welcome / Onboarding")).toBeTruthy();
+  });
+
+
+
   it("updates primary action button correctly across all stages", async () => {
     // 1. New lead (No token)
     const { rerender } = render(
