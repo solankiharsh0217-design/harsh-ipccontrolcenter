@@ -882,6 +882,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         let rowsMissingDealValue = 0;
         let rowsAmbiguousAmount = 0;
         const ambiguousAmountSamples: string[] = [];
+        // BUG 5 — GST conversion visibility.
+        let rowsGstGrossedUp = 0;
+        let rowsGstRateUnresolved = 0;
+        const gstConversionSamples: string[] = [];
+
         let projectedRevenue = 0;
         let projectedTokenRevenue = 0;
         rowDetails.forEach((rd, i) => {
