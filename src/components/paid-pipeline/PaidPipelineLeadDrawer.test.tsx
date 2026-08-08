@@ -273,6 +273,7 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
 
     // 2. Assert Onboarding tab/picker is NOT visible initially
     // We check for the CRM Stage Picker which is inside the Onboarding tab panel
+    // It should not be in the DOM because default_tab_override is not set and resolveDefaultTab will pick payments or overview
     expect(screen.queryByLabelText("CRM Stage Picker")).toBeNull();
 
     // 3. Find and click "Update Status" button in the header (Quick Action Bar)
