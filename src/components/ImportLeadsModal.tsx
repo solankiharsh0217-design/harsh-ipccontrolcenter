@@ -409,6 +409,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     rowsMissingDealValue: number; // import-eligible rows with no per-record deal value
     rowsAmbiguousAmount: number;  // rows where a money cell held multiple numbers
     ambiguousAmountSamples: string[]; // "Row 4 · Token Amount: \"2 EMI 60000\""
+    // BUG 5 — GST: rows whose exclusive deal value was grossed up, and rows where
+    // an exclusive header was detected but no rate resolved (never converted).
+    rowsGstGrossedUp: number;
+    rowsGstRateUnresolved: number;
+    gstConversionSamples: string[];
+
 
     projectedRevenue: number;   // Sum of deal_value (fallback to global dealValue) for import-eligible rows
     projectedTokenRevenue: number; // Sum of tokens for import-eligible rows
