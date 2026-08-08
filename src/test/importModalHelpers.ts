@@ -44,9 +44,10 @@ let cached: ModalHelpers | null = null;
 
 export function loadModalHelpers(): ModalHelpers {
   if (cached) return cached;
-  const ts = `type FieldKey = string;\n${sliceHelpers()}\nreturn { normHeader, detectGstMode, grossUpToInclusive, autoMap, parseAmountDetailed, parseAmount };`;
-  const js = transformSync(ts, { loader: "ts", format: "cjs" }).code;
+  const ts = `type FieldKey = string;\n${sliceHelpers()}`;
+  const js = transformSync(ts, { loader: "ts" }).code;
+  const factory = `${js}\nreturn { normHeader, detectGstMode, grossUpToInclusive, autoMap, parseAmountDetailed, parseAmount };`;
   // eslint-disable-next-line no-new-func
-  cached = new Function(`${js}`)() as ModalHelpers;
+  cached = new Function(factory)() as ModalHelpers;
   return cached;
 }
