@@ -55,14 +55,13 @@ export default function QuickAddPaymentModal({
   const [description, setDescription] = useState(prefill?.description || "");
   const [reference, setReference] = useState("");
   const [nextDate, setNextDate] = useState("");
-  const [isToken, setIsToken] = useState(prefill?.isToken ?? true);
+  const [isToken, setIsToken] = useState(prefill?.isToken ?? false);
   const [isFinal, setIsFinal] = useState(false);
   const [financeLinked, setFinanceLinked] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Auto-toggle helpers based on payment type
   useEffect(() => {
-    if (/token/i.test(type)) setIsToken(true);
     if (type === "Full Payment") setIsFinal(true);
     if (/Finance/i.test(type)) setFinanceLinked(true);
   }, [type]);
