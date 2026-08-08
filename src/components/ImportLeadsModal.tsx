@@ -1273,7 +1273,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           let paymentRowsDuplicate = 0;
           for (const lead of (crmRows || []) as any[]) {
             const rowMeta = resolveRowMeta(normEmail(lead.email), normPhone(lead.phone));
-            const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || dealValue || 0);
+            // Per-record sources only (sheet row, then the CRM lead's own deal_value).
+            // Never inherit the modal-level dealValue — that would manufacture booked
+            // revenue that does not exist in the source. Missing values stay 0 and are
+            // flagged in the review step instead.
+            const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || 0);
             const rowToken = rowMeta.token > 0 ? rowMeta.token : 0;
             const rowCollected = rowMeta.collected > 0 ? rowMeta.collected : 0;
             const rowBalance = rowMeta.balance > 0
