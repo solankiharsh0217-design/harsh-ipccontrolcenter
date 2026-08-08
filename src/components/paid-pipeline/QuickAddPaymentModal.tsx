@@ -62,7 +62,6 @@ export default function QuickAddPaymentModal({
 
   // Auto-toggle helpers based on payment type
   useEffect(() => {
-    if (/token/i.test(type)) setIsToken(true);
     if (type === "Full Payment") setIsFinal(true);
     if (/Finance/i.test(type)) setFinanceLinked(true);
   }, [type]);
