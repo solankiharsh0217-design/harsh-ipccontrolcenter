@@ -207,11 +207,29 @@ function sameValue(a: any, b: any): boolean {
 
 export const EXECUTE_CONFIRMATION = "EXECUTE-BACKFILL-263";
 
+/** Operator-supplied verified pre-state row. Never hardcoded, never read from the database. */
+export type SnapshotRow = {
+  id: string;
+  deal_value_including_gst: number | string | null;
+} & Record<RecomputeColumn, any>;
+
+function sortById(rows: LeadRow[]): LeadRow[] {
+  return [...rows].sort((a, b) =>
+    String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0,
+  );
+}
+
 export async function backfillRecomputePaidLeads(
-  options: { dryRun?: boolean; confirm?: string; allowPartialResume?: boolean } = {},
+  options: {
+    dryRun?: boolean;
+    confirm?: string;
+    allowPartialResume?: boolean;
+    snapshot?: SnapshotRow[];
+  } = {},
 ): Promise<BackfillSummary> {
   const dryRun = options.dryRun ?? true;
   const allowPartialResume = options.allowPartialResume === true;
+  const suppliedSnapshot = options.snapshot;
 
   if (!dryRun && options.confirm !== EXECUTE_CONFIRMATION) {
     throw new Error(
@@ -219,8 +237,32 @@ export async function backfillRecomputePaidLeads(
     );
   }
 
+  if (allowPartialResume && !suppliedSnapshot) {
+    throw new Error(
+      "[backfill] ABORT: resume mode requires the verified pre-state manifest via options.snapshot. " +
+        "A fresh database read cannot distinguish a lead this backfill already wrote from a lead someone else edited; " +
+        "there is no database fallback.",
+    );
+  }
+
+  // REQUIREMENT 1: validate the supplied manifest against EXPECTED_PRESTATE_SHA256
+  // before any query and before any write.
+  let manifestRows: LeadRow[] | null = null;
+  if (suppliedSnapshot) {
+    manifestRows = sortById(suppliedSnapshot as unknown as LeadRow[]);
+    const manifestHash = await sha256Hex(manifestRows.map(canonicalLine).join("\n"));
+    console.log(`[backfill] supplied snapshot sha256 = ${manifestHash}`);
+    if (manifestHash !== EXPECTED_PRESTATE_SHA256) {
+      throw new Error(
+        `[backfill] ABORT: supplied snapshot hash mismatch. computed ${manifestHash}, expected ${EXPECTED_PRESTATE_SHA256}`,
+      );
+    }
+  }
+
   console.log(
-    `[backfill] starting — dryRun = ${dryRun}, allowPartialResume = ${allowPartialResume}`,
+    `[backfill] starting — dryRun = ${dryRun}, allowPartialResume = ${allowPartialResume}, snapshotSupplied = ${Boolean(
+      suppliedSnapshot,
+    )}`,
   );
 
   const allIds = await fetchAllIds();
@@ -242,7 +284,34 @@ export async function backfillRecomputePaidLeads(
     );
   }
 
-  const preRows = await fetchSnapshot(scopeIds);
+  // REQUIREMENT 2: the supplied snapshot's id set must equal the queried scope id set exactly.
+  if (manifestRows) {
+    if (manifestRows.length !== EXPECTED_SCOPE_COUNT) {
+      throw new Error(
+        `[backfill] ABORT: supplied snapshot row count ${manifestRows.length}, expected ${EXPECTED_SCOPE_COUNT}`,
+      );
+    }
+    const snapIds = new Set(manifestRows.map((r) => String(r.id)));
+    const scopeSet = new Set(scopeIds.map(String));
+    const missingFromSnapshot = scopeIds.filter((id) => !snapIds.has(String(id)));
+    const extraInSnapshot = [...snapIds].filter((id) => !scopeSet.has(id));
+    if (missingFromSnapshot.length || extraInSnapshot.length) {
+      throw new Error(
+        `[backfill] ABORT: snapshot id set does not match queried scope. ` +
+          `in scope but missing from snapshot: [${missingFromSnapshot.join(", ")}]; ` +
+          `in snapshot but not in scope: [${extraInSnapshot.join(", ")}]`,
+      );
+    }
+    if (snapIds.size !== EXPECTED_SCOPE_COUNT) {
+      throw new Error(
+        `[backfill] ABORT: supplied snapshot contains ${snapIds.size} distinct ids, expected ${EXPECTED_SCOPE_COUNT}`,
+      );
+    }
+  }
+
+  // REQUIREMENT 3: when supplied, the manifest is the authoritative pre-state everywhere;
+  // the database is not read for pre-state in that case.
+  const preRows = manifestRows ?? (await fetchSnapshot(scopeIds));
   if (preRows.length !== EXPECTED_SCOPE_COUNT) {
     throw new Error(
       `[backfill] ABORT: pre-state row count ${preRows.length}, expected ${EXPECTED_SCOPE_COUNT}`,
@@ -260,7 +329,7 @@ export async function backfillRecomputePaidLeads(
     }
   } else {
     console.log(
-      "[backfill] resume mode: whole-set hash gate skipped; classifying each lead individually",
+      "[backfill] resume mode: classifying each lead against the supplied verified pre-state manifest",
     );
   }
 
