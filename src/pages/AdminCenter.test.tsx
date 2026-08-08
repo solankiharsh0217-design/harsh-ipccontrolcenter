@@ -14,7 +14,7 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-// Mock UI components that might cause issues in test environment
+// Mock UI components
 vi.mock("@/components/ui-bits", () => ({
   PageHead: ({ title, sub }: any) => (
     <div>
@@ -23,6 +23,7 @@ vi.mock("@/components/ui-bits", () => ({
     </div>
   ),
   SectionLabel: ({ children }: any) => <h2>{children}</h2>,
+  EmptyState: ({ title }: any) => <div>{title}</div>,
 }));
 
 const renderWithRouter = (ui: React.ReactElement) => {
@@ -34,7 +35,7 @@ describe("AdminCenter", () => {
     vi.clearAllMocks();
   });
 
-  it("renders all sections for a full admin", () => {
+  it("renders all five group cards and Danger Zone for a full admin", () => {
     vi.spyOn(AuthContext, "useAuth").mockReturnValue({
       isAdmin: true,
       hasModule: () => true,
@@ -46,20 +47,26 @@ describe("AdminCenter", () => {
 
     renderWithRouter(<AdminCenter />);
 
-    expect(screen.getByText("People")).toBeDefined();
-    expect(screen.getByText("Business Configuration")).toBeDefined();
-    expect(screen.getByText("Communication")).toBeDefined();
-    expect(screen.getByText("Performance")).toBeDefined();
-    expect(screen.getByText("Resources & System")).toBeDefined();
+    // Main headings (SectionLabels)
+    expect(screen.getAllByText("People").some(el => el.tagName === 'H2')).toBe(true);
+    expect(screen.getAllByText("Business Configuration").some(el => el.tagName === 'H2')).toBe(true);
+    expect(screen.getAllByText("Communication").some(el => el.tagName === 'H2')).toBe(true);
+    expect(screen.getAllByText("Performance").some(el => el.tagName === 'H2')).toBe(true);
+    expect(screen.getAllByText("Resources & System").some(el => el.tagName === 'H2')).toBe(true);
     expect(screen.getByText("Danger Zone")).toBeDefined();
 
-    // Check a few specific cards
-    expect(screen.getByText("Team Directory")).toBeDefined();
-    expect(screen.getByText("Master Settings")).toBeDefined();
+    // Group cards (titles inside the cards)
+    expect(screen.getAllByText("People").some(el => el.tagName === 'DIV')).toBe(true);
+    
+    // Danger Zone card
     expect(screen.getByText("Hard Wipe All Lead Data")).toBeDefined();
+
+    // NO LONGER expect individual cards like "Team Directory" or "Master Settings" on landing
+    expect(screen.queryByText("Team Directory")).toBeNull();
+    expect(screen.queryByText("Master Settings")).toBeNull();
   });
 
-  it("hides admin-only cards for non-admin with specific modules", () => {
+  it("shows only accessible group cards for non-admin with specific modules", () => {
     vi.spyOn(AuthContext, "useAuth").mockReturnValue({
       isAdmin: false,
       hasModule: (mod: string) => mod === "team" || mod === "notifications",
@@ -71,21 +78,17 @@ describe("AdminCenter", () => {
 
     renderWithRouter(<AdminCenter />);
 
-    // Should show sections that have accessible cards
-    expect(screen.getByText("People")).toBeDefined();
-    expect(screen.getByText("Communication")).toBeDefined();
+    // People (has "team") and Communication (has "notifications") should show
+    expect(screen.getAllByText("People").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Communication").length).toBeGreaterThan(0);
 
-    // Accessible cards
-    expect(screen.getByText("Team Directory")).toBeDefined();
-    expect(screen.getByText("Notifications")).toBeDefined();
-
-    // Admin-only cards/sections should be hidden
-    expect(screen.queryByText("Admin Panel")).toBeNull();
-    expect(screen.queryByText("Master Settings")).toBeNull();
+    // Business Configuration, Performance, and Danger Zone should be hidden
+    expect(screen.queryByText("Business Configuration")).toBeNull();
+    expect(screen.queryByText("Performance")).toBeNull();
     expect(screen.queryByText("Danger Zone")).toBeNull();
   });
 
-  it("navigates to the correct path when a card button is clicked", () => {
+  it("navigates to the correct /admin-center/<slug> when a group card button is clicked", () => {
     vi.spyOn(AuthContext, "useAuth").mockReturnValue({
       isAdmin: true,
       hasModule: () => true,
@@ -97,10 +100,10 @@ describe("AdminCenter", () => {
 
     renderWithRouter(<AdminCenter />);
 
-    const teamDirButton = screen.getByRole("button", { name: /Open Team Directory/i });
-    fireEvent.click(teamDirButton);
+    const openPeopleButton = screen.getByRole("button", { name: /Open People/i });
+    fireEvent.click(openPeopleButton);
 
-    expect(mockNavigate).toHaveBeenCalledWith("/team");
+    expect(mockNavigate).toHaveBeenCalledWith("/admin-center/people");
   });
 
   it("shows empty state when no modules are accessible", () => {
