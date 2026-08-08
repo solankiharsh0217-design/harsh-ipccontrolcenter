@@ -369,6 +369,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     rowsWithToken: number;
     rowsWithDealValue: number;
     rowsTokenExceedsDeal: number;
+    rowsMissingDealValue: number; // import-eligible rows with no per-record deal value
+
     projectedRevenue: number;   // Sum of deal_value (fallback to global dealValue) for import-eligible rows
     projectedTokenRevenue: number; // Sum of tokens for import-eligible rows
     existingByEmail: Map<string, any>;
@@ -798,6 +800,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         let rowsWithToken = 0;
         let rowsWithDealValue = 0;
         let rowsTokenExceedsDeal = 0;
+        let rowsMissingDealValue = 0;
         let projectedRevenue = 0;
         let projectedTokenRevenue = 0;
         rowDetails.forEach((rd, i) => {
@@ -817,6 +820,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             rd.status === "name_only" ||
             ((rd.status === "existing_by_email" || rd.status === "existing_by_phone")
               && (duplicatePolicy === "update" || duplicatePolicy === "promote"));
+          if (willBeImported && !(dv > 0)) rowsMissingDealValue++;
           if (willBeImported) {
             projectedRevenue += dv > 0 ? dv : (Number(dealValue) || 0);
             projectedTokenRevenue += tk;
@@ -847,6 +851,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             rowsWithToken,
             rowsWithDealValue,
             rowsTokenExceedsDeal,
+            rowsMissingDealValue,
             projectedRevenue,
             projectedTokenRevenue,
             existingByEmail,
@@ -1273,7 +1278,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           let paymentRowsDuplicate = 0;
           for (const lead of (crmRows || []) as any[]) {
             const rowMeta = resolveRowMeta(normEmail(lead.email), normPhone(lead.phone));
-            const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || dealValue || 0);
+            // Per-record sources only (sheet row, then the CRM lead's own deal_value).
+            // Never inherit the modal-level dealValue — that would manufacture booked
+            // revenue that does not exist in the source. Missing values stay 0 and are
+            // flagged in the review step instead.
+            const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || 0);
             const rowToken = rowMeta.token > 0 ? rowMeta.token : 0;
             const rowCollected = rowMeta.collected > 0 ? rowMeta.collected : 0;
             const rowBalance = rowMeta.balance > 0
@@ -2176,6 +2185,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                       {preflight.rowsTokenExceedsDeal > 0 && (
                         <div className="mt-2 px-2.5 py-1.5 rounded-md bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
                           ⚠ {preflight.rowsTokenExceedsDeal} row(s) have a Token amount greater than the Deal Value. Review your column mapping — Token should be the advance, not the full price.
+                        </div>
+                      )}
+                      {preflight.rowsMissingDealValue > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+                          ⚠ {preflight.rowsMissingDealValue} row(s) have no Deal Value in the source. They will be imported with a deal value of <b>₹0</b> — the figure entered above is not applied per row. Map a Deal Value column if the sheet has one.
                         </div>
                       )}
                       {leadType !== "paid" && mapping.token && preflight.projectedTokenRevenue > 0 && (
