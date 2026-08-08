@@ -190,7 +190,8 @@ describe("OperationsLeadDrawer Logic", () => {
         />
       </MemoryRouter>
     );
-    expect(screen.getByRole("button", { name: /Start Operations Process/i })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Start Operations Process/i }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole("button", { name: /Mark Ads Started/i })).toHaveLength(0);
 
     await act(async () => {
       rerender(
@@ -203,7 +204,8 @@ describe("OperationsLeadDrawer Logic", () => {
         </MemoryRouter>
       );
     });
-    expect(screen.getByRole("button", { name: /Mark Ads Started/i })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Mark Ads Started/i }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole("button", { name: /Start Operations Process/i })).toHaveLength(0);
 
     await act(async () => {
       rerender(
@@ -216,7 +218,8 @@ describe("OperationsLeadDrawer Logic", () => {
         </MemoryRouter>
       );
     });
-    expect(screen.getByRole("button", { name: /Resume Service/i })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Resume Service/i }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole("button", { name: /Mark Ads Started/i })).toHaveLength(0);
 
     await act(async () => {
       rerender(
@@ -229,7 +232,8 @@ describe("OperationsLeadDrawer Logic", () => {
         </MemoryRouter>
       );
     });
-    expect(screen.getByRole("button", { name: /Log Communication/i })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Log Communication/i }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole("button", { name: /Resume Service/i })).toHaveLength(0);
   });
 
   it("defaults to Onboarding tab correctly", async () => {
