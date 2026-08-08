@@ -39,6 +39,7 @@ import type { UniversalSearchResult } from "@/lib/universalSearch";
 import ServicePackageChip from "@/components/ServicePackageChip";
 import { getVisiblePaidOnboardingLeads } from "@/lib/paidOnboardingVisibility";
 import CountHealthPanel from "@/components/crm/CountHealthPanel";
+import { EmptyRow } from "@/components/ui-bits";
 
 type View = "kanban" | "list" | "stages" | "batches";
 
@@ -2298,7 +2299,7 @@ export default function Crm() {
               </tr>
             </thead>
             <tbody>
-              {pipelineLeads.length === 0 && <tr><td colSpan={9} className="p-10 text-center text-muted-foreground">No leads.</td></tr>}
+              {pipelineLeads.length === 0 && <EmptyRow colSpan={9} title="No leads." />}
               {pipelineLeads.map((l) => {
                 const g = GRADE_STYLES[l.grade];
                 const stg = pipelineStages.find((s) => s.id === l.stage_id);

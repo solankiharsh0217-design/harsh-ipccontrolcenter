@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState, EmptyRow } from "@/components/ui-bits";
 import { inr, fmtDate, downloadCsv, DEFAULT_FINANCE_PARTNERS } from "@/lib/paidPipeline";
 import { logActivity, logBulkPaidLeadDiff } from "@/lib/auditLog";
 import { getEligibleAssignees, type EligibleAssignee } from "@/lib/eligibleAssignees";
@@ -624,7 +624,7 @@ export default function PaymentRecovery() {
           </thead>
           <tbody>
             {filteredRows.length === 0 && (
-              <tr><td colSpan={17} className="p-6 text-center text-muted-foreground">No leads match the current filters.</td></tr>
+              <EmptyRow colSpan={17} title="No leads match the current filters." />
             )}
             {filteredRows.map(({ lead: l, lastPay, nextExpected, ageDays, bucket, isOverdue }) => {
               const ownerName = l.assigned_sales_executive ? (assignees.find(a => a.id === l.assigned_sales_executive)?.full_name || "Unknown") : "Unassigned";
@@ -698,7 +698,7 @@ export default function PaymentRecovery() {
             </tr>
           </thead>
           <tbody>
-            {byBatch.length === 0 && <tr><td colSpan={10} className="p-4 text-center text-muted-foreground">No data</td></tr>}
+            {byBatch.length === 0 && <EmptyRow colSpan={10} title="No data" />}
             {byBatch.map(b => (
               <tr key={b.name} className="border-b border-line hover:bg-off/50 cursor-pointer" onClick={() => { setFPaidBatch(b.name === "Unassigned Batch" ? "" : b.name); }}>
                 <td className="p-2 font-medium">{b.name}</td>
@@ -736,7 +736,7 @@ export default function PaymentRecovery() {
             </tr>
           </thead>
           <tbody>
-            {byOwner.length === 0 && <tr><td colSpan={10} className="p-4 text-center text-muted-foreground">No data</td></tr>}
+            {byOwner.length === 0 && <EmptyRow colSpan={10} title="No data" />}
             {byOwner.map(o => (
               <tr key={o.name} className="border-b border-line hover:bg-off/50 cursor-pointer" onClick={() => setFOwner(o.ownerId || "__unassigned__")}>
                 <td className="p-2 font-medium">{o.name}</td>
@@ -789,7 +789,7 @@ export default function PaymentRecovery() {
             </tr>
           </thead>
           <tbody>
-            {finance.partners.length === 0 && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">No finance cases</td></tr>}
+            {finance.partners.length === 0 && <EmptyRow colSpan={9} title="No finance cases" />}
             {finance.partners.map(p => (
               <tr key={p.partner} className="border-b border-line hover:bg-off/50 cursor-pointer" onClick={() => setFFinPartner(p.partner)}>
                 <td className="p-2 font-medium">{p.partner}</td>
@@ -825,7 +825,7 @@ export default function PaymentRecovery() {
             </tr>
           </thead>
           <tbody>
-            {topOpps.length === 0 && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">No opportunities</td></tr>}
+            {topOpps.length === 0 && <EmptyRow colSpan={9} title="No opportunities" />}
             {topOpps.map(({ lead: l }) => {
               const ownerName = l.assigned_sales_executive ? (assignees.find(a => a.id === l.assigned_sales_executive)?.full_name || "Unknown") : "Unassigned";
               return (
