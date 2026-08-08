@@ -102,6 +102,7 @@ export async function recomputePaidLead(leadId: string) {
     is_dropped: isDropped,
     payment_status: isFinal ? "Full Payment Received" : (total > 0 ? "Partial Received" : "No Payment"),
   } as any).eq("id", leadId);
+  return anomaly;
 }
 
 export function downloadCsv(filename: string, rows: (string | number | null | undefined)[][]) {
