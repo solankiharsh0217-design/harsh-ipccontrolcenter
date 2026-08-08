@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { bulkDeassignLeads } from "@/lib/crmRepair";
 import { downloadCsv } from "@/lib/crmRepair";
+import { EmptyState } from "@/components/ui-bits";
 
 type Lead = {
   id: string;
@@ -187,7 +188,7 @@ export default function MemberAssignedLeadsModal({
               <Loader2 className="w-4 h-4 animate-spin" /> Loading assigned leads…
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-12 text-center">No assigned leads match filters.</div>
+            <EmptyState title="No assigned leads match filters." />
           ) : (
             <table className="w-full text-[12px]">
               <thead className="bg-off sticky top-0 z-[1]">
