@@ -1349,6 +1349,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 .then(handleTokenResult)
                 .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
             }
+
+            // Recompute rollups for every created/updated paid lead, including
+            // leads with no payment rows at all.
+            if (paidLeadId) await runRecompute(paidLeadId);
           }
 
           const { data: linkCheck } = await supabase
