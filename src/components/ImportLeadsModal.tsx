@@ -74,11 +74,16 @@ const FIELD_ALIASES: Record<FieldKey, RegExp[]> = {
   phone: [/^number$/, /\bphone\b/, /\bmobile\b/, /\bwhatsapp\b/, /\bcontact\s*(?:number)?\b/],
   country: [/\bcountry\b/],
   payment_date: [/^date$/, /\bpayment\s*date\b/, /\bpaid\s*date\b/, /\btoken\s*date\b/, /\bregistration\s*date\b/, /\btxn\s*date\b/],
+  // Deal value must never claim a header that also carries payment/receipt wording
+  // ("Total Amount Received", "Fees Paid", ...) — those belong to collected/token/balance.
   deal_value: [
     /\bdiamond\s*amount\b/, /\bdeal\s*value\b/, /\bproduct\s*price\b/, /\bprogramme?\s*price\b/,
     /\bpackage\s*price\b/, /\bfinal\s*amount\b/, /\btotal\s*fee\b/, /\bsale\s*value\b/,
     /\bdeal\s*amount\b/, /\btotal\s*amount\b/, /\bprice\s*incl\b/, /\bfees?\b/,
-  ],
+  ].map((re) => new RegExp(
+    `^(?!.*\\b(?:received|receive|collected|collection|paid|payment|payments|balance|pending|due|token|advance|refund|emi|instal|instalment|instalments|installment|installments)\\b).*(?:${re.source})`,
+    "u",
+  )),
   token: [/^token$/, /\btoken\s*amount\b/, /\btoken\s*paid\b/, /\badvance(?:\s*amount)?\b/, /\bbooking\s*amount\b/, /\binitial\s*payment\b/, /\bdown\s*payment\b/],
   collected: [/^collected$/, /\bcollected\s*amount\b/, /\btotal\s*paid\b/, /\bamount\s*received\b/, /\bpayment\s*received\b/, /\bamount\s*paid\b/, /\bpaid\s*amount\b/],
   balance: [/^balance$/, /\bpending\s*amount\b/, /\bremaining\s*amount\b/, /\bamount\s*pending\b/, /\bbalance\s*amount\b/],
