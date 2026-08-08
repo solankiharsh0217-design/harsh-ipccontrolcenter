@@ -900,9 +900,26 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             return d.value;
           };
           const tk = money(mapping.token, "Token");
-          const dv = money(mapping.deal_value, "Deal Value");
+          const dvRaw = money(mapping.deal_value, "Deal Value");
+          // BUG 5 — GST: only the deal value is ever converted, and only when the
+          // header is explicitly exclusive AND a rate resolved. Token / collected /
+          // balance are never grossed up.
+          const dv = applyDealGst(dvRaw);
+          if (dvRaw > 0 && dealValueGstMode === "exclusive") {
+            if (gstRateInfo.rate) {
+              rowsGstGrossedUp++;
+              if (gstConversionSamples.length < 5) {
+                gstConversionSamples.push(
+                  `Row ${rd.rowNum} · ${mapping.deal_value}: ₹${dvRaw.toLocaleString("en-IN")} excl. GST → ₹${dv.toLocaleString("en-IN")} incl. GST @ ${gstRateInfo.rate}%`,
+                );
+              }
+            } else {
+              rowsGstRateUnresolved++;
+            }
+          }
           const cl = mapping.collected ? money(mapping.collected, "Collected") : tk;
           const bl = mapping.balance ? money(mapping.balance, "Balance") : Math.max(dv - cl, 0);
+
           if (tk > 0) { sumToken += tk; rowsWithToken++; }
           if (dv > 0) { sumDealValue += dv; rowsWithDealValue++; }
           if (cl > 0) sumCollected += cl;
