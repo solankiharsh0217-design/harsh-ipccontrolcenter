@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/auditLog";
 import { resolveLinkBundle, type LinkBundle } from "@/lib/leadLinks";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
+import { EmptyState } from "@/components/ui-bits";
 import { ensurePipelineExists } from "@/lib/crmTypes";
 
 type Mode = "link_create" | "move" | "copy";
