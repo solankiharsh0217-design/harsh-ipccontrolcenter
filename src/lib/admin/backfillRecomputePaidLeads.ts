@@ -205,11 +205,23 @@ function sameValue(a: any, b: any): boolean {
   return Number(a ?? 0) === Number(b ?? 0);
 }
 
+export const EXECUTE_CONFIRMATION = "EXECUTE-BACKFILL-263";
+
 export async function backfillRecomputePaidLeads(
-  options: { dryRun?: boolean } = {},
+  options: { dryRun?: boolean; confirm?: string; allowPartialResume?: boolean } = {},
 ): Promise<BackfillSummary> {
   const dryRun = options.dryRun ?? true;
-  console.log(`[backfill] starting — dryRun = ${dryRun}`);
+  const allowPartialResume = options.allowPartialResume === true;
+
+  if (!dryRun && options.confirm !== EXECUTE_CONFIRMATION) {
+    throw new Error(
+      `[backfill] ABORT: non-dry-run requires options.confirm === "${EXECUTE_CONFIRMATION}"`,
+    );
+  }
+
+  console.log(
+    `[backfill] starting — dryRun = ${dryRun}, allowPartialResume = ${allowPartialResume}`,
+  );
 
   const allIds = await fetchAllIds();
   const excluded = await fetchRefundExcludedLeadIds();
@@ -240,9 +252,15 @@ export async function backfillRecomputePaidLeads(
   const canonical = preRows.map(canonicalLine).join("\n");
   const hash = await sha256Hex(canonical);
   console.log(`[backfill] pre-state sha256 = ${hash}`);
-  if (hash !== EXPECTED_PRESTATE_SHA256) {
-    throw new Error(
-      `[backfill] ABORT: pre-state hash mismatch. computed ${hash}, expected ${EXPECTED_PRESTATE_SHA256}`,
+  if (!allowPartialResume) {
+    if (hash !== EXPECTED_PRESTATE_SHA256) {
+      throw new Error(
+        `[backfill] ABORT: pre-state hash mismatch. computed ${hash}, expected ${EXPECTED_PRESTATE_SHA256}`,
+      );
+    }
+  } else {
+    console.log(
+      "[backfill] resume mode: whole-set hash gate skipped; classifying each lead individually",
     );
   }
 
@@ -264,6 +282,40 @@ export async function backfillRecomputePaidLeads(
   console.log("[backfill] pre-state payment_status breakdown:", statusBreakdown);
 
   const preById = new Map(preRows.map((r) => [String(r.id), r]));
+
+  // Resume mode classification pass. `preRows` is the live stored state read at run
+  // start, i.e. the snapshot row for this run. Each lead is classified against both
+  // that snapshot row and its computed target before any processing begins.
+  const alreadyWritten = new Set<string>();
+  if (allowPartialResume) {
+    let notYetWritten = 0;
+    for (const leadId of scopeIds) {
+      const snapshot = preById.get(leadId) as LeadRow | undefined;
+      const target = await computeTargets(leadId);
+      if (!snapshot || !target) {
+        console.error(`[backfill] classification ABORT: ${leadId}`, {
+          snapshot: snapshot ?? null,
+          target: target ?? null,
+        });
+        throw new Error(
+          `[backfill] ABORT: lead ${leadId} matches neither pre-state nor computed target (row unavailable)`,
+        );
+      }
+      const matchesTarget = RECOMPUTE_COLUMNS.every((col) =>
+        sameValue(snapshot[col], target[col]),
+      );
+      if (matchesTarget) {
+        alreadyWritten.add(leadId);
+      } else {
+        notYetWritten += 1;
+      }
+    }
+    console.log("[backfill] resume classification:", {
+      notYetWritten,
+      alreadyWritten: alreadyWritten.size,
+      unclassified: 0,
+    });
+  }
 
   let processed = 0;
   let written = 0;
