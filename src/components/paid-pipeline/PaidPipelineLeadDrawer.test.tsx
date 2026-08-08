@@ -333,11 +333,19 @@ describe("PaidPipelineLeadDrawer - stage change automation (merged copies)", () 
       fireEvent.change(picker, { target: { value: "stage-new" } });
     });
 
+    // Confirmation gate appears before anything is written
+    const confirmBtn = await screen.findByRole("button", { name: /Confirm stage change/i });
+    expect(operationsCrm.applyAutoHandoff).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
     await waitFor(() => {
       expect(operationsCrm.applyAutoHandoff).toHaveBeenCalled();
       expect(cocRules.evaluateStageTrigger).toHaveBeenCalled();
     });
   });
+
 
   it("verifies that changing CRM stage invokes both Operations Handoff and Code of Conduct logic", async () => {
     vi.spyOn(operationsCrm, "getActiveHandoffRules").mockResolvedValue([{ id: "rule-1", mode: "auto" } as any]);
