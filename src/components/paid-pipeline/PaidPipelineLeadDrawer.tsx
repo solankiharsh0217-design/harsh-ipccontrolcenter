@@ -27,6 +27,7 @@ import type { Lead, Batch, Payment } from "@/pages/PaidPipeline";
 import { Phone, MessageCircle, Plus, RefreshCw, Send, MoreHorizontal, X, ExternalLink, Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/ui-bits";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -134,6 +135,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
   const [showActivity, setShowActivity] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedTpl, setCopiedTpl] = useState<string | null>(null);
+  const [waOpen, setWaOpen] = useState(false);
   const [crmStages, setCrmStages] = useState<CrmStagePickerStage[]>([]);
   const [crmStageId, setCrmStageId] = useState<string | null>(null);
   const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
