@@ -421,11 +421,11 @@ describe("PaidPipelineLeadDrawer - stage change automation (merged copies)", () 
       fireEvent.change(picker, { target: { value: "stage-new" } });
     });
 
-    // Dialog appeared
-    const dialogTitles = await screen.findAllByText(
-      (_content, element) => !!element && /Move to\s*"?New Stage"?\?/i.test(element.textContent || "")
-    );
-    expect(dialogTitles.length).toBeGreaterThan(0);
+    // Dialog appeared before any write
+    const confirmButtons = await screen.findAllByRole("button", { name: /Confirm stage change/i });
+    expect(confirmButtons.length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/New Stage/i).length).toBeGreaterThan(0);
+
 
 
     const cancelBtn = await screen.findByRole("button", { name: /^Cancel$/i });
