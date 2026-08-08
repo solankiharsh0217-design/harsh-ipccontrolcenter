@@ -1270,7 +1270,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             const rowMeta = resolveRowMeta(normEmail(lead.email), normPhone(lead.phone));
             const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || dealValue || 0);
             const rowToken = rowMeta.token > 0 ? rowMeta.token : 0;
-            const rowCollected = rowMeta.collected > 0 ? rowMeta.collected : rowToken;
+            const rowCollected = rowMeta.collected > 0 ? rowMeta.collected : 0;
             const rowBalance = rowMeta.balance > 0
               ? rowMeta.balance
               : Math.max((rowDeal || 0) - (rowCollected || 0), 0);
@@ -1284,6 +1284,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               rowRef,
               sourceLabel,
             };
+            const rowRemainder = Math.max((rowCollected || 0) - (rowToken || 0), 0);
+            const balancePaymentArgs = { ...tokenPaymentArgs, amount: rowRemainder };
             const handleTokenResult = (result: "created" | "duplicate" | "skipped") => {
               if (result === "created") paymentRowsCreated++;
               else if (result === "duplicate") paymentRowsDuplicate++;
