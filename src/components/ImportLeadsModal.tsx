@@ -1467,6 +1467,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         } catch (syncErr: any) {
           console.error("[ImportLeadsModal] paid pipeline sync failed", syncErr);
         }
+        // The run can never be presented as fully successful while payment rows failed.
+        if (paymentRowsFailed > 0) {
+          const banner = `${paymentRowsFailed} payment row(s) failed to insert — total_collected / balance_pending understate what was actually collected. Re-import or add those payments manually.`;
+          if (!errors.includes(banner)) errors.unshift(banner);
+          addReason(banner);
+          toast.error(banner);
+        }
       }
 
 
