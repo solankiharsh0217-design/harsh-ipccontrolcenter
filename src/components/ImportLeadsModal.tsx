@@ -1427,7 +1427,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               totalTokenCollected += rowToken;
               await recordTokenPayment({ paidLeadId, ...tokenPaymentArgs })
                 .then(handleTokenResult)
-                .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+                .catch((e) => handlePaymentFailure("Token", leadLabel, rowToken, e));
             }
 
             // Non-token remainder (collected above the token) as its own payment row.
