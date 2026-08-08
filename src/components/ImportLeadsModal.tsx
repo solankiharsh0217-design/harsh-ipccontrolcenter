@@ -1198,6 +1198,19 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let paymentRowsCreated = 0;
       let paymentRowsFailed = 0;
       let totalTokenCollected = 0;
+      // Recompute financial rollups (total_collected / balance_pending) using the
+      // existing engine. Failures are surfaced as row-level import failures.
+      const runRecompute = async (paidLeadId: string) => {
+        try {
+          await recomputePaidLead(paidLeadId);
+        } catch (e: any) {
+          const msg = `Recompute failed for paid lead ${paidLeadId}: ${e?.message || String(e)}`;
+          console.error("[ImportLeadsModal] recomputePaidLead failed", paidLeadId, e);
+          failed++;
+          addReason(msg);
+          if (!errors.includes(msg)) errors.push(msg);
+        }
+      };
       if (pipelineType === "paid") {
         try {
           const syncIds = new Set<string>([...createdCrmLeadIds, ...promotedCrmLeadIds]);
