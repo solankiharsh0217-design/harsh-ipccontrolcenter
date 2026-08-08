@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -233,7 +233,7 @@ export default function SessionAttendanceTimeline({ leadId, isAdmin = false, leg
       {loading ? (
         <LoadingState />
       ) : rows.length === 0 ? (
-        <div className="text-[11px] text-muted-foreground">No session attendance recorded yet.</div>
+        <EmptyState title="No session attendance recorded yet." />
       ) : (
         <div className="space-y-1.5">
           {visible.map((r) => (

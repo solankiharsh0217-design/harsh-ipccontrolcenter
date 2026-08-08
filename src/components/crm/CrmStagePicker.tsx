@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowRightCircle, ChevronDown, Search, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { stageChip } from "@/lib/stageColors";
+import { EmptyState } from "@/components/ui-bits";
 
 export type CrmStagePickerStage = {
   id: string;
@@ -73,7 +74,7 @@ export default function CrmStagePicker({
           </div>
         </div>
         <div className="max-h-[260px] overflow-y-auto">
-          {filtered.length === 0 && <div className="px-3 py-4 text-[12px] text-muted-foreground">No stages found.</div>}
+          {filtered.length === 0 && <EmptyState title="No stages found." />}
           {filtered.map((s) => {
             const ch = stageChip(s.name, s.color);
             const isCurrent = s.id === currentStageId;

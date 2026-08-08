@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { searchTaxCodes } from "@/lib/invoices/taxCodes";
 import type { TaxCode } from "@/lib/invoices/types";
+import { EmptyState } from "@/components/ui-bits";
 
 interface Props {
   open: boolean;
@@ -43,7 +44,7 @@ export default function TaxCodeFinder({ open, onOpenChange, onSelect }: Props) {
         <div className="max-h-[420px] overflow-y-auto mt-2">
           {q.trim().length < 3 && <div className="text-[12px] text-muted-foreground p-3">Type at least 3 characters to search.</div>}
           {loading && <div className="text-[12px] text-muted-foreground p-3">Searching…</div>}
-          {!loading && q.trim().length >= 3 && rows.length === 0 && <div className="text-[12px] text-muted-foreground p-3">No matches found.</div>}
+          {!loading && q.trim().length >= 3 && rows.length === 0 && <EmptyState title="No matches found." />}
           <table className="w-full text-[12.5px]">
             <tbody>
               {rows.map((r) => (
