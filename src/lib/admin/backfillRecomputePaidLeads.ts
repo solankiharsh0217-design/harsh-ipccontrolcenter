@@ -205,11 +205,23 @@ function sameValue(a: any, b: any): boolean {
   return Number(a ?? 0) === Number(b ?? 0);
 }
 
+export const EXECUTE_CONFIRMATION = "EXECUTE-BACKFILL-263";
+
 export async function backfillRecomputePaidLeads(
-  options: { dryRun?: boolean } = {},
+  options: { dryRun?: boolean; confirm?: string; allowPartialResume?: boolean } = {},
 ): Promise<BackfillSummary> {
   const dryRun = options.dryRun ?? true;
-  console.log(`[backfill] starting — dryRun = ${dryRun}`);
+  const allowPartialResume = options.allowPartialResume === true;
+
+  if (!dryRun && options.confirm !== EXECUTE_CONFIRMATION) {
+    throw new Error(
+      `[backfill] ABORT: non-dry-run requires options.confirm === "${EXECUTE_CONFIRMATION}"`,
+    );
+  }
+
+  console.log(
+    `[backfill] starting — dryRun = ${dryRun}, allowPartialResume = ${allowPartialResume}`,
+  );
 
   const allIds = await fetchAllIds();
   const excluded = await fetchRefundExcludedLeadIds();
@@ -240,9 +252,15 @@ export async function backfillRecomputePaidLeads(
   const canonical = preRows.map(canonicalLine).join("\n");
   const hash = await sha256Hex(canonical);
   console.log(`[backfill] pre-state sha256 = ${hash}`);
-  if (hash !== EXPECTED_PRESTATE_SHA256) {
-    throw new Error(
-      `[backfill] ABORT: pre-state hash mismatch. computed ${hash}, expected ${EXPECTED_PRESTATE_SHA256}`,
+  if (!allowPartialResume) {
+    if (hash !== EXPECTED_PRESTATE_SHA256) {
+      throw new Error(
+        `[backfill] ABORT: pre-state hash mismatch. computed ${hash}, expected ${EXPECTED_PRESTATE_SHA256}`,
+      );
+    }
+  } else {
+    console.log(
+      "[backfill] resume mode: whole-set hash gate skipped; classifying each lead individually",
     );
   }
 
