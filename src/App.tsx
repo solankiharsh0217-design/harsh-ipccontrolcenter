@@ -34,6 +34,7 @@ import Notifications from "./pages/Notifications";
 import RevenueCommandCenter from "./pages/RevenueCommandCenter";
 import AnalyticsCenter from "./pages/AnalyticsCenter";
 import AdminCenter from "./pages/AdminCenter";
+import PeoplePage from "./pages/admin-center/PeoplePage";
 import BulkEligibility from "./pages/BulkEligibility";
 import SystemRefinementChecklist from "./pages/SystemRefinementChecklist";
 import CleanSlate from "./pages/CleanSlate";
@@ -144,6 +145,7 @@ const App = () => (
             <Route path="/revenue-command-center" element={<Shell><RevenueCommandCenter /></Shell>} />
             <Route path="/analytics-center" element={<Shell><AnalyticsCenter /></Shell>} />
             <Route path="/admin-center" element={<Shell><AdminCenter /></Shell>} />
+            <Route path="/admin-center/people" element={<Shell><PeoplePage /></Shell>} />
             <Route path="/admin-center/company-settings" element={<Shell admin><CompanySettingsPage /></Shell>} />
             <Route path="/admin-center/invoice-settings" element={<Shell admin><InvoiceSettingsPage /></Shell>} />
             <Route path="/invoices" element={<Shell admin><InvoicesPage /></Shell>} />
