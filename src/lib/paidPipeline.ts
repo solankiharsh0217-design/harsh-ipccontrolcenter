@@ -59,15 +59,24 @@ export async function recomputePaidLead(leadId: string) {
     .select("amount, payment_type, payment_category, is_token")
     .eq("paid_pipeline_lead_id", leadId).eq("is_deleted", false);
   const list = (pays as any[]) || [];
-  let total = 0; let token = 0;
+  let rawTotal = 0; let token = 0;
   for (const p of list) {
     const amt = Number(p.amount || 0);
     const isRefund = REFUND_TYPES.includes(p.payment_type) || p.payment_category === "Refund";
-    total += isRefund ? -amt : amt;
+    rawTotal += isRefund ? -amt : amt;
     const isTok = p.is_token || TOKEN_CATEGORIES.includes(p.payment_category) || p.payment_type === "Token";
     if (isTok && !isRefund) token += amt;
   }
   const deal = Number(leadData.deal_value_including_gst || 0);
+  // Keep the signed accumulation above so the anomaly stays detectable, but never
+  // store or derive from a negative collected total.
+  const total = Math.max(0, rawTotal);
+  const anomaly = rawTotal < 0
+    ? { leadId, deal, rawTotal, paymentCount: list.length, reason: "negative_total_collected" as const }
+    : null;
+  if (anomaly) {
+    console.error("[paidPipeline] data-integrity: negative total_collected", anomaly);
+  }
   const balance = Math.max(0, deal - total);
   const stage = leadData.pipeline_stage || "";
   const isDropped = DROP_STAGES.includes(stage);
