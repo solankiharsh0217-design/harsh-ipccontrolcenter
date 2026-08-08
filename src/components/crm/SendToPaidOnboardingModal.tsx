@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/auditLog";
 import { resolveLinkBundle, type LinkBundle } from "@/lib/leadLinks";
 import { ensurePaidPipelineCrmLead } from "@/lib/paidCrmMirror";
+import { EmptyState } from "@/components/ui-bits";
 import { ensurePipelineExists } from "@/lib/crmTypes";
 
 type Mode = "link_create" | "move" | "copy";
@@ -184,7 +185,7 @@ export default function SendToPaidOnboardingModal({
                       <ExternalLink className="w-3 h-3" /> Open
                     </Link>
                   </div>
-                ) : <div className="text-muted-foreground">No paid buyer record yet.</div>}
+                ) : <EmptyState title="No paid buyer record yet." />}
                 {existingOnboarding ? (
                   <div className="flex items-center justify-between gap-2">
                     <span><b>Paid Onboarding CRM</b> · {existingOnboarding.stageName || "—"}</span>
@@ -192,7 +193,7 @@ export default function SendToPaidOnboardingModal({
                       <ExternalLink className="w-3 h-3" /> Open
                     </Link>
                   </div>
-                ) : <div className="text-muted-foreground">No Paid Onboarding CRM lead yet.</div>}
+                ) : <EmptyState title="No Paid Onboarding CRM lead yet." />}
               </div>
             )}
           </div>

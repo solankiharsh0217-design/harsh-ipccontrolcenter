@@ -263,7 +263,7 @@ export default function WebinarPresetSelector({
               <EmptyState title="No saved webinars yet." hint="Type a name to create one." />
             )}
             {!loading && filtered.length === 0 && active.length > 0 && !canCreate && (
-              <div className="px-3 py-3 text-[12px] text-muted-foreground">No matches.</div>
+              <EmptyState title="No matches." />
             )}
             {!loading && filtered.map(p => {
               const selected = p.name === value;
