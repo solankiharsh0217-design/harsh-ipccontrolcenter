@@ -568,7 +568,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
                 );
               }
               return (
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
+                <button onClick={() => { setActiveTab("onboarding"); setCrmPickerOpen(true); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium border border-line bg-white hover:bg-off transition-colors">
                   <RefreshCw className="w-3.5 h-3.5" /> Update Status
                 </button>
               );
