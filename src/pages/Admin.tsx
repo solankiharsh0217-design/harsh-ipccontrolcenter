@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHead, SectionLabel, EmptyRow } from "@/components/ui-bits";
+import { PageHead, SectionLabel, EmptyRow, EmptyState } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
