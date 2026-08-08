@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState, EmptyRow } from "@/components/ui-bits";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -1058,7 +1058,7 @@ export default function FinanceSuccessDashboard() {
               {leadsLoading ? (
                 <TableRow><TableCell colSpan={11} className="py-6"><LoadingState /></TableCell></TableRow>
               ) : byWebinar.length === 0 ? (
-                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">No data.</TableCell></TableRow>
+                <EmptyRow colSpan={11} title="No data." />
               ) : (
                 byWebinar.map((r) => (
                   <TableRow key={r.date}>
