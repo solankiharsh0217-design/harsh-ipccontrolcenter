@@ -1265,6 +1265,21 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           if (!errors.includes(msg)) errors.push(msg);
         }
       };
+      // Payment-row insert failures are reported exactly like recompute failures:
+      // row failure counter + de-duplicated reason + error entry naming lead & amount.
+      const handlePaymentFailure = (
+        kind: "Token" | "Balance",
+        leadLabel: string,
+        amount: number,
+        e: any,
+      ) => {
+        paymentRowsFailed++;
+        failed++;
+        const msg = `${kind} payment insert failed for ${leadLabel} (₹${Number(amount || 0).toLocaleString("en-IN")}): ${e?.message || String(e)}`;
+        console.error(`[ImportLeadsModal] ${kind.toLowerCase()} payment insert failed`, leadLabel, e);
+        addReason(msg);
+        if (!errors.includes(msg)) errors.push(msg);
+      };
       if (pipelineType === "paid") {
         try {
           const syncIds = new Set<string>([...createdCrmLeadIds, ...promotedCrmLeadIds]);
@@ -1304,6 +1319,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               if (result === "created") paymentRowsCreated++;
               else if (result === "duplicate") paymentRowsDuplicate++;
             };
+            const leadLabel = lead.full_name || lead.email || lead.phone || lead.id;
 
             if (lead.paid_pipeline_lead_id) {
               paidLinked++;
@@ -1311,12 +1327,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 totalTokenCollected += rowToken;
                 await recordTokenPayment({ paidLeadId: lead.paid_pipeline_lead_id, ...tokenPaymentArgs })
                   .then(handleTokenResult)
-                  .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+                  .catch((e) => handlePaymentFailure("Token", leadLabel, rowToken, e));
               }
               if (rowRemainder > 0) {
                 await recordBalancePayment({ paidLeadId: lead.paid_pipeline_lead_id, ...balancePaymentArgs })
                   .then(handleTokenResult)
-                  .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] balance payment insert failed", e); });
+                  .catch((e) => handlePaymentFailure("Balance", leadLabel, rowRemainder, e));
               }
               await runRecompute(lead.paid_pipeline_lead_id);
               continue;
@@ -1411,14 +1427,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               totalTokenCollected += rowToken;
               await recordTokenPayment({ paidLeadId, ...tokenPaymentArgs })
                 .then(handleTokenResult)
-                .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+                .catch((e) => handlePaymentFailure("Token", leadLabel, rowToken, e));
             }
 
             // Non-token remainder (collected above the token) as its own payment row.
             if (paidLeadId && rowRemainder > 0) {
               await recordBalancePayment({ paidLeadId, ...balancePaymentArgs })
                 .then(handleTokenResult)
-                .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] balance payment insert failed", e); });
+                .catch((e) => handlePaymentFailure("Balance", leadLabel, rowRemainder, e));
             }
 
             // Recompute rollups for every created/updated paid lead, including
@@ -1450,6 +1466,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           }
         } catch (syncErr: any) {
           console.error("[ImportLeadsModal] paid pipeline sync failed", syncErr);
+        }
+        // The run can never be presented as fully successful while payment rows failed.
+        if (paymentRowsFailed > 0) {
+          const banner = `${paymentRowsFailed} payment row(s) failed to insert — total_collected / balance_pending understate what was actually collected. Re-import or add those payments manually.`;
+          if (!errors.includes(banner)) errors.unshift(banner);
+          addReason(banner);
+          toast.error(banner);
         }
       }
 
