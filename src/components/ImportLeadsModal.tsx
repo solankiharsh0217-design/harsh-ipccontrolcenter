@@ -1254,6 +1254,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   .then(handleTokenResult)
                   .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
               }
+              await runRecompute(lead.paid_pipeline_lead_id);
               continue;
             }
             let existing: any = null;
