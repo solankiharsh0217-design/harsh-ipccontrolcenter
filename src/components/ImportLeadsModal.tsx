@@ -453,12 +453,52 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       .then(({ data }) => setPrograms((data as any) || []));
     supabase
       .from("program_products" as any)
-      .select("id, product_name, program_id, business_unit, product_price_including_gst, default_token_amount, default_pipeline_id, default_service_package_id, default_operations_template_id, default_grade, is_active, is_deleted")
+      .select("id, product_name, program_id, business_unit, product_price_including_gst, default_token_amount, default_pipeline_id, default_service_package_id, default_operations_template_id, default_grade, gst_applicable, gst_rate, is_active, is_deleted")
       .eq("is_active", true)
       .eq("is_deleted", false)
       .order("product_name")
       .then(({ data }) => setOffers((data as any) || []));
+    // Fallback GST rate only — read-only.
+    supabase
+      .from("invoice_settings" as any)
+      .select("default_gst_rate")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        const r = Number((data as any)?.default_gst_rate);
+        setInvoiceDefaultGstRate(Number.isFinite(r) && r > 0 ? r : null);
+      });
   }, []);
+
+  // BUG 5 — GST mode of the mapped Deal Value header, read from the RAW header.
+  const dealValueGstMode: GstMode = useMemo(
+    () => (mapping.deal_value ? detectGstMode(mapping.deal_value) : "unknown"),
+    [mapping.deal_value],
+  );
+  // BUG 5 — resolved rate: offer first, invoice settings second, otherwise null.
+  // An offer that is explicitly not GST-applicable resolves to null (no conversion).
+  const gstRateInfo = useMemo((): { rate: number | null; source: string } => {
+    const offer = offerId ? offers.find((o) => o.id === offerId) : null;
+    if (offer) {
+      if (offer.gst_applicable === false) return { rate: null, source: "offer marked not GST-applicable" };
+      const r = Number(offer.gst_rate);
+      if (Number.isFinite(r) && r > 0) return { rate: r, source: `offer "${offer.product_name}"` };
+    }
+    if (invoiceDefaultGstRate && invoiceDefaultGstRate > 0) {
+      return { rate: invoiceDefaultGstRate, source: "invoice settings default" };
+    }
+    return { rate: null, source: "no rate configured" };
+  }, [offerId, offers, invoiceDefaultGstRate]);
+  // The ONLY place a deal value is grossed up. Mode "inclusive" and "unknown"
+  // return the input untouched — byte-identical to pre-BUG-5 behaviour.
+  const applyDealGst = useCallback(
+    (value: number): number =>
+      dealValueGstMode === "exclusive" && gstRateInfo.rate && value > 0
+        ? grossUpToInclusive(value, gstRateInfo.rate)
+        : value,
+    [dealValueGstMode, gstRateInfo.rate],
+  );
+
 
   const filteredOffers = useMemo(() => {
     if (!programId) return offers;
