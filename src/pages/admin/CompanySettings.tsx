@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState, EmptyState } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -640,7 +640,7 @@ export default function CompanySettingsPage() {
             <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={addBonusResource}>+ Add resource</Button>
           </div>
           <div className="space-y-2">
-            {bonusResources.length === 0 && <div className="text-[12px] text-muted-foreground">No bonus resources yet.</div>}
+            {bonusResources.length === 0 && <EmptyState title="No bonus resources yet." />}
             {bonusResources.map((r, idx) => (
               <div key={r.id} className="border border-line rounded-lg p-3 grid grid-cols-12 gap-2 items-start">
                 <div className="col-span-4">

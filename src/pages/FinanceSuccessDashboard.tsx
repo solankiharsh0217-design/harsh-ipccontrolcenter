@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHead, SectionLabel, LoadingState, EmptyRow } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState, EmptyRow, EmptyState } from "@/components/ui-bits";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -1096,7 +1096,7 @@ export default function FinanceSuccessDashboard() {
         <CardHeader><CardTitle className="text-base">Stuck by current stage (excludes Dead / Refund)</CardTitle></CardHeader>
         <CardContent>
           {stuckAnalysis.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No stuck members in the current filter.</div>
+            <EmptyState title="No stuck members in the current filter." />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {stuckAnalysis.map(([stage, count]) => (
