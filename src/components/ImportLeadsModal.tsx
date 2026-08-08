@@ -8,6 +8,7 @@ import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type Le
 import { logActivity } from "@/lib/auditLog";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { listServicePackages, buildSnapshot, type ServicePackage } from "@/lib/servicePackages";
+import { recomputePaidLead } from "@/lib/paidPipeline";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
 import { Link } from "react-router-dom";
 import SearchableHeaderSelect from "@/components/import/SearchableHeaderSelect";
@@ -1198,6 +1199,19 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       let paymentRowsCreated = 0;
       let paymentRowsFailed = 0;
       let totalTokenCollected = 0;
+      // Recompute financial rollups (total_collected / balance_pending) using the
+      // existing engine. Failures are surfaced as row-level import failures.
+      const runRecompute = async (paidLeadId: string) => {
+        try {
+          await recomputePaidLead(paidLeadId);
+        } catch (e: any) {
+          const msg = `Recompute failed for paid lead ${paidLeadId}: ${e?.message || String(e)}`;
+          console.error("[ImportLeadsModal] recomputePaidLead failed", paidLeadId, e);
+          failed++;
+          addReason(msg);
+          if (!errors.includes(msg)) errors.push(msg);
+        }
+      };
       if (pipelineType === "paid") {
         try {
           const syncIds = new Set<string>([...createdCrmLeadIds, ...promotedCrmLeadIds]);
@@ -1240,6 +1254,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   .then(handleTokenResult)
                   .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
               }
+              await runRecompute(lead.paid_pipeline_lead_id);
               continue;
             }
             let existing: any = null;
@@ -1334,6 +1349,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 .then(handleTokenResult)
                 .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
             }
+
+            // Recompute rollups for every created/updated paid lead, including
+            // leads with no payment rows at all.
+            if (paidLeadId) await runRecompute(paidLeadId);
           }
 
           const { data: linkCheck } = await supabase
