@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Papa from "papaparse";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -66,6 +66,31 @@ const normHeader = (h: string): string =>
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+// ---------------------------------------------------------------------------
+// BUG 5 — GST mode detection.
+// normHeader() (above) deliberately drops "(with gst)" metadata, so the GST
+// qualifier must be read from the RAW header BEFORE normalisation. This helper
+// never feeds normHeader and never changes alias matching.
+type GstMode = "exclusive" | "inclusive" | "unknown";
+const GST_EXCLUSIVE_RE =
+  /(?:\bex\b|\bexcl\w*|\bexcluding\b|\bwithout\b|\bbefore\b|\+\s*|\bplus\s+)\s*gst|gst\s*(?:extra|additional)/i;
+const GST_INCLUSIVE_RE =
+  /(?:\binc\b|\bincl\w*|\bincluding\b|\bwith\b)\s*(?:of\s*)?gst|gst\s*(?:incl\w*|included)/i;
+const detectGstMode = (rawHeader: string): GstMode => {
+  const h = String(rawHeader || "");
+  if (!/gst/i.test(h)) return "unknown";
+  // Exclusive is tested first: "excluding" must never be read as "including".
+  if (GST_EXCLUSIVE_RE.test(h)) return "exclusive";
+  if (GST_INCLUSIVE_RE.test(h)) return "inclusive";
+  return "unknown";
+};
+// Gross up an exclusive figure into the GST-inclusive contract of
+// paid_pipeline_leads.deal_value_including_gst. Only ever called when the mode
+// is exactly "exclusive" AND a rate actually resolved.
+const grossUpToInclusive = (value: number, ratePercent: number): number =>
+  Math.round(value * (1 + ratePercent / 100) * 100) / 100;
+
 
 // Field alias tables — each entry is a normalized header substring/regex the header must contain.
 const FIELD_ALIASES: Record<FieldKey, RegExp[]> = {
@@ -331,12 +356,17 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     product_price_including_gst: number; default_token_amount: number;
     default_pipeline_id: string | null; default_service_package_id: string | null;
     default_operations_template_id: string | null; default_grade: string | null;
+    gst_applicable: boolean | null; gst_rate: number | null;
     is_active: boolean; is_deleted: boolean;
   };
   const [programs, setPrograms] = useState<ProgramRow[]>([]);
   const [offers, setOffers] = useState<OfferRow[]>([]);
   const [programId, setProgramId] = useState<string>("");
   const [offerId, setOfferId] = useState<string>("");
+  // BUG 5 — fallback GST rate from invoice settings (used only when the selected
+  // offer does not carry its own rate). Never defaulted to 18 in code.
+  const [invoiceDefaultGstRate, setInvoiceDefaultGstRate] = useState<number | null>(null);
+
 
   // Step 4
   const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
@@ -379,6 +409,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     rowsMissingDealValue: number; // import-eligible rows with no per-record deal value
     rowsAmbiguousAmount: number;  // rows where a money cell held multiple numbers
     ambiguousAmountSamples: string[]; // "Row 4 · Token Amount: \"2 EMI 60000\""
+    // BUG 5 — GST: rows whose exclusive deal value was grossed up, and rows where
+    // an exclusive header was detected but no rate resolved (never converted).
+    rowsGstGrossedUp: number;
+    rowsGstRateUnresolved: number;
+    gstConversionSamples: string[];
+
 
     projectedRevenue: number;   // Sum of deal_value (fallback to global dealValue) for import-eligible rows
     projectedTokenRevenue: number; // Sum of tokens for import-eligible rows
@@ -423,12 +459,52 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       .then(({ data }) => setPrograms((data as any) || []));
     supabase
       .from("program_products" as any)
-      .select("id, product_name, program_id, business_unit, product_price_including_gst, default_token_amount, default_pipeline_id, default_service_package_id, default_operations_template_id, default_grade, is_active, is_deleted")
+      .select("id, product_name, program_id, business_unit, product_price_including_gst, default_token_amount, default_pipeline_id, default_service_package_id, default_operations_template_id, default_grade, gst_applicable, gst_rate, is_active, is_deleted")
       .eq("is_active", true)
       .eq("is_deleted", false)
       .order("product_name")
       .then(({ data }) => setOffers((data as any) || []));
+    // Fallback GST rate only — read-only.
+    supabase
+      .from("invoice_settings" as any)
+      .select("default_gst_rate")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        const r = Number((data as any)?.default_gst_rate);
+        setInvoiceDefaultGstRate(Number.isFinite(r) && r > 0 ? r : null);
+      });
   }, []);
+
+  // BUG 5 — GST mode of the mapped Deal Value header, read from the RAW header.
+  const dealValueGstMode: GstMode = useMemo(
+    () => (mapping.deal_value ? detectGstMode(mapping.deal_value) : "unknown"),
+    [mapping.deal_value],
+  );
+  // BUG 5 — resolved rate: offer first, invoice settings second, otherwise null.
+  // An offer that is explicitly not GST-applicable resolves to null (no conversion).
+  const gstRateInfo = useMemo((): { rate: number | null; source: string } => {
+    const offer = offerId ? offers.find((o) => o.id === offerId) : null;
+    if (offer) {
+      if (offer.gst_applicable === false) return { rate: null, source: "offer marked not GST-applicable" };
+      const r = Number(offer.gst_rate);
+      if (Number.isFinite(r) && r > 0) return { rate: r, source: `offer "${offer.product_name}"` };
+    }
+    if (invoiceDefaultGstRate && invoiceDefaultGstRate > 0) {
+      return { rate: invoiceDefaultGstRate, source: "invoice settings default" };
+    }
+    return { rate: null, source: "no rate configured" };
+  }, [offerId, offers, invoiceDefaultGstRate]);
+  // The ONLY place a deal value is grossed up. Mode "inclusive" and "unknown"
+  // return the input untouched — byte-identical to pre-BUG-5 behaviour.
+  const applyDealGst = useCallback(
+    (value: number): number =>
+      dealValueGstMode === "exclusive" && gstRateInfo.rate && value > 0
+        ? grossUpToInclusive(value, gstRateInfo.rate)
+        : value,
+    [dealValueGstMode, gstRateInfo.rate],
+  );
+
 
   const filteredOffers = useMemo(() => {
     if (!programId) return offers;
@@ -812,6 +888,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         let rowsMissingDealValue = 0;
         let rowsAmbiguousAmount = 0;
         const ambiguousAmountSamples: string[] = [];
+        // BUG 5 — GST conversion visibility.
+        let rowsGstGrossedUp = 0;
+        let rowsGstRateUnresolved = 0;
+        const gstConversionSamples: string[] = [];
+
         let projectedRevenue = 0;
         let projectedTokenRevenue = 0;
         rowDetails.forEach((rd, i) => {
@@ -830,9 +911,26 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             return d.value;
           };
           const tk = money(mapping.token, "Token");
-          const dv = money(mapping.deal_value, "Deal Value");
+          const dvRaw = money(mapping.deal_value, "Deal Value");
+          // BUG 5 — GST: only the deal value is ever converted, and only when the
+          // header is explicitly exclusive AND a rate resolved. Token / collected /
+          // balance are never grossed up.
+          const dv = applyDealGst(dvRaw);
+          if (dvRaw > 0 && dealValueGstMode === "exclusive") {
+            if (gstRateInfo.rate) {
+              rowsGstGrossedUp++;
+              if (gstConversionSamples.length < 5) {
+                gstConversionSamples.push(
+                  `Row ${rd.rowNum} · ${mapping.deal_value}: ₹${dvRaw.toLocaleString("en-IN")} excl. GST → ₹${dv.toLocaleString("en-IN")} incl. GST @ ${gstRateInfo.rate}%`,
+                );
+              }
+            } else {
+              rowsGstRateUnresolved++;
+            }
+          }
           const cl = mapping.collected ? money(mapping.collected, "Collected") : tk;
           const bl = mapping.balance ? money(mapping.balance, "Balance") : Math.max(dv - cl, 0);
+
           if (tk > 0) { sumToken += tk; rowsWithToken++; }
           if (dv > 0) { sumDealValue += dv; rowsWithDealValue++; }
           if (cl > 0) sumCollected += cl;
@@ -878,6 +976,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             rowsMissingDealValue,
             rowsAmbiguousAmount,
             ambiguousAmountSamples,
+            rowsGstGrossedUp,
+            rowsGstRateUnresolved,
+            gstConversionSamples,
+
             projectedRevenue,
             projectedTokenRevenue,
             existingByEmail,
@@ -890,7 +992,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [step, rows, mapping, pipelines, stages, duplicatePolicy, dealValue]);
+  }, [step, rows, mapping, pipelines, stages, duplicatePolicy, dealValue, applyDealGst, dealValueGstMode, gstRateInfo]);
 
 
 
@@ -1323,7 +1425,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             // Never inherit the modal-level dealValue — that would manufacture booked
             // revenue that does not exist in the source. Missing values stay 0 and are
             // flagged in the review step instead.
-            const rowDeal = rowMeta.deal_value > 0 ? rowMeta.deal_value : Number(lead.deal_value || 0);
+            // BUG 5 — GST: the sheet figure is grossed up ONLY when the mapped Deal
+            // Value header is explicitly "excluding GST" AND a rate resolved. The
+            // CRM lead's own deal_value is already stored inclusive — never converted.
+            const sheetDeal = rowMeta.deal_value > 0 ? applyDealGst(rowMeta.deal_value) : 0;
+            const rowDeal = sheetDeal > 0 ? sheetDeal : Number(lead.deal_value || 0);
+
             const rowToken = rowMeta.token > 0 ? rowMeta.token : 0;
             const rowCollected = rowMeta.collected > 0 ? rowMeta.collected : 0;
             const rowBalance = rowMeta.balance > 0
@@ -2258,6 +2365,25 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                           </ul>
                         </div>
                       )}
+                      {preflight.rowsGstGrossedUp > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-sky-50 border border-sky-200 text-[11px] text-sky-900">
+                          GST conversion — the mapped Deal Value column <b>{mapping.deal_value}</b> is <b>excluding GST</b>. {preflight.rowsGstGrossedUp} row(s) will be grossed up at <b>{gstRateInfo.rate}%</b> (source: {gstRateInfo.source}) before being stored as GST-inclusive. Token, Collected and Balance are <b>not</b> converted.
+                          <ul className="mt-1 ml-3 list-disc">
+                            {preflight.gstConversionSamples.map((s, i) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {preflight.rowsGstRateUnresolved > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                          ⚠ The Deal Value column <b>{mapping.deal_value}</b> says <b>excluding GST</b>, but no GST rate could be resolved ({gstRateInfo.source}). {preflight.rowsGstRateUnresolved} row(s) will be stored <b>exactly as written, with no conversion</b> — no rate is ever assumed. Pick an Offer with a GST rate, or set a default GST rate in invoice settings.
+                        </div>
+                      )}
+                      {mapping.deal_value && dealValueGstMode === "inclusive" && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-muted/40 border border-border text-[11px] text-muted-foreground">
+                          Deal Value column <b>{mapping.deal_value}</b> is already <b>including GST</b> — stored as-is, no conversion.
+                        </div>
+                      )}
+
                       {leadType !== "paid" && mapping.token && preflight.projectedTokenRevenue > 0 && (
                         <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
                           Tokens are mapped but the lead type is <b>Unpaid</b>. Token payments are only recorded when importing into a <b>Paid</b> pipeline.
