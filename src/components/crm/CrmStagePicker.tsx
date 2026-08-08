@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowRightCircle, ChevronDown, Search, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { stageChip } from "@/lib/stageColors";
+import { EmptyState } from "@/components/ui-bits";
 
 export type CrmStagePickerStage = {
   id: string;

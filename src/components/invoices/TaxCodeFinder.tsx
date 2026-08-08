@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { searchTaxCodes } from "@/lib/invoices/taxCodes";
 import type { TaxCode } from "@/lib/invoices/types";
+import { EmptyState } from "@/components/ui-bits";
 
 interface Props {
   open: boolean;
