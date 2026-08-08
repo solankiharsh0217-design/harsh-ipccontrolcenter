@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { EmptyState, EmptyRow } from "@/components/ui-bits";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AccessVerification, fetchVerificationsForPaidLeads, computeOverall, OverallStatus,
@@ -442,7 +443,7 @@ function DesktopTable({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={13} className="px-3 py-6 text-center text-muted-foreground">No members match these filters.</td></tr>
+              <EmptyRow colSpan={13} title="No members match these filters." />
             ) : rows.map((r) => (
               <tr key={r.paidLeadId} className="hover:bg-muted/30 align-middle">
                 <td className="px-3 py-2 sticky left-0 bg-background border-t border-r border-border z-[1] align-middle">
@@ -503,7 +504,7 @@ function DesktopTable({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[
 
 function MobileCards({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[]; onSelect: (r: Row) => void; returnTo?: string; onBeforeCrmNav?: () => void }) {
   if (rows.length === 0) {
-    return <div className="border border-border rounded-lg bg-background px-3 py-6 text-center text-muted-foreground text-sm">No members match these filters.</div>;
+    return <EmptyState title="No members match these filters." bordered />;
   }
   return (
     <div className="space-y-2">

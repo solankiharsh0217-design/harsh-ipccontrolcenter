@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { EmptyState, EmptyRow } from "@/components/ui-bits";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -239,7 +240,7 @@ export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember, re
         <div className="border border-border rounded-lg bg-background">
           <div className="px-3 py-2 border-b border-border font-medium text-sm">Completed Today</div>
           {completedToday.length === 0 ? (
-            <div className="px-3 py-6 text-center text-muted-foreground text-sm">No members completed today.</div>
+            <EmptyState title="No members completed today." />
           ) : (
             <div className="divide-y divide-border">
               {completedToday.map((r) => {
@@ -278,7 +279,7 @@ export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember, re
             <div className="text-[11px] text-muted-foreground">{queueRows.length} member{queueRows.length === 1 ? "" : "s"}</div>
           </div>
           {queueRows.length === 0 ? (
-            <div className="px-3 py-8 text-center text-muted-foreground text-sm">No members in this queue.</div>
+            <EmptyState title="No members in this queue." />
           ) : (
             <div className="divide-y divide-border">
               {queueRows.map(({ r, s }) => {
@@ -411,7 +412,7 @@ export default function DailyQueueView({ rows, owners, isAdmin, onOpenMember, re
             </thead>
             <tbody>
               {ownerWorkload.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 py-4 text-center text-muted-foreground">No members in scope.</td></tr>
+                <EmptyRow colSpan={7} title="No members in scope." />
               ) : ownerWorkload.map((w) => (
                 <tr key={w.ownerId || "__u__"} className="border-t border-border">
                   <td className="px-3 py-2">
