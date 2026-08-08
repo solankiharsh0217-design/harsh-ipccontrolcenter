@@ -20,13 +20,13 @@ export default function AdminCenter() {
           You don't have access to any modules in this center.
         </div>
       ) : (
-        <div className="space-y-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-3.5 gap-y-8 items-start">
           {sections.map((section) => (
             <div key={section.label}>
               <SectionLabel>{section.label}</SectionLabel>
               
               {MIGRATED_SLUGS.has(section.slug) ? (
-                <div className="grid grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 gap-3.5">
                   <div className="rounded-xl border border-line bg-card pt-[26px] px-[22px] pb-5 flex flex-col">
                     <div className="font-serif text-xl font-medium text-foreground mb-2 leading-tight">{section.label}</div>
                     <div className="font-sans text-xs font-light text-muted-foreground leading-[1.7] mb-5 flex-1">{section.blurb}</div>
