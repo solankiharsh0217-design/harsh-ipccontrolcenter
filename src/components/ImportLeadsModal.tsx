@@ -8,6 +8,7 @@ import { DEFAULT_PIPELINE_TEMPLATES, ensurePipelineExists, GRADE_STYLES, type Le
 import { logActivity } from "@/lib/auditLog";
 import { getEligibleAssignees } from "@/lib/eligibleAssignees";
 import { listServicePackages, buildSnapshot, type ServicePackage } from "@/lib/servicePackages";
+import { recomputePaidLead } from "@/lib/paidPipeline";
 import { listProcessTemplates, type ProcessTemplate } from "@/lib/operationsTemplates";
 import { Link } from "react-router-dom";
 import SearchableHeaderSelect from "@/components/import/SearchableHeaderSelect";
