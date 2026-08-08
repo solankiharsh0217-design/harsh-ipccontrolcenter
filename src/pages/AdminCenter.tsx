@@ -3,6 +3,8 @@ import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminSections } from "./admin-center/sections";
 
+const MIGRATED_SLUGS = new Set(["people"]);
+
 export default function AdminCenter() {
   const nav = useNavigate();
   const { isAdmin, hasModule } = useAuth();
@@ -22,20 +24,36 @@ export default function AdminCenter() {
           {sections.map((section) => (
             <div key={section.label}>
               <SectionLabel>{section.label}</SectionLabel>
-              <div className="grid grid-cols-3 gap-3.5">
-                {section.cards.map((c) => (
-                  <div key={c.to} className="rounded-xl border border-line bg-card pt-[26px] px-[22px] pb-5 flex flex-col">
-                    <div className="font-serif text-xl font-medium text-foreground mb-2 leading-tight">{c.title}</div>
-                    <div className="font-sans text-xs font-light text-muted-foreground leading-[1.7] mb-5 flex-1">{c.desc}</div>
+              
+              {MIGRATED_SLUGS.has(section.slug) ? (
+                <div className="grid grid-cols-3 gap-3.5">
+                  <div className="rounded-xl border border-line bg-card pt-[26px] px-[22px] pb-5 flex flex-col">
+                    <div className="font-serif text-xl font-medium text-foreground mb-2 leading-tight">{section.label}</div>
+                    <div className="font-sans text-xs font-light text-muted-foreground leading-[1.7] mb-5 flex-1">{section.blurb}</div>
                     <button
-                      onClick={() => nav(c.to)}
+                      onClick={() => nav(`/admin-center/${section.slug}`)}
                       className="font-sans text-[12px] font-medium text-primary-foreground bg-primary hover:opacity-90 transition-opacity rounded-md px-4 py-2.5 self-start"
                     >
-                      {c.cta} →
+                      Open {section.label} →
                     </button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-3.5">
+                  {section.cards.map((c) => (
+                    <div key={c.to} className="rounded-xl border border-line bg-card pt-[26px] px-[22px] pb-5 flex flex-col">
+                      <div className="font-serif text-xl font-medium text-foreground mb-2 leading-tight">{c.title}</div>
+                      <div className="font-sans text-xs font-light text-muted-foreground leading-[1.7] mb-5 flex-1">{c.desc}</div>
+                      <button
+                        onClick={() => nav(c.to)}
+                        className="font-sans text-[12px] font-medium text-primary-foreground bg-primary hover:opacity-90 transition-opacity rounded-md px-4 py-2.5 self-start"
+                      >
+                        {c.cta} →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
