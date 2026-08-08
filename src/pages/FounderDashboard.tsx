@@ -594,7 +594,7 @@ export default function FounderDashboard() {
                 </thead>
                 <tbody>
                   {data.topPending.length === 0 ? (
-                    <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground text-xs">No pending balances.</td></tr>
+                    <EmptyRow colSpan={7} title="No pending balances." />
                   ) : data.topPending.map((l: any) => (
                     <tr key={l.id} className="border-t border-line">
                       <td className="px-4 py-2.5">{l.name || "—"}</td>
