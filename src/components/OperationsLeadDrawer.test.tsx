@@ -74,6 +74,7 @@ vi.mock("lucide-react", () => {
     ChevronRight: MockIcon,
     AlertCircle: MockIcon,
     Check: MockIcon,
+    Loader2: MockIcon,
   };
 });
 
