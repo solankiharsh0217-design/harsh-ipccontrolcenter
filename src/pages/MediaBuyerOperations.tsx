@@ -231,7 +231,7 @@ export default function MediaBuyerOperations() {
               {loading ? (
                 <LoadingRow colSpan={9} />
               ) : effectiveCases.length === 0 ? (
-                <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No cases match.</td></tr>
+                <EmptyRow colSpan={9} title="No cases match." />
               ) : effectiveCases.map((c) => {
                 const overdue = c.call_status === "not_called" && c.first_call_due_at && new Date(c.first_call_due_at).getTime() < Date.now();
                 return (
