@@ -1343,7 +1343,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               source_webinar: segmentName,
               pipeline_stage: "Payment Confirmed",
               payment_status: rowCollected > 0
-                ? (rowBalance <= 0 ? "Fully Paid" : "Partial Payment")
+                ? (rowBalance <= 0 ? "Full Payment Received" : "Partial Received")
                 : "No Payment",
               crm_lead_id: lead.id,
               service_package_id: servicePackageId || null,
