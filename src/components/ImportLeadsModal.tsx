@@ -356,12 +356,17 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     product_price_including_gst: number; default_token_amount: number;
     default_pipeline_id: string | null; default_service_package_id: string | null;
     default_operations_template_id: string | null; default_grade: string | null;
+    gst_applicable: boolean | null; gst_rate: number | null;
     is_active: boolean; is_deleted: boolean;
   };
   const [programs, setPrograms] = useState<ProgramRow[]>([]);
   const [offers, setOffers] = useState<OfferRow[]>([]);
   const [programId, setProgramId] = useState<string>("");
   const [offerId, setOfferId] = useState<string>("");
+  // BUG 5 — fallback GST rate from invoice settings (used only when the selected
+  // offer does not carry its own rate). Never defaulted to 18 in code.
+  const [invoiceDefaultGstRate, setInvoiceDefaultGstRate] = useState<number | null>(null);
+
 
   // Step 4
   const [agents, setAgents] = useState<{ id: string; full_name: string; role: string | null }[]>([]);
