@@ -810,14 +810,29 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         let rowsWithDealValue = 0;
         let rowsTokenExceedsDeal = 0;
         let rowsMissingDealValue = 0;
+        let rowsAmbiguousAmount = 0;
+        const ambiguousAmountSamples: string[] = [];
         let projectedRevenue = 0;
         let projectedTokenRevenue = 0;
         rowDetails.forEach((rd, i) => {
           const raw = rows[i] || {};
-          const tk = mapping.token ? parseAmount(raw[mapping.token]) : 0;
-          const dv = mapping.deal_value ? parseAmount(raw[mapping.deal_value]) : 0;
-          const cl = mapping.collected ? parseAmount(raw[mapping.collected]) : tk;
-          const bl = mapping.balance ? parseAmount(raw[mapping.balance]) : Math.max(dv - cl, 0);
+          // Detailed parse so ambiguous money cells (multiple numbers) can be flagged
+          // instead of silently guessing the first numeric run.
+          const money = (col: string | undefined | null, label: string) => {
+            if (!col) return 0;
+            const d = parseAmountDetailed(raw[col]);
+            if (d.ambiguous) {
+              rowsAmbiguousAmount++;
+              if (ambiguousAmountSamples.length < 5) {
+                ambiguousAmountSamples.push(`Row ${rd.rowNum} · ${label} (${col}): "${d.raw}"`);
+              }
+            }
+            return d.value;
+          };
+          const tk = money(mapping.token, "Token");
+          const dv = money(mapping.deal_value, "Deal Value");
+          const cl = mapping.collected ? money(mapping.collected, "Collected") : tk;
+          const bl = mapping.balance ? money(mapping.balance, "Balance") : Math.max(dv - cl, 0);
           if (tk > 0) { sumToken += tk; rowsWithToken++; }
           if (dv > 0) { sumDealValue += dv; rowsWithDealValue++; }
           if (cl > 0) sumCollected += cl;
