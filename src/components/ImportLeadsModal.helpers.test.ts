@@ -1,4 +1,3 @@
-/* @vitest-environment node */
 /**
  * T6 / T7 — import-mapper regressions on the REAL helpers inside
  * src/components/ImportLeadsModal.tsx (loaded verbatim from source; no

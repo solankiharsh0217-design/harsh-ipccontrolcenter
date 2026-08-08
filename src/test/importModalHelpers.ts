@@ -10,7 +10,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { transformSync } from "esbuild";
+import { transform } from "sucrase";
 
 export const MODAL_PATH = path.resolve(__dirname, "../components/ImportLeadsModal.tsx");
 export const MODAL_SOURCE = fs.readFileSync(MODAL_PATH, "utf8");
@@ -45,7 +45,7 @@ let cached: ModalHelpers | null = null;
 export function loadModalHelpers(): ModalHelpers {
   if (cached) return cached;
   const ts = `type FieldKey = string;\n${sliceHelpers()}`;
-  const js = transformSync(ts, { loader: "ts" }).code;
+  const js = transform(ts, { transforms: ["typescript"] }).code;
   const factory = `${js}\nreturn { normHeader, detectGstMode, grossUpToInclusive, autoMap, parseAmountDetailed, parseAmount };`;
   // eslint-disable-next-line no-new-func
   cached = new Function(factory)() as ModalHelpers;
