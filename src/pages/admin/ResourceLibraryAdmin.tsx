@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, EmptyState } from "@/components/ui-bits";
 import { useAuth } from "@/context/AuthContext";
 import {
   RESOURCE_TYPES,
@@ -94,7 +94,7 @@ export default function ResourceLibraryAdmin() {
       <SectionLabel>Resources ({filtered.length})</SectionLabel>
 
       <div className="border border-line rounded-md bg-white divide-y divide-line">
-        {filtered.length === 0 && <div className="p-4 text-[12.5px] text-muted-foreground">No resources match.</div>}
+        {filtered.length === 0 && <EmptyState title="No resources match." />}
         {filtered.map((it) => (
           <div key={it.id} className="p-3 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">

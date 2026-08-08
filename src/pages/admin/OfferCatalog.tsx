@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, EmptyState } from "@/components/ui-bits";
 import { useAuth } from "@/context/AuthContext";
 import { Navigate } from "react-router-dom";
 import {
@@ -87,7 +87,7 @@ function ServicesTab() {
       </div>
 
       <div className="border border-line rounded-md bg-white divide-y divide-line">
-        {visible.length === 0 && <div className="p-4 text-[12.5px] text-muted-foreground">No services yet.</div>}
+        {visible.length === 0 && <EmptyState title="No services yet." />}
         {visible.map((it) => (
           <div key={it.id} className="p-3 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -288,7 +288,7 @@ function PresetsTab() {
       </div>
 
       <div className="border border-line rounded-md bg-white divide-y divide-line">
-        {presets.length === 0 && <div className="p-4 text-[12.5px] text-muted-foreground">No presets yet.</div>}
+        {presets.length === 0 && <EmptyState title="No presets yet." />}
         {presets.map((p) => (
           <div key={p.id} className="p-3 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -433,7 +433,7 @@ function PresetEditModal({
           </select>
         </div>
         <div className="border border-line rounded-md divide-y divide-line">
-          {items.length === 0 && <div className="p-3 text-[12px] text-muted-foreground">No services in preset.</div>}
+          {items.length === 0 && <EmptyState title="No services in preset." />}
           {items.map((o, i) => (
             <div key={i} className="p-2.5 space-y-2">
               <div className="flex items-center justify-between gap-2">
