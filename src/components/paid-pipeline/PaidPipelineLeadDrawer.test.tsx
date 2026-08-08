@@ -272,7 +272,7 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
 
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
-    const tabsContainer = screen.getByTestId("mock-tabs");
+    const tabsContainer = screen.getAllByTestId("mock-tabs")[0];
     expect(tabsContainer.getAttribute("data-value")).not.toBe("onboarding");
     
     const pickerMock = screen.getByTestId("mock-crm-stage-picker");
@@ -285,7 +285,8 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
       fireEvent.click(updateBtn);
     });
 
-    expect(tabsContainer.getAttribute("data-value")).toBe("onboarding");
+    const updatedTabsContainer = screen.getAllByTestId("mock-tabs")[0];
+    expect(updatedTabsContainer.getAttribute("data-value")).toBe("onboarding");
     expect(pickerMock.getAttribute("data-open")).toBe("true");
   });
 });
