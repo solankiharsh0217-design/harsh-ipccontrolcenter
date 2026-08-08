@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { PageHead } from "@/components/ui-bits";
+import { PageHead, EmptyState } from "@/components/ui-bits";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -106,7 +106,7 @@ export default function StudentSearch() {
           );
         })}
         {q.trim() && !loading && results.length === 0 && (
-          <div className="text-center py-10 font-sans text-[13px] text-muted-foreground">No student found matching that search.</div>
+          <EmptyState title="No student found matching that search." />
         )}
       </div>
     </div>

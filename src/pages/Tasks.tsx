@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Search, X, MoreHorizontal, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { EmptyState } from "@/components/ui-bits";
 import { useAuth } from "@/context/AuthContext";
 import {
   Task, TaskStatus, TaskSubmission, STATUSES, PRIORITY_PILL, fetchTasks, updateTask, archiveOldDone,
@@ -444,7 +445,7 @@ function KanbanView({
             <div className={`h-[2px] ${s.barClass} mb-3`} />
             <div className={`flex flex-col gap-2 min-h-[80px] p-1 rounded-md transition-colors ${dragOverCol === s.key ? "border border-dashed border-gold bg-gold-pale/40" : "border border-transparent"}`}>
               {cols.length === 0 && (
-                <div className="border border-dashed border-line rounded-md py-6 text-center text-[12px] text-muted-foreground">No tasks here</div>
+                <EmptyState title="No tasks here" bordered />
               )}
               {cols.map((t: Task) => (
                 <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart}
@@ -610,7 +611,7 @@ function PeopleView({ tasks, members, isAdmin, me, myName, onOpen, onQuickStatus
         <div className="h-[2px] bg-line mb-3" />
         <div className={`flex flex-col gap-2 min-h-[80px] p-1 rounded-md transition-colors ${isOver ? "border border-dashed border-gold bg-gold-pale/40" : "border border-transparent"}`}>
           {list.length === 0 ? (
-            <div className="border border-dashed border-line rounded-md py-6 text-center text-[12px] text-muted-foreground">No tasks assigned</div>
+            <EmptyState title="No tasks assigned" bordered />
           ) : list.map((t) => (
             <TaskCard key={t.id} task={t} onOpen={onOpen} onQuickStatus={onQuickStatus} onDragStart={onDragStart}
               submission={latestSubmission?.(t.id)} canSubmit={canSubmitFor?.(t)} onSubmit={onSubmit} />

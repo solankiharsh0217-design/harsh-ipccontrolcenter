@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { PageHead, SectionLabel, Tag, LoadingRow } from "@/components/ui-bits";
+import { PageHead, SectionLabel, Tag, LoadingRow, EmptyRow } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
