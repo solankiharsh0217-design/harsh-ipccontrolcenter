@@ -377,11 +377,63 @@ describe("PaidPipelineLeadDrawer - stage change automation (merged copies)", () 
       fireEvent.change(picker, { target: { value: "stage-new" } });
     });
 
+    const confirmBtn = await screen.findByRole("button", { name: /Confirm stage change/i });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
     await waitFor(() => {
       expect(operationsCrm.applyAutoHandoff).toHaveBeenCalled();
       expect(cocRules.evaluateStageTrigger).toHaveBeenCalled();
     });
   });
+
+  it("cancelling the confirmation performs no write and no automation", async () => {
+    vi.spyOn(operationsCrm, "getActiveHandoffRules").mockResolvedValue([{ id: "rule-1", mode: "auto" } as any]);
+    vi.spyOn(operationsCrm, "findRuleForStage").mockReturnValue({ id: "rule-1", mode: "auto" } as any);
+    vi.spyOn(operationsCrm, "isRuleAutoReady").mockReturnValue(true);
+    vi.spyOn(operationsCrm, "applyAutoHandoff").mockResolvedValue({ inserted: 1, updated: 0, skipped: 0, buyerCounts: {} } as any);
+    vi.spyOn(cocRules, "evaluateStageTrigger").mockResolvedValue({ action: "auto_sent" } as any);
+
+    const leadsUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) });
+    (supabase.from as any).mockImplementation((table: string) => {
+      const q = createMockQuery();
+      if (table === "leads") {
+        q.maybeSingle.mockResolvedValue({ data: { id: "crm-123", stage_id: "stage-old" }, error: null });
+        (q as any).update = leadsUpdate;
+      }
+      if (table === "stages") q.order.mockResolvedValue({ data: [{ id: "stage-new", name: "New Stage" }], error: null });
+      return q;
+    });
+
+    await act(async () => {
+      render(<MemoryRouter><PaidPipelineLeadDrawer lead={mockLead as any} onClose={() => {}} stages={[]} agents={[]} onChanged={() => {}} /></MemoryRouter>);
+    });
+
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
+
+    fireEvent.click(screen.getByRole("tab", { name: /onboarding/i }));
+
+    const picker = await screen.findByLabelText("CRM Stage Picker");
+    await act(async () => {
+      fireEvent.change(picker, { target: { value: "stage-new" } });
+    });
+
+    // Dialog appeared
+    const dialogTitles = await screen.findAllByText(/Move to "New Stage"\?/i);
+    expect(dialogTitles.length).toBeGreaterThan(0);
+
+    const cancelBtn = await screen.findByRole("button", { name: /^Cancel$/i });
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+
+    expect(leadsUpdate).not.toHaveBeenCalled();
+    expect(operationsCrm.applyAutoHandoff).not.toHaveBeenCalled();
+    expect(cocRules.evaluateStageTrigger).not.toHaveBeenCalled();
+    expect(screen.queryAllByRole("button", { name: /Confirm stage change/i })).toHaveLength(0);
+  });
+
 
   it("fires handoff and CoC logic on stage change", async () => {
     await act(async () => {
