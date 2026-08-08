@@ -3,7 +3,7 @@ import { PageHead, SectionLabel } from "@/components/ui-bits";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminSections } from "./admin-center/sections";
 
-const MIGRATED_SLUGS = new Set(["people", "business-configuration", "communication", "performance"]);
+const MIGRATED_SLUGS = new Set(["people", "business-configuration", "communication", "performance", "resources-system"]);
 
 export default function AdminCenter() {
   const nav = useNavigate();

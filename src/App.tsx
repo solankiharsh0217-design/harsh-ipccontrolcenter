@@ -38,6 +38,7 @@ import PeoplePage from "./pages/admin-center/PeoplePage";
 import BusinessConfigurationPage from "./pages/admin-center/BusinessConfigurationPage";
 import CommunicationPage from "./pages/admin-center/CommunicationPage";
 import PerformancePage from "./pages/admin-center/PerformancePage";
+import ResourcesSystemPage from "./pages/admin-center/ResourcesSystemPage";
 import BulkEligibility from "./pages/BulkEligibility";
 import SystemRefinementChecklist from "./pages/SystemRefinementChecklist";
 import CleanSlate from "./pages/CleanSlate";
@@ -153,6 +154,7 @@ const App = () => (
              <Route path="/admin-center/communication" element={<Shell><CommunicationPage /></Shell>} />
              <Route path="/admin-center/communication" element={<Shell><CommunicationPage /></Shell>} />
              <Route path="/admin-center/performance" element={<Shell><PerformancePage /></Shell>} />
+             <Route path="/admin-center/resources-system" element={<Shell><ResourcesSystemPage /></Shell>} />
              <Route path="/admin-center/company-settings" element={<Shell admin><CompanySettingsPage /></Shell>} />
             <Route path="/admin-center/invoice-settings" element={<Shell admin><InvoiceSettingsPage /></Shell>} />
             <Route path="/invoices" element={<Shell admin><InvoicesPage /></Shell>} />
