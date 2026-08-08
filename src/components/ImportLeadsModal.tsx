@@ -162,23 +162,30 @@ const normPhone = (v: any) => {
 };
 // Parse currency-ish numbers from CSVs. Handles "₹1,18,000", "1.18L", "1,18,000.00",
 // "125700 OTP", "OTP 125700", "Rs. 1,18,000", "-", "".
-const parseAmount = (v: any): number => {
-  if (v === null || v === undefined) return 0;
-  const raw = String(v).trim();
-  if (!raw || raw === "-" || raw === "—" || /^n\/?a$/i.test(raw)) return 0;
+// A cell containing MORE THAN ONE distinct numeric run (e.g. "50000 of 125700",
+// "2 EMI 60000") is ambiguous: we never guess, we return 0 and flag it.
+const parseAmountDetailed = (v: any): { value: number; ambiguous: boolean; raw: string } => {
+  const raw = v === null || v === undefined ? "" : String(v).trim();
+  const none = { value: 0, ambiguous: false, raw };
+  if (!raw || raw === "-" || raw === "—" || /^n\/?a$/i.test(raw)) return none;
+  // Distinct numeric runs anywhere in the cell → ambiguous, refuse to guess.
+  const runs = raw.match(/\d[\d,]*(?:\.\d+)?/g) || [];
+  const distinct = new Set(runs.map((r) => r.replace(/,/g, "")));
+  if (distinct.size > 1) return { value: 0, ambiguous: true, raw };
   const lakh = /(\d+(?:\.\d+)?)\s*l(akh)?\b/i.exec(raw);
-  if (lakh) return Math.round(parseFloat(lakh[1]) * 100000);
+  if (lakh) return { value: Math.round(parseFloat(lakh[1]) * 100000), ambiguous: false, raw };
   const cr = /(\d+(?:\.\d+)?)\s*cr\b/i.exec(raw);
-  if (cr) return Math.round(parseFloat(cr[1]) * 10000000);
-  // Extract the first numeric sequence (allowing Indian-format commas + optional decimal),
+  if (cr) return { value: Math.round(parseFloat(cr[1]) * 10000000), ambiguous: false, raw };
+  // Extract the numeric sequence (allowing Indian-format commas + optional decimal),
   // ignoring surrounding currency symbols, labels ("Rs.", "OTP") and whitespace.
   const m = raw.match(/(\d[\d,]*)(?:\.(\d+))?/);
-  if (!m) return 0;
+  if (!m) return none;
   const digits = m[1].replace(/,/g, "");
   const frac = m[2] ? `.${m[2]}` : "";
   const n = parseFloat(digits + frac);
-  return Number.isFinite(n) && n > 0 ? n : 0;
+  return { value: Number.isFinite(n) && n > 0 ? n : 0, ambiguous: false, raw };
 };
+const parseAmount = (v: any): number => parseAmountDetailed(v).value;
 
 // Insert a single Token payment row for a paid pipeline lead.
 // Idempotent by (paid_pipeline_lead_id, payment_reference): each source row gets a unique
