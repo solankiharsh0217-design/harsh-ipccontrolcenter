@@ -458,4 +458,65 @@ describe("PaidPipelineLeadDrawer - stage change automation (merged copies)", () 
     const picker = await screen.findByLabelText("CRM Stage Picker");
     expect(picker).toBeDefined();
   });
+
+  const setupStageChangeEnv = () => {
+    const leadsUpdate = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) });
+    (supabase.from as any).mockImplementation((table: string) => {
+      const q = createMockQuery();
+      if (table === "leads") {
+        q.maybeSingle.mockResolvedValue({ data: { id: "crm-123", stage_id: "stage-old" }, error: null });
+        (q as any).update = leadsUpdate;
+      }
+      if (table === "stages") q.order.mockResolvedValue({ data: [{ id: "stage-new", name: "New Stage" }], error: null });
+      return q;
+    });
+    return leadsUpdate;
+  };
+
+  const openStageChange = async () => {
+    await act(async () => {
+      render(<MemoryRouter><PaidPipelineLeadDrawer lead={mockLead as any} onClose={() => {}} stages={[]} agents={[]} onChanged={() => {}} /></MemoryRouter>);
+    });
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
+    fireEvent.click(screen.getByRole("tab", { name: /onboarding/i }));
+    const picker = await screen.findByLabelText("CRM Stage Picker");
+    await act(async () => {
+      fireEvent.change(picker, { target: { value: "stage-new" } });
+    });
+  };
+
+  it("fail-safe: shows the dialog warning when the preview lookup throws", async () => {
+    const leadsUpdate = setupStageChangeEnv();
+    vi.spyOn(cocRules, "loadActiveCoCRules").mockRejectedValue(new Error("lookup failed"));
+    vi.spyOn(operationsCrm, "findRuleForStage").mockReturnValue(null);
+
+    await openStageChange();
+
+    const confirmButtons = await screen.findAllByRole("button", { name: /Confirm stage change/i });
+    expect(confirmButtons.length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/could not be verified/i).length).toBeGreaterThan(0);
+
+    expect(leadsUpdate).not.toHaveBeenCalled();
+    expect(operationsCrm.applyAutoHandoff).not.toHaveBeenCalled();
+    expect(cocRules.evaluateStageTrigger).not.toHaveBeenCalled();
+  });
+
+  it("multi-source: warns about the CoC email when the rule matches a non-paid_pipeline candidate source", async () => {
+    setupStageChangeEnv();
+    vi.spyOn(operationsCrm, "findRuleForStage").mockReturnValue(null);
+    vi.spyOn(cocRules, "loadActiveCoCRules").mockResolvedValue([]);
+    vi.spyOn(cocRules, "getCandidateSources").mockReturnValue(["paid_pipeline", "crm"] as any);
+    vi.spyOn(cocRules, "findMatchingRuleDetailed").mockImplementation(async (args: any) => {
+      if (args.source === "crm") {
+        return { rule: { id: "coc-1", is_active: true, mode: "auto_send" }, diagnostics: {} } as any;
+      }
+      return { rule: null, diagnostics: {} } as any;
+    });
+
+    await openStageChange();
+
+    const confirmButtons = await screen.findAllByRole("button", { name: /Confirm stage change/i });
+    expect(confirmButtons.length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Code of Conduct email will be sent/i).length).toBeGreaterThan(0);
+  });
 });
