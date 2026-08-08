@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { logActivity } from "@/lib/auditLog";
-import { LoadingState } from "@/components/ui-bits";
+import { LoadingState, EmptyState } from "@/components/ui-bits";
 
 export type WebinarPreset = {
   id: string;
@@ -260,7 +260,7 @@ export default function WebinarPresetSelector({
           <div className="max-h-72 overflow-auto py-1">
             {loading && <div className="px-3 py-2"><LoadingState /></div>}
             {!loading && filtered.length === 0 && active.length === 0 && (
-              <div className="px-3 py-3 text-[12px] text-muted-foreground">No saved webinars yet. Type a name to create one.</div>
+              <EmptyState title="No saved webinars yet." hint="Type a name to create one." />
             )}
             {!loading && filtered.length === 0 && active.length > 0 && !canCreate && (
               <div className="px-3 py-3 text-[12px] text-muted-foreground">No matches.</div>

@@ -73,7 +73,7 @@ export default function CrmStagePicker({
           </div>
         </div>
         <div className="max-h-[260px] overflow-y-auto">
-          {filtered.length === 0 && <div className="px-3 py-4 text-[12px] text-muted-foreground">No stages found.</div>}
+          {filtered.length === 0 && <EmptyState title="No stages found." />}
           {filtered.map((s) => {
             const ch = stageChip(s.name, s.color);
             const isCurrent = s.id === currentStageId;
