@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Search, X, MoreHorizontal, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { EmptyState } from "@/components/ui-bits";
 import { useAuth } from "@/context/AuthContext";
 import {
   Task, TaskStatus, TaskSubmission, STATUSES, PRIORITY_PILL, fetchTasks, updateTask, archiveOldDone,
