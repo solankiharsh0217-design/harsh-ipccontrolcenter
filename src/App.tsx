@@ -151,8 +151,7 @@ const App = () => (
             <Route path="/admin-center" element={<Shell><AdminCenter /></Shell>} />
             <Route path="/admin-center/people" element={<Shell><PeoplePage /></Shell>} />
             <Route path="/admin-center/business-configuration" element={<Shell><BusinessConfigurationPage /></Shell>} />
-             <Route path="/admin-center/communication" element={<Shell><CommunicationPage /></Shell>} />
-             <Route path="/admin-center/communication" element={<Shell><CommunicationPage /></Shell>} />
+              <Route path="/admin-center/communication" element={<Shell><CommunicationPage /></Shell>} />
              <Route path="/admin-center/performance" element={<Shell><PerformancePage /></Shell>} />
              <Route path="/admin-center/resources-system" element={<Shell><ResourcesSystemPage /></Shell>} />
              <Route path="/admin-center/company-settings" element={<Shell admin><CompanySettingsPage /></Shell>} />
