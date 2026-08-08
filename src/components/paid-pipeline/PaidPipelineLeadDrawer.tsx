@@ -976,7 +976,7 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
               <div className="p-6">
                 <div className="space-y-4">
                   {activity.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-[13px]">No activity logs found.</div>
+                    <EmptyState title="No activity logs found." center />
                   ) : (
                     activity.map((a: any) => (
                       <div key={a.id} className="relative pl-6 pb-6 border-l border-line last:pb-0">
