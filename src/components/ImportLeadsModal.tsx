@@ -1349,7 +1349,16 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
 
             if (lead.paid_pipeline_lead_id) {
               paidLinked++;
+              // Deal value is the only imported financial the rollup cannot derive.
+              // Apply it ONLY when the sheet/CRM actually supplied a positive figure,
+              // so a missing sheet cell can never zero out a stored deal value.
+              if (rowDeal > 0) {
+                await supabase.from("paid_pipeline_leads")
+                  .update({ deal_value_including_gst: rowDeal } as any)
+                  .eq("id", lead.paid_pipeline_lead_id);
+              }
               if (rowToken > 0) {
+
                 totalTokenCollected += rowToken;
                 await recordTokenPayment({ paidLeadId: lead.paid_pipeline_lead_id, ...tokenPaymentArgs })
                   .then(handleTokenResult)
