@@ -76,11 +76,13 @@ vi.mock("@/lib/codeOfConductRules", () => ({
 }));
 
 vi.mock("@/components/crm/CrmStagePicker", () => ({
-  default: ({ onChangeStage }: any) => (
-    <select aria-label="CRM Stage Picker" onChange={(e) => onChangeStage(e.target.value)}>
-      <option value="">—</option>
-      <option value="stage-new">New Stage</option>
-    </select>
+  default: ({ onChangeStage, open }: any) => (
+    <div data-testid="mock-crm-stage-picker" data-open={String(!!open)}>
+      <select aria-label="CRM Stage Picker" onChange={(e) => onChangeStage(e.target.value)}>
+        <option value="">—</option>
+        <option value="stage-new">New Stage</option>
+      </select>
+    </div>
   ),
 }));
 
@@ -96,8 +98,8 @@ vi.mock("@/components/ui/tabs", () => ({
   TabsTrigger: ({ children, value }: any) => (
     <button role="tab" data-value={value} aria-label={value}>{children}</button>
   ),
-  TabsContent: ({ children, value, forceMount }: any) => (
-    <div role="tabpanel" data-value={value} style={{ display: 'none' }}>{children}</div>
+  TabsContent: ({ children, value }: any) => (
+    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
   ),
 }));
 
@@ -248,11 +250,10 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
   });
 
   it("renders Update Status button when not operations-ready and opens picker on click", async () => {
-    // 1. Setup: Lead is paid but NOT operations-ready
     const notReadyLead = {
       ...mockLead,
       balance_pending: 0,
-      pipeline_stage: "Paid", // Not "Operations Ready"
+      pipeline_stage: "Paid",
     };
 
     await act(async () => {
@@ -271,12 +272,12 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
 
     await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
 
-    // 2. Assert Onboarding tab/picker is HIDDEN initially
-    // The panel is rendered but display: 'none'
-    const picker = screen.getByLabelText("CRM Stage Picker");
-    expect(picker.closest('[role="tabpanel"]')).toHaveStyle({ display: 'none' });
+    const tabsContainer = screen.getByTestId("mock-tabs");
+    expect(tabsContainer.getAttribute("data-value")).not.toBe("onboarding");
+    
+    const pickerMock = screen.getByTestId("mock-crm-stage-picker");
+    expect(pickerMock.getAttribute("data-open")).toBe("false");
 
-    // 3. Find and click "Update Status" button in the header (Quick Action Bar)
     const updateBtn = screen.getByRole("button", { name: /Update Status/i });
     expect(updateBtn).toBeTruthy();
 
@@ -284,15 +285,8 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
       fireEvent.click(updateBtn);
     });
 
-    // 4. Assert tab changed to onboarding and picker is now visible
-    const tabs = screen.getAllByTestId("mock-tabs");
-    expect(tabs.length).toBeGreaterThan(0);
-    expect(tabs[0].getAttribute("data-value")).toBe("onboarding");
-
-    // In a real environment, the active tab's content would have display: block.
-    // Our mock needs to be updated to handle this, or we just assert the tab value.
-    // For this test, we verify the picker is still there and the tab value is correct.
-    expect(screen.getByLabelText("CRM Stage Picker")).toBeTruthy();
+    expect(tabsContainer.getAttribute("data-value")).toBe("onboarding");
+    expect(pickerMock.getAttribute("data-open")).toBe("true");
   });
 });
 
