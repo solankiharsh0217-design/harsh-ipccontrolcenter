@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
-import { PageHead, SectionLabel } from "@/components/ui-bits";
+import { PageHead, SectionLabel, EmptyState } from "@/components/ui-bits";
 import { useAuth } from "@/context/AuthContext";
 import {
   createServicePackage,
@@ -63,7 +63,7 @@ export default function ServicePackagesPage() {
 
       <div className="border border-line rounded-md bg-white divide-y divide-line">
         {visible.length === 0 && (
-          <div className="p-4 text-[12.5px] text-muted-foreground">No service packages yet.</div>
+          <EmptyState title="No service packages yet." />
         )}
         {visible.map((it) => (
           <div key={it.id} className="p-3 flex items-center justify-between gap-3">

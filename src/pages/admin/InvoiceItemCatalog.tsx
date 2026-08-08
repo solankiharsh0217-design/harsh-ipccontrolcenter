@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PageHead, SectionLabel, LoadingState } from "@/components/ui-bits";
+import { PageHead, SectionLabel, LoadingState, EmptyRow } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -90,7 +90,7 @@ export default function InvoiceItemCatalogPage() {
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No items yet.</td></tr>}
+            {items.length === 0 && <EmptyRow colSpan={7} title="No items yet." />}
             {items.map((i) => (
               <tr key={i.id} className="border-t border-line">
                 <td className="px-3 py-2">{i.item_name}</td>
