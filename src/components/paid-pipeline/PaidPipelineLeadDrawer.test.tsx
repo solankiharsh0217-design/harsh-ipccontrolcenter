@@ -97,7 +97,7 @@ vi.mock("@/components/ui/tabs", () => ({
     <button role="tab" data-value={value} aria-label={value}>{children}</button>
   ),
   TabsContent: ({ children, value }: any) => (
-    <div role="tabpanel" data-value={value} style={{ display: 'block' }}>{children}</div>
+    <div role="tabpanel" data-value={value} style={{ display: 'none' }}>{children}</div>
   ),
 }));
 
