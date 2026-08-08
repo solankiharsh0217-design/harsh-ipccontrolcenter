@@ -1434,7 +1434,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             if (paidLeadId && rowRemainder > 0) {
               await recordBalancePayment({ paidLeadId, ...balancePaymentArgs })
                 .then(handleTokenResult)
-                .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] balance payment insert failed", e); });
+                .catch((e) => handlePaymentFailure("Balance", leadLabel, rowRemainder, e));
             }
 
             // Recompute rollups for every created/updated paid lead, including
