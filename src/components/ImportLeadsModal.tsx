@@ -876,6 +876,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             rowsWithDealValue,
             rowsTokenExceedsDeal,
             rowsMissingDealValue,
+            rowsAmbiguousAmount,
+            ambiguousAmountSamples,
             projectedRevenue,
             projectedTokenRevenue,
             existingByEmail,
