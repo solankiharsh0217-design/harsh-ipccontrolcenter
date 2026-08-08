@@ -283,6 +283,40 @@ export async function backfillRecomputePaidLeads(
 
   const preById = new Map(preRows.map((r) => [String(r.id), r]));
 
+  // Resume mode classification pass. `preRows` is the live stored state read at run
+  // start, i.e. the snapshot row for this run. Each lead is classified against both
+  // that snapshot row and its computed target before any processing begins.
+  const alreadyWritten = new Set<string>();
+  if (allowPartialResume) {
+    let notYetWritten = 0;
+    for (const leadId of scopeIds) {
+      const snapshot = preById.get(leadId) as LeadRow | undefined;
+      const target = await computeTargets(leadId);
+      if (!snapshot || !target) {
+        console.error(`[backfill] classification ABORT: ${leadId}`, {
+          snapshot: snapshot ?? null,
+          target: target ?? null,
+        });
+        throw new Error(
+          `[backfill] ABORT: lead ${leadId} matches neither pre-state nor computed target (row unavailable)`,
+        );
+      }
+      const matchesTarget = RECOMPUTE_COLUMNS.every((col) =>
+        sameValue(snapshot[col], target[col]),
+      );
+      if (matchesTarget) {
+        alreadyWritten.add(leadId);
+      } else {
+        notYetWritten += 1;
+      }
+    }
+    console.log("[backfill] resume classification:", {
+      notYetWritten,
+      alreadyWritten: alreadyWritten.size,
+      unclassified: 0,
+    });
+  }
+
   let processed = 0;
   let written = 0;
   let skipped = 0;
