@@ -203,7 +203,7 @@ const recordTokenPayment = async (args: {
   const { error } = await supabase.from("paid_pipeline_payments" as any).insert({
     paid_pipeline_lead_id: paidLeadId,
     payment_type: "Token",
-    payment_category: "token",
+    payment_category: "Token Amount",
     amount,
     payment_mode: "Import",
     payment_date: paymentDate || new Date().toISOString().slice(0, 10),
@@ -211,6 +211,49 @@ const recordTokenPayment = async (args: {
     is_token: true,
     is_final_payment: false,
     payment_description: `Token collected on import from ${sourceLabel || `segment "${segmentName}"`}`,
+    is_deleted: false,
+    created_by: createdBy,
+  } as any);
+  if (error) throw error;
+  return "created";
+};
+
+// Insert the NON-token remainder (collected above the token) as its own payment row.
+// Same guard style + dedupe-by-reference idempotency as recordTokenPayment, but with a
+// distinct reference suffix so it can never collide with the token row.
+const recordBalancePayment = async (args: {
+  paidLeadId: string;
+  amount: number;
+  segmentName: string;
+  createdBy: string | null;
+  paymentDate?: string | null;
+  rowRef?: string | null;
+  sourceLabel?: string | null;
+}): Promise<"created" | "duplicate" | "skipped"> => {
+  const { paidLeadId, amount, segmentName, createdBy, paymentDate, rowRef, sourceLabel } = args;
+  if (!paidLeadId || !(amount > 0)) return "skipped";
+  const reference = rowRef
+    ? `Import · ${segmentName} · row ${rowRef} · balance`
+    : `Import · ${segmentName} · balance`;
+  const { data: existing } = await supabase
+    .from("paid_pipeline_payments" as any)
+    .select("id")
+    .eq("paid_pipeline_lead_id", paidLeadId)
+    .eq("payment_reference", reference)
+    .eq("is_deleted", false)
+    .maybeSingle();
+  if ((existing as any)?.id) return "duplicate";
+  const { error } = await supabase.from("paid_pipeline_payments" as any).insert({
+    paid_pipeline_lead_id: paidLeadId,
+    payment_type: "Balance Payment",
+    payment_category: "Balance Payment",
+    amount,
+    payment_mode: "Import",
+    payment_date: paymentDate || new Date().toISOString().slice(0, 10),
+    payment_reference: reference,
+    is_token: false,
+    is_final_payment: false,
+    payment_description: `Collected (non-token) on import from ${sourceLabel || `segment "${segmentName}"`}`,
     is_deleted: false,
     created_by: createdBy,
   } as any);
