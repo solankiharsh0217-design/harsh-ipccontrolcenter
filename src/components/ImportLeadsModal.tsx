@@ -67,6 +67,31 @@ const normHeader = (h: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
+// ---------------------------------------------------------------------------
+// BUG 5 — GST mode detection.
+// normHeader() (above) deliberately drops "(with gst)" metadata, so the GST
+// qualifier must be read from the RAW header BEFORE normalisation. This helper
+// never feeds normHeader and never changes alias matching.
+type GstMode = "exclusive" | "inclusive" | "unknown";
+const GST_EXCLUSIVE_RE =
+  /(?:\bex\b|\bexcl\w*|\bexcluding\b|\bwithout\b|\bbefore\b|\+\s*|\bplus\s+)\s*gst|gst\s*(?:extra|additional)/i;
+const GST_INCLUSIVE_RE =
+  /(?:\binc\b|\bincl\w*|\bincluding\b|\bwith\b)\s*(?:of\s*)?gst|gst\s*(?:incl\w*|included)/i;
+const detectGstMode = (rawHeader: string): GstMode => {
+  const h = String(rawHeader || "");
+  if (!/gst/i.test(h)) return "unknown";
+  // Exclusive is tested first: "excluding" must never be read as "including".
+  if (GST_EXCLUSIVE_RE.test(h)) return "exclusive";
+  if (GST_INCLUSIVE_RE.test(h)) return "inclusive";
+  return "unknown";
+};
+// Gross up an exclusive figure into the GST-inclusive contract of
+// paid_pipeline_leads.deal_value_including_gst. Only ever called when the mode
+// is exactly "exclusive" AND a rate actually resolved.
+const grossUpToInclusive = (value: number, ratePercent: number): number =>
+  Math.round(value * (1 + ratePercent / 100) * 100) / 100;
+
+
 // Field alias tables — each entry is a normalized header substring/regex the header must contain.
 const FIELD_ALIASES: Record<FieldKey, RegExp[]> = {
   full_name: [/^(?:full\s*)?name$/, /\bmember\s*name\b/, /\bcustomer\s*name\b/, /\bdiamond\s*member\b/, /\battendee\b/, /\bfirst\s*name\b/],
