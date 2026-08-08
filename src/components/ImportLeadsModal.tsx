@@ -1265,6 +1265,21 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
           if (!errors.includes(msg)) errors.push(msg);
         }
       };
+      // Payment-row insert failures are reported exactly like recompute failures:
+      // row failure counter + de-duplicated reason + error entry naming lead & amount.
+      const handlePaymentFailure = (
+        kind: "Token" | "Balance",
+        leadLabel: string,
+        amount: number,
+        e: any,
+      ) => {
+        paymentRowsFailed++;
+        failed++;
+        const msg = `${kind} payment insert failed for ${leadLabel} (₹${Number(amount || 0).toLocaleString("en-IN")}): ${e?.message || String(e)}`;
+        console.error(`[ImportLeadsModal] ${kind.toLowerCase()} payment insert failed`, leadLabel, e);
+        addReason(msg);
+        if (!errors.includes(msg)) errors.push(msg);
+      };
       if (pipelineType === "paid") {
         try {
           const syncIds = new Set<string>([...createdCrmLeadIds, ...promotedCrmLeadIds]);
