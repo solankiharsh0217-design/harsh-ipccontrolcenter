@@ -1299,6 +1299,11 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                   .then(handleTokenResult)
                   .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
               }
+              if (rowRemainder > 0) {
+                await recordBalancePayment({ paidLeadId: lead.paid_pipeline_lead_id, ...balancePaymentArgs })
+                  .then(handleTokenResult)
+                  .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] balance payment insert failed", e); });
+              }
               await runRecompute(lead.paid_pipeline_lead_id);
               continue;
             }
@@ -1320,7 +1325,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               phone: lead.phone,
               product_name_snapshot: lead.program_name || productName || null,
               deal_value_including_gst: rowDeal,
-              token_amount_collected: rowCollected,
+              token_amount_collected: rowToken,
               source_webinar: segmentName,
               pipeline_stage: "Payment Confirmed",
               payment_status: rowCollected > 0
@@ -1393,6 +1398,13 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               await recordTokenPayment({ paidLeadId, ...tokenPaymentArgs })
                 .then(handleTokenResult)
                 .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+            }
+
+            // Non-token remainder (collected above the token) as its own payment row.
+            if (paidLeadId && rowRemainder > 0) {
+              await recordBalancePayment({ paidLeadId, ...balancePaymentArgs })
+                .then(handleTokenResult)
+                .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] balance payment insert failed", e); });
             }
 
             // Recompute rollups for every created/updated paid lead, including
