@@ -2241,6 +2241,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                           ⚠ {preflight.rowsMissingDealValue} row(s) have no Deal Value in the source. They will be imported with a deal value of <b>₹0</b> — the figure entered above is not applied per row. Map a Deal Value column if the sheet has one.
                         </div>
                       )}
+                      {preflight.rowsAmbiguousAmount > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+                          ⚠ {preflight.rowsAmbiguousAmount} money cell(s) contain more than one number and cannot be parsed safely. They are imported as <b>₹0</b> rather than guessing. Fix the source cells or map a cleaner column.
+                          <ul className="mt-1 ml-3 list-disc">
+                            {preflight.ambiguousAmountSamples.map((s, i) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </div>
+                      )}
                       {leadType !== "paid" && mapping.token && preflight.projectedTokenRevenue > 0 && (
                         <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
                           Tokens are mapped but the lead type is <b>Unpaid</b>. Token payments are only recorded when importing into a <b>Paid</b> pipeline.
