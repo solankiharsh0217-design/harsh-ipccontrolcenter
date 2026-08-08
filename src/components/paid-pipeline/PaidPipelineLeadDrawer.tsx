@@ -1097,6 +1097,51 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
       {openFu && <QuickFollowUpModal leadId={lead.id} leadName={lead.name || undefined} crmLeadId={lead.crm_lead_id || null} defaults={{ priority: temperature || "Normal" }} onClose={() => setOpenFu(false)} onSaved={() => { loadInner(); onChanged(); }} />}
       {openFin && <QuickFinanceModal lead={lead as any} onClose={() => setOpenFin(false)} onSaved={() => { loadInner(); onChanged(); }} />}
       {sendOpsOpen && <SendPaidToOpsModal lead={lead as any} onClose={() => setSendOpsOpen(false)} onDone={() => onChanged()} />}
+
+      <AlertDialog open={!!stagePreview} onOpenChange={(o) => { if (!o) { setStagePreview(null); setConfirmingStage(false); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move to "{stagePreview?.stageName}"?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-1.5">
+                {stagePreview?.unknown ? (
+                  <div>Automated actions may fire for this stage and could not be verified. Continue only if you are sure.</div>
+                ) : (
+                  <>
+                    {stagePreview?.willSendCoc && (
+                      <div>A Code of Conduct email will be sent to {lead.email || "no email on file"}.</div>
+                    )}
+                    {stagePreview?.willHandoff && (
+                      <div>An Operations CRM record will be created or updated for this buyer.</div>
+                    )}
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setStagePreview(null); setConfirmingStage(false); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={confirmingStage}
+              onClick={async (e) => {
+                e.preventDefault();
+                const pending = stagePreview;
+                if (!pending) return;
+                setConfirmingStage(true);
+                try {
+                  await performCrmStageChange(pending.stageId);
+                } finally {
+                  setConfirmingStage(false);
+                  setStagePreview(null);
+                }
+              }}
+            >
+              Confirm stage change
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
