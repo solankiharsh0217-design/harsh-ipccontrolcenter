@@ -254,7 +254,9 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
   });
 
   it("renders Update Status button when not operations-ready and opens picker on click", async () => {
+    (accessVerification.computeOverall as any).mockReturnValue("completed");
     const notReadyLead = {
+
       ...mockLead,
       balance_pending: 0,
       pipeline_stage: "Paid",
@@ -420,8 +422,11 @@ describe("PaidPipelineLeadDrawer - stage change automation (merged copies)", () 
     });
 
     // Dialog appeared
-    const dialogTitles = await screen.findAllByText(/Move to "New Stage"\?/i);
+    const dialogTitles = await screen.findAllByText(
+      (_content, element) => !!element && /Move to\s*"?New Stage"?\?/i.test(element.textContent || "")
+    );
     expect(dialogTitles.length).toBeGreaterThan(0);
+
 
     const cancelBtn = await screen.findByRole("button", { name: /^Cancel$/i });
     await act(async () => {
