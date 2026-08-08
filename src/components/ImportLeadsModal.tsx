@@ -976,6 +976,10 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             rowsMissingDealValue,
             rowsAmbiguousAmount,
             ambiguousAmountSamples,
+            rowsGstGrossedUp,
+            rowsGstRateUnresolved,
+            gstConversionSamples,
+
             projectedRevenue,
             projectedTokenRevenue,
             existingByEmail,
