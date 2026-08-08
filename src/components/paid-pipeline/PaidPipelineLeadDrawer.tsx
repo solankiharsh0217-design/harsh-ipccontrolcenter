@@ -248,6 +248,42 @@ export default function PaidPipelineLeadDrawer({ lead, onClose, stages, agents, 
 
   const changeCrmStage = async (newStageId: string) => {
     if (!lead.crm_lead_id || !newStageId || newStageId === crmStageId) { setCrmPickerOpen(false); return; }
+    const targetName = crmStages.find(s => s.id === newStageId)?.name || "—";
+    let preview: StageChangePreview;
+    try {
+      const rules = await getActiveHandoffRules();
+      const stagesById = new Map(crmStages.map(s => [s.id, { id: s.id, name: s.name }]));
+      const handoffRule = findRuleForStage(rules, crmPipelineId, newStageId, stagesById as any);
+      const willHandoff = !!handoffRule && handoffRule.mode === "auto" && isRuleAutoReady(handoffRule);
+
+      const { loadActiveCoCRules, findMatchingRuleDetailed } = await import("@/lib/codeOfConductRules");
+      const cocRulesList = await loadActiveCoCRules();
+      const { rule: cocRule } = await findMatchingRuleDetailed({
+        rules: cocRulesList,
+        source: "paid_pipeline",
+        pipelineId: crmPipelineId,
+        stageId: newStageId,
+        stageName: targetName,
+        crmLeadId: lead.crm_lead_id,
+        paidPipelineLeadId: lead.id,
+      });
+      const willSendCoc = !!cocRule && cocRule.is_active && cocRule.mode === "auto_send";
+
+      preview = { stageId: newStageId, stageName: targetName, willHandoff, willSendCoc, unknown: false };
+    } catch (e) {
+      preview = { stageId: newStageId, stageName: targetName, willHandoff: false, willSendCoc: false, unknown: true };
+    }
+
+    if (!preview.unknown && !preview.willHandoff && !preview.willSendCoc) {
+      await performCrmStageChange(newStageId);
+      return;
+    }
+    setStagePreview(preview);
+    setCrmPickerOpen(false);
+  };
+
+  const performCrmStageChange = async (newStageId: string) => {
+
     const oldName = crmStages.find(s => s.id === crmStageId)?.name || "—";
     const newName = crmStages.find(s => s.id === newStageId)?.name || "—";
     const prevId = crmStageId;
