@@ -246,6 +246,51 @@ describe("PaidPipelineLeadDrawer Visuals & Logic", () => {
     const activeTab = tabs[0].getAttribute("data-value");
     expect(activeTab).toBe("onboarding");
   });
+
+  it("renders Update Status button when not operations-ready and opens picker on click", async () => {
+    // 1. Setup: Lead is paid but NOT operations-ready
+    const notReadyLead = {
+      ...mockLead,
+      balance_pending: 0,
+      pipeline_stage: "Paid", // Not "Operations Ready"
+    };
+
+    await act(async () => {
+      render(
+        <MemoryRouter>
+          <PaidPipelineLeadDrawer
+            stages={[]}
+            agents={[]}
+            onChanged={() => {}}
+            onClose={() => {}}
+            lead={notReadyLead as any}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    await waitFor(() => expect(screen.queryByText(/Initializing/)).toBeNull());
+
+    // 2. Assert Onboarding tab/picker is NOT visible initially
+    // We check for the CRM Stage Picker which is inside the Onboarding tab panel
+    expect(screen.queryByLabelText("CRM Stage Picker")).toBeNull();
+
+    // 3. Find and click "Update Status" button in the header (Quick Action Bar)
+    const updateBtn = screen.getByRole("button", { name: /Update Status/i });
+    expect(updateBtn).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(updateBtn);
+    });
+
+    // 4. Assert tab changed to onboarding and picker is now visible
+    const tabs = screen.getAllByTestId("mock-tabs");
+    expect(tabs.length).toBeGreaterThan(0);
+    expect(tabs[0].getAttribute("data-value")).toBe("onboarding");
+
+    // The picker should now be rendered because the Onboarding tab is active
+    expect(screen.getByLabelText("CRM Stage Picker")).toBeTruthy();
+  });
 });
 
 describe("PaidPipelineLeadDrawer - stage change automation (merged copies)", () => {
