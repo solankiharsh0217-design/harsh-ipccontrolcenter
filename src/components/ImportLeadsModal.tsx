@@ -162,23 +162,30 @@ const normPhone = (v: any) => {
 };
 // Parse currency-ish numbers from CSVs. Handles "₹1,18,000", "1.18L", "1,18,000.00",
 // "125700 OTP", "OTP 125700", "Rs. 1,18,000", "-", "".
-const parseAmount = (v: any): number => {
-  if (v === null || v === undefined) return 0;
-  const raw = String(v).trim();
-  if (!raw || raw === "-" || raw === "—" || /^n\/?a$/i.test(raw)) return 0;
+// A cell containing MORE THAN ONE distinct numeric run (e.g. "50000 of 125700",
+// "2 EMI 60000") is ambiguous: we never guess, we return 0 and flag it.
+const parseAmountDetailed = (v: any): { value: number; ambiguous: boolean; raw: string } => {
+  const raw = v === null || v === undefined ? "" : String(v).trim();
+  const none = { value: 0, ambiguous: false, raw };
+  if (!raw || raw === "-" || raw === "—" || /^n\/?a$/i.test(raw)) return none;
+  // Distinct numeric runs anywhere in the cell → ambiguous, refuse to guess.
+  const runs = raw.match(/\d[\d,]*(?:\.\d+)?/g) || [];
+  const distinct = new Set(runs.map((r) => r.replace(/,/g, "")));
+  if (distinct.size > 1) return { value: 0, ambiguous: true, raw };
   const lakh = /(\d+(?:\.\d+)?)\s*l(akh)?\b/i.exec(raw);
-  if (lakh) return Math.round(parseFloat(lakh[1]) * 100000);
+  if (lakh) return { value: Math.round(parseFloat(lakh[1]) * 100000), ambiguous: false, raw };
   const cr = /(\d+(?:\.\d+)?)\s*cr\b/i.exec(raw);
-  if (cr) return Math.round(parseFloat(cr[1]) * 10000000);
-  // Extract the first numeric sequence (allowing Indian-format commas + optional decimal),
+  if (cr) return { value: Math.round(parseFloat(cr[1]) * 10000000), ambiguous: false, raw };
+  // Extract the numeric sequence (allowing Indian-format commas + optional decimal),
   // ignoring surrounding currency symbols, labels ("Rs.", "OTP") and whitespace.
   const m = raw.match(/(\d[\d,]*)(?:\.(\d+))?/);
-  if (!m) return 0;
+  if (!m) return none;
   const digits = m[1].replace(/,/g, "");
   const frac = m[2] ? `.${m[2]}` : "";
   const n = parseFloat(digits + frac);
-  return Number.isFinite(n) && n > 0 ? n : 0;
+  return { value: Number.isFinite(n) && n > 0 ? n : 0, ambiguous: false, raw };
 };
+const parseAmount = (v: any): number => parseAmountDetailed(v).value;
 
 // Insert a single Token payment row for a paid pipeline lead.
 // Idempotent by (paid_pipeline_lead_id, payment_reference): each source row gets a unique
@@ -370,6 +377,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
     rowsWithDealValue: number;
     rowsTokenExceedsDeal: number;
     rowsMissingDealValue: number; // import-eligible rows with no per-record deal value
+    rowsAmbiguousAmount: number;  // rows where a money cell held multiple numbers
+    ambiguousAmountSamples: string[]; // "Row 4 · Token Amount: \"2 EMI 60000\""
 
     projectedRevenue: number;   // Sum of deal_value (fallback to global dealValue) for import-eligible rows
     projectedTokenRevenue: number; // Sum of tokens for import-eligible rows
@@ -801,14 +810,29 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
         let rowsWithDealValue = 0;
         let rowsTokenExceedsDeal = 0;
         let rowsMissingDealValue = 0;
+        let rowsAmbiguousAmount = 0;
+        const ambiguousAmountSamples: string[] = [];
         let projectedRevenue = 0;
         let projectedTokenRevenue = 0;
         rowDetails.forEach((rd, i) => {
           const raw = rows[i] || {};
-          const tk = mapping.token ? parseAmount(raw[mapping.token]) : 0;
-          const dv = mapping.deal_value ? parseAmount(raw[mapping.deal_value]) : 0;
-          const cl = mapping.collected ? parseAmount(raw[mapping.collected]) : tk;
-          const bl = mapping.balance ? parseAmount(raw[mapping.balance]) : Math.max(dv - cl, 0);
+          // Detailed parse so ambiguous money cells (multiple numbers) can be flagged
+          // instead of silently guessing the first numeric run.
+          const money = (col: string | undefined | null, label: string) => {
+            if (!col) return 0;
+            const d = parseAmountDetailed(raw[col]);
+            if (d.ambiguous) {
+              rowsAmbiguousAmount++;
+              if (ambiguousAmountSamples.length < 5) {
+                ambiguousAmountSamples.push(`Row ${rd.rowNum} · ${label} (${col}): "${d.raw}"`);
+              }
+            }
+            return d.value;
+          };
+          const tk = money(mapping.token, "Token");
+          const dv = money(mapping.deal_value, "Deal Value");
+          const cl = mapping.collected ? money(mapping.collected, "Collected") : tk;
+          const bl = mapping.balance ? money(mapping.balance, "Balance") : Math.max(dv - cl, 0);
           if (tk > 0) { sumToken += tk; rowsWithToken++; }
           if (dv > 0) { sumDealValue += dv; rowsWithDealValue++; }
           if (cl > 0) sumCollected += cl;
@@ -852,6 +876,8 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
             rowsWithDealValue,
             rowsTokenExceedsDeal,
             rowsMissingDealValue,
+            rowsAmbiguousAmount,
+            ambiguousAmountSamples,
             projectedRevenue,
             projectedTokenRevenue,
             existingByEmail,
@@ -2213,6 +2239,14 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                       {preflight.rowsMissingDealValue > 0 && (
                         <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
                           ⚠ {preflight.rowsMissingDealValue} row(s) have no Deal Value in the source. They will be imported with a deal value of <b>₹0</b> — the figure entered above is not applied per row. Map a Deal Value column if the sheet has one.
+                        </div>
+                      )}
+                      {preflight.rowsAmbiguousAmount > 0 && (
+                        <div className="mt-2 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+                          ⚠ {preflight.rowsAmbiguousAmount} money cell(s) contain more than one number and cannot be parsed safely. They are imported as <b>₹0</b> rather than guessing. Fix the source cells or map a cleaner column.
+                          <ul className="mt-1 ml-3 list-disc">
+                            {preflight.ambiguousAmountSamples.map((s, i) => <li key={i}>{s}</li>)}
+                          </ul>
                         </div>
                       )}
                       {leadType !== "paid" && mapping.token && preflight.projectedTokenRevenue > 0 && (
