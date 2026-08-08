@@ -1319,6 +1319,7 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
               if (result === "created") paymentRowsCreated++;
               else if (result === "duplicate") paymentRowsDuplicate++;
             };
+            const leadLabel = lead.full_name || lead.email || lead.phone || lead.id;
 
             if (lead.paid_pipeline_lead_id) {
               paidLinked++;
@@ -1326,12 +1327,12 @@ export default function ImportLeadsModal({ onClose, onDone }: Props) {
                 totalTokenCollected += rowToken;
                 await recordTokenPayment({ paidLeadId: lead.paid_pipeline_lead_id, ...tokenPaymentArgs })
                   .then(handleTokenResult)
-                  .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] token payment insert failed", e); });
+                  .catch((e) => handlePaymentFailure("Token", leadLabel, rowToken, e));
               }
               if (rowRemainder > 0) {
                 await recordBalancePayment({ paidLeadId: lead.paid_pipeline_lead_id, ...balancePaymentArgs })
                   .then(handleTokenResult)
-                  .catch((e) => { paymentRowsFailed++; console.error("[ImportLeadsModal] balance payment insert failed", e); });
+                  .catch((e) => handlePaymentFailure("Balance", leadLabel, rowRemainder, e));
               }
               await runRecompute(lead.paid_pipeline_lead_id);
               continue;
