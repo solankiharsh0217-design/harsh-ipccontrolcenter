@@ -6,7 +6,7 @@ import React from 'react';
 
 // Standardized Supabase Mock for all Drawer tests
 const createMockQuery = () => {
-  const query = {
+  const query: any = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     neq: vi.fn().mockReturnThis(),
@@ -31,6 +31,8 @@ const createMockQuery = () => {
     delete: vi.fn().mockResolvedValue({ data: {}, error: null }),
     rpc: vi.fn().mockResolvedValue({ data: {}, error: null }),
   };
+  // Make it thenable so awaiting the builder itself resolves
+  query.then = (onFulfilled: any) => Promise.resolve({ data: [], error: null }).then(onFulfilled);
   return query;
 };
 
@@ -51,6 +53,25 @@ vi.mock("@/lib/auditLog", () => ({
 
 vi.mock("@/lib/notifications", () => ({
   createNotification: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+    message: vi.fn(),
+  },
+}));
+
+vi.mock("@/lib/operationsTemplates", () => ({
+  listProcessTemplates: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/components/ui-bits", () => ({
+  LoadingState: () => <div data-testid="loading-state" />,
+  EmptyState: ({ title }: any) => <div data-testid="empty-state">{title}</div>,
 }));
 
 // Mock lucide-react with flat exports to avoid hoisting/initialization errors
@@ -102,9 +123,16 @@ vi.mock("@/components/operations/CommTemplatePickerModal", () => ({ default: () 
 vi.mock("@/components/operations/OperationsActivityTimeline", () => ({ default: () => null }));
 vi.mock("@/components/operations/OperationsLinkedRecordsCard", () => ({ default: () => null }));
 vi.mock("@/components/operations/StartProcessModal", () => ({ default: () => null }));
+vi.mock("@/components/operations/SlaChip", () => ({ default: () => null }));
 vi.mock("@/components/operations/ReadinessChecklist", () => ({ 
   default: ({ onChange }: any) => {
-    React.useEffect(() => { onChange(0, false); }, [onChange]);
+    const initialized = React.useRef(false);
+    React.useEffect(() => {
+      if (!initialized.current) {
+        onChange(0, false);
+        initialized.current = true;
+      }
+    }, []);
     return null;
   }
 }));
