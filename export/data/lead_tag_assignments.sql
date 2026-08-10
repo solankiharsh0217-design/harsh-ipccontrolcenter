@@ -1,0 +1,67 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict 4TuzTkxKL33dh0dOLKUszzKXt6K45iIujBzGaEU99vGcumnFg1ghkF2C0y26KCn
+
+-- Dumped from database version 17.6
+-- Dumped by pg_dump version 17.9
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Data for Name: lead_tag_assignments; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+SET SESSION AUTHORIZATION DEFAULT;
+
+ALTER TABLE public.lead_tag_assignments DISABLE TRIGGER ALL;
+
+COPY public.lead_tag_assignments (id, tag_id, crm_lead_id, paid_pipeline_lead_id, assigned_by, created_at) FROM stdin;
+8f951d71-2ac6-4621-9321-182c96f20178	0f4f7817-9241-4dc4-a6d7-f838b8955f8c	cbc26857-a5fb-4de6-ba95-d03a554d9bf9	\N	\N	2026-05-28 15:05:27.057921+00
+de0d0739-330e-4bf9-a444-9762810a8325	0f4f7817-9241-4dc4-a6d7-f838b8955f8c	\N	0c1ee50e-81ce-460d-9e6e-0e1e643d94bf	\N	2026-05-28 15:05:27.057921+00
+679dedd9-155d-4f8c-aa70-97381f98ac4c	0f4f7817-9241-4dc4-a6d7-f838b8955f8c	31bd0f32-b260-4b49-b182-15f57dfb648f	\N	\N	2026-05-28 18:13:05.717284+00
+167aad19-7b04-43df-8ed5-afda1cf9dbb7	0f4f7817-9241-4dc4-a6d7-f838b8955f8c	\N	3f5128f8-efd8-4576-ab35-589bf2e80447	\N	2026-05-28 18:13:05.717284+00
+d6652dbe-6d2b-401b-99b2-6b392ec2c408	692aaa95-f506-43c0-b3f7-bd0ad2e3a7cb	e6fd311d-b4e6-4c3d-9ceb-4405f6ef1928	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-29 12:46:48.609729+00
+7c553d2c-c479-452b-8145-5e5db7abc2d5	692aaa95-f506-43c0-b3f7-bd0ad2e3a7cb	\N	667fb117-c37a-4266-b048-a270e457aaf4	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-29 12:46:48.745901+00
+c6d105a6-e873-4206-a3b6-6100f913024c	d122f76b-4713-4ed8-9497-e7f014e1deed	e6fd311d-b4e6-4c3d-9ceb-4405f6ef1928	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-29 12:46:49.113849+00
+e672ca72-924c-42db-9942-ecc51801aa54	d122f76b-4713-4ed8-9497-e7f014e1deed	\N	667fb117-c37a-4266-b048-a270e457aaf4	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-29 12:46:49.253593+00
+8239b3e4-295a-4aef-8888-f61e5fb7e24d	692aaa95-f506-43c0-b3f7-bd0ad2e3a7cb	284822a5-10e3-45aa-a567-16688fc58d8e	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 05:47:56.395971+00
+900781bb-d9e5-4f40-8585-b9ca736553ec	692aaa95-f506-43c0-b3f7-bd0ad2e3a7cb	\N	f9ce6974-5a78-4aa6-bc10-e2758d66003d	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 05:47:56.612597+00
+d609970b-627e-45b3-a6f7-805a617b52c5	f9e29aee-ad86-40e5-996c-0999a48f9054	284822a5-10e3-45aa-a567-16688fc58d8e	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 05:47:56.91003+00
+2eadb427-779b-42cf-860e-216f6c0f993f	f9e29aee-ad86-40e5-996c-0999a48f9054	\N	f9ce6974-5a78-4aa6-bc10-e2758d66003d	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 05:47:57.135564+00
+4f441ec6-5862-4222-9b88-f36bbe3e67d9	d122f76b-4713-4ed8-9497-e7f014e1deed	284822a5-10e3-45aa-a567-16688fc58d8e	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 05:47:57.353355+00
+817e8c39-d947-4f61-b441-d0aba345279b	d122f76b-4713-4ed8-9497-e7f014e1deed	\N	f9ce6974-5a78-4aa6-bc10-e2758d66003d	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 05:47:57.443463+00
+a80a7126-c9ac-45e9-ac9a-91ff1989100c	692aaa95-f506-43c0-b3f7-bd0ad2e3a7cb	eb264a66-fbe5-4c17-929d-cccbff737377	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 12:22:45.645833+00
+1be4be2c-1e3a-4afc-a4fd-c337429e2f46	692aaa95-f506-43c0-b3f7-bd0ad2e3a7cb	\N	51dc427b-5080-44d8-be0b-054ec584ea62	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 12:22:45.763128+00
+317e90e1-7192-4b99-8ade-5475054cb452	f9e29aee-ad86-40e5-996c-0999a48f9054	eb264a66-fbe5-4c17-929d-cccbff737377	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 12:22:46.219855+00
+2154eb24-3b6a-4167-a895-36bbb4a4ff52	f9e29aee-ad86-40e5-996c-0999a48f9054	\N	51dc427b-5080-44d8-be0b-054ec584ea62	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 12:22:46.485522+00
+9092154f-743e-4e52-b080-ef9e22198b65	d122f76b-4713-4ed8-9497-e7f014e1deed	eb264a66-fbe5-4c17-929d-cccbff737377	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 12:22:46.813197+00
+c1485b3a-7e20-419f-88f6-59a086dcb41a	d122f76b-4713-4ed8-9497-e7f014e1deed	\N	51dc427b-5080-44d8-be0b-054ec584ea62	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-05-30 12:22:47.077057+00
+8d6f7c1c-9369-4494-b44b-98b19bf3c9e7	692aaa95-f506-43c0-b3f7-bd0ad2e3a7cb	1f41475b-fa92-43c7-836f-0c4e8986db14	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-07-06 15:26:38.546276+00
+eda6c1a9-0b19-4188-afd0-5edf683fda90	692aaa95-f506-43c0-b3f7-bd0ad2e3a7cb	\N	2d97f65a-a131-44d8-a706-8d19f3a55ac6	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-07-06 15:26:38.655236+00
+6a104868-c52b-4f76-b29b-158f3e4d81db	f9e29aee-ad86-40e5-996c-0999a48f9054	1f41475b-fa92-43c7-836f-0c4e8986db14	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-07-06 15:26:38.916988+00
+cbcbe36b-f8aa-422e-89ab-594115f392df	f9e29aee-ad86-40e5-996c-0999a48f9054	\N	2d97f65a-a131-44d8-a706-8d19f3a55ac6	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-07-06 15:26:39.016387+00
+5beb6b63-d121-45fd-98d3-7b062effa1b0	d122f76b-4713-4ed8-9497-e7f014e1deed	1f41475b-fa92-43c7-836f-0c4e8986db14	\N	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-07-06 15:26:39.276381+00
+e7406111-a102-4220-8152-373568a4717d	d122f76b-4713-4ed8-9497-e7f014e1deed	\N	2d97f65a-a131-44d8-a706-8d19f3a55ac6	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	2026-07-06 15:26:39.372301+00
+\.
+
+
+ALTER TABLE public.lead_tag_assignments ENABLE TRIGGER ALL;
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict 4TuzTkxKL33dh0dOLKUszzKXt6K45iIujBzGaEU99vGcumnFg1ghkF2C0y26KCn
+
