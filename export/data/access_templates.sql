@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ppzhCgqk1CDQaHX0v6MfG0Y4twvUdLZ507zhFZHXs5t055dAC1YzevMdecvnPm1
+\restrict tjB277Dvz3Q1jKuHNUdIwnjWv6UQePBsuNUPyJD7sSh7UO760MJprcseQLj8dbf
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -43,5 +43,5 @@ ALTER TABLE public.access_templates ENABLE TRIGGER ALL;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ppzhCgqk1CDQaHX0v6MfG0Y4twvUdLZ507zhFZHXs5t055dAC1YzevMdecvnPm1
+\unrestrict tjB277Dvz3Q1jKuHNUdIwnjWv6UQePBsuNUPyJD7sSh7UO760MJprcseQLj8dbf
 
