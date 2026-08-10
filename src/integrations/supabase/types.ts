@@ -1000,10 +1000,14 @@ export type Database = {
           condition_name: string
           created_at: string
           created_by: string | null
+          from_email: string | null
+          from_name: string | null
           html_body: string
           id: string
           is_active: boolean
+          reply_to_email: string | null
           subject: string
+          test_recipient_email: string | null
           text_body: string | null
           updated_at: string
           updated_by: string | null
@@ -1014,10 +1018,14 @@ export type Database = {
           condition_name: string
           created_at?: string
           created_by?: string | null
+          from_email?: string | null
+          from_name?: string | null
           html_body?: string
           id?: string
           is_active?: boolean
+          reply_to_email?: string | null
           subject?: string
+          test_recipient_email?: string | null
           text_body?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -1028,10 +1036,14 @@ export type Database = {
           condition_name?: string
           created_at?: string
           created_by?: string | null
+          from_email?: string | null
+          from_name?: string | null
           html_body?: string
           id?: string
           is_active?: boolean
+          reply_to_email?: string | null
           subject?: string
+          test_recipient_email?: string | null
           text_body?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -1158,6 +1170,8 @@ export type Database = {
           email_variant_id: string | null
           email_variant_version: number | null
           first_opened_at: string | null
+          from_email_snapshot: string | null
+          from_name_snapshot: string | null
           id: string
           last_bonus_email_resent_at: string | null
           last_email_attempt_at: string | null
@@ -1180,6 +1194,7 @@ export type Database = {
           re_signature_reason: string | null
           re_signature_requested_at: string | null
           re_signature_requested_by: string | null
+          reply_to_email_snapshot: string | null
           sent_at: string | null
           signature_data_url: string | null
           signature_name: string | null
@@ -1241,6 +1256,8 @@ export type Database = {
           email_variant_id?: string | null
           email_variant_version?: number | null
           first_opened_at?: string | null
+          from_email_snapshot?: string | null
+          from_name_snapshot?: string | null
           id?: string
           last_bonus_email_resent_at?: string | null
           last_email_attempt_at?: string | null
@@ -1263,6 +1280,7 @@ export type Database = {
           re_signature_reason?: string | null
           re_signature_requested_at?: string | null
           re_signature_requested_by?: string | null
+          reply_to_email_snapshot?: string | null
           sent_at?: string | null
           signature_data_url?: string | null
           signature_name?: string | null
@@ -1324,6 +1342,8 @@ export type Database = {
           email_variant_id?: string | null
           email_variant_version?: number | null
           first_opened_at?: string | null
+          from_email_snapshot?: string | null
+          from_name_snapshot?: string | null
           id?: string
           last_bonus_email_resent_at?: string | null
           last_email_attempt_at?: string | null
@@ -1346,6 +1366,7 @@ export type Database = {
           re_signature_reason?: string | null
           re_signature_requested_at?: string | null
           re_signature_requested_by?: string | null
+          reply_to_email_snapshot?: string | null
           sent_at?: string | null
           signature_data_url?: string | null
           signature_name?: string | null
