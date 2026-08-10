@@ -1,0 +1,142 @@
+export/:
+total 581
+-rw-r--r-- 1 root root      0 Aug 10 05:25 auth_identities.csv
+-rw-r--r-- 1 root root      0 Aug 10 05:25 auth_users.csv
+-rw-r--r-- 1 root root     81 Aug 10 05:31 auth_users.txt
+-rw-r--r-- 1 root root   1393 Aug 10 05:31 backfill_explanation.md
+-rw-r--r-- 1 root root   3771 Aug 10 05:26 counts.csv
+drwxr-xr-x 1 root root    440 Aug 10 05:31 csv
+drwxr-xr-x 1 root root    180 Aug 10 05:28 data
+-rw-r--r-- 1 root root    180 Aug 10 05:26 extensions.csv
+-rw-r--r-- 1 root root      0 Aug 10 05:31 final_manifest.txt
+-rw-r--r-- 1 root root   2341 Aug 10 05:26 financials.txt
+drwxr-xr-x 1 root root    380 Aug 10 05:26 functions
+-rw-r--r-- 1 root root    332 Aug 10 05:26 functions_list.txt
+-rw-r--r-- 1 root root 510972 Aug 10 05:31 schema.sql
+-rw-r--r-- 1 root root    126 Aug 10 05:31 secret_names.txt
+-rw-r--r-- 1 root root     24 Aug 10 05:25 snapshot_timestamp.txt
+drwxr-xr-x 1 root root     40 Aug 10 05:25 storage_files
+-rw-r--r-- 1 root root    197 Aug 10 05:31 storage_inventory.csv
+-rw-r--r-- 1 root root      0 Aug 10 05:26 storage_inventory_buckets.csv
+-rw-r--r-- 1 root root  67825 Aug 10 05:26 storage_inventory_objects.csv
+-rw-r--r-- 1 root root    115 Aug 10 05:26 storage_inventory_summary.csv
+-rw-r--r-- 1 root root   3163 Aug 10 05:28 tables.txt
+
+export/csv:
+total 5756
+-rw-r--r-- 1 root root     138 Aug 10 05:31 access_readiness_logs.csv
+-rw-r--r-- 1 root root    2204 Aug 10 05:31 access_templates.csv
+-rw-r--r-- 1 root root  215692 Aug 10 05:31 activity_logs.csv
+-rw-r--r-- 1 root root      45 Aug 10 05:31 announcements.csv
+-rw-r--r-- 1 root root     111 Aug 10 05:31 app_settings.csv
+-rw-r--r-- 1 root root   17789 Aug 10 05:31 attendance_logs.csv
+-rw-r--r-- 1 root root   13043 Aug 10 05:31 attendance_sessions.csv
+-rw-r--r-- 1 root root     215 Aug 10 05:31 attribution_attendee_lists.csv
+-rw-r--r-- 1 root root   13693 Aug 10 05:31 attribution_media_buyers.csv
+-rw-r--r-- 1 root root   94512 Aug 10 05:31 attribution_sales_detail.csv
+-rw-r--r-- 1 root root   27320 Aug 10 05:31 attribution_sessions.csv
+-rw-r--r-- 1 root root  565423 Aug 10 05:31 audit_logs.csv
+-rw-r--r-- 1 root root     309 Aug 10 05:31 business_units.csv
+-rw-r--r-- 1 root root   91211 Aug 10 05:31 code_of_conduct_automation_events.csv
+-rw-r--r-- 1 root root     598 Aug 10 05:31 code_of_conduct_automation_rules.csv
+-rw-r--r-- 1 root root    1593 Aug 10 05:31 code_of_conduct_email_variants.csv
+-rw-r--r-- 1 root root 2216295 Aug 10 05:31 code_of_conduct_events.csv
+-rw-r--r-- 1 root root   15024 Aug 10 05:31 code_of_conduct_guide_progress.csv
+-rw-r--r-- 1 root root 2611562 Aug 10 05:31 code_of_conduct_requests.csv
+-rw-r--r-- 1 root root     880 Aug 10 05:31 code_of_conduct_rules.csv
+
+export/data:
+total 219
+-rw-r--r-- 1 root root   1124 Aug 10 05:30 access_readiness_logs.sql
+-rw-r--r-- 1 root root   3157 Aug 10 05:30 access_templates.sql
+-rw-r--r-- 1 root root 215549 Aug 10 05:30 activity_logs.sql
+-rw-r--r-- 1 root root    993 Aug 10 05:30 announcements.sql
+-rw-r--r-- 1 root root   1059 Aug 10 05:31 app_settings.sql
+-rw-r--r-- 1 root root      0 Aug 10 05:28 attendance_logs.sql
+-rw-r--r-- 1 root root    192 Aug 10 05:28 manifest.txt
+
+export/functions:
+total 1
+drwxr-xr-x 1 root root  40 Aug 10 05:26 _shared
+drwxr-xr-x 1 root root  60 Aug 10 05:26 admin-create-member
+drwxr-xr-x 1 root root  60 Aug 10 05:26 admin-team-auth
+drwxr-xr-x 1 root root  60 Aug 10 05:26 coc-update-email
+drwxr-xr-x 1 root root  60 Aug 10 05:26 code-of-conduct-public
+drwxr-xr-x 1 root root  60 Aug 10 05:26 fetch-daily-leads-count
+drwxr-xr-x 1 root root  60 Aug 10 05:26 fetch-roas-master-sheet-tabs
+-rw-r--r-- 1 root root 108 Aug 10 05:26 functions_config.csv
+drwxr-xr-x 1 root root  60 Aug 10 05:26 google-sheets-fetch-rows
+drwxr-xr-x 1 root root  60 Aug 10 05:26 import-students
+drwxr-xr-x 1 root root  60 Aug 10 05:26 roas-reattribute-all
+drwxr-xr-x 1 root root  60 Aug 10 05:26 roas-sync-all-sources
+drwxr-xr-x 1 root root  60 Aug 10 05:26 roas-sync-source
+drwxr-xr-x 1 root root  60 Aug 10 05:26 send-bonus-access-email
+drwxr-xr-x 1 root root  60 Aug 10 05:26 send-coc-signed-copy
+drwxr-xr-x 1 root root  60 Aug 10 05:26 send-code-of-conduct-email
+drwxr-xr-x 1 root root  60 Aug 10 05:26 team-performance-demo
+
+export/functions/_shared:
+total 0
+
+export/functions/admin-create-member:
+total 9
+-rw-r--r-- 1 root root 8336 Aug 10 05:26 index.ts
+
+export/functions/admin-team-auth:
+total 11
+-rw-r--r-- 1 root root 10964 Aug 10 05:26 index.ts
+
+export/functions/coc-update-email:
+total 6
+-rw-r--r-- 1 root root 5933 Aug 10 05:26 index.ts
+
+export/functions/code-of-conduct-public:
+total 43
+-rw-r--r-- 1 root root 43215 Aug 10 05:26 index.ts
+
+export/functions/fetch-daily-leads-count:
+total 10
+-rw-r--r-- 1 root root 9358 Aug 10 05:26 index.ts
+
+export/functions/fetch-roas-master-sheet-tabs:
+total 10
+-rw-r--r-- 1 root root 9271 Aug 10 05:26 index.ts
+
+export/functions/google-sheets-fetch-rows:
+total 6
+-rw-r--r-- 1 root root 5704 Aug 10 05:26 index.ts
+
+export/functions/import-students:
+total 7
+-rw-r--r-- 1 root root 6215 Aug 10 05:26 index.ts
+
+export/functions/roas-reattribute-all:
+total 2
+-rw-r--r-- 1 root root 1960 Aug 10 05:26 index.ts
+
+export/functions/roas-sync-all-sources:
+total 2
+-rw-r--r-- 1 root root 1215 Aug 10 05:26 index.ts
+
+export/functions/roas-sync-source:
+total 13
+-rw-r--r-- 1 root root 13118 Aug 10 05:26 index.ts
+
+export/functions/send-bonus-access-email:
+total 11
+-rw-r--r-- 1 root root 10755 Aug 10 05:26 index.ts
+
+export/functions/send-coc-signed-copy:
+total 12
+-rw-r--r-- 1 root root 12104 Aug 10 05:26 index.ts
+
+export/functions/send-code-of-conduct-email:
+total 31
+-rw-r--r-- 1 root root 30888 Aug 10 05:26 index.ts
+
+export/functions/team-performance-demo:
+total 22
+-rw-r--r-- 1 root root 22098 Aug 10 05:26 index.ts
+
+export/storage_files:
+total 0

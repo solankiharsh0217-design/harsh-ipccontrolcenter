@@ -1,0 +1,6 @@
+export/data/access_readiness_logs.sql
+export/data/access_templates.sql
+export/data/activity_logs.sql
+export/data/announcements.sql
+export/data/app_settings.sql
+export/data/attendance_logs.sql
