@@ -1,0 +1,3 @@
+id,name,description,default_owner_rule,default_owner_id,default_service_duration_days,is_active,is_seed,created_by,created_at,updated_at
+09649b3d-2383-45ea-8ebc-9aa96de568f3,IWC Diamond Members,,unassigned,,30,t,f,,2026-07-18 01:24:22.189535+00,2026-07-18 01:24:22.189535+00
+c18565a7-33c6-4e76-b799-92564ac1f275,IPC Diamond Member Operations,Default operations process template. Edit or duplicate as needed.,unassigned,,60,t,t,,2026-06-02 04:09:20.241792+00,2026-06-02 04:09:20.241792+00
