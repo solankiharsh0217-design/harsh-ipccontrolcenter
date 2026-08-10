@@ -500,6 +500,7 @@ export default function CodeOfConductAdmin() {
       </div>
 
       {tab === "setup" && <CodeOfConductEmailVariantsTab />}
+      {tab === "variants" && <CodeOfConductEmailVariantsTab />}
 
 
       {tab === "template" && (
