@@ -1,0 +1,1 @@
+Auth schema access denied via psql. Use backend export tools for full auth data.

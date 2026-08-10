@@ -1,0 +1,31 @@
+id,condition_key,condition_name,subject,html_body,text_body,is_active,version,created_by,updated_by,created_at,updated_at
+0c71d898-880f-4cb2-9ec9-b60e8f48692c,completed_within_1_day,Completed Within 1 Day,"{{member_name}}, your {{program_name}} access steps are ready","Hi {{member_name}},
+
+Wonderful — you completed your onboarding in {{completion_time}}. That kind of momentum is exactly what we look for.
+
+One final step before your access is switched on: read and digitally acknowledge the {{program_name}} Code of Conduct.
+
+{{signing_link}}
+
+This link stays valid until {{expiry_date}} ({{expiry_days}} days).
+
+Once acknowledged, your group and platform access will be arranged right away.
+
+Warm regards,
+{{company_name}}
+{{support_email}}",,t,1,,,2026-07-27 09:28:31.982408+00,2026-07-27 09:28:31.982408+00
+9c485910-704d-4842-b582-e74f24f7dbab,completed_after_1_day,Completed After 1 Day,"{{member_name}}, please complete your {{program_name}} Code of Conduct","Hi {{member_name}},
+
+Thank you for completing your onboarding ({{completion_time}}).
+
+Before we can switch on your {{program_name}} access, please read and digitally acknowledge the Code of Conduct using the secure link below.
+
+{{signing_link}}
+
+Please complete this at your earliest convenience — the link stays valid until {{expiry_date}} ({{expiry_days}} days). If it expires, contact us and we will issue a fresh one.
+
+As soon as it is acknowledged, your group and platform access will be arranged.
+
+Warm regards,
+{{company_name}}
+{{support_email}}",,t,1,,,2026-07-27 09:28:31.982408+00,2026-07-27 09:28:31.982408+00
