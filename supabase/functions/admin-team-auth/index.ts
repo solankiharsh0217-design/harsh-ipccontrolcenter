@@ -149,14 +149,23 @@ Deno.serve(async (req) => {
         return json({ ok: true, via: "resend" });
       }
 
-      // Fallback: Supabase built-in recovery email
+      // Fallback: Supabase built-in recovery email (rate-limited, often undelivered).
+      // Surface this clearly so the admin knows Resend was NOT used.
+      const missing = [
+        !resendKey ? "RESEND_API_KEY" : null,
+        !fromAddr ? "EMAIL_FROM_ADDRESS" : null,
+      ].filter(Boolean).join(", ");
       const anonClient = createClient(url, anon);
       const { error } = await anonClient.auth.resetPasswordForEmail(
         email,
         redirectTo ? { redirectTo } : undefined,
       );
       if (error) return json({ error: error.message }, 400);
-      return json({ ok: true, via: "supabase" });
+      return json({
+        ok: true,
+        via: "supabase-fallback",
+        warning: `Resend is not configured (missing: ${missing}). The reset email was sent through Supabase's built-in SMTP, which is rate-limited (~2/hour) and frequently undelivered. Configure Resend secrets for reliable delivery.`,
+      });
     }
 
 
