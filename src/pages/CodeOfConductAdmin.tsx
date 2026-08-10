@@ -573,7 +573,7 @@ export default function CodeOfConductAdmin() {
             <SectionLabel>Email Body</SectionLabel>
             <button type="button" onClick={applyDefaultEmailCopy} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Use Default Email Copy</button>
           </div>
-          <div className="text-[11.5px] text-muted-foreground -mt-2">Sender is set in the <button onClick={() => setTab("setup")} className="underline">Email Setup</button> tab. Body must include {"{{signing_link}}"}.</div>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">Sender is set in the <button onClick={() => setTab("variants")} className="underline">Email Setup</button> tab. Body must include {"{{signing_link}}"}.</div>
 
           <Field label="Email subject" error={errors.email_subject}><Input value={tpl.email_subject || ""} onChange={(v) => setTpl({ ...tpl, email_subject: v })} placeholder="Action Required: Sign Your IPC Diamond Membership Code of Conduct" /></Field>
           <Field label="Email body (supports {{member_name}}, {{program_name}}, {{signing_link}}, {{expiry_date}}, {{company_name}})" error={errors.email_body}>
