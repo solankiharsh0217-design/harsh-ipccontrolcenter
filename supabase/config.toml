@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.code-of-conduct-public]
 verify_jwt = false
+
+[functions.admin-team-auth]
+verify_jwt = false

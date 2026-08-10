@@ -21,20 +21,25 @@ Deno.serve(async (req) => {
     const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // 1) Authenticate caller
-    const authHeader = req.headers.get("Authorization") ?? "";
-    if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
-    const userClient = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user }, error: uErr } = await userClient.auth.getUser();
-    if (uErr || !user) return json({ error: "Unauthorized" }, 401);
-
-    // 2) Authorize as admin
-    const admin = createClient(url, service);
-    const { data: isAdmin, error: rErr } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
-    if (rErr || !isAdmin) return json({ error: "Admin only" }, 403);
-
     const body = await req.json().catch(() => ({}));
     const op = String(body?.op || "").toLowerCase();
+    // Self-service password reset from the login screen: no admin session exists.
+    const selfService = op === "reset" && body?.selfService === true;
+
+    const admin = createClient(url, service);
+
+    if (!selfService) {
+      // 1) Authenticate caller
+      const authHeader = req.headers.get("Authorization") ?? "";
+      if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+      const userClient = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user }, error: uErr } = await userClient.auth.getUser();
+      if (uErr || !user) return json({ error: "Unauthorized" }, 401);
+
+      // 2) Authorize as admin
+      const { data: isAdmin, error: rErr } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      if (rErr || !isAdmin) return json({ error: "Admin only" }, 403);
+    }
 
     // ─────────── STATUS ───────────
     if (op === "status") {
@@ -106,10 +111,17 @@ Deno.serve(async (req) => {
           email,
           options: redirectTo ? { redirectTo } : undefined,
         });
-        if (linkErr) return json({ error: linkErr.message }, 400);
+        if (linkErr) {
+          // Never reveal whether an account exists for a self-service request.
+          if (selfService) { console.warn("[self-reset] generateLink failed:", linkErr.message); return json({ ok: true, via: "resend" }); }
+          return json({ error: linkErr.message }, 400);
+        }
         const actionLink = (linkData as any)?.properties?.action_link
           ?? (linkData as any)?.action_link;
-        if (!actionLink) return json({ error: "Could not generate recovery link" }, 500);
+        if (!actionLink) {
+          if (selfService) return json({ ok: true, via: "resend" });
+          return json({ error: "Could not generate recovery link" }, 500);
+        }
 
         const html = `
           <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#111">
@@ -149,14 +161,24 @@ Deno.serve(async (req) => {
         return json({ ok: true, via: "resend" });
       }
 
-      // Fallback: Supabase built-in recovery email
+      // Fallback: Supabase built-in recovery email (rate-limited, often undelivered).
+      // Surface this clearly so the admin knows Resend was NOT used.
+      const missing = [
+        !resendKey ? "RESEND_API_KEY" : null,
+        !fromAddr ? "EMAIL_FROM_ADDRESS" : null,
+      ].filter(Boolean).join(", ");
       const anonClient = createClient(url, anon);
       const { error } = await anonClient.auth.resetPasswordForEmail(
         email,
         redirectTo ? { redirectTo } : undefined,
       );
-      if (error) return json({ error: error.message }, 400);
-      return json({ ok: true, via: "supabase" });
+      if (error && !selfService) return json({ error: error.message }, 400);
+      if (error) console.warn("[self-reset] fallback failed:", error.message);
+      return json({
+        ok: true,
+        via: "supabase-fallback",
+        warning: `Resend is not configured (missing: ${missing}). The reset email was sent through Supabase's built-in SMTP, which is rate-limited (~2/hour) and frequently undelivered. Configure Resend secrets for reliable delivery.`,
+      });
     }
 
 

@@ -18,12 +18,40 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // Forgot password
+  const [forgot, setForgot] = useState(false);
+  const [fEmail, setFEmail] = useState("");
+  const [fSent, setFSent] = useState(false);
+
   // Register
   const [rName, setRName] = useState("");
   const [rEmail, setREmail] = useState("");
   const [rPass, setRPass] = useState("");
   const [rRole, setRRole] = useState("");
   const [rDept, setRDept] = useState("");
+
+  const doForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const addr = fEmail.trim();
+    if (!addr) return toast.error("Enter your email address.");
+    setBusy(true);
+    try {
+      await supabase.functions.invoke("admin-team-auth", {
+        body: {
+          op: "reset",
+          selfService: true,
+          email: addr,
+          redirectTo: `${window.location.origin}/reset-password`,
+        },
+      });
+    } catch {
+      // Neutral response regardless of outcome — never reveal account existence.
+    } finally {
+      setBusy(false);
+      setFSent(true);
+    }
+  };
+
 
   const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +118,46 @@ export default function Login() {
           ))}
         </div>
 
-        {tab === "signin" && (
+        {tab === "signin" && forgot && (
+          <div>
+            {fSent ? (
+              <div className="font-sans text-xs text-muted-foreground leading-relaxed">
+                <div className="bg-gold-pale border border-gold-mid rounded-lg px-4 py-3 mb-5 text-gold-deep">
+                  If an account exists for that email, a password reset link has been sent. Please check your inbox and spam folder.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setForgot(false); setFSent(false); setFEmail(""); }}
+                  className="ipc-btn ipc-btn-black w-full"
+                >
+                  Back to sign in
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={doForgot}>
+                <p className="font-sans text-[11px] text-muted-foreground mb-5 leading-relaxed">
+                  Enter your account email and we'll send you a link to set a new password.
+                </p>
+                <div className="mb-5">
+                  <label className="form-label">Email address</label>
+                  <input className="ipc-input" type="email" placeholder="yourname@ipc.in" value={fEmail} onChange={(e)=>setFEmail(e.target.value)} />
+                </div>
+                <button disabled={busy} className="ipc-btn ipc-btn-black w-full mt-1" type="submit">
+                  {busy ? "Sending…" : "Send reset link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForgot(false)}
+                  className="w-full mt-3 font-sans text-[11px] text-muted-foreground hover:text-black"
+                >
+                  Back to sign in
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {tab === "signin" && !forgot && (
           <form onSubmit={doLogin}>
             {success && (
               <div className="bg-gold-pale border border-gold-mid rounded-lg px-4 py-3 mb-5 font-sans text-xs text-gold-deep">
@@ -108,8 +175,16 @@ export default function Login() {
             <button disabled={busy} className="ipc-btn ipc-btn-black w-full mt-1" type="submit">
               {busy ? "Signing in…" : "Sign in to Control Center"}
             </button>
+            <button
+              type="button"
+              onClick={() => { setForgot(true); setFEmail(email); setFSent(false); }}
+              className="w-full mt-3.5 font-sans text-[11px] text-muted-foreground hover:text-black"
+            >
+              Forgot password?
+            </button>
           </form>
         )}
+
 
         {tab === "register" && (
           <form onSubmit={doRegister}>

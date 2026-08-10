@@ -149,7 +149,11 @@ export default function Team() {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success(`Password reset sent to ${m.email}`);
+      if ((data as any)?.via === "supabase-fallback") {
+        toast.warning((data as any)?.warning ?? `Sent via Supabase built-in email (Resend not configured) — delivery may fail.`);
+      } else {
+        toast.success(`Password reset sent to ${m.email}`);
+      }
       logActivity({
         module_key: "team_directory", action_type: "password_reset_sent",
         entity_type: "team_member", entity_id: m.id, entity_label: m.full_name,
@@ -597,30 +601,7 @@ export default function Team() {
                   {isAdmin && editing.email && (
                     <button
                       type="button"
-                      onClick={async () => {
-                        if (!editing?.email) return;
-                        if (!confirm(`Send a password reset link to ${editing.email}?`)) return;
-                        try {
-                          const { error } = await supabase.auth.resetPasswordForEmail(editing.email, {
-                            redirectTo: `${window.location.origin}/reset-password`,
-                          });
-                          if (error) throw error;
-                          await logActivity({
-                            module_key: "team_directory",
-                            action_type: "password_reset_link_sent",
-                            entity_type: "team_member",
-                            entity_id: editing.id,
-                            entity_label: editing.full_name,
-                            target_user_id: editing.id,
-                            target_name: editing.full_name,
-                            summary: `Password reset link sent to ${editing.email} for ${editing.full_name}.`,
-                            severity: "warning",
-                          });
-                          toast.success(`Password reset link sent to ${editing.email}`);
-                        } catch (e: any) {
-                          toast.error(e.message ?? "Failed to send reset link");
-                        }
-                      }}
+                      onClick={() => { if (editing) sendReset(editing); }}
                       className="h-9 px-3 rounded-md border border-line bg-white hover:bg-off font-sans text-[12px] whitespace-nowrap"
                       title="Send password reset email to this member"
                     >
