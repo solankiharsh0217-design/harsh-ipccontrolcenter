@@ -398,6 +398,24 @@ Deno.serve(async (req) => {
     const completionConditionLabel = variantRow?.condition_name
       || (requestRow?.completion_condition_key === 'completed_within_1_day' ? 'Completed Within 1 Day'
         : requestRow?.completion_condition_key === 'completed_after_1_day' ? 'Completed After 1 Day' : '—');
+
+    // Resends reuse the exact snapshot captured on the original send, so later
+    // template edits never rewrite an already-sent request's copy.
+    const useSnapshot = !writeTimingSnapshot && !isResendOverride && !!requestRow?.email_body_snapshot;
+
+    const accessLink = useSnapshot ? (requestRow.access_link_snapshot || '') : (variantRow?.access_link || '');
+    const accessDurationMonths = useSnapshot ? (requestRow.access_duration_months || 0) : (variantRow?.access_duration_months || 0);
+    const supportDurationMonths = useSnapshot ? (requestRow.support_duration_months || 0) : (variantRow?.support_duration_months || 0);
+
+    const formatMonths = (m: number) => {
+      if (!m) return '—';
+      if (m >= 12) {
+        const yrs = m / 12;
+        return `${yrs} Year${yrs > 1 ? 's' : ''}`;
+      }
+      return `${m} Month${m > 1 ? 's' : ''}`;
+    };
+
     const vars = {
       member_name: String(member_name),
       program_name: String(resolvedProgram),
@@ -408,11 +426,10 @@ Deno.serve(async (req) => {
       support_email: supportEmail,
       completion_time: completionTimeLabel,
       completion_condition: completionConditionLabel,
+      access_link: accessLink,
+      access_duration: formatMonths(accessDurationMonths),
+      support_duration: formatMonths(supportDurationMonths),
     };
-
-    // Resends reuse the exact snapshot captured on the original send, so later
-    // template edits never rewrite an already-sent request's copy.
-    const useSnapshot = !writeTimingSnapshot && !isResendOverride && !!requestRow?.email_body_snapshot;
     const rawSubject = useSnapshot ? String(requestRow.email_subject_snapshot || '')
       : variantRow ? String(variantRow.subject || '')
       : String(templateRow.email_subject || '');
