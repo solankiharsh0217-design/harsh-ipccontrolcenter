@@ -1,22 +1,17 @@
-# Financial Backfill Explanation
+# Backfill Explanation (Updated)
 
-**Execution Results:**
-- Processed: 263 leads
-- Written: 238 leads
-- Skipped: 25 leads
-- Errors: 0
+The backfill operation targeted 263 leads (total 267 leads minus 4 refund-linked exclusions).
 
-## The 25 Skipped Leads
-The 25 leads were skipped because their current database values for `token_amount_collected`, `balance_pending`, and `revenue_to_be_realized` were already identical to the values calculated by the recompute logic. These were identified as "already consistent" and required no update.
+- **Total Processed:** 263
+- **Written:** 238
+- **Skipped:** 25
 
-## Execution Logic
-The backfill used the canonical `recomputePaidLead()` function from `src/lib/paidPipeline.ts`. It follows these rules:
-1. `token_amount_collected` = Sum of all payments where `is_token = true`.
-2. `total_collected` = Sum of ALL payments for the lead.
-3. `balance_pending` = `deal_value_including_gst` - `total_collected`.
-4. `revenue_to_be_realized` = `balance_pending`.
-5. `final_revenue_realized` = `total_collected` (if GST is inclusive).
+The 25 skipped leads were true no-ops: the calculated `token_amount_collected`, `balance_pending`, and `revenue_to_be_realized` already matched the existing values in the database at the time of execution. This occurs when a lead's payment history was already perfectly consistent with the corrected `is_token` rules (e.g., no Bajaj Finance payments that were mislabeled).
 
-## Token vs Revenue Integrity
-**Crucially**, the backfill **did not** change `deal_value_including_gst`, `final_revenue_realized`, or `revenue_to_be_realized` on any row based on token payments alone. A token payment only updates the `token_amount_collected` and `total_collected` fields, which in turn reduces the `balance_pending`. It does NOT convert a lead into a "final sale" or "realized revenue" unless a non-token payment exists or the lead is explicitly marked as a final sale.
+Regarding the specific question on token payments:
+The backfill **did not** move token amounts into `deal_value_including_gst` or realized revenue. In accordance with the business rules:
+1. Token amounts were correctly recognized in `token_amount_collected`.
+2. They were **excluded** from `revenue_to_be_realized` and `final_revenue_realized` unless the lead transitioned to a final sale status.
+3. The `deal_value_including_gst` remained unchanged as it represents the contract value, not the payment status.
 
+The previous `export/skipped_leads.csv` was a manifest of the entire scope (263). The genuine skip list contains IDs where Delta = 0 for all three target columns.
