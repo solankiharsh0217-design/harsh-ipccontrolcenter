@@ -996,6 +996,8 @@ export type Database = {
       }
       code_of_conduct_email_variants: {
         Row: {
+          access_duration_months: number | null
+          access_link: string | null
           condition_key: string
           condition_name: string
           created_at: string
@@ -1007,6 +1009,7 @@ export type Database = {
           is_active: boolean
           reply_to_email: string | null
           subject: string
+          support_duration_months: number | null
           test_recipient_email: string | null
           text_body: string | null
           updated_at: string
@@ -1014,6 +1017,8 @@ export type Database = {
           version: number
         }
         Insert: {
+          access_duration_months?: number | null
+          access_link?: string | null
           condition_key: string
           condition_name: string
           created_at?: string
@@ -1025,6 +1030,7 @@ export type Database = {
           is_active?: boolean
           reply_to_email?: string | null
           subject?: string
+          support_duration_months?: number | null
           test_recipient_email?: string | null
           text_body?: string | null
           updated_at?: string
@@ -1032,6 +1038,8 @@ export type Database = {
           version?: number
         }
         Update: {
+          access_duration_months?: number | null
+          access_link?: string | null
           condition_key?: string
           condition_name?: string
           created_at?: string
@@ -1043,6 +1051,7 @@ export type Database = {
           is_active?: boolean
           reply_to_email?: string | null
           subject?: string
+          support_duration_months?: number | null
           test_recipient_email?: string | null
           text_body?: string | null
           updated_at?: string
@@ -1132,6 +1141,8 @@ export type Database = {
       }
       code_of_conduct_requests: {
         Row: {
+          access_duration_months: number | null
+          access_link_snapshot: string | null
           acknowledgement_checkbox: boolean
           acknowledgement_checklist: Json | null
           acknowledgement_email: string | null
@@ -1208,6 +1219,7 @@ export type Database = {
           signed_receipt_generated_at: string | null
           signed_receipt_url: string | null
           status: string
+          support_duration_months: number | null
           template_id: string | null
           template_version: string | null
           timing_override_reason: string | null
@@ -1218,6 +1230,8 @@ export type Database = {
           whatsapp_redirect_opened_at: string | null
         }
         Insert: {
+          access_duration_months?: number | null
+          access_link_snapshot?: string | null
           acknowledgement_checkbox?: boolean
           acknowledgement_checklist?: Json | null
           acknowledgement_email?: string | null
@@ -1294,6 +1308,7 @@ export type Database = {
           signed_receipt_generated_at?: string | null
           signed_receipt_url?: string | null
           status?: string
+          support_duration_months?: number | null
           template_id?: string | null
           template_version?: string | null
           timing_override_reason?: string | null
@@ -1304,6 +1319,8 @@ export type Database = {
           whatsapp_redirect_opened_at?: string | null
         }
         Update: {
+          access_duration_months?: number | null
+          access_link_snapshot?: string | null
           acknowledgement_checkbox?: boolean
           acknowledgement_checklist?: Json | null
           acknowledgement_email?: string | null
@@ -1380,6 +1397,7 @@ export type Database = {
           signed_receipt_generated_at?: string | null
           signed_receipt_url?: string | null
           status?: string
+          support_duration_months?: number | null
           template_id?: string | null
           template_version?: string | null
           timing_override_reason?: string | null
