@@ -18,12 +18,40 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // Forgot password
+  const [forgot, setForgot] = useState(false);
+  const [fEmail, setFEmail] = useState("");
+  const [fSent, setFSent] = useState(false);
+
   // Register
   const [rName, setRName] = useState("");
   const [rEmail, setREmail] = useState("");
   const [rPass, setRPass] = useState("");
   const [rRole, setRRole] = useState("");
   const [rDept, setRDept] = useState("");
+
+  const doForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const addr = fEmail.trim();
+    if (!addr) return toast.error("Enter your email address.");
+    setBusy(true);
+    try {
+      await supabase.functions.invoke("admin-team-auth", {
+        body: {
+          op: "reset",
+          selfService: true,
+          email: addr,
+          redirectTo: `${window.location.origin}/reset-password`,
+        },
+      });
+    } catch {
+      // Neutral response regardless of outcome — never reveal account existence.
+    } finally {
+      setBusy(false);
+      setFSent(true);
+    }
+  };
+
 
   const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
