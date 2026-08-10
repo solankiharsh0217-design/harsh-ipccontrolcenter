@@ -111,10 +111,17 @@ Deno.serve(async (req) => {
           email,
           options: redirectTo ? { redirectTo } : undefined,
         });
-        if (linkErr) return json({ error: linkErr.message }, 400);
+        if (linkErr) {
+          // Never reveal whether an account exists for a self-service request.
+          if (selfService) { console.warn("[self-reset] generateLink failed:", linkErr.message); return json({ ok: true, via: "resend" }); }
+          return json({ error: linkErr.message }, 400);
+        }
         const actionLink = (linkData as any)?.properties?.action_link
           ?? (linkData as any)?.action_link;
-        if (!actionLink) return json({ error: "Could not generate recovery link" }, 500);
+        if (!actionLink) {
+          if (selfService) return json({ ok: true, via: "resend" });
+          return json({ error: "Could not generate recovery link" }, 500);
+        }
 
         const html = `
           <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#111">
