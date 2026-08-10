@@ -1,0 +1,6 @@
+COPY public.paid_pipeline_payments (amount, created_at, created_by, finance_linked, id, is_deleted, is_final_payment, is_token, next_payment_expected_date, notes, paid_pipeline_lead_id, payment_category, payment_date, payment_description, payment_mode, payment_reference, payment_type) FROM stdin;
+9832	2026-05-25 15:53:15.181692+00	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	false	a53b53f2-1555-4313-9621-5cac7a818103	false	false	true	\N	Token payment	04bd7712-acba-435c-a914-ab66d6ef3e71	Token Amount	2026-05-21	Token payment	UPI	\N	First Token
+4999	2026-05-30 05:47:55.821731+00	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	false	6401d037-7310-4d95-8548-b20c2247379c	false	false	true	\N	\N	f9ce6974-5a78-4aa6-bc10-e2758d66003d	Token Amount	2026-05-30	\N	UPI	\N	Token
+4999	2026-07-03 10:42:54.269827+00	321f217b-131f-4f8f-a882-12b5a36bbdbb	false	276912f6-1f28-4ac6-b0a1-6e9e93ba7137	false	false	true	\N	Token payment	29fa8b5c-6395-4e4e-a58b-ce9fbe05be31	Token Amount	2026-06-27	Token payment	UPI	\N	First Token
+999	2026-08-06 11:55:39.101876+00	321f217b-131f-4f8f-a882-12b5a36bbdbb	false	0468cffd-1d2b-4730-ae68-acff63782029	false	false	true	\N	Token payment	134a52a4-e1ae-4210-9ce7-abfd5df2b76f	Token Amount	2026-08-05	Token payment	UPI	\N	First Token
+\.
