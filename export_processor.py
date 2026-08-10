@@ -17,12 +17,12 @@ def parse_map_string(s):
         if seg.endswith(']'): seg = seg[:-1]
         
         row = {}
-        first_key_match = re.match(r'^(\\w+):', seg)
+        first_key_match = re.match(r'^(\w+):', seg)
         keys = []
         if first_key_match:
             keys.append(first_key_match.group(1))
         
-        other_keys = re.findall(r'\\s([a-zA-Z_]\\w+):', seg)
+        other_keys = re.findall(r'\s([a-zA-Z_]\w+):', seg)
         keys.extend(other_keys)
         
         for i in range(len(keys)):
@@ -42,9 +42,10 @@ def parse_map_string(s):
     return rows
 
 def escape_sql_copy(val):
-    if val is None: return '\\\\N'
+    if val is None: return '\\N'
     val = str(val)
-    val = val.replace('\\\\', '\\\\\\\\').replace('\\t', '\\\\t').replace('\\n', '\\\\n').replace('\\r', '\\\\r')
+    # Basic escaping for TSV-based COPY
+    val = val.replace('\\', '\\\\').replace('\t', '\\t').replace('\n', '\\n').replace('\r', '\\r')
     return val
 
 def write_files(table_name, data_str, mode='w'):
@@ -62,24 +63,24 @@ def write_files(table_name, data_str, mode='w'):
     
     os.makedirs("export/data", exist_ok=True)
     sql_path = f"export/data/{table_name}.sql"
-    # If appending, we need to handle the COPY header/footer
-    if mode == 'a' and os.path.exists(sql_path):
-        # Remove trailing footer "\\.\n"
-        with open(sql_path, 'r+', encoding='utf-8') as f:
-            f.seek(0, os.SEEK_END)
-            pos = f.tell()
-            if pos > 3:
-                f.seek(pos - 3)
-                if f.read() == "\\\\.\\n":
-                    f.truncate(pos - 3)
     
-    with open(sql_path, mode, encoding='utf-8') as f:
-        if mode == 'w':
-            f.write(f"COPY public.{table_name} ({', '.join(keys)}) FROM stdin;\\n")
+    content = ""
+    if mode == 'a' and os.path.exists(sql_path):
+        with open(sql_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        if content.endswith("\\.\n"):
+            content = content[:-3]
+    
+    with open(sql_path, 'w', encoding='utf-8') as f:
+        if mode == 'w' or not content:
+            f.write(f"COPY public.{table_name} ({', '.join(keys)}) FROM stdin;\n")
+        else:
+            f.write(content)
+            
         for row in rows:
-            line = '\\t'.join([escape_sql_copy(row[k]) for k in keys])
-            f.write(line + '\\n')
-        f.write("\\\\.\\n")
+            line = '\t'.join([escape_sql_copy(row[k]) for k in keys])
+            f.write(line + '\n')
+        f.write("\\.\n")
     print(f"Exported {table_name}: {len(rows)} rows to {csv_path} and {sql_path}")
 
 if __name__ == '__main__':
