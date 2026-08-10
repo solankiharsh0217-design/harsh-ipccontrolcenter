@@ -376,9 +376,19 @@ Deno.serve(async (req) => {
     }
 
     const envReplyTo = Deno.env.get('EMAIL_REPLY_TO') || '';
-    const replyTo = ((templateRow as any).reply_to_email && String((templateRow as any).reply_to_email).trim()) || envReplyTo || '';
+    const envFromEmail = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
+    const envFromName = Deno.env.get('EMAIL_FROM_NAME') || '';
+
+    // Resolution priority for sender:
+    // 1. Snapshot on the request (historical)
+    // 2. Override on the matched variant
+    // 3. System secret
+    const fromEmail = (useSnapshot ? requestRow.from_email_snapshot : (variantRow?.from_email || null)) || envFromEmail || '';
+    const fromName = (useSnapshot ? requestRow.from_name_snapshot : (variantRow?.from_name || null)) || envFromName || 'IPC Control Center';
+    const replyTo = (useSnapshot ? requestRow.reply_to_email_snapshot : (variantRow?.reply_to_email || null)) || envReplyTo || '';
+
     const companyName = templateRow.party_a_name || "India Photographers' Club";
-    const supportEmail = replyTo || Deno.env.get('EMAIL_FROM_ADDRESS') || (templateRow.from_email ? String(templateRow.from_email) : '');
+    const supportEmail = replyTo || fromEmail;
     const expiryDate = new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     const resolvedProgram = program_name || templateRow.program_name || 'IPC Diamond Membership';
     const completionTimeLabel = humanizeSelection(requestRow?.completion_selection || completion?.selection || null);
