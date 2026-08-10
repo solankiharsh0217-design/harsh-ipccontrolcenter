@@ -1,0 +1,3 @@
+COPY public.program_products (business_unit, created_at, created_by, currency, default_grade, default_operations_template_id, default_pipeline_id, default_service_package_id, default_token_amount, gst_applicable, gst_rate, id, is_active, is_deleted, notes, product_name, product_price_including_gst, program_id, revenue_recognition_rule, support_duration_months, updated_at) FROM stdin;
+IPC	2026-05-15 02:50:55.170996+00	89eddcfc-f32c-4f2b-b348-c30d77ce0c4b	INR	\N	\N	\N	\N	9832	true	18	27792f66-9690-4896-a800-0b21762cbf4e	true	false	\N	Diamond Program	118000	93f60033-0154-48d3-9d73-95737cfbcb25	Realized Revenue Only	\N	2026-07-18 01:40:35.923721+00
+\.
