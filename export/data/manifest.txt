@@ -1,6 +1,25 @@
-export/data/access_readiness_logs.sql
-export/data/access_templates.sql
-export/data/activity_logs.sql
-export/data/announcements.sql
-export/data/app_settings.sql
-export/data/attendance_logs.sql
+export/data/access_readiness_logs.sql 1124
+export/data/access_templates.sql 3157
+export/data/activity_logs.sql 215549
+export/data/announcements.sql 993
+export/data/app_settings.sql 1059
+export/data/attendance_logs.sql 0
+export/data/daily_lead_report_ad_accounts.sql 76285
+export/data/daily_lead_report_media_buyers.sql 135981
+export/data/daily_lead_reports.sql 74260
+export/data/daily_lead_source_mappings.sql 65723
+export/data/kpi_entries.sql 18416
+export/data/lead_notes.sql 67447
+export/data/lead_tag_assignments.sql 5612
+export/data/leads.sql 1018813
+export/data/notifications.sql 747284
+export/data/paid_pipeline_activity_logs.sql 26696
+export/data/paid_pipeline_followups.sql 8278
+export/data/paid_pipeline_leads.sql 237630
+export/data/paid_pipeline_settings.sql 9426
+export/data/quick_save_entries.sql 15027
+export/data/roas_calculation_drafts.sql 3564670
+export/data/stages.sql 7586
+export/data/students.sql 978876
+export/data/system_refinement_items.sql 59634
+export/data/task_activity.sql 10623
