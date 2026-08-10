@@ -797,9 +797,29 @@ export default function CodeOfConductPanel(props: Props) {
             <Cell label="Member email" value={req.signed_member_email || req.member_email} />
             {req.signature_name && <Cell label="Signed by" value={req.signature_name} />}
             {req.corrected_contact_email && <Cell label="Corrected contact" value={req.corrected_contact_email} />}
-            {req.completion_condition_key && <Cell label="Completion time" value={selectionLabel(req.completion_selection)} />}
-            {req.completion_condition_key && <Cell label="Email variant" value={`${conditionLabel(req.completion_condition_key)}${req.email_variant_version ? ` v${req.email_variant_version}` : ""}`} />}
-            <Cell label="Request id" value={req.id.slice(0, 8)} />
+            {req.completion_condition_key && (
+              <>
+                <Cell label="Completion" value={selectionLabel(req.completion_selection)} />
+                <Cell 
+                  label="Entitlement" 
+                  value={
+                    req.access_duration_months || req.support_duration_months 
+                      ? `${req.access_duration_months >= 12 ? `${req.access_duration_months / 12}yr` : `${req.access_duration_months}mo`} Access · ${req.support_duration_months}mo Support`
+                      : "Legacy request"
+                  } 
+                />
+                <Cell label="Email Setup" value={conditionLabel(req.completion_condition_key)} />
+                {req.access_link_snapshot && (
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-slate-400">Access Link</div>
+                    <a href={req.access_link_snapshot} target="_blank" rel="noopener noreferrer" className="text-[12px] text-blue-600 hover:underline">
+                      Open Next Steps ↗
+                    </a>
+                  </div>
+                )}
+              </>
+            )}
+            {!req.completion_condition_key && <Cell label="Request id" value={req.id.slice(0, 8)} />}
 
           </div>
           {req.status === "signed" && (() => {
