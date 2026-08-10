@@ -62,7 +62,7 @@ type ChecklistItem = { key: string; label: string; ok: boolean; required: boolea
 
 export default function CodeOfConductAdmin() {
   const { isAdmin } = useAuth();
-  const [tab, setTab] = useState<"setup" | "template" | "variants" | "rules" | "requests" | "diagnostics">("setup");
+  const [tab, setTab] = useState<"variants" | "template" | "rules" | "requests" | "diagnostics">("variants");
   const [tpl, setTpl] = useState<any>(null);
   const [savingTpl, setSavingTpl] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -491,15 +491,15 @@ export default function CodeOfConductAdmin() {
     <div className="max-w-[1200px]">
       <PageHead title="Code of Conduct" sub="Configure the agreement template, set up your sender, and track every signing request." />
       <div className="flex gap-1 border-b border-line mb-5 flex-wrap">
-        {(["setup", "template", "rules", "requests", "diagnostics"] as const).map((t) => (
+        {(["variants", "template", "rules", "requests", "diagnostics"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 text-[13px] font-medium border-b-2 -mb-[2px] ${tab === t ? "border-black text-black" : "border-transparent text-muted-foreground hover:text-black"}`}>
-            {t === "setup" ? "Email Setup" : t === "template" ? "Template" : t === "rules" ? "Trigger Rules" : t === "requests" ? `Requests (${requests.length})` : "Diagnostics"}
+            {t === "variants" ? "Email Setup" : t === "template" ? "Template" : t === "rules" ? "Trigger Rules" : t === "requests" ? `Requests (${requests.length})` : "Diagnostics"}
           </button>
         ))}
       </div>
 
-      {tab === "setup" && <CodeOfConductEmailVariantsTab />}
+      {tab === "variants" && <CodeOfConductEmailVariantsTab />}
 
 
       {tab === "template" && (
@@ -573,7 +573,7 @@ export default function CodeOfConductAdmin() {
             <SectionLabel>Email Body</SectionLabel>
             <button type="button" onClick={applyDefaultEmailCopy} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Use Default Email Copy</button>
           </div>
-          <div className="text-[11.5px] text-muted-foreground -mt-2">Sender is set in the <button onClick={() => setTab("setup")} className="underline">Email Setup</button> tab. Body must include {"{{signing_link}}"}.</div>
+          <div className="text-[11.5px] text-muted-foreground -mt-2">Sender is set in the <button onClick={() => setTab("variants")} className="underline">Email Setup</button> tab. Body must include {"{{signing_link}}"}.</div>
 
           <Field label="Email subject" error={errors.email_subject}><Input value={tpl.email_subject || ""} onChange={(v) => setTpl({ ...tpl, email_subject: v })} placeholder="Action Required: Sign Your IPC Diamond Membership Code of Conduct" /></Field>
           <Field label="Email body (supports {{member_name}}, {{program_name}}, {{signing_link}}, {{expiry_date}}, {{company_name}})" error={errors.email_body}>
@@ -707,7 +707,7 @@ export default function CodeOfConductAdmin() {
               {lastAttempt.last_email_error && <div className="text-rose-600 mt-1">Error: {lastAttempt.last_email_error}</div>}
             </div>
           )}
-          <button onClick={() => setTab("setup")} className="ipc-btn ipc-btn-ghost">Open Email Setup</button>
+          <button onClick={() => setTab("variants")} className="ipc-btn ipc-btn-ghost">Open Email Setup</button>
         </div>
       )}
 
