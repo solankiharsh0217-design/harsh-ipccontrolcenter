@@ -517,6 +517,9 @@ const PREVIEW_VARS: Record<string, string> = {
   support_email: "support@indiaphotographersclub.com",
   completion_time: "Same day",
   completion_condition: "Completed Within 1 Day",
+  access_link: "https://ipccommunity.in/steps-1/",
+  access_duration: "2 Years",
+  support_duration: "6 Months",
 };
 
 const VARIABLES = Object.keys(PREVIEW_VARS);
@@ -579,6 +582,9 @@ export default function CodeOfConductEmailVariantsTab() {
           from_name: row.from_name?.trim() || null,
           reply_to_email: row.reply_to_email?.trim() || null,
           test_recipient_email: row.test_recipient_email?.trim() || null,
+          access_link: row.access_link?.trim() || null,
+          access_duration_months: row.access_duration_months || null,
+          support_duration_months: row.support_duration_months || null,
           is_active: row.is_active,
           version: (row.version || 1) + 1,
           updated_by: u?.user?.id || null,
@@ -596,7 +602,8 @@ export default function CodeOfConductEmailVariantsTab() {
           new_version: (row.version || 1) + 1, 
           subject_changed: before?.subject !== row.subject, 
           body_changed: before?.html_body !== row.html_body,
-          sender_changed: before?.from_email !== row.from_email || before?.from_name !== row.from_name
+          sender_changed: before?.from_email !== row.from_email || before?.from_name !== row.from_name,
+          entitlement_changed: before?.access_link !== row.access_link || before?.access_duration_months !== row.access_duration_months || before?.support_duration_months !== row.support_duration_months
         },
         summary: `${row.condition_name} email template updated to v${(row.version || 1) + 1}.`,
       });
@@ -703,7 +710,48 @@ export default function CodeOfConductEmailVariantsTab() {
           </div>
 
           <div className="bg-white border border-line rounded-xl overflow-hidden">
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-8">
+              {/* Client Entitlements */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span className="text-[13px] font-semibold uppercase tracking-wider text-slate-700">Client Entitlements</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Access Link</label>
+                    <input 
+                      value={activeRow.access_link || ""} 
+                      onChange={(e) => patch(activeRow.id, { access_link: e.target.value })}
+                      placeholder="https://ipccommunity.in/steps"
+                      className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-black outline-none bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Access Duration (Months)</label>
+                    <input 
+                      type="number"
+                      value={activeRow.access_duration_months || ""} 
+                      onChange={(e) => patch(activeRow.id, { access_duration_months: parseInt(e.target.value) || 0 })}
+                      placeholder="12"
+                      className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-black outline-none bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Support Duration (Months)</label>
+                    <input 
+                      type="number"
+                      value={activeRow.support_duration_months || ""} 
+                      onChange={(e) => patch(activeRow.id, { support_duration_months: parseInt(e.target.value) || 0 })}
+                      placeholder="3"
+                      className="w-full border border-slate-200 rounded-md px-3 py-2 text-[13px] focus:ring-1 focus:ring-black outline-none bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-px bg-line" />
+
               {/* Sender Overrides */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
