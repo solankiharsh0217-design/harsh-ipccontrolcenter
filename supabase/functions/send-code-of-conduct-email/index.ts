@@ -275,6 +275,9 @@ Deno.serve(async (req) => {
       email_variant_version: variantRow.version,
       email_subject_snapshot: variantRow.subject,
       email_body_snapshot: variantRow.html_body,
+      from_email_snapshot: variantRow.from_email || null,
+      from_name_snapshot: variantRow.from_name || null,
+      reply_to_email_snapshot: variantRow.reply_to_email || null,
       timing_override_reason: completion?.override_reason || null,
     } : {};
 
