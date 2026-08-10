@@ -172,7 +172,8 @@ Deno.serve(async (req) => {
         email,
         redirectTo ? { redirectTo } : undefined,
       );
-      if (error) return json({ error: error.message }, 400);
+      if (error && !selfService) return json({ error: error.message }, 400);
+      if (error) console.warn("[self-reset] fallback failed:", error.message);
       return json({
         ok: true,
         via: "supabase-fallback",
