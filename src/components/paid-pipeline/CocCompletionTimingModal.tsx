@@ -89,6 +89,9 @@ export default function CocCompletionTimingModal(props: Props) {
     support_email: "support@indiaphotographersclub.com",
     completion_time: selection ? selectionLabel(selection) : "—",
     completion_condition: condition ? conditionLabel(condition) : "—",
+    access_link: selection === "same_day" ? "https://ipccommunity.in/steps-1/" : "https://ipccommunity.in/steps",
+    access_duration: selection === "same_day" ? "2 Years" : "1 Year",
+    support_duration: selection === "same_day" ? "6 Months" : "3 Months",
   };
 
   const confirm = () => {
@@ -165,13 +168,35 @@ export default function CocCompletionTimingModal(props: Props) {
         )}
 
         {condition && (
-          <div className={`mb-3 rounded-md border p-2.5 text-[12px] ${issue ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
-            <div className="font-medium">Email template selected: {conditionLabel(condition)}</div>
+          <div className={`mb-3 rounded-md border p-3 text-[12px] ${issue ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+            <div className="font-semibold text-[11px] uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>{selection === "same_day" ? "SAME DAY" : "NEXT DAY OR LATER"}</span>
+              {!issue && <span className="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[9px]">Verified Routing</span>}
+            </div>
+            
+            <div className="space-y-1.5 mb-3">
+              <div className="flex justify-between items-center text-[12.5px]">
+                <span className="opacity-80">Benefits</span>
+                <span className="font-semibold">
+                  {selection === "same_day" ? "2 Years Access · 6 Months Support" : "1 Year Access · 3 Months Support"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-[12.5px]">
+                <span className="opacity-80">Next Steps</span>
+                <span className="font-medium underline truncate max-w-[180px]" title={selection === "same_day" ? "https://ipccommunity.in/steps-1/" : "https://ipccommunity.in/steps"}>
+                  {selection === "same_day" ? "ipccommunity.in/steps-1/" : "ipccommunity.in/steps"}
+                </span>
+              </div>
+            </div>
+
+            <div className={`h-px my-2.5 ${issue ? "bg-rose-200" : "bg-emerald-200"}`} />
+            
+            <div className="font-medium">Email Setup: {conditionLabel(condition)}</div>
             {variant && !issue && <div className="opacity-80 mt-0.5">{variant.condition_name} · v{variant.version}</div>}
             {issue && (
               <div className="mt-1">
-                <div>{issue.message}</div>
-                <Link to="/admin-center/code-of-conduct" className="underline font-medium">Open Admin Center →</Link>
+                <div className="font-semibold">{issue.message}</div>
+                <Link to="/admin-center/code-of-conduct" className="underline font-medium mt-1 inline-block">Open Admin Center →</Link>
               </div>
             )}
           </div>

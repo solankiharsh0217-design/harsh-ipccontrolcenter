@@ -24,6 +24,9 @@ export interface CocEmailVariant {
   from_name: string | null;
   reply_to_email: string | null;
   test_recipient_email: string | null;
+  access_link: string | null;
+  access_duration_months: number | null;
+  support_duration_months: number | null;
   is_active: boolean;
   version: number;
   updated_at: string | null;
@@ -137,6 +140,15 @@ export function validateVariant(v: CocEmailVariant | null): VariantIssue | null 
   }
   if (!v.html_body.includes("{{signing_link}}")) {
     return { code: "EMAIL_VARIANT_MISSING_LINK", message: "The template must include the Code of Conduct link." };
+  }
+  if (!v.access_link?.trim()) {
+    return { code: "EMAIL_VARIANT_MISSING_ACCESS_LINK", message: "Access / Next Steps link is required." };
+  }
+  if (!v.access_duration_months) {
+    return { code: "EMAIL_VARIANT_MISSING_ACCESS_DURATION", message: "Access duration is required." };
+  }
+  if (!v.support_duration_months) {
+    return { code: "EMAIL_VARIANT_MISSING_SUPPORT_DURATION", message: "Support duration is required." };
   }
   return null;
 }
