@@ -2,44 +2,31 @@ import os
 import csv
 import re
 import json
+import sys
 
 def parse_map_string(s):
+    if not s: return []
     if s.startswith("[") and s.endswith("]"):
         s = s[1:-1]
     
-    # Split by " map["
-    segments = re.split(r'\s(?=map\[)', s)
+    segments = re.split(r'\\s(?=map\\[)', s)
     rows = []
-    
-    # Define keys we expect for service_packages (as an example)
-    # But it's better to be dynamic. 
-    # The issue was '04' being seen as a key because of "03:46:58"
-    # A key in this context is ALWAYS followed by ":" and typically preceded by a space or "map["
     
     for seg in segments:
         if seg.startswith('map['): seg = seg[4:]
         if seg.endswith(']'): seg = seg[:-1]
         
-        # A key must be a valid identifier (alphanumeric + underscore)
-        # And must be followed by ":"
-        # AND crucially, it's usually preceded by a space and NOT part of a timestamp.
-        # Let's find all occurrences of " \w+:"
         row = {}
-        # First key is special (no leading space)
-        first_key_match = re.match(r'^(\w+):', seg)
+        first_key_match = re.match(r'^(\\w+):', seg)
         keys = []
         if first_key_match:
             keys.append(first_key_match.group(1))
         
-        # Other keys: space + word + colon
-        # We avoid colons in timestamps by ensuring the key is not just digits
-        other_keys = re.findall(r'\s([a-zA-Z_]\w+):', seg)
+        other_keys = re.findall(r'\\s([a-zA-Z_]\\w+):', seg)
         keys.extend(other_keys)
         
         for i in range(len(keys)):
             k = keys[i]
-            # Find the exact start of the value
-            # If it's the first key, it's at the beginning
             k_pattern = k + ":" if i == 0 else " " + k + ":"
             start = seg.find(k_pattern) + len(k_pattern)
             
@@ -54,23 +41,49 @@ def parse_map_string(s):
         if row: rows.append(row)
     return rows
 
-def write_files(table_name, data_str):
+def escape_sql_copy(val):
+    if val is None: return '\\\\N'
+    val = str(val)
+    val = val.replace('\\\\', '\\\\\\\\').replace('\\t', '\\\\t').replace('\\n', '\\\\n').replace('\\r', '\\\\r')
+    return val
+
+def write_files(table_name, data_str, mode='w'):
     rows = parse_map_string(data_str)
     if not rows: return
+    
     keys = list(rows[0].keys())
     os.makedirs("export/csv", exist_ok=True)
-    with open(f"export/csv/{table_name}.csv", 'w', newline='') as f:
+    csv_path = f"export/csv/{table_name}.csv"
+    with open(csv_path, mode, newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=keys)
-        writer.writeheader()
+        if mode == 'w':
+            writer.writeheader()
         writer.writerows(rows)
+    
     os.makedirs("export/data", exist_ok=True)
-    with open(f"export/data/{table_name}.sql", 'w') as f:
-        f.write(f"COPY public.{table_name} ({', '.join(keys)}) FROM stdin;\n")
+    sql_path = f"export/data/{table_name}.sql"
+    # If appending, we need to handle the COPY header/footer
+    if mode == 'a' and os.path.exists(sql_path):
+        # Remove trailing footer "\\.\n"
+        with open(sql_path, 'r+', encoding='utf-8') as f:
+            f.seek(0, os.SEEK_END)
+            pos = f.tell()
+            if pos > 3:
+                f.seek(pos - 3)
+                if f.read() == "\\\\.\\n":
+                    f.truncate(pos - 3)
+    
+    with open(sql_path, mode, encoding='utf-8') as f:
+        if mode == 'w':
+            f.write(f"COPY public.{table_name} ({', '.join(keys)}) FROM stdin;\\n")
         for row in rows:
-            f.write('\t'.join([str(row[k]) if row[k] is not None else '\\N' for k in keys]) + '\n')
-        f.write("\\.\n")
-    print(f"Exported {table_name}: {len(rows)} rows")
+            line = '\\t'.join([escape_sql_copy(row[k]) for k in keys])
+            f.write(line + '\\n')
+        f.write("\\\\.\\n")
+    print(f"Exported {table_name}: {len(rows)} rows to {csv_path} and {sql_path}")
 
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 2: write_files(sys.argv[1], sys.argv[2])
+if __name__ == '__main__':
+    if len(sys.argv) > 3:
+        write_files(sys.argv[1], sys.argv[2], sys.argv[3])
+    elif len(sys.argv) > 2:
+        write_files(sys.argv[1], sys.argv[2])
