@@ -601,30 +601,7 @@ export default function Team() {
                   {isAdmin && editing.email && (
                     <button
                       type="button"
-                      onClick={async () => {
-                        if (!editing?.email) return;
-                        if (!confirm(`Send a password reset link to ${editing.email}?`)) return;
-                        try {
-                          const { error } = await supabase.auth.resetPasswordForEmail(editing.email, {
-                            redirectTo: `${window.location.origin}/reset-password`,
-                          });
-                          if (error) throw error;
-                          await logActivity({
-                            module_key: "team_directory",
-                            action_type: "password_reset_link_sent",
-                            entity_type: "team_member",
-                            entity_id: editing.id,
-                            entity_label: editing.full_name,
-                            target_user_id: editing.id,
-                            target_name: editing.full_name,
-                            summary: `Password reset link sent to ${editing.email} for ${editing.full_name}.`,
-                            severity: "warning",
-                          });
-                          toast.success(`Password reset link sent to ${editing.email}`);
-                        } catch (e: any) {
-                          toast.error(e.message ?? "Failed to send reset link");
-                        }
-                      }}
+                      onClick={() => { if (editing) sendReset(editing); }}
                       className="h-9 px-3 rounded-md border border-line bg-white hover:bg-off font-sans text-[12px] whitespace-nowrap"
                       title="Send password reset email to this member"
                     >
