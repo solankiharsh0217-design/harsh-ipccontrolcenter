@@ -707,7 +707,7 @@ export default function CodeOfConductAdmin() {
               {lastAttempt.last_email_error && <div className="text-rose-600 mt-1">Error: {lastAttempt.last_email_error}</div>}
             </div>
           )}
-          <button onClick={() => setTab("setup")} className="ipc-btn ipc-btn-ghost">Open Email Setup</button>
+          <button onClick={() => setTab("variants")} className="ipc-btn ipc-btn-ghost">Open Email Setup</button>
         </div>
       )}
 
