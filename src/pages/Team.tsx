@@ -149,7 +149,11 @@ export default function Team() {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success(`Password reset sent to ${m.email}`);
+      if ((data as any)?.via === "supabase-fallback") {
+        toast.warning((data as any)?.warning ?? `Sent via Supabase built-in email (Resend not configured) — delivery may fail.`);
+      } else {
+        toast.success(`Password reset sent to ${m.email}`);
+      }
       logActivity({
         module_key: "team_directory", action_type: "password_reset_sent",
         entity_type: "team_member", entity_id: m.id, entity_label: m.full_name,
