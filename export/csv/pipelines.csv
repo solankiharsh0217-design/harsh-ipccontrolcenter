@@ -1,0 +1,5 @@
+created_at,created_by,id,name,position,type
+2026-05-25 02:47:01.794683+00,,36004cf1-0062-4953-bad7-ccd39c7e7efc,Operations CRM,3,operations
+2026-05-28 14:50:09.631999+00,,7629660f-13d9-4b95-8eab-38a0071bd4fb,IPC Paid — Onboarding,0,paid
+2026-06-26 14:53:23.995921+00,,a56bd7ab-71e0-4deb-ad7a-75c76392884b,IWC Paid Members,1,paid
+2026-05-06 02:55:50.982338+00,,10eb9d2c-99a3-4f2e-9366-7cd73e4acb4c,Sales Pipeline (Unpaid),2,unpaid
