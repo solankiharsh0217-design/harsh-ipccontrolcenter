@@ -26,6 +26,47 @@ Deno.serve(async (req) => {
     // Self-service password reset from the login screen: no admin session exists.
     const selfService = op === "reset" && body?.selfService === true;
 
+    // --- Rate Limiting for Self-Service ---
+    if (selfService && body?.email) {
+      const email = String(body.email).toLowerCase().trim();
+      const redis = Deno.env.get("UPSTASH_REDIS_REST_URL");
+      const redisToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
+
+      if (redis && redisToken) {
+        try {
+          // Simple rate limit: 3 requests per email per hour
+          const key = `ratelimit:auth-reset:${email}`;
+          const now = Math.floor(Date.now() / 1000);
+          const window = 3600; // 1 hour
+          
+          const res = await fetch(`${redis}/pipeline`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${redisToken}` },
+            body: JSON.stringify([
+              ["ZREMRANGEBYSCORE", key, 0, now - window],
+              ["ZADD", key, now, now],
+              ["ZCARD", key],
+              ["EXPIRE", key, window],
+            ]),
+          });
+          
+          if (res.ok) {
+            const results = await res.json();
+            const count = results[2]?.result;
+            if (count > 3) {
+              console.warn(`[ratelimit] Reset limit exceeded for ${email}`);
+              // Neutral success to prevent enumeration/denial of service discovery
+              return json({ ok: true, via: "ratelimited" });
+            }
+          }
+        } catch (e) {
+          console.error("[ratelimit] Redis error", e);
+          // Fail open to avoid blocking users if Redis is down, but log it.
+        }
+      }
+    }
+
+
     const admin = createClient(url, service);
 
     if (!selfService) {
@@ -156,9 +197,12 @@ Deno.serve(async (req) => {
         if (!resendRes.ok) {
           const errText = await resendRes.text();
           console.error("Resend send failed", resendRes.status, errText);
+          // Neutral success for self-service even if Resend fails (to prevent timing/error-based enumeration)
+          if (selfService) return json({ ok: true, via: "resend-fail" });
           return json({ error: `Email send failed: ${errText}` }, resendRes.status);
         }
         return json({ ok: true, via: "resend" });
+
       }
 
       // Fallback: Supabase built-in recovery email (rate-limited, often undelivered).

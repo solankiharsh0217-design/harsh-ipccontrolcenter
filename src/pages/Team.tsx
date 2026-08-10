@@ -598,16 +598,38 @@ export default function Team() {
                     className="flex-1 h-9 px-3 rounded-md border border-line bg-off font-sans text-sm text-muted-foreground cursor-not-allowed"
                     title="Login email is read-only"
                   />
-                  {isAdmin && editing.email && (
-                    <button
-                      type="button"
-                      onClick={() => { if (editing) sendReset(editing); }}
-                      className="h-9 px-3 rounded-md border border-line bg-white hover:bg-off font-sans text-[12px] whitespace-nowrap"
-                      title="Send password reset email to this member"
-                    >
-                      Send reset link
-                    </button>
-                  )}
+                  {isAdmin && editing.email && (() => {
+                    const st = getAuthFor(editing).state;
+                    const canReset = st === "active" || st === "confirmed";
+                    const canInvite = st === "no_auth" || st === "invited" || st === "unconfirmed";
+                    
+                    if (canReset) return (
+                      <button
+                        type="button"
+                        disabled={authBusy === editing.id}
+                        onClick={() => sendReset(editing)}
+                        className="h-9 px-3 rounded-md border border-line bg-white hover:bg-off font-sans text-[12px] whitespace-nowrap disabled:opacity-50"
+                        title="Send password reset email to this member"
+                      >
+                        Send reset link
+                      </button>
+                    );
+                    
+                    if (canInvite) return (
+                      <button
+                        type="button"
+                        disabled={authBusy === editing.id}
+                        onClick={() => sendInvite(editing)}
+                        className="h-9 px-3 rounded-md border border-line bg-white hover:bg-off font-sans text-[12px] whitespace-nowrap disabled:opacity-50"
+                        title={st === "no_auth" ? "Send initial invite" : "Resend invite email"}
+                      >
+                        {st === "no_auth" ? "Send invite" : "Resend invite"}
+                      </button>
+                    );
+
+                    return null;
+                  })()}
+
                 </div>
               </div>
               <div>
