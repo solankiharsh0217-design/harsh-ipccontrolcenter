@@ -21,20 +21,25 @@ Deno.serve(async (req) => {
     const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // 1) Authenticate caller
-    const authHeader = req.headers.get("Authorization") ?? "";
-    if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
-    const userClient = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
-    const { data: { user }, error: uErr } = await userClient.auth.getUser();
-    if (uErr || !user) return json({ error: "Unauthorized" }, 401);
-
-    // 2) Authorize as admin
-    const admin = createClient(url, service);
-    const { data: isAdmin, error: rErr } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
-    if (rErr || !isAdmin) return json({ error: "Admin only" }, 403);
-
     const body = await req.json().catch(() => ({}));
     const op = String(body?.op || "").toLowerCase();
+    // Self-service password reset from the login screen: no admin session exists.
+    const selfService = op === "reset" && body?.selfService === true;
+
+    const admin = createClient(url, service);
+
+    if (!selfService) {
+      // 1) Authenticate caller
+      const authHeader = req.headers.get("Authorization") ?? "";
+      if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+      const userClient = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
+      const { data: { user }, error: uErr } = await userClient.auth.getUser();
+      if (uErr || !user) return json({ error: "Unauthorized" }, 401);
+
+      // 2) Authorize as admin
+      const { data: isAdmin, error: rErr } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      if (rErr || !isAdmin) return json({ error: "Admin only" }, 403);
+    }
 
     // ─────────── STATUS ───────────
     if (op === "status") {
