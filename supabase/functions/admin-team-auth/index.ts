@@ -164,11 +164,15 @@ Deno.serve(async (req) => {
           return json({ error: "Could not generate recovery link" }, 500);
         }
 
+        const introText = selfService 
+          ? "You requested a password reset for your India Photographers Club — Control Center account."
+          : "An administrator requested a password reset for your India Photographers Club — Control Center account.";
+
         const html = `
           <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#111">
             <h2 style="font-weight:600;font-size:18px;margin:0 0 12px">Reset your Control Center password</h2>
             <p style="font-size:14px;line-height:1.55;color:#333">
-              An administrator requested a password reset for your India Photographers Club — Control Center account.
+              ${introText}
               Click the button below to set a new password. This link expires shortly for your security.
             </p>
             <p style="margin:22px 0">
