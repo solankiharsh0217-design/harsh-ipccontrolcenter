@@ -1,3 +1,591 @@
+/*
+'''Do not make any visual modifications. The phrases I write are commands to understand what I want, not to be written down. Understand their content well, then execute what is required.'''
+
+FINAL LIVE QA — Same Day vs Next Day Code of Conduct Email Setup
+
+Context:
+
+The Code of Conduct email system now has two independent configurations:
+
+1. Same Day Setup
+
+   condition: completed_within_1_day
+
+2. Next Day Setup
+
+   condition: completed_after_1_day
+
+The existing production configuration was migrated into Next Day Setup.
+
+Same Day now has its own:
+
+- subject
+
+- body
+
+- From Email override
+
+- From Name override
+
+- Reply-To override
+
+- version
+
+- active state
+
+The sending edge function resolves the correct setup based on completion condition and snapshots sender/content fields on the request.
+
+Goal:
+
+Verify both configurations end-to-end in the live application.
+
+Do NOT add new features.
+
+Do NOT redesign the UI.
+
+Do NOT change Code of Conduct signing/PDF/Wistia/Access Follow-up logic.
+
+Fix only confirmed defects found during QA.
+
+────────────────────────────
+
+1. BUILD
+
+────────────────────────────
+
+Run:
+
+bunx tsgo --noEmit
+
+Expected:
+
+0 errors.
+
+────────────────────────────
+
+2. ADMIN — SAME DAY SETUP
+
+────────────────────────────
+
+Open:
+
+Admin Center
+
+→ Code of Conduct
+
+→ Email Setup
+
+→ Same Day Setup
+
+Verify:
+
+- subject is editable
+
+- body is editable
+
+- From Email override is editable
+
+- From Name override is editable
+
+- Reply-To is editable
+
+- active state works
+
+- preview works
+
+- Send Test Email works
+
+- Updated By / Updated At display correctly
+
+Confirm this setup is stored against:
+
+completed_within_1_day
+
+────────────────────────────
+
+3. ADMIN — NEXT DAY SETUP
+
+────────────────────────────
+
+Open:
+
+Next Day Setup
+
+Verify:
+
+- the migrated old production settings are present
+
+- no existing content was lost
+
+- sender configuration matches the previous working configuration
+
+- setup is stored against:
+
+completed_after_1_day
+
+────────────────────────────
+
+4. CONFIGURATION ISOLATION
+
+────────────────────────────
+
+Temporarily change the Same Day subject to a clearly identifiable test value:
+
+[TEST] SAME DAY COC
+
+Do NOT change Next Day.
+
+Expected:
+
+Same Day preview:
+
+[TEST] SAME DAY COC
+
+Next Day preview:
+
+unchanged
+
+Restore the production Same Day subject afterward.
+
+Repeat the reverse test if needed.
+
+Expected:
+
+Same Day and Next Day configurations are fully independent.
+
+────────────────────────────
+
+5. REAL FIRST SEND — SAME DAY
+
+────────────────────────────
+
+Use a safe test client with no prior successful Code of Conduct send.
+
+Calling CRM
+
+→ open client
+
+→ Code of Conduct
+
+→ Send Code of Conduct
+
+→ choose:
+
+Same Day
+
+Expected routing:
+
+selection:
+
+same_day
+
+condition:
+
+completed_within_1_day
+
+email setup:
+
+Same Day Setup
+
+Verify BEFORE sending:
+
+- Same Day subject appears
+
+- Same Day body appears
+
+- Same Day From Email resolves
+
+- Same Day From Name resolves
+
+- Same Day Reply-To resolves
+
+- correct signing link appears
+
+Send the email.
+
+Verify the ACTUAL delivered email uses:
+
+- Same Day subject
+
+- Same Day body
+
+- Same Day sender name
+
+- Same Day sender email
+
+- Same Day reply-to
+
+PASS only if the real received email matches the preview.
+
+────────────────────────────
+
+6. REAL FIRST SEND — NEXT DAY
+
+────────────────────────────
+
+Use another safe test client.
+
+Select:
+
+Next Day or Later
+
+Expected routing:
+
+selection:
+
+next_day_or_later
+
+condition:
+
+completed_after_1_day
+
+email setup:
+
+Next Day Setup
+
+Verify actual delivered email uses:
+
+- Next Day subject
+
+- Next Day body
+
+- Next Day sender
+
+- Next Day reply-to
+
+No Same Day content should appear.
+
+────────────────────────────
+
+7. PREVIEW VS ACTUAL SEND
+
+────────────────────────────
+
+For both routes compare:
+
+Preview:
+
+- setup
+
+- subject
+
+- body
+
+- sender
+
+Actual delivered email:
+
+- setup
+
+- subject
+
+- body
+
+- sender
+
+Expected:
+
+Preview and actual send must match exactly except for normal provider formatting.
+
+There must be no situation where:
+
+Same Day preview
+
+→ Next Day email is sent
+
+or vice versa.
+
+────────────────────────────
+
+8. SNAPSHOT VERIFICATION
+
+────────────────────────────
+
+After each successful first send, inspect the Code of Conduct request.
+
+Verify snapshots contain the actual values used:
+
+- completion condition
+
+- variant/setup ID
+
+- version
+
+- from_email_snapshot
+
+- from_name_snapshot
+
+- reply_to_snapshot
+
+- email_subject_snapshot
+
+- email_body_snapshot
+
+- sent timestamp
+
+Same Day request must contain Same Day values.
+
+Next Day request must contain Next Day values.
+
+────────────────────────────
+
+9. RESEND — SAME DAY
+
+────────────────────────────
+
+For the member originally sent using Same Day Setup:
+
+Edit the current Same Day Setup after the original send.
+
+Then click normal Resend.
+
+Expected:
+
+Resend uses the ORIGINAL stored snapshot.
+
+It must NOT silently use the newly edited setup.
+
+Verify:
+
+- original sender
+
+- original subject
+
+- original body
+
+- original reply-to
+
+are preserved.
+
+────────────────────────────
+
+10. RESEND — NEXT DAY
+
+────────────────────────────
+
+Repeat for a Next Day member.
+
+Expected:
+
+Original Next Day snapshot reused.
+
+────────────────────────────
+
+11. ADMIN RESEND OVERRIDE
+
+────────────────────────────
+
+Test the existing admin-only:
+
+Change Template / Email Setup for This Resend
+
+Expected:
+
+- admin permission required
+
+- reason required
+
+- only this resend uses the override
+
+- original first-send snapshot remains untouched
+
+- audit event records original setup + override setup + reason
+
+────────────────────────────
+
+12. INACTIVE SETUP SAFETY
+
+────────────────────────────
+
+In a safe test:
+
+temporarily make Same Day Setup inactive.
+
+Try:
+
+CRM → Same Day → Send
+
+Expected:
+
+SEND BLOCKED.
+
+Clear message such as:
+
+“Same Day Code of Conduct email setup is inactive or incomplete.”
+
+The system must NOT fall back to Next Day.
+
+Restore Same Day Setup.
+
+Repeat where practical for Next Day.
+
+No cross-fallback is allowed.
+
+────────────────────────────
+
+13. TEST EMAIL SAFETY
+
+────────────────────────────
+
+Run:
+
+Send Same Day Test Email
+
+Expected:
+
+- uses Same Day sender/content
+
+- clearly treated as a test
+
+- does not create production CoC request
+
+- does not move CRM stage
+
+- does not trigger Waiting for Signature
+
+- does not trigger Access Follow-up
+
+- does not trigger bonus email
+
+Repeat for Next Day.
+
+────────────────────────────
+
+14. EXISTING WORKFLOW SAFETY
+
+────────────────────────────
+
+Confirm no regression in:
+
+- signing link
+
+- Wistia guide
+
+- signature validation
+
+- signed PDF
+
+- token/grace logic
+
+- link-open tracking
+
+- delivery tracking
+
+- Waiting for Signature
+
+- Access Follow-up
+
+- resend/retry
+
+- re-signature
+
+- bonus email
+
+- CRM timeline
+
+- stage automation
+
+────────────────────────────
+
+15. ADMIN SOURCE-OF-TRUTH AUDIT
+
+────────────────────────────
+
+Admin Center currently contains:
+
+- Email Setup
+
+- Template
+
+- Email Templates by Completion Time
+
+- Trigger Rules
+
+- Requests
+
+- Diagnostics
+
+Audit whether:
+
+Template
+
+and
+
+Email Templates by Completion Time
+
+still duplicate the same content now managed by Same Day / Next Day Email Setup.
+
+Do NOT delete anything during this QA.
+
+Return:
+
+- which screens are actively used by production sends
+
+- which screens are legacy
+
+- which settings are duplicate
+
+- recommendation for future consolidation
+
+We want ONE obvious source of truth eventually.
+
+────────────────────────────
+
+FINAL REPORT
+
+────────────────────────────
+
+Return:
+
+- Build result
+
+- Same Day admin setup result
+
+- Next Day admin setup result
+
+- Configuration isolation result
+
+- Same Day real email result
+
+- Next Day real email result
+
+- Preview-vs-send result
+
+- Sender override result
+
+- Snapshot result
+
+- Same Day resend result
+
+- Next Day resend result
+
+- Admin override result
+
+- Inactive-setup protection
+
+- Test-email safety
+
+- Existing CoC workflow safety
+
+- Admin source-of-truth audit
+
+- Issues found
+
+- Final verdict: GREEN / YELLOW / RED
+
+CRITICAL ACCEPTANCE RULE:
+
+Same Day
+
+→ Same Day Email Setup
+
+Next Day or Later
+
+→ Next Day Email Setup
+
+There must never be a silent fallback between the two.
+*/
+
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
