@@ -106,9 +106,9 @@ Deno.serve(async (req) => {
       const envFrom = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
       const envName = Deno.env.get('EMAIL_FROM_NAME') || '';
       const envReply = Deno.env.get('EMAIL_REPLY_TO') || '';
-      const resolvedFromEmail = (tpl?.from_email && tpl.from_email.trim()) || envFrom || '';
-      const resolvedFromName = (tpl?.from_name && tpl.from_name.trim()) || envName || '';
-      const resolvedReplyTo = (tpl?.reply_to_email && tpl.reply_to_email.trim()) || envReply || '';
+
+      const { data: variants } = await diagAdmin.from('code_of_conduct_email_variants').select('*');
+      
       const resolvedBaseUrl = resolveBaseUrl(origin, req.headers.get('origin'));
       return jsonResponse({
         ok: true,
@@ -119,10 +119,7 @@ Deno.serve(async (req) => {
         has_email_reply_to: !!envReply,
         has_public_app_url: !!Deno.env.get('PUBLIC_APP_URL'),
         resolved_public_app_url: resolvedBaseUrl || null,
-        resolved_from_email: resolvedFromEmail,
-        resolved_from_name: resolvedFromName,
-        resolved_reply_to: resolvedReplyTo,
-        sender_source: tpl?.from_email ? 'template' : (envFrom ? 'secret' : 'none'),
+        variants: variants || [],
         template: tpl || null,
         last_attempt: lastReq || null,
       });
