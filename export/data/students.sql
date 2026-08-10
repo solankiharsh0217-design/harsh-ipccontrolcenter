@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict nZJenmT9sxPCNZOCwsvQOK95KeEtdQ5mrhY35z9sbYmRPeTg7Y8dWuVOSVAQjw2
+\restrict SaU1iPBxxfR2nwuKkYx0L5lGkyovwmzjF7vEOv7uXTBR0RsQzxSwRIVoGryoOSX
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -5675,5 +5675,5 @@ ALTER TABLE public.students ENABLE TRIGGER ALL;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict nZJenmT9sxPCNZOCwsvQOK95KeEtdQ5mrhY35z9sbYmRPeTg7Y8dWuVOSVAQjw2
+\unrestrict SaU1iPBxxfR2nwuKkYx0L5lGkyovwmzjF7vEOv7uXTBR0RsQzxSwRIVoGryoOSX
 
