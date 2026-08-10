@@ -1,0 +1,15 @@
+-- Leads marked as final sale with only token payments
+ id | email | deal_value_including_gst | final_revenue_realized 
+----+-------+--------------------------+------------------------
+(0 rows)
+
+-- Payments flagged as both token and final
+ id | paid_pipeline_lead_id | payment_type | amount 
+----+-----------------------+--------------+--------
+(0 rows)
+
+-- Revenue exceeds total collected
+ id | email | total_collected | final_revenue_realized 
+----+-------+-----------------+------------------------
+(0 rows)
+
