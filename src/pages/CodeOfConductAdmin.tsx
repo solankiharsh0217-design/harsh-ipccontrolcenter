@@ -491,107 +491,16 @@ export default function CodeOfConductAdmin() {
     <div className="max-w-[1200px]">
       <PageHead title="Code of Conduct" sub="Configure the agreement template, set up your sender, and track every signing request." />
       <div className="flex gap-1 border-b border-line mb-5 flex-wrap">
-        {(["setup", "template", "variants", "rules", "requests", "diagnostics"] as const).map((t) => (
+        {(["setup", "template", "rules", "requests", "diagnostics"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 text-[13px] font-medium border-b-2 -mb-[2px] ${tab === t ? "border-black text-black" : "border-transparent text-muted-foreground hover:text-black"}`}>
-            {t === "setup" ? "Email Setup" : t === "template" ? "Template" : t === "variants" ? "Email Templates by Completion Time" : t === "rules" ? "Trigger Rules" : t === "requests" ? `Requests (${requests.length})` : "Diagnostics"}
+            {t === "setup" ? "Email Setup" : t === "template" ? "Template" : t === "rules" ? "Trigger Rules" : t === "requests" ? `Requests (${requests.length})` : "Diagnostics"}
           </button>
         ))}
       </div>
 
-      {tab === "variants" && <CodeOfConductEmailVariantsTab />}
+      {tab === "setup" && <CodeOfConductEmailVariantsTab />}
 
-
-      {tab === "setup" && (
-        <div className="space-y-5">
-          <div className={`rounded-xl border p-4 ${setupComplete ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
-            <div className="font-semibold text-[13px]">{setupComplete ? "✓ Email setup complete — you can send Code of Conduct emails." : "Email setup incomplete — complete the checklist before sending Code of Conduct emails."}</div>
-          </div>
-
-          <div className="bg-white border border-line rounded-xl p-6 space-y-4">
-            <SectionLabel>Email Sending Setup</SectionLabel>
-            <div className="text-[12.5px] text-muted-foreground -mt-2">Tell members who the email comes from. The API key stays in backend secrets — never entered here.</div>
-            <Grid>
-              <Field label="Sender email override (leave blank to use EMAIL_FROM_ADDRESS secret)" error={errors.from_email}>
-                <Input value={tpl.from_email || ""} onChange={(v) => setTpl({ ...tpl, from_email: v })} placeholder={diag?.has_email_from_address ? "(using secret)" : "team@yourdomain.com"} />
-                <div className="text-[10.5px] text-muted-foreground mt-1">{diag?.has_email_from_address ? "Backend secret EMAIL_FROM_ADDRESS is set — leave blank to use it." : "No secret set. Use a verified domain in your Resend account."}</div>
-              </Field>
-              <Field label="Sender name override (leave blank to use EMAIL_FROM_NAME secret)" error={errors.from_name}>
-                <Input value={tpl.from_name || ""} onChange={(v) => setTpl({ ...tpl, from_name: v })} placeholder={diag?.has_email_from_name ? "(using secret)" : "IPC Control Center"} />
-              </Field>
-              <Field label="Reply-to email (optional)" error={errors.reply_to_email}>
-                <Input value={tpl.reply_to_email || ""} onChange={(v) => setTpl({ ...tpl, reply_to_email: v })} placeholder="support@yourdomain.com" />
-              </Field>
-              <Field label="Test recipient email" error={errors.test_recipient_email}>
-                <Input value={tpl.test_recipient_email || ""} onChange={(v) => setTpl({ ...tpl, test_recipient_email: v })} placeholder="your-own@email.com" />
-              </Field>
-            </Grid>
-
-            <div className="border-t border-line pt-4 space-y-3">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <SectionLabel>Email Copy</SectionLabel>
-                <button type="button" onClick={applyDefaultEmailCopy} className="text-[11.5px] px-2.5 py-1 border border-line rounded hover:bg-slate-50">Use Default Email Copy</button>
-              </div>
-              <div className="text-[11.5px] text-muted-foreground -mt-2">Supports {"{{member_name}}"}, {"{{program_name}}"}, {"{{signing_link}}"}, {"{{expiry_days}}"}, {"{{expiry_date}}"}, {"{{company_name}}"}, {"{{support_email}}"}.</div>
-              <Field label="Email subject" error={errors.email_subject}>
-                <Input value={tpl.email_subject || ""} onChange={(v) => setTpl({ ...tpl, email_subject: v })} placeholder={DEFAULT_EMAIL_SUBJECT} />
-              </Field>
-              <Field label="Email body" error={errors.email_body}>
-                <TextArea value={tpl.email_body || ""} onChange={(v) => setTpl({ ...tpl, email_body: v })} rows={10} />
-              </Field>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              {lastSavedAt && <span className="text-[11.5px] text-muted-foreground">Last saved: {new Date(lastSavedAt).toLocaleString()}</span>}
-              <button onClick={saveEmailSettings} disabled={savingTpl} className={`ipc-btn ${savedEmailFlash ? "bg-[hsl(var(--success))] text-primary-foreground" : "ipc-btn-black"}`}>{savingTpl ? "Saving..." : savedEmailFlash ? "Saved ✓" : "Save Email Settings"}</button>
-            </div>
-            {saveError && <div className="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">Save failed: {saveError}</div>}
-          </div>
-
-
-          <div className="bg-white border border-line rounded-xl p-6 space-y-3">
-            <SectionLabel>Email Setup Checklist</SectionLabel>
-            <ul className="space-y-1.5">
-              {checklist.map((item) => (
-                <li key={item.key} className="flex items-start gap-2 text-[12.5px]">
-                  <span className={`mt-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${item.ok ? "bg-emerald-100 text-emerald-700" : item.required ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>
-                    {item.ok ? "✓" : item.required ? "!" : "·"}
-                  </span>
-                  <div>
-                    <div className={item.ok ? "text-slate-700" : "text-slate-900 font-medium"}>{item.label}</div>
-                    {item.hint && <div className="text-[10.5px] text-muted-foreground">{item.hint}</div>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="bg-white border border-line rounded-xl p-6 space-y-3">
-            <SectionLabel>Send Test Email</SectionLabel>
-            <div className="text-[12.5px] text-muted-foreground">Uses your current sender and the active template. Will be marked <code>[TEST]</code> in the subject.</div>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex-1 min-w-[260px]">
-                <label className="block text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Test recipient</label>
-                <Input value={tpl.test_recipient_email || ""} onChange={(v) => setTpl({ ...tpl, test_recipient_email: v })} placeholder="you@example.com" />
-              </div>
-              <button onClick={sendTestEmail} disabled={sendingTest} className="ipc-btn ipc-btn-black">
-                {sendingTest ? "Sending…" : "Send Test Email"}
-              </button>
-            </div>
-            {lastTestResult?.ok && (
-              <div className="text-[12px] bg-emerald-50 border border-emerald-200 text-emerald-800 rounded p-2">
-                Test sent. Provider id: <code>{lastTestResult.provider_message_id || "—"}</code> · {lastTestResult.sent_at ? new Date(lastTestResult.sent_at).toLocaleString() : ""}
-              </div>
-            )}
-            {lastTestResult && !lastTestResult.ok && (
-              <div className="text-[12px] bg-rose-50 border border-rose-200 text-rose-700 rounded p-2">
-                <div className="font-medium">[{lastTestResult.error_code}] {lastTestResult.message}</div>
-                <div className="text-[11px] mt-1 opacity-80">{errorHint(lastTestResult.error_code)}</div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {tab === "template" && (
         <div className="bg-white border border-line rounded-xl p-6 space-y-4">

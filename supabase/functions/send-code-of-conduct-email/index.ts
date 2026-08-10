@@ -106,9 +106,9 @@ Deno.serve(async (req) => {
       const envFrom = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
       const envName = Deno.env.get('EMAIL_FROM_NAME') || '';
       const envReply = Deno.env.get('EMAIL_REPLY_TO') || '';
-      const resolvedFromEmail = (tpl?.from_email && tpl.from_email.trim()) || envFrom || '';
-      const resolvedFromName = (tpl?.from_name && tpl.from_name.trim()) || envName || '';
-      const resolvedReplyTo = (tpl?.reply_to_email && tpl.reply_to_email.trim()) || envReply || '';
+
+      const { data: variants } = await diagAdmin.from('code_of_conduct_email_variants').select('*');
+      
       const resolvedBaseUrl = resolveBaseUrl(origin, req.headers.get('origin'));
       return jsonResponse({
         ok: true,
@@ -119,10 +119,7 @@ Deno.serve(async (req) => {
         has_email_reply_to: !!envReply,
         has_public_app_url: !!Deno.env.get('PUBLIC_APP_URL'),
         resolved_public_app_url: resolvedBaseUrl || null,
-        resolved_from_email: resolvedFromEmail,
-        resolved_from_name: resolvedFromName,
-        resolved_reply_to: resolvedReplyTo,
-        sender_source: tpl?.from_email ? 'template' : (envFrom ? 'secret' : 'none'),
+        variants: variants || [],
         template: tpl || null,
         last_attempt: lastReq || null,
       });
@@ -278,6 +275,9 @@ Deno.serve(async (req) => {
       email_variant_version: variantRow.version,
       email_subject_snapshot: variantRow.subject,
       email_body_snapshot: variantRow.html_body,
+      from_email_snapshot: variantRow.from_email || null,
+      from_name_snapshot: variantRow.from_name || null,
+      reply_to_email_snapshot: variantRow.reply_to_email || null,
       timing_override_reason: completion?.override_reason || null,
     } : {};
 
@@ -376,9 +376,19 @@ Deno.serve(async (req) => {
     }
 
     const envReplyTo = Deno.env.get('EMAIL_REPLY_TO') || '';
-    const replyTo = ((templateRow as any).reply_to_email && String((templateRow as any).reply_to_email).trim()) || envReplyTo || '';
+    const envFromEmail = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
+    const envFromName = Deno.env.get('EMAIL_FROM_NAME') || '';
+
+    // Resolution priority for sender:
+    // 1. Snapshot on the request (historical)
+    // 2. Override on the matched variant
+    // 3. System secret
+    const fromEmail = (useSnapshot ? requestRow.from_email_snapshot : (variantRow?.from_email || null)) || envFromEmail || '';
+    const fromName = (useSnapshot ? requestRow.from_name_snapshot : (variantRow?.from_name || null)) || envFromName || 'IPC Control Center';
+    const replyTo = (useSnapshot ? requestRow.reply_to_email_snapshot : (variantRow?.reply_to_email || null)) || envReplyTo || '';
+
     const companyName = templateRow.party_a_name || "India Photographers' Club";
-    const supportEmail = replyTo || Deno.env.get('EMAIL_FROM_ADDRESS') || (templateRow.from_email ? String(templateRow.from_email) : '');
+    const supportEmail = replyTo || fromEmail;
     const expiryDate = new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     const resolvedProgram = program_name || templateRow.program_name || 'IPC Diamond Membership';
     const completionTimeLabel = humanizeSelection(requestRow?.completion_selection || completion?.selection || null);
@@ -429,10 +439,6 @@ ${htmlLines}
 </div></body></html>`;
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    const envFromEmail = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
-    const envFromName = Deno.env.get('EMAIL_FROM_NAME') || '';
-    const fromEmail = (templateRow.from_email && String(templateRow.from_email).trim()) || envFromEmail;
-    const fromName = (templateRow.from_name && String(templateRow.from_name).trim()) || envFromName || 'IPC Control Center';
 
     const recordSetupError = async (code: string, msg: string) => {
       if (requestRow) {
