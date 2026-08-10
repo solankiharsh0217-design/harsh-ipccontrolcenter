@@ -439,10 +439,6 @@ ${htmlLines}
 </div></body></html>`;
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-    const envFromEmail = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
-    const envFromName = Deno.env.get('EMAIL_FROM_NAME') || '';
-    const fromEmail = (templateRow.from_email && String(templateRow.from_email).trim()) || envFromEmail;
-    const fromName = (templateRow.from_name && String(templateRow.from_name).trim()) || envFromName || 'IPC Control Center';
 
     const recordSetupError = async (code: string, msg: string) => {
       if (requestRow) {
