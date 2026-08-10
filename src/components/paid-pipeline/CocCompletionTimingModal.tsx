@@ -89,6 +89,9 @@ export default function CocCompletionTimingModal(props: Props) {
     support_email: "support@indiaphotographersclub.com",
     completion_time: selection ? selectionLabel(selection) : "—",
     completion_condition: condition ? conditionLabel(condition) : "—",
+    access_link: selection === "same_day" ? "https://ipccommunity.in/steps-1/" : "https://ipccommunity.in/steps",
+    access_duration: selection === "same_day" ? "2 Years" : "1 Year",
+    support_duration: selection === "same_day" ? "6 Months" : "3 Months",
   };
 
   const confirm = () => {
