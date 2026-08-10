@@ -9,7 +9,7 @@ def parse_map_string(s):
     if s.startswith("[") and s.endswith("]"):
         s = s[1:-1]
     
-    segments = re.split(r'\\s(?=map\\[)', s)
+    segments = re.split(r'\s(?=map\[)', s)
     rows = []
     
     for seg in segments:
