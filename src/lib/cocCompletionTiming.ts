@@ -20,6 +20,10 @@ export interface CocEmailVariant {
   subject: string;
   html_body: string;
   text_body: string | null;
+  from_email: string | null;
+  from_name: string | null;
+  reply_to_email: string | null;
+  test_recipient_email: string | null;
   is_active: boolean;
   version: number;
   updated_at: string | null;
