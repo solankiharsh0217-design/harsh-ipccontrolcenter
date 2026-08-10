@@ -378,6 +378,10 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Resends reuse the exact snapshot captured on the original send, so later
+    // template edits never rewrite an already-sent request's copy.
+    const useSnapshot = !writeTimingSnapshot && !isResendOverride && !!requestRow?.email_body_snapshot;
+
     const envReplyTo = Deno.env.get('EMAIL_REPLY_TO') || '';
     const envFromEmail = Deno.env.get('EMAIL_FROM_ADDRESS') || '';
     const envFromName = Deno.env.get('EMAIL_FROM_NAME') || '';
@@ -398,10 +402,6 @@ Deno.serve(async (req) => {
     const completionConditionLabel = variantRow?.condition_name
       || (requestRow?.completion_condition_key === 'completed_within_1_day' ? 'Completed Within 1 Day'
         : requestRow?.completion_condition_key === 'completed_after_1_day' ? 'Completed After 1 Day' : '—');
-
-    // Resends reuse the exact snapshot captured on the original send, so later
-    // template edits never rewrite an already-sent request's copy.
-    const useSnapshot = !writeTimingSnapshot && !isResendOverride && !!requestRow?.email_body_snapshot;
 
     const accessLink = useSnapshot ? (requestRow.access_link_snapshot || '') : (variantRow?.access_link || '');
     const accessDurationMonths = useSnapshot ? (requestRow.access_duration_months || 0) : (variantRow?.access_duration_months || 0);
