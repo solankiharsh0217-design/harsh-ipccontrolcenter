@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict vpCiEOu93re0uC8uqT8OjTyu6hvtcBRcGv55NcKqDRQUmJKUwjryBzvyjQhLVI0
+\restrict Tc3GM4QRoJ8V3GSmjarZMJNSvR5Mhw9DwFtAqqiKCVhci8V8zXkv2l3kXyKsrHc
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -732,5 +732,5 @@ ALTER TABLE public.activity_logs ENABLE TRIGGER ALL;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict vpCiEOu93re0uC8uqT8OjTyu6hvtcBRcGv55NcKqDRQUmJKUwjryBzvyjQhLVI0
+\unrestrict Tc3GM4QRoJ8V3GSmjarZMJNSvR5Mhw9DwFtAqqiKCVhci8V8zXkv2l3kXyKsrHc
 

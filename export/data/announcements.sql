@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict IK7gq9NW2VpPrmRaEk6c4yq3Iqh122YzhZ2JvfI3IxbWvFVFUVahB09wEigs1BX
+\restrict N0zWfClkhTxPIZQ4rhLtAvhBNmh1bkIIstsnoiu3Q31Se4cBSdEbZN2Wz0csa2p
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -37,5 +37,5 @@ ALTER TABLE public.announcements ENABLE TRIGGER ALL;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict IK7gq9NW2VpPrmRaEk6c4yq3Iqh122YzhZ2JvfI3IxbWvFVFUVahB09wEigs1BX
+\unrestrict N0zWfClkhTxPIZQ4rhLtAvhBNmh1bkIIstsnoiu3Q31Se4cBSdEbZN2Wz0csa2p
 

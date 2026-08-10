@@ -1,4 +1,8 @@
-name,verify_jwt,schedule
-roas-sync-source,false,
-roas-sync-all-sources,false,
-code-of-conduct-public,false,
+[functions.roas-sync-source]
+verify_jwt = false
+[functions.roas-sync-all-sources]
+verify_jwt = false
+[functions.code-of-conduct-public]
+verify_jwt = false
+[functions.admin-team-auth]
+verify_jwt = false

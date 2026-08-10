@@ -1,0 +1,13 @@
+--- Section 7: Proofs ---
+ id | email | deal_value_including_gst | final_revenue_realized 
+----+-------+--------------------------+------------------------
+(0 rows)
+
+ id | paid_pipeline_lead_id | payment_type | amount 
+----+-----------------------+--------------+--------
+(0 rows)
+
+ id | email | total_collected | final_revenue_realized 
+----+-------+-----------------+------------------------
+(0 rows)
+
