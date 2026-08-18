@@ -578,6 +578,9 @@ export default function CodeOfConductPanel(props: Props) {
           selection: completion.selection, condition_key: completion.condition_key,
           duration_days: completion.duration_days, duration_hours: completion.duration_hours,
           process_started_at: completion.process_started_at,
+          process_completed_at: completion.process_completed_at,
+          calculated_condition_key: completion.calculated_condition_key,
+          selection_source: completion.selection_source,
         },
         summary: `Completion time "${selectionLabel(completion.selection)}" selected for ${memberName} → ${conditionLabel(completion.condition_key)}.`,
       });
@@ -1103,6 +1106,8 @@ export default function CodeOfConductPanel(props: Props) {
                         process_completed_at: req.process_completed_at || null,
                         duration_hours: req.completion_duration_hours ?? null,
                         duration_days: req.completion_duration_days ?? null,
+                        calculated_condition_key: null,
+                        selection_source: "manual",
                         override_reason: changeReason.trim(),
                       },
                       { changeVariantForResend: true, changeReason: changeReason.trim() },
