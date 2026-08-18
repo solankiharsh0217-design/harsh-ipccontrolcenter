@@ -169,7 +169,7 @@ export default function CodeOfConductGuide() {
     if (token) localStorage.setItem(`coc_guide_group_${token}`, ts);
     setGroupConfirmedAt(ts);
   };
-  const groupUrl = data.template?.whatsapp_redirect_url || null;
+  const groupUrl = (data.request as any)?.access_link_resolved || data.template?.whatsapp_redirect_url || null;
 
   return (
     <div className="min-h-screen bg-slate-50">

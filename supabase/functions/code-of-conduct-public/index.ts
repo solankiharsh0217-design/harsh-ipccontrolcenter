@@ -77,7 +77,52 @@ async function loadGuideProgress(admin: any, requestId: string) {
   };
 }
 
-function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null, guideVideo: any = null, guideProgress: any = null, bonusTerms: any = null) {
+function isWhatsAppLink(url: string | null | undefined) {
+  if (!url) return false;
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    return h.endsWith('whatsapp.com') || h === 'wa.me' || h.endsWith('.wa.me');
+  } catch { return false; }
+}
+
+/**
+ * Entitlement / access-link resolution for the customer-facing pages.
+ * Order: (1) request snapshot, (2) variant matching the request's stored
+ * completion condition (legacy requests sent before snapshots existed),
+ * (3) legacy global template URL. Never recalculated from "current" defaults.
+ */
+async function resolveEntitlement(admin: any, r: any, t: any) {
+  if (r?.access_link_snapshot) {
+    return {
+      access_link: r.access_link_snapshot,
+      access_duration_months: r.access_duration_months ?? null,
+      support_duration_months: r.support_duration_months ?? null,
+      source: 'request_snapshot',
+    };
+  }
+  if (r?.completion_condition_key) {
+    const { data: v } = await admin.from('code_of_conduct_email_variants')
+      .select('access_link,access_duration_months,support_duration_months')
+      .eq('condition_key', r.completion_condition_key).maybeSingle();
+    if (v?.access_link) {
+      return {
+        access_link: v.access_link,
+        access_duration_months: r.access_duration_months ?? v.access_duration_months ?? null,
+        support_duration_months: r.support_duration_months ?? v.support_duration_months ?? null,
+        source: 'condition_variant',
+      };
+    }
+  }
+  const legacy = t?.whatsapp_redirect_url || null;
+  return {
+    access_link: isWhatsAppLink(legacy) ? null : legacy,
+    access_duration_months: r?.access_duration_months ?? null,
+    support_duration_months: r?.support_duration_months ?? null,
+    source: legacy ? 'legacy_template' : 'none',
+  };
+}
+
+function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, signedRequestPdfUrl: string | null, signedReceiptHtmlUrl: string | null, guideVideo: any = null, guideProgress: any = null, bonusTerms: any = null, entitlement: any = null) {
   return {
     ok: true,
     request: {
@@ -90,7 +135,12 @@ function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, sig
       viewed_at: r.viewed_at,
       signed_at: r.signed_at,
       token_expires_at: r.token_expires_at,
-      whatsapp_redirect_url_visible: r.status === 'signed' ? (t?.whatsapp_redirect_url || null) : null,
+      whatsapp_redirect_url_visible: r.status === 'signed' && isWhatsAppLink(t?.whatsapp_redirect_url) ? t.whatsapp_redirect_url : null,
+      access_link_resolved: entitlement?.access_link || null,
+      access_link_source: entitlement?.source || null,
+      access_duration_months: entitlement?.access_duration_months ?? null,
+      support_duration_months: entitlement?.support_duration_months ?? null,
+      completion_condition_key: r.completion_condition_key || null,
       signed_pdf_url: r.status === 'signed' ? signedRequestPdfUrl : null,
       signed_pdf_generated_at: r.signed_pdf_generated_at || null,
       signed_pdf_generation_error: r.signed_pdf_generation_error || null,
@@ -107,7 +157,7 @@ function publicRequestPayload(r: any, t: any, originalPdfUrl: string | null, sig
       template_pdf_url: originalPdfUrl,
       html_content: t.html_content,
       success_page_message: t.success_page_message,
-      whatsapp_redirect_url: r.status === 'signed' ? (t.whatsapp_redirect_url || null) : null,
+      whatsapp_redirect_url: r.status === 'signed' && isWhatsAppLink(t.whatsapp_redirect_url) ? t.whatsapp_redirect_url : null,
     } : null,
     guide_video: guideVideo,
     guide_progress: guideProgress,
@@ -495,7 +545,8 @@ Deno.serve(async (req) => {
       const guideVideo = await loadGuideVideoConfig(admin);
       const guideProgress = await loadGuideProgress(admin, reqRow.id);
       const { terms: bonusTerms } = await loadBonusTerms(admin);
-      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl, guideVideo, guideProgress, bonusTerms));
+      const entitlement = await resolveEntitlement(admin, reqRow, tpl);
+      return jsonResponse(publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl, guideVideo, guideProgress, bonusTerms, entitlement));
     }
 
     if (action === 'record_guide_progress') {
@@ -548,7 +599,8 @@ Deno.serve(async (req) => {
       const originalPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
       const receiptUrl = await resolveSignedReceiptUrl(admin, reqRow.signed_html_url || reqRow.signed_receipt_url || null);
       const signedRequestPdf = await resolveSignedPdfUrl(admin, reqRow.signed_pdf_url || null);
-      return jsonResponse({ already_signed: true, ...publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl) });
+      const entitlement = await resolveEntitlement(admin, reqRow, tpl);
+      return jsonResponse({ already_signed: true, ...publicRequestPayload(reqRow, tpl, originalPdf, signedRequestPdf, receiptUrl, null, null, null, entitlement) });
     }
 
     const signatureName = body.signature_name || body.typed_name;
@@ -676,7 +728,8 @@ Deno.serve(async (req) => {
     const originalPdf = await resolvePdfUrl(admin, tpl?.template_pdf_url || null);
     const receiptUrl = await resolveSignedReceiptUrl(admin, finalRow?.signed_html_url || finalRow?.signed_receipt_url || null);
     const signedRequestPdf = await resolveSignedPdfUrl(admin, finalRow?.signed_pdf_url || null);
-    return jsonResponse({ ...publicRequestPayload(finalRow || updated, tpl, originalPdf, signedRequestPdf, receiptUrl), signed_pdf_generated: pdfResult.ok, receipt_generated: receiptResult.ok });
+    const signedEntitlement = await resolveEntitlement(admin, finalRow || updated, tpl);
+    return jsonResponse({ ...publicRequestPayload(finalRow || updated, tpl, originalPdf, signedRequestPdf, receiptUrl, null, null, null, signedEntitlement), signed_pdf_generated: pdfResult.ok, receipt_generated: receiptResult.ok });
   } catch (e) {
     console.error('code-of-conduct-public error', e);
     try {

@@ -254,6 +254,11 @@ export default function CodeOfConductSign() {
 
   if (isSigned) {
     const waUrl = request.whatsapp_redirect_url_visible;
+    // Access/next-steps CTA is resolved per request (snapshot first) — never a global URL.
+    const accessUrl: string | null = request.access_link_resolved || null;
+    const fmtMonths = (m: number | null) => (!m ? null : m >= 12 ? `${m / 12} Year${m / 12 > 1 ? "s" : ""}` : `${m} Month${m > 1 ? "s" : ""}`);
+    const accessDuration = fmtMonths(request.access_duration_months ?? null);
+    const supportDuration = fmtMonths(request.support_duration_months ?? null);
     const signedPdf = request.signed_pdf_url;
     return (
       <FullCenter>
@@ -276,6 +281,17 @@ export default function CodeOfConductSign() {
             ) : (
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[12.5px] text-slate-600">
                 {pdfPreparing ? "Preparing your signed PDF..." : "Preparing your signed PDF..."}
+              </div>
+            )}
+            {accessUrl && (
+              <a href={accessUrl} target="_blank" rel="noreferrer" onClick={onWhatsAppClick}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-slate-900 text-white font-medium text-sm hover:bg-slate-800">
+                Open Your Next Steps →
+              </a>
+            )}
+            {(accessDuration || supportDuration) && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-[12.5px] text-slate-700 text-center">
+                {[accessDuration && `${accessDuration} Access`, supportDuration && `${supportDuration} Support`].filter(Boolean).join(" · ")}
               </div>
             )}
             {waUrl && (
