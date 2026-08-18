@@ -13,6 +13,11 @@ export interface CompletionPayload {
   process_completed_at: string | null;
   duration_hours: number | null;
   duration_days: number | null;
+  /** Condition suggested by the calculated duration (informational only). */
+  calculated_condition_key: string | null;
+  /** "manual" when the operator's choice differs from the calculation. */
+  selection_source: "calculated" | "manual";
+  /** Only used by the admin resend-override flow; never required here. */
   override_reason: string | null;
 }
 
@@ -41,7 +46,6 @@ export default function CocCompletionTimingModal(props: Props) {
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState<CompletionSelection | null>(null);
   const [completedAt, setCompletedAt] = useState<string>(toLocalInput(new Date().toISOString()));
-  const [overrideReason, setOverrideReason] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
@@ -64,7 +68,7 @@ export default function CocCompletionTimingModal(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, calculated?.selection]);
 
-  useEffect(() => { if (!open) { setSelection(null); setOverrideReason(""); setShowPreview(false); } }, [open]);
+  useEffect(() => { if (!open) { setSelection(null); setShowPreview(false); } }, [open]);
 
   if (!open) return null;
 
@@ -72,8 +76,7 @@ export default function CocCompletionTimingModal(props: Props) {
   const variant = condition ? variants.find((v) => v.condition_key === condition) || null : null;
   const issue = condition ? validateVariant(variant) : null;
 
-  const conflictsWithCalculated = !!(calculated && condition && calculated.condition !== condition);
-  const needsReason = conflictsWithCalculated && !overrideReason.trim();
+  const differsFromCalculated = !!(calculated && condition && calculated.condition !== condition);
 
   const durationHours = calculated?.hours ?? null;
   const durationDays = calculated?.days ?? (selection ? daysForSelection(selection) : null);
@@ -103,7 +106,9 @@ export default function CocCompletionTimingModal(props: Props) {
       process_completed_at: new Date(completedAt).toISOString(),
       duration_hours: durationHours,
       duration_days: durationDays,
-      override_reason: conflictsWithCalculated ? overrideReason.trim() : null,
+      calculated_condition_key: calculated?.condition ?? null,
+      selection_source: differsFromCalculated ? "manual" : "calculated",
+      override_reason: null,
     });
   };
 
@@ -156,14 +161,11 @@ export default function CocCompletionTimingModal(props: Props) {
           </div>
         )}
 
-        {conflictsWithCalculated && (
-          <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-2.5">
-            <div className="text-[11.5px] text-amber-900 font-medium">
-              Your selection ({conditionLabel(condition)}) conflicts with the calculated duration ({conditionLabel(calculated!.condition)}).
-            </div>
-            <input value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
-              placeholder="Reason for overriding the calculated category (required)"
-              className="mt-1.5 w-full border border-amber-300 rounded-md px-2.5 py-1.5 text-[12px] bg-white" />
+        {differsFromCalculated && (
+          <div className="mb-3 rounded-md border border-amber-200 bg-amber-50/60 p-2.5 text-[11.5px] text-amber-900">
+            <div>System suggestion: <span className="font-medium">{conditionLabel(calculated!.condition)}</span></div>
+            <div>Selected by operator: <span className="font-medium">{conditionLabel(condition)}</span></div>
+            <div className="opacity-80 mt-0.5">The operator's selection is used. No reason needed.</div>
           </div>
         )}
 
@@ -218,7 +220,7 @@ export default function CocCompletionTimingModal(props: Props) {
           <button onClick={onClose} disabled={busy} className="ipc-btn ipc-btn-ghost">Cancel</button>
           <button onClick={() => setShowPreview((v) => !v)} disabled={!variant || !!issue}
             className="ipc-btn ipc-btn-ghost disabled:opacity-50">{showPreview ? "Hide Preview" : "Preview Email"}</button>
-          <button onClick={confirm} disabled={busy || loading || !selection || !!issue || needsReason}
+          <button onClick={confirm} disabled={busy || loading || !selection || !!issue}
             className="ipc-btn ipc-btn-black disabled:opacity-50"
             title={!selection ? "Select how quickly the member completed the process." : undefined}>
             {busy ? "Sending…" : "Send Code of Conduct"}
