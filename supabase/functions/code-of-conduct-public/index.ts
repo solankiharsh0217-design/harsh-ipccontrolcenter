@@ -657,7 +657,10 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
     const row = (k: string, v: string) => {
       page.drawText(k, { x: 58, y, size: 9.5, font, color: muted });
       const endY = drawWrapped(page, v, 210, y, { font, size: 9.5, color: ink, maxWidth: 315, lineHeight: 13 });
-      y = Math.min(y - 18, endY - 6);
+      // The bordered signature box extends 13 pt above the label y, so keep the
+      // same 18 pt row step used for single-line values to ensure the box top
+      // clears any wrapped text above it.
+      y = Math.min(y - 18, endY - 18);
     };
     section('Member details');
     row('Member name', memberName); row('Member email used for signing', reqRow.signed_member_email || reqRow.member_email || '—'); row('Member phone', reqRow.member_phone || '—'); row('Program name', reqRow.program_name || tpl?.program_name || 'IPC Diamond Membership'); row('Request ID', reqRow.id); row('Template name/version', `${tpl?.name || reqRow.template_name || '—'} / v${tpl?.version || reqRow.template_version || '1.0'}`);
