@@ -461,18 +461,36 @@ async function extractAnchorLines(bytes: Uint8Array): Promise<AnchorLine[]> {
   return lines;
 }
 
+/** A placeholder occurrence plus the trailing text on the same line (used to re-flow
+ *  the remainder of the sentence when the stamped value is wider than the placeholder). */
+type AnchorMatch = {
+  box: AnchorBox;
+  tailText: string;
+  tailBox: AnchorBox | null;
+  tailSize: number;
+};
+
 type AnchorPlan = {
-  nameBoxes: AnchorBox[];
-  dateBoxes: AnchorBox[];
-  signatureLine: { nameBox: AnchorBox; dateBox: AnchorBox | null } | null;
+  names: AnchorMatch[];
+  dates: AnchorMatch[];
+  signatureLine: { nameBox: AnchorBox; dateBox: AnchorBox | null; maxImageHeight: number } | null;
 };
 
 function buildAnchorPlan(lines: AnchorLine[]): AnchorPlan {
-  const nameBoxes: AnchorBox[] = [];
-  const dateBoxes: AnchorBox[] = [];
+  const names: AnchorMatch[] = [];
+  const dates: AnchorMatch[] = [];
   let signatureLine: AnchorPlan['signatureLine'] = null;
 
-  for (const line of lines) {
+  const tailFor = (line: AnchorLine, map: number[], norm: string, endNorm: number, box: AnchorBox): AnchorMatch => {
+    const rest = norm.slice(endNorm);
+    const trimmed = rest.replace(/^\s+/, '');
+    const offset = rest.length - trimmed.length;
+    const tailBox = trimmed ? boxForNormRange(line, map, endNorm + offset, norm.length) : null;
+    return { box, tailText: trimmed, tailBox, tailSize: Math.max(6, box.h) };
+  };
+
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     const { norm, map } = normalizeWithMap(line.raw);
     if (!norm) continue;
 
@@ -482,9 +500,10 @@ function buildAnchorPlan(lines: AnchorLine[]): AnchorPlan {
     for (;;) {
       const at = norm.indexOf(NAME_PLACEHOLDER, searchFrom);
       if (at < 0) break;
-      const box = boxForNormRange(line, map, at, at + NAME_PLACEHOLDER.length);
-      if (box) { nameBoxes.push(box); lastNameBoxOnLine = box; }
-      searchFrom = at + NAME_PLACEHOLDER.length;
+      const end = at + NAME_PLACEHOLDER.length;
+      const box = boxForNormRange(line, map, at, end);
+      if (box) { names.push(tailFor(line, map, norm, end, box)); lastNameBoxOnLine = box; }
+      searchFrom = end;
     }
 
     // [Date] — every occurrence on the line
@@ -492,9 +511,10 @@ function buildAnchorPlan(lines: AnchorLine[]): AnchorPlan {
     for (;;) {
       const at = norm.indexOf(DATE_PLACEHOLDER, searchFrom);
       if (at < 0) break;
-      const box = boxForNormRange(line, map, at, at + DATE_PLACEHOLDER.length);
-      if (box) dateBoxes.push(box);
-      searchFrom = at + DATE_PLACEHOLDER.length;
+      const end = at + DATE_PLACEHOLDER.length;
+      const box = boxForNormRange(line, map, at, end);
+      if (box) dates.push(tailFor(line, map, norm, end, box));
+      searchFrom = end;
     }
 
     if (lastNameBoxOnLine) {
@@ -505,13 +525,18 @@ function buildAnchorPlan(lines: AnchorLine[]): AnchorPlan {
         const start = m.index + m[0].length - m[1].length;
         underscoreBox = boxForNormRange(line, map, start, start + m[1].length);
       }
+      // Keep the signature image inside the free space above this line.
+      const above = lines.slice(0, li).filter((l) => l.pageIndex === line.pageIndex).pop();
+      const gap = above ? above.y - (lastNameBoxOnLine.y + lastNameBoxOnLine.h) : 60;
+      const maxImageHeight = Math.max(18, Math.min(45, gap - 12));
       // Latest occurrence in document order wins (lines are already sorted).
-      signatureLine = { nameBox: lastNameBoxOnLine, dateBox: underscoreBox };
+      signatureLine = { nameBox: lastNameBoxOnLine, dateBox: underscoreBox, maxImageHeight };
     }
   }
 
-  return { nameBoxes, dateBoxes, signatureLine };
+  return { names, dates, signatureLine };
 }
+
 
 
 function drawWrapped(page: any, text: string, x: number, y: number, opts: any) {
