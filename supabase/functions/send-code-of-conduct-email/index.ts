@@ -349,6 +349,12 @@ Deno.serve(async (req) => {
         email_attempt_count: nextAttempts,
         ...timingFields,
       };
+      // Lock the track-correct document on the first send, or when an admin
+      // explicitly overrides the variant for this resend.
+      if ((writeTimingSnapshot || isResendOverride) && templateRow.id !== requestRow.template_id) {
+        updatePayload.template_id = templateRow.id;
+        updatePayload.template_version = templateRow.version;
+      }
       if (previousTokenHash) {
         updatePayload.previous_token_hash = previousTokenHash;
         updatePayload.previous_token_expires_at = previousTokenExpiresAt;
