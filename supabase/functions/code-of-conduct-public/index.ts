@@ -351,6 +351,194 @@ function placement(tpl: any, pageCount: number) {
   };
 }
 
+/* ------------------------------------------------------------------ *
+ * Automatic placeholder (text-anchor) detection.
+ * Uses pdfjs-dist to read text positions from the template PDF so the
+ * member name / date / signature can be stamped exactly where the
+ * "[Photographer's Name]" and "[Date]" placeholders sit, with no
+ * manually-typed pixel coordinates.
+ * ------------------------------------------------------------------ */
+
+const NAME_PLACEHOLDER = "[Photographer's Name]";
+const DATE_PLACEHOLDER = '[Date]';
+
+type AnchorRun = { text: string; x: number; y: number; w: number; h: number };
+type AnchorLine = { pageIndex: number; y: number; runs: AnchorRun[]; raw: string; owners: number[] };
+type AnchorBox = { pageIndex: number; x: number; y: number; w: number; h: number };
+
+function unionBox(pageIndex: number, runs: AnchorRun[]): AnchorBox | null {
+  if (!runs.length) return null;
+  const x = Math.min(...runs.map((r) => r.x));
+  const right = Math.max(...runs.map((r) => r.x + r.w));
+  const y = Math.min(...runs.map((r) => r.y));
+  const top = Math.max(...runs.map((r) => r.y + (r.h || 10)));
+  return { pageIndex, x, y, w: Math.max(right - x, 1), h: Math.max(top - y, 6) };
+}
+
+/** Collapse whitespace while keeping a map back to raw character indexes. */
+function normalizeWithMap(raw: string) {
+  let out = '';
+  const map: number[] = [];
+  let prevSpace = true;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (/\s/.test(ch)) {
+      if (prevSpace) continue;
+      out += ' ';
+      map.push(i);
+      prevSpace = true;
+    } else {
+      out += ch;
+      map.push(i);
+      prevSpace = false;
+    }
+  }
+  // trim trailing space
+  while (out.endsWith(' ')) { out = out.slice(0, -1); map.pop(); }
+  return { norm: out, map };
+}
+
+/** Map a normalized-string match range back to the contributing runs' bounding box. */
+function boxForNormRange(line: AnchorLine, normMap: number[], from: number, to: number): AnchorBox | null {
+  const rawFrom = normMap[from];
+  const rawTo = normMap[Math.max(from, to - 1)];
+  if (rawFrom == null || rawTo == null) return null;
+  const idxs = new Set<number>();
+  for (let i = rawFrom; i <= rawTo; i++) {
+    const owner = line.owners[i];
+    if (owner >= 0) idxs.add(owner);
+  }
+  return unionBox(line.pageIndex, [...idxs].map((i) => line.runs[i]));
+}
+
+async function extractAnchorLines(bytes: Uint8Array): Promise<AnchorLine[]> {
+  const pdfjs: any = await import('npm:pdfjs-dist@4.2.67/legacy/build/pdf.mjs');
+  try { pdfjs.GlobalWorkerOptions.workerSrc = import.meta.resolve('npm:pdfjs-dist@4.2.67/legacy/build/pdf.worker.mjs'); } catch { /* ignore */ }
+  const doc = await pdfjs.getDocument({
+    data: bytes.slice(),
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    disableFontFace: true,
+    useSystemFonts: false,
+  }).promise;
+
+  const lines: AnchorLine[] = [];
+  for (let pageIndex = 0; pageIndex < doc.numPages; pageIndex++) {
+    const page = await doc.getPage(pageIndex + 1);
+    const content = await page.getTextContent();
+    const runs: AnchorRun[] = [];
+    for (const item of content.items as any[]) {
+      const text = String(item?.str ?? '');
+      if (!text) continue;
+      const tr = item.transform || [1, 0, 0, 1, 0, 0];
+      runs.push({ text, x: tr[4], y: tr[5], w: Number(item.width) || 0, h: Number(item.height) || Math.abs(tr[3]) || 10 });
+    }
+    // Group by near-identical baseline (2pt tolerance)
+    const groups: AnchorRun[][] = [];
+    for (const run of [...runs].sort((a, b) => b.y - a.y)) {
+      const g = groups.find((grp) => Math.abs(grp[0].y - run.y) <= 2);
+      if (g) g.push(run); else groups.push([run]);
+    }
+    for (const g of groups) {
+      g.sort((a, b) => a.x - b.x);
+      let raw = '';
+      const owners: number[] = [];
+      g.forEach((run, i) => {
+        if (i > 0) {
+          const prev = g[i - 1];
+          const gap = run.x - (prev.x + prev.w);
+          if (gap > 1 && !/\s$/.test(raw) && !/^\s/.test(run.text)) { raw += ' '; owners.push(-1); }
+        }
+        for (const _ of run.text) owners.push(i);
+        raw += run.text;
+      });
+      lines.push({ pageIndex, y: g[0].y, runs: g, raw, owners });
+    }
+  }
+  try { await doc.destroy(); } catch { /* ignore */ }
+  // Document order: page, then top-to-bottom
+  lines.sort((a, b) => (a.pageIndex - b.pageIndex) || (b.y - a.y));
+  return lines;
+}
+
+/** A placeholder occurrence plus the trailing text on the same line (used to re-flow
+ *  the remainder of the sentence when the stamped value is wider than the placeholder). */
+type AnchorMatch = {
+  box: AnchorBox;
+  tailText: string;
+  tailBox: AnchorBox | null;
+  tailSize: number;
+};
+
+type AnchorPlan = {
+  names: AnchorMatch[];
+  dates: AnchorMatch[];
+  signatureLine: { nameBox: AnchorBox; dateBox: AnchorBox | null; maxImageHeight: number } | null;
+};
+
+function buildAnchorPlan(lines: AnchorLine[]): AnchorPlan {
+  const names: AnchorMatch[] = [];
+  const dates: AnchorMatch[] = [];
+  let signatureLine: AnchorPlan['signatureLine'] = null;
+
+  const tailFor = (line: AnchorLine, map: number[], norm: string, endNorm: number, box: AnchorBox): AnchorMatch => {
+    const rest = norm.slice(endNorm);
+    const trimmed = rest.replace(/^\s+/, '');
+    const offset = rest.length - trimmed.length;
+    const tailBox = trimmed ? boxForNormRange(line, map, endNorm + offset, norm.length) : null;
+    return { box, tailText: trimmed, tailBox, tailSize: Math.max(6, box.h) };
+  };
+
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    const { norm, map } = normalizeWithMap(line.raw);
+    if (!norm) continue;
+
+    // [Photographer's Name] — every occurrence on the line
+    let searchFrom = 0;
+    let lastNameBoxOnLine: AnchorBox | null = null;
+    for (;;) {
+      const at = norm.indexOf(NAME_PLACEHOLDER, searchFrom);
+      if (at < 0) break;
+      const end = at + NAME_PLACEHOLDER.length;
+      const box = boxForNormRange(line, map, at, end);
+      if (box) { names.push(tailFor(line, map, norm, end, box)); lastNameBoxOnLine = box; }
+      searchFrom = end;
+    }
+
+    // [Date] — every occurrence on the line
+    searchFrom = 0;
+    for (;;) {
+      const at = norm.indexOf(DATE_PLACEHOLDER, searchFrom);
+      if (at < 0) break;
+      const end = at + DATE_PLACEHOLDER.length;
+      const box = boxForNormRange(line, map, at, end);
+      if (box) dates.push(tailFor(line, map, norm, end, box));
+      searchFrom = end;
+    }
+
+    if (lastNameBoxOnLine) {
+      // Underscore date field on the signature row: "| Date: ______"
+      let underscoreBox: AnchorBox | null = null;
+      const m = /\|\s*Date:\s*(_+)/.exec(norm);
+      if (m && m.index >= 0) {
+        const start = m.index + m[0].length - m[1].length;
+        underscoreBox = boxForNormRange(line, map, start, start + m[1].length);
+      }
+      // Keep the signature image inside the free space above this line.
+      const above = lines.slice(0, li).filter((l) => l.pageIndex === line.pageIndex).pop();
+      const gap = above ? above.y - (lastNameBoxOnLine.y + lastNameBoxOnLine.h) : 60;
+      const maxImageHeight = Math.max(18, Math.min(45, gap - 12));
+      // Latest occurrence in document order wins (lines are already sorted).
+      signatureLine = { nameBox: lastNameBoxOnLine, dateBox: underscoreBox, maxImageHeight };
+    }
+  }
+
+  return { names, dates, signatureLine };
+}
+
+
+
 function drawWrapped(page: any, text: string, x: number, y: number, opts: any) {
   const clean = String(text || '—').replace(/\s+/g, ' ');
   const words = clean.split(' ');
@@ -374,19 +562,90 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
     if (!reqRow.signature_data_url) throw new Error('Cannot generate signed PDF because signature data is missing.');
     const sig = dataUrlBytes(reqRow.signature_data_url);
     if (!sig) throw new Error('Signature image format is invalid.');
-    const pdfDoc = await PDFDocument.load(await fetchPdfBytes(admin, tpl?.template_pdf_url || tpl?.pdf_url || null));
+    const templateBytes = await fetchPdfBytes(admin, tpl?.template_pdf_url || tpl?.pdf_url || null);
+    const pdfDoc = await PDFDocument.load(templateBytes);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const sigImage = sig.type === 'png' ? await pdfDoc.embedPng(sig.bytes) : await pdfDoc.embedJpg(sig.bytes);
     const pages = pdfDoc.getPages();
     const p = placement(tpl, pages.length);
-    const target = pages[p.pageIndex];
     const memberName = reqRow.signed_member_name || reqRow.signature_name || reqRow.member_name || '—';
     const signedAt = reqRow.signed_at ? new Date(reqRow.signed_at) : new Date();
     const signedDate = signedAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-    target.drawText(memberName, { x: p.nameX, y: p.nameY, size: p.fontSize, font, color: rgb(0.05, 0.05, 0.05) });
-    target.drawImage(sigImage, { x: p.sigX, y: p.sigY, width: p.sigW, height: p.sigH });
-    target.drawText(signedDate, { x: p.dateX, y: p.dateY, size: p.fontSize, font, color: rgb(0.05, 0.05, 0.05) });
+    const inkColor = rgb(0.05, 0.05, 0.05);
+    const white = rgb(1, 1, 1);
+
+    // --- Automatic text-anchor placement (preferred) ---
+    let plan: AnchorPlan | null = null;
+    try {
+      const lines = await extractAnchorLines(templateBytes);
+      const candidate = buildAnchorPlan(lines);
+      if (candidate.names.length > 0) plan = candidate;
+    } catch (anchorErr) {
+      console.error('anchor detection failed, falling back to fixed coordinates', anchorErr);
+    }
+
+    let placementMethod: 'auto_anchor' | 'fixed_coordinate' = 'fixed_coordinate';
+    let nameOccurrences = 0;
+    let dateOccurrences = 0;
+    let signatureLineFound = false;
+
+    const whiteOut = (box: AnchorBox) => {
+      const pg = pages[box.pageIndex];
+      if (!pg) return null;
+      pg.drawRectangle({ x: box.x - 2, y: box.y - 2, width: box.w + 4, height: box.h + 4, color: white });
+      return pg;
+    };
+
+    /** Stamp `value` over a placeholder, re-flowing the rest of the sentence when the
+     *  value is wider than the bracket text it replaces. */
+    const stampMatch = (m: AnchorMatch, value: string) => {
+      const pg = whiteOut(m.box);
+      if (!pg) return false;
+      const valueW = font.widthOfTextAtSize(value, p.fontSize);
+      const tailStart = m.box.x + valueW + p.fontSize * 0.28;
+      const needsReflow = !!(m.tailBox && m.tailText && tailStart > m.tailBox.x - 1);
+      if (needsReflow && m.tailBox) whiteOut(m.tailBox);
+      pg.drawText(value, { x: m.box.x, y: m.box.y, size: p.fontSize, font, color: inkColor });
+      if (needsReflow && m.tailBox) {
+        pg.drawText(m.tailText, { x: tailStart, y: m.box.y, size: m.tailSize, font, color: inkColor });
+      }
+      return true;
+    };
+
+    if (plan) {
+      placementMethod = 'auto_anchor';
+      const sigBox = plan.signatureLine;
+
+      for (const m of plan.names) if (stampMatch(m, memberName)) nameOccurrences++;
+      for (const m of plan.dates) if (stampMatch(m, signedDate)) dateOccurrences++;
+
+      if (sigBox) {
+        signatureLineFound = true;
+        if (sigBox.dateBox) {
+          const pg = whiteOut(sigBox.dateBox);
+          if (pg) {
+            pg.drawText(signedDate, { x: sigBox.dateBox.x, y: sigBox.dateBox.y, size: p.fontSize, font, color: inkColor });
+            dateOccurrences++;
+          }
+        }
+        const pg = pages[sigBox.nameBox.pageIndex];
+        if (pg) {
+          const maxW = 160, maxH = sigBox.maxImageHeight;
+          const scale = Math.min(maxW / sigImage.width, maxH / sigImage.height);
+          const w = sigImage.width * scale;
+          const h = sigImage.height * scale;
+          pg.drawImage(sigImage, { x: sigBox.nameBox.x, y: sigBox.nameBox.y + sigBox.nameBox.h + 8, width: w, height: h });
+        }
+      }
+    } else {
+
+      const target = pages[p.pageIndex];
+      target.drawText(memberName, { x: p.nameX, y: p.nameY, size: p.fontSize, font, color: inkColor });
+      target.drawImage(sigImage, { x: p.sigX, y: p.sigY, width: p.sigW, height: p.sigH });
+      target.drawText(signedDate, { x: p.dateX, y: p.dateY, size: p.fontSize, font, color: inkColor });
+    }
+
 
     const page = pdfDoc.addPage([595.28, 841.89]);
     const ink = rgb(0.06, 0.09, 0.16), muted = rgb(0.36, 0.42, 0.5), line = rgb(0.86, 0.89, 0.93);
@@ -428,7 +687,19 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
     const storedUrl = `storage:signed-code-of-conduct/${path}`;
     const nowIso = new Date().toISOString();
     await admin.from('code_of_conduct_requests').update({ signed_pdf_url: storedUrl, signed_pdf_generated_at: nowIso, signed_pdf_generation_error: null }).eq('id', reqRow.id);
-    await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: regeneratedByAdmin ? 'signed_pdf_regenerated_by_admin' : 'signed_pdf_generated', metadata: { path, page: p.pageIndex + 1 } });
+    await admin.from('code_of_conduct_events').insert({
+      request_id: reqRow.id,
+      event_type: regeneratedByAdmin ? 'signed_pdf_regenerated_by_admin' : 'signed_pdf_generated',
+      metadata: {
+        path,
+        page: p.pageIndex + 1,
+        placement_method: placementMethod,
+        name_occurrences_found: nameOccurrences,
+        date_occurrences_found: dateOccurrences,
+        signature_line_found: signatureLineFound,
+      },
+    });
+
     return { ok: true, path, storedUrl };
   } catch (e) {
     const msg = (e as Error).message || 'Signed PDF generation failed';
