@@ -537,19 +537,83 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
     if (!reqRow.signature_data_url) throw new Error('Cannot generate signed PDF because signature data is missing.');
     const sig = dataUrlBytes(reqRow.signature_data_url);
     if (!sig) throw new Error('Signature image format is invalid.');
-    const pdfDoc = await PDFDocument.load(await fetchPdfBytes(admin, tpl?.template_pdf_url || tpl?.pdf_url || null));
+    const templateBytes = await fetchPdfBytes(admin, tpl?.template_pdf_url || tpl?.pdf_url || null);
+    const pdfDoc = await PDFDocument.load(templateBytes);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const sigImage = sig.type === 'png' ? await pdfDoc.embedPng(sig.bytes) : await pdfDoc.embedJpg(sig.bytes);
     const pages = pdfDoc.getPages();
     const p = placement(tpl, pages.length);
-    const target = pages[p.pageIndex];
     const memberName = reqRow.signed_member_name || reqRow.signature_name || reqRow.member_name || '—';
     const signedAt = reqRow.signed_at ? new Date(reqRow.signed_at) : new Date();
     const signedDate = signedAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-    target.drawText(memberName, { x: p.nameX, y: p.nameY, size: p.fontSize, font, color: rgb(0.05, 0.05, 0.05) });
-    target.drawImage(sigImage, { x: p.sigX, y: p.sigY, width: p.sigW, height: p.sigH });
-    target.drawText(signedDate, { x: p.dateX, y: p.dateY, size: p.fontSize, font, color: rgb(0.05, 0.05, 0.05) });
+    const inkColor = rgb(0.05, 0.05, 0.05);
+    const white = rgb(1, 1, 1);
+
+    // --- Automatic text-anchor placement (preferred) ---
+    let plan: AnchorPlan | null = null;
+    try {
+      const lines = await extractAnchorLines(templateBytes);
+      const candidate = buildAnchorPlan(lines);
+      if (candidate.nameBoxes.length > 0) plan = candidate;
+    } catch (anchorErr) {
+      console.error('anchor detection failed, falling back to fixed coordinates', anchorErr);
+    }
+
+    let placementMethod: 'auto_anchor' | 'fixed_coordinate' = 'fixed_coordinate';
+    let nameOccurrences = 0;
+    let dateOccurrences = 0;
+    let signatureLineFound = false;
+
+    const whiteOut = (box: AnchorBox) => {
+      const pg = pages[box.pageIndex];
+      if (!pg) return null;
+      pg.drawRectangle({ x: box.x - 2, y: box.y - 2, width: box.w + 4, height: box.h + 4, color: white });
+      return pg;
+    };
+
+    if (plan) {
+      placementMethod = 'auto_anchor';
+      const sigBox = plan.signatureLine;
+
+      for (const box of plan.nameBoxes) {
+        const pg = whiteOut(box);
+        if (!pg) continue;
+        pg.drawText(memberName, { x: box.x, y: box.y, size: p.fontSize, font, color: inkColor });
+        nameOccurrences++;
+      }
+      for (const box of plan.dateBoxes) {
+        const pg = whiteOut(box);
+        if (!pg) continue;
+        pg.drawText(signedDate, { x: box.x, y: box.y, size: p.fontSize, font, color: inkColor });
+        dateOccurrences++;
+      }
+
+      if (sigBox) {
+        signatureLineFound = true;
+        if (sigBox.dateBox) {
+          const pg = whiteOut(sigBox.dateBox);
+          if (pg) {
+            pg.drawText(signedDate, { x: sigBox.dateBox.x, y: sigBox.dateBox.y, size: p.fontSize, font, color: inkColor });
+            dateOccurrences++;
+          }
+        }
+        const pg = pages[sigBox.nameBox.pageIndex];
+        if (pg) {
+          const maxW = 160, maxH = 45;
+          const scale = Math.min(maxW / sigImage.width, maxH / sigImage.height);
+          const w = sigImage.width * scale;
+          const h = sigImage.height * scale;
+          pg.drawImage(sigImage, { x: sigBox.nameBox.x, y: sigBox.nameBox.y + sigBox.nameBox.h + 10, width: w, height: h });
+        }
+      }
+    } else {
+      const target = pages[p.pageIndex];
+      target.drawText(memberName, { x: p.nameX, y: p.nameY, size: p.fontSize, font, color: inkColor });
+      target.drawImage(sigImage, { x: p.sigX, y: p.sigY, width: p.sigW, height: p.sigH });
+      target.drawText(signedDate, { x: p.dateX, y: p.dateY, size: p.fontSize, font, color: inkColor });
+    }
+
 
     const page = pdfDoc.addPage([595.28, 841.89]);
     const ink = rgb(0.06, 0.09, 0.16), muted = rgb(0.36, 0.42, 0.5), line = rgb(0.86, 0.89, 0.93);
