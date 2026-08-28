@@ -654,7 +654,11 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
     page.drawLine({ start: { x: 48, y: 748 }, end: { x: 547, y: 748 }, thickness: 1, color: line });
     let y = 718;
     const section = (title: string) => { page.drawText(title, { x: 48, y, size: 11, font: bold, color: muted }); y -= 20; };
-    const row = (k: string, v: string) => { page.drawText(k, { x: 58, y, size: 9.5, font, color: muted }); drawWrapped(page, v, 210, y, { font, size: 9.5, color: ink, maxWidth: 315, lineHeight: 13 }); y -= 18; };
+    const row = (k: string, v: string) => {
+      page.drawText(k, { x: 58, y, size: 9.5, font, color: muted });
+      const endY = drawWrapped(page, v, 210, y, { font, size: 9.5, color: ink, maxWidth: 315, lineHeight: 13 });
+      y = Math.min(y - 18, endY - 6);
+    };
     section('Member details');
     row('Member name', memberName); row('Member email used for signing', reqRow.signed_member_email || reqRow.member_email || '—'); row('Member phone', reqRow.member_phone || '—'); row('Program name', reqRow.program_name || tpl?.program_name || 'IPC Diamond Membership'); row('Request ID', reqRow.id); row('Template name/version', `${tpl?.name || reqRow.template_name || '—'} / v${tpl?.version || reqRow.template_version || '1.0'}`);
     y -= 8; section('Signature evidence');
