@@ -413,7 +413,7 @@ function boxForNormRange(line: AnchorLine, normMap: number[], from: number, to: 
 
 async function extractAnchorLines(bytes: Uint8Array): Promise<AnchorLine[]> {
   const pdfjs: any = await import('npm:pdfjs-dist@4.2.67/legacy/build/pdf.mjs');
-  try { pdfjs.GlobalWorkerOptions.workerSrc = ''; } catch { /* ignore */ }
+  try { pdfjs.GlobalWorkerOptions.workerSrc = import.meta.resolve('npm:pdfjs-dist@4.2.67/legacy/build/pdf.worker.mjs'); } catch { /* ignore */ }
   const doc = await pdfjs.getDocument({
     data: bytes.slice(),
     useWorkerFetch: false,
