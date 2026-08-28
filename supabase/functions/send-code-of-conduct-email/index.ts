@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
       requestRow = data;
     }
     if (!requestRow && !is_test && (paid_pipeline_lead_id || crm_lead_id)) {
-      let q = admin.from('code_of_conduct_requests').select('*').eq('template_id', templateRow.id).in('status', ['draft', 'ready_to_send', 'sent', 'viewed']);
+      let q = admin.from('code_of_conduct_requests').select('*').in('status', ['draft', 'ready_to_send', 'sent', 'viewed']);
       if (paid_pipeline_lead_id) q = q.eq('paid_pipeline_lead_id', paid_pipeline_lead_id);
       else q = q.eq('crm_lead_id', crm_lead_id);
       const { data } = await q.order('created_at', { ascending: false }).limit(1);
@@ -221,6 +221,31 @@ Deno.serve(async (req) => {
         return fail('OVERRIDE_REASON_REQUIRED', 'A reason is required to change the template for this resend.');
       }
     }
+
+    // ── Per-track document resolution ─────────────────────────────────────
+    // Each completion track can point at its own signed document. The document
+    // is resolved on the first send (and locked in via request.template_id), or
+    // on an admin resend override — never silently swapped on a normal resend.
+    const canResolveDocument = !savedConditionKey || isResendOverride;
+    if (variantRow?.document_template_id && canResolveDocument) {
+      const { data: docTemplate } = await admin
+        .from('code_of_conduct_templates').select('*')
+        .eq('id', variantRow.document_template_id).maybeSingle();
+      if (!docTemplate) {
+        return fail('TRACK_DOCUMENT_NOT_FOUND', 'The document configured for this completion track could not be found.', { condition_key: conditionKey });
+      }
+      if (!docTemplate.email_subject || !docTemplate.email_body) {
+        return fail('TEMPLATE_MISSING_EMAIL_BODY', 'Template is missing email subject or body.');
+      }
+      templateRow = docTemplate;
+    } else if (savedConditionKey && requestRow?.template_id && !isResendOverride) {
+      // Normal resend: keep the document already locked onto the request.
+      const { data: lockedTemplate } = await admin
+        .from('code_of_conduct_templates').select('*')
+        .eq('id', requestRow.template_id).maybeSingle();
+      if (lockedTemplate) templateRow = lockedTemplate;
+    }
+
     // Snapshot timing fields only on the first send. Never rewrite history of a
     // request that already carries a condition.
     const writeTimingSnapshot = !!variantRow && !savedConditionKey;
