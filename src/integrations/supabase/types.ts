@@ -1002,6 +1002,7 @@ export type Database = {
           condition_name: string
           created_at: string
           created_by: string | null
+          document_template_id: string | null
           from_email: string | null
           from_name: string | null
           html_body: string
@@ -1023,6 +1024,7 @@ export type Database = {
           condition_name: string
           created_at?: string
           created_by?: string | null
+          document_template_id?: string | null
           from_email?: string | null
           from_name?: string | null
           html_body?: string
@@ -1044,6 +1046,7 @@ export type Database = {
           condition_name?: string
           created_at?: string
           created_by?: string | null
+          document_template_id?: string | null
           from_email?: string | null
           from_name?: string | null
           html_body?: string
@@ -1058,7 +1061,15 @@ export type Database = {
           updated_by?: string | null
           version?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "code_of_conduct_email_variants_document_template_id_fkey"
+            columns: ["document_template_id"]
+            isOneToOne: false
+            referencedRelation: "code_of_conduct_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       code_of_conduct_events: {
         Row: {
