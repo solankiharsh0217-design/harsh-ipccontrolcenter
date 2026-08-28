@@ -580,7 +580,7 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
     try {
       const lines = await extractAnchorLines(templateBytes);
       const candidate = buildAnchorPlan(lines);
-      if (candidate.nameBoxes.length > 0) plan = candidate;
+      if (candidate.names.length > 0) plan = candidate;
     } catch (anchorErr) {
       console.error('anchor detection failed, falling back to fixed coordinates', anchorErr);
     }
@@ -597,22 +597,28 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
       return pg;
     };
 
+    /** Stamp `value` over a placeholder, re-flowing the rest of the sentence when the
+     *  value is wider than the bracket text it replaces. */
+    const stampMatch = (m: AnchorMatch, value: string) => {
+      const pg = whiteOut(m.box);
+      if (!pg) return false;
+      const valueW = font.widthOfTextAtSize(value, p.fontSize);
+      const tailStart = m.box.x + valueW + p.fontSize * 0.28;
+      const needsReflow = !!(m.tailBox && m.tailText && tailStart > m.tailBox.x - 1);
+      if (needsReflow && m.tailBox) whiteOut(m.tailBox);
+      pg.drawText(value, { x: m.box.x, y: m.box.y, size: p.fontSize, font, color: inkColor });
+      if (needsReflow && m.tailBox) {
+        pg.drawText(m.tailText, { x: tailStart, y: m.box.y, size: m.tailSize, font, color: inkColor });
+      }
+      return true;
+    };
+
     if (plan) {
       placementMethod = 'auto_anchor';
       const sigBox = plan.signatureLine;
 
-      for (const box of plan.nameBoxes) {
-        const pg = whiteOut(box);
-        if (!pg) continue;
-        pg.drawText(memberName, { x: box.x, y: box.y, size: p.fontSize, font, color: inkColor });
-        nameOccurrences++;
-      }
-      for (const box of plan.dateBoxes) {
-        const pg = whiteOut(box);
-        if (!pg) continue;
-        pg.drawText(signedDate, { x: box.x, y: box.y, size: p.fontSize, font, color: inkColor });
-        dateOccurrences++;
-      }
+      for (const m of plan.names) if (stampMatch(m, memberName)) nameOccurrences++;
+      for (const m of plan.dates) if (stampMatch(m, signedDate)) dateOccurrences++;
 
       if (sigBox) {
         signatureLineFound = true;
@@ -625,14 +631,15 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
         }
         const pg = pages[sigBox.nameBox.pageIndex];
         if (pg) {
-          const maxW = 160, maxH = 45;
+          const maxW = 160, maxH = sigBox.maxImageHeight;
           const scale = Math.min(maxW / sigImage.width, maxH / sigImage.height);
           const w = sigImage.width * scale;
           const h = sigImage.height * scale;
-          pg.drawImage(sigImage, { x: sigBox.nameBox.x, y: sigBox.nameBox.y + sigBox.nameBox.h + 10, width: w, height: h });
+          pg.drawImage(sigImage, { x: sigBox.nameBox.x, y: sigBox.nameBox.y + sigBox.nameBox.h + 8, width: w, height: h });
         }
       }
     } else {
+
       const target = pages[p.pageIndex];
       target.drawText(memberName, { x: p.nameX, y: p.nameY, size: p.fontSize, font, color: inkColor });
       target.drawImage(sigImage, { x: p.sigX, y: p.sigY, width: p.sigW, height: p.sigH });
