@@ -655,7 +655,19 @@ async function generateAndStoreSignedPdf(admin: any, reqRow: any, tpl: any, ip: 
     const storedUrl = `storage:signed-code-of-conduct/${path}`;
     const nowIso = new Date().toISOString();
     await admin.from('code_of_conduct_requests').update({ signed_pdf_url: storedUrl, signed_pdf_generated_at: nowIso, signed_pdf_generation_error: null }).eq('id', reqRow.id);
-    await admin.from('code_of_conduct_events').insert({ request_id: reqRow.id, event_type: regeneratedByAdmin ? 'signed_pdf_regenerated_by_admin' : 'signed_pdf_generated', metadata: { path, page: p.pageIndex + 1 } });
+    await admin.from('code_of_conduct_events').insert({
+      request_id: reqRow.id,
+      event_type: regeneratedByAdmin ? 'signed_pdf_regenerated_by_admin' : 'signed_pdf_generated',
+      metadata: {
+        path,
+        page: p.pageIndex + 1,
+        placement_method: placementMethod,
+        name_occurrences_found: nameOccurrences,
+        date_occurrences_found: dateOccurrences,
+        signature_line_found: signatureLineFound,
+      },
+    });
+
     return { ok: true, path, storedUrl };
   } catch (e) {
     const msg = (e as Error).message || 'Signed PDF generation failed';
