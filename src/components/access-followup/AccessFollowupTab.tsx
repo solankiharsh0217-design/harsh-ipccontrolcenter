@@ -1,173 +1,93 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState, EmptyRow } from "@/components/ui-bits";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AccessVerification, fetchVerificationsForPaidLeads, computeOverall, OverallStatus,
-  WHATSAPP_LABELS, APP_LOGIN_LABELS, CALL_LABELS,
-} from "@/lib/accessVerification";
+import { useQueryClient } from "@tanstack/react-query";
+import { Check, Clock, Minus } from "lucide-react";
+import { AccessVerification } from "@/lib/accessVerification";
 import AccessVerificationModal from "./AccessVerificationModal";
 import DailyQueueView from "./DailyQueueView";
 import AccessRowActions from "./AccessRowActions";
-import { CoCStatusChip, hasSuccessfulCocSend } from "@/lib/cocStatus";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
+import {
+  AccessRow, Segment, matchesSegment, sortByUrgency, useAccessFollowupRows,
+  PaidLeadInput, CrmLeadInput,
+} from "@/lib/accessFollowupRows";
+import { rel, formatDateShort } from "@/lib/format";
 import {
   accessFollowupReturnPath,
   persistAccessFollowupState,
   readAccessFollowupState,
 } from "@/lib/accessFollowupReturn";
 
-type Row = {
-  paidLeadId: string;
-  crmLeadId: string | null;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  batch: string | null;
-  batchKey: string;
-  batchLabel: string;
-  webinarDate: string | null;
-  cocStatus: string | null;
-  ownerId: string | null;
-  ownerName: string | null;
-  ownerKey: string;
-  crmStage: string | null;
-  verification: AccessVerification | null;
-  overall: OverallStatus;
-};
+type Row = AccessRow;
 
 interface Props {
-  paidLeads: Array<{
-    id: string; crm_lead_id: string | null; email: string | null; phone: string | null;
-    paid_batch_name: string | null; source_report_date: string | null; source_webinar: string | null;
-    code_of_conduct_status: string | null;
-  }>;
-  crmLeads: Array<{ id: string; full_name: string | null; email: string | null; phone: string | null; assigned_agent_id: string | null; webinar_date: string | null; webinar_name: string | null; stage_name?: string | null }>;
+  paidLeads: PaidLeadInput[];
+  crmLeads: CrmLeadInput[];
   owners: Array<{ id: string; full_name: string | null }>;
 }
 
-type QuickFilter =
-  | "all"
-  | "all_incomplete"
-  | "not_called"
-  | "no_answer"
-  | "wa_not_joined"
-  | "invite_sent"
-  | "never_logged_in"
-  | "access_issue"
-  | "follow_up_due"
-  | "needs_help"
-  | "completed";
+const GREEN = "text-[#16A34A]";
+const AMBER = "text-[#CA8A04]";
 
-const OVERALL_STYLES: Record<OverallStatus, string> = {
-  completed: "bg-emerald-100 text-emerald-800",
-  needs_help: "bg-amber-100 text-amber-800",
-  incomplete: "bg-slate-100 text-slate-700",
-};
-const OVERALL_LABEL: Record<OverallStatus, string> = {
-  completed: "Completed",
-  needs_help: "Needs Help",
-  incomplete: "Incomplete",
-};
-
-function chipTone(tone: "green" | "amber" | "red" | "neutral" | "muted-red") {
-  switch (tone) {
-    case "green": return "bg-emerald-50 text-emerald-800 border-emerald-200";
-    case "amber": return "bg-amber-50 text-amber-800 border-amber-200";
-    case "red": return "bg-red-50 text-red-800 border-red-200";
-    case "muted-red": return "bg-rose-50 text-rose-700 border-rose-200";
-    default: return "bg-slate-50 text-slate-700 border-slate-200";
-  }
+function Done({ label, title }: { label?: string | null; title?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${GREEN}`} title={title}>
+      <Check className="w-3.5 h-3.5 flex-shrink-0" />
+      {label ? <span className="text-[11.5px]">{label}</span> : null}
+    </span>
+  );
+}
+function Pending({ label }: { label: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${AMBER}`}>
+      <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+      <span className="text-[11.5px]">{label}</span>
+    </span>
+  );
+}
+function Dash() {
+  return <Minus className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
-function matchesQuick(r: Row, f: QuickFilter, nowMs: number): boolean {
-  if (f === "all") return true;
-  const v = r.verification;
-  if (f === "all_incomplete") return r.overall !== "completed";
-  if (f === "not_called") return !v || v.call_status === "not_called";
-  if (f === "no_answer") return v?.call_status === "no_answer";
-  if (f === "wa_not_joined") return v?.whatsapp_group_status === "not_joined";
-  if (f === "invite_sent") return v?.whatsapp_group_status === "invite_sent";
-  if (f === "never_logged_in") return v?.app_login_status === "never_logged_in";
-  if (f === "access_issue") return v?.app_login_status === "access_issue" || v?.whatsapp_group_status === "link_issue";
-  if (f === "follow_up_due") {
-    if (!v?.next_follow_up_at) return false;
-    if (r.overall === "completed") return false;
-    return new Date(v.next_follow_up_at).getTime() <= nowMs;
-  }
-  if (f === "needs_help") return r.overall === "needs_help";
-  if (f === "completed") return r.overall === "completed";
-  return true;
+function SentCell({ r }: { r: Row }) {
+  if (!r.cocSent) return <Dash />;
+  return <Done label={r.cocSentAt ? formatDateShort(r.cocSentAt) : "Sent"} title={r.cocSentAt ? rel(r.cocSentAt) : undefined} />;
+}
+function SignedCell({ r }: { r: Row }) {
+  if (r.cocSigned) return <Done label={r.cocSignedAt ? formatDateShort(r.cocSignedAt) : "Signed"} title={r.cocSignedAt ? rel(r.cocSignedAt) : undefined} />;
+  if (r.cocSent) return <Pending label="Awaiting" />;
+  return <Dash />;
+}
+function GroupCell({ r }: { r: Row }) {
+  if (r.groupJoined) return <Done label={r.groupJoinedAt ? formatDateShort(r.groupJoinedAt) : "Joined"} title={r.groupJoinedAt ? rel(r.groupJoinedAt) : undefined} />;
+  if (r.cocSigned) return <Pending label="Pending" />;
+  return <Dash />;
 }
 
 export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props) {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
-  const paidIds = useMemo(() => paidLeads.map((p) => p.id), [paidLeads]);
-  const { data: verifications = new Map() } = useQuery({
-    queryKey: ["access-verifications", paidIds.join(",")],
-    enabled: paidIds.length > 0,
-    queryFn: () => fetchVerificationsForPaidLeads(paidIds),
-  });
 
-  const crmById = useMemo(() => new Map(crmLeads.map((l) => [l.id, l])), [crmLeads]);
-  const ownerById = useMemo(() => new Map(owners.map((o) => [o.id, o])), [owners]);
+  const { allRows } = useAccessFollowupRows(paidLeads, crmLeads, owners);
 
-  const allRows: Row[] = useMemo(() => {
-    return paidLeads.map((p) => {
-      const crm = p.crm_lead_id ? crmById.get(p.crm_lead_id) : undefined;
-      const v = (verifications as Map<string, AccessVerification>).get(p.id) || null;
-      const owner = crm?.assigned_agent_id ? ownerById.get(crm.assigned_agent_id) : undefined;
-      const batchName = p.paid_batch_name || p.source_webinar || crm?.webinar_name || null;
-      const webDate = p.source_report_date || crm?.webinar_date || null;
-      const batchKey = (batchName || "__none__") + "|" + (webDate || "");
-      const batchLabel = batchName
-        ? webDate ? `${batchName} — ${webDate}` : batchName
-        : "No batch";
-      return {
-        paidLeadId: p.id,
-        crmLeadId: p.crm_lead_id,
-        name: crm?.full_name || p.email || "Unnamed",
-        email: p.email || crm?.email || null,
-        phone: p.phone || crm?.phone || null,
-        batch: batchName,
-        batchKey,
-        batchLabel,
-        webinarDate: webDate,
-        cocStatus: p.code_of_conduct_status || null,
-        ownerId: crm?.assigned_agent_id || null,
-        ownerName: owner?.full_name || null,
-        ownerKey: owner?.full_name || "__unassigned__",
-        crmStage: (crm as any)?.stage_name || null,
-        verification: v,
-        overall: computeOverall(v),
-      };
-    });
-  }, [paidLeads, crmById, verifications, ownerById]);
-
-  // Access Follow-up eligibility: initial Code of Conduct email must have been
-  // successfully sent at least once. First-send is the initiator's / CRM
-  // process owner's responsibility — Access Follow-up never initiates it.
-  const rows: Row[] = useMemo(
-    () => allRows.filter((r) => hasSuccessfulCocSend(r.cocStatus, !!r.crmLeadId)),
-    [allRows],
-  );
+  // Eligibility: the initial Code of Conduct email must have been sent at least
+  // once (resolved from the linked CoC request first, then pipeline/CRM status).
+  const rows: Row[] = useMemo(() => allRows.filter((r) => r.cocSent), [allRows]);
   const awaitingInitialSendCount = allRows.length - rows.length;
 
-  // Restore Access Follow-up view state persisted before navigating into the CRM drawer.
   const restored = useRef(readAccessFollowupState());
   const initial = restored.current;
 
-  const [quick, setQuick] = useState<QuickFilter>((initial?.quick as QuickFilter) || "all");
+  const [segment, setSegment] = useState<Segment>((initial?.quick as Segment) || "all");
   const [search, setSearch] = useState(initial?.search || "");
   const [ownerFilter, setOwnerFilter] = useState<string[]>(initial?.ownerFilter || []);
   const [batchFilter, setBatchFilter] = useState<string[]>(initial?.batchFilter || []);
   const [selected, setSelected] = useState<Row | null>(null);
   const [view, setView] = useState<"members" | "daily">(initial?.view || "members");
 
-  // Restore scroll position once after a return from CRM. Wait until rows render.
   const didRestoreScroll = useRef(false);
   useEffect(() => {
     if (didRestoreScroll.current) return;
@@ -177,12 +97,11 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
     return () => window.clearTimeout(t);
   }, [initial]);
 
-  // Refetch Code of Conduct / verification data when the tab becomes visible again
-  // (e.g. after returning from the CRM drawer via Back button).
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === "visible") {
         qc.invalidateQueries({ queryKey: ["access-verifications"] });
+        qc.invalidateQueries({ queryKey: ["access-coc-requests"] });
         qc.invalidateQueries({ queryKey: ["fsd-paid-leads"] });
       }
     };
@@ -192,7 +111,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
 
   const captureState = () => {
     persistAccessFollowupState({
-      view, quick, search, ownerFilter, batchFilter,
+      view, quick: segment, search, ownerFilter, batchFilter,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
       updatedAt: Date.now(),
     });
@@ -200,9 +119,6 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
 
   const returnTo = accessFollowupReturnPath();
 
-  const nowMs = Date.now();
-
-  // Base scoped rows (before quick filter) drive card counts + other filters.
   const scopedRows = useMemo(() => {
     return rows.filter((r) => {
       if (ownerFilter.length && !ownerFilter.includes(r.ownerKey)) return false;
@@ -217,23 +133,17 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
   }, [rows, ownerFilter, batchFilter, search]);
 
   const filtered = useMemo(
-    () => scopedRows.filter((r) => matchesQuick(r, quick, nowMs)),
-    [scopedRows, quick, nowMs],
+    () => scopedRows.filter((r) => matchesSegment(r, segment)).slice().sort(sortByUrgency),
+    [scopedRows, segment],
   );
 
-  const counts = useMemo(() => {
-    const c: Record<QuickFilter, number> = {
-      all: scopedRows.length,
-      all_incomplete: 0, not_called: 0, no_answer: 0, wa_not_joined: 0,
-      invite_sent: 0, never_logged_in: 0, access_issue: 0, follow_up_due: 0,
-      needs_help: 0, completed: 0,
-    };
-    for (const r of scopedRows) {
-      const keys: QuickFilter[] = ["all_incomplete", "not_called", "no_answer", "wa_not_joined", "invite_sent", "never_logged_in", "access_issue", "follow_up_due", "needs_help", "completed"];
-      for (const k of keys) if (matchesQuick(r, k, nowMs)) c[k]++;
-    }
-    return c;
-  }, [scopedRows, nowMs]);
+  const counts = useMemo(() => ({
+    all: scopedRows.length,
+    coc_sent: scopedRows.filter((r) => matchesSegment(r, "coc_sent")).length,
+    awaiting_signature: scopedRows.filter((r) => matchesSegment(r, "awaiting_signature")).length,
+    signed_group_pending: scopedRows.filter((r) => matchesSegment(r, "signed_group_pending")).length,
+    fully_complete: scopedRows.filter((r) => matchesSegment(r, "fully_complete")).length,
+  }), [scopedRows]);
 
   const ownerOptions = useMemo(() => {
     const map = new Map<string, number>();
@@ -252,57 +162,46 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
       if (existing) existing.count++;
       else map.set(r.batchKey, { label: r.batchLabel, count: 1 });
     }
-    return Array.from(map.entries()).map(([value, v]) => ({
-      value, label: v.label, count: v.count,
-    })).sort((a, b) => a.label.localeCompare(b.label));
+    return Array.from(map.entries()).map(([value, v]) => ({ value, label: v.label, count: v.count }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [rows]);
 
-  const primaryCards: Array<{ key: QuickFilter; label: string; tone: string }> = [
-    { key: "all_incomplete", label: "Incomplete", tone: chipTone("neutral") },
-    { key: "needs_help", label: "Needs Help", tone: chipTone("amber") },
-    { key: "completed", label: "Fully Verified", tone: chipTone("green") },
-    { key: "not_called", label: "Not Called", tone: chipTone("neutral") },
-    { key: "follow_up_due", label: "Follow-up Due", tone: chipTone("amber") },
-  ];
-  const secondaryCards: Array<{ key: QuickFilter; label: string; tone: string }> = [
-    { key: "no_answer", label: "No Answer", tone: chipTone("muted-red") },
-    { key: "wa_not_joined", label: "WhatsApp Not Joined", tone: chipTone("neutral") },
-    { key: "invite_sent", label: "Invite Sent", tone: chipTone("neutral") },
-    { key: "never_logged_in", label: "Never Logged In", tone: chipTone("neutral") },
-    { key: "access_issue", label: "Access Issue", tone: chipTone("red") },
+  const cards: Array<{ key: Segment; label: string; value: number }> = [
+    { key: "coc_sent", label: "CoC Sent", value: counts.coc_sent },
+    { key: "awaiting_signature", label: "Awaiting Signature", value: counts.awaiting_signature },
+    { key: "signed_group_pending", label: "Signed · Group Pending", value: counts.signed_group_pending },
+    { key: "fully_complete", label: "Fully Complete", value: counts.fully_complete },
   ];
 
   const reset = () => {
-    setQuick("all");
+    setSegment("all");
     setSearch("");
     setOwnerFilter([]);
     setBatchFilter([]);
   };
 
-  const isActive = (k: QuickFilter) => quick === k;
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* View switch */}
       <div className="flex items-center gap-2">
-        <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+        <div className="inline-flex rounded-md border border-line bg-white p-0.5">
           <button
             onClick={() => setView("members")}
-            className={`text-xs px-3 py-1.5 rounded ${view === "members" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            className={`font-sans text-xs px-3 py-1.5 rounded ${view === "members" ? "bg-foreground text-background" : "hover:bg-off"}`}
           >
             All Members
           </button>
           <button
             onClick={() => setView("daily")}
-            className={`text-xs px-3 py-1.5 rounded ${view === "daily" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            className={`font-sans text-xs px-3 py-1.5 rounded ${view === "daily" ? "bg-foreground text-background" : "hover:bg-off"}`}
           >
             Daily Queue
           </button>
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="font-sans text-xs text-muted-foreground">
           {view === "daily"
             ? "Focused calling list for today, sorted by urgency"
-            : "Full verification list with granular filters"}
+            : "Send → Sign → Group joined, at a glance"}
         </div>
       </div>
 
@@ -312,7 +211,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name / email / phone / batch"
-          className="text-sm border border-border rounded-md px-3 py-1.5 bg-background w-full md:w-64"
+          className="font-sans text-sm border border-line rounded-lg px-3 py-2 bg-white w-full md:w-64"
         />
         <MultiSelectFilter
           label="Owner"
@@ -329,35 +228,29 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
           placeholder="All batches"
           panelWidth={340}
         />
-        {(quick !== "all" || search || ownerFilter.length || batchFilter.length) ? (
-          <button onClick={reset} className="text-xs px-2 py-1 rounded-md border border-border hover:bg-muted">Reset</button>
+        {(segment !== "all" || search || ownerFilter.length || batchFilter.length) ? (
+          <button onClick={reset} className="font-sans text-xs px-2.5 py-1.5 rounded-lg border border-line hover:bg-off">Reset</button>
         ) : null}
-        <div className="text-xs text-muted-foreground ml-auto">
+        <div className="font-sans text-xs text-muted-foreground ml-auto">
           {view === "members"
-            ? <>Showing <span className="font-medium text-foreground">{filtered.length}</span> of {scopedRows.length} members
-              {scopedRows.length !== rows.length && <span className="text-muted-foreground"> · {rows.length} total</span>}</>
+            ? <>Showing <span className="font-medium text-foreground">{filtered.length}</span> of {scopedRows.length} members</>
             : <>{scopedRows.length} member{scopedRows.length === 1 ? "" : "s"} in scope</>}
         </div>
       </div>
 
-      {/* Awaiting initial CoC send — informational, admin-only. Access Follow-up
-          never initiates the first CoC email; those members remain with the
-          initiator/CRM process owner. */}
       {isAdmin && awaitingInitialSendCount > 0 && (
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[11.5px] text-slate-700 flex items-center justify-between gap-2">
+        <div className="rounded-xl border border-line bg-off px-3 py-2 font-sans text-[11.5px] text-muted-foreground flex items-center justify-between gap-2">
           <div>
-            <span className="font-medium">Awaiting initial CoC send:</span>{" "}
+            <span className="font-medium text-foreground">Awaiting initial CoC send:</span>{" "}
             {awaitingInitialSendCount} member{awaitingInitialSendCount === 1 ? "" : "s"} not shown here.
-            <span className="text-slate-500"> Access Follow-up begins after the first Code of Conduct email is successfully sent.</span>
           </div>
-          <a href="/finance-success?tab=incomplete" className="underline hover:no-underline whitespace-nowrap">Open Incomplete Members</a>
+          <a href="/finance-success-dashboard?tab=incomplete" className="underline hover:no-underline whitespace-nowrap">Open Incomplete Members</a>
         </div>
       )}
 
-
       {view === "daily" ? (
         <DailyQueueView
-          rows={scopedRows}
+          rows={scopedRows as any}
           owners={owners}
           isAdmin={isAdmin}
           onOpenMember={(r) => setSelected(r as Row)}
@@ -366,34 +259,23 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
         />
       ) : (
         <>
-          {/* Primary cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-            {primaryCards.map((c) => (
-              <button
-                key={c.key}
-                onClick={() => setQuick(isActive(c.key) ? "all" : c.key)}
-                className={`text-left border rounded-lg px-3 py-2.5 transition ${c.tone} ${isActive(c.key) ? "ring-2 ring-primary border-primary" : "hover:border-primary/60"}`}
-              >
-                <div className="text-[10px] uppercase tracking-wide opacity-70">{c.label}</div>
-                <div className="text-lg font-semibold">{counts[c.key]}</div>
-              </button>
-            ))}
+          {/* Funnel cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {cards.map((c) => {
+              const active = segment === c.key;
+              return (
+                <button
+                  key={c.key}
+                  onClick={() => setSegment(active ? "all" : c.key)}
+                  className={`text-left rounded-xl px-4 py-3.5 border transition ${active ? "border-gold bg-gold-pale" : "border-line bg-white hover:border-gold/60"}`}
+                >
+                  <div className="font-sans text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
+                  <div className="font-serif text-2xl leading-tight mt-1">{c.value}</div>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Secondary compact chips */}
-          <div className="flex flex-wrap gap-1.5">
-            {secondaryCards.map((c) => (
-              <button
-                key={c.key}
-                onClick={() => setQuick(isActive(c.key) ? "all" : c.key)}
-                className={`text-[11px] px-2.5 py-1 rounded-full border transition ${c.tone} ${isActive(c.key) ? "ring-2 ring-primary" : "opacity-90 hover:opacity-100"}`}
-              >
-                {c.label} · <span className="font-semibold">{counts[c.key]}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Content */}
           {isMobile ? (
             <MobileCards rows={filtered} onSelect={setSelected} returnTo={returnTo} onBeforeCrmNav={captureState} />
           ) : (
@@ -407,7 +289,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
           memberLabel={selected.name}
           crmLeadId={selected.crmLeadId}
           paidPipelineLeadId={selected.paidLeadId}
-          existing={selected.verification}
+          existing={selected.verification as AccessVerification | null}
           onClose={() => setSelected(null)}
           onSaved={() => {
             setSelected(null);
@@ -421,69 +303,43 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
 
 function DesktopTable({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[]; onSelect: (r: Row) => void; returnTo?: string; onBeforeCrmNav?: () => void }) {
   return (
-    <div className="border border-border rounded-lg overflow-hidden bg-background">
+    <div className="border border-line rounded-xl overflow-hidden bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm border-separate border-spacing-0">
-          <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+        <table className="w-full border-separate border-spacing-0">
+          <thead className="bg-off font-sans text-[10px] uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="text-left px-3 py-2 sticky left-0 bg-muted/95 backdrop-blur z-10 border-r border-border min-w-[220px]">Member</th>
-              <th className="text-left px-3 py-2">Overall</th>
-              <th className="text-left px-3 py-2">WhatsApp</th>
-              <th className="text-left px-3 py-2">App Login</th>
-              <th className="text-left px-3 py-2">Call</th>
-              <th className="text-left px-3 py-2">Attempts</th>
-              <th className="text-left px-3 py-2">Last Called</th>
-              <th className="text-left px-3 py-2">Next Follow-up</th>
-              <th className="text-left px-3 py-2">CRM Stage</th>
-              <th className="text-left px-3 py-2">CoC</th>
-              <th className="text-left px-3 py-2">Webinar / Batch</th>
-              <th className="text-left px-3 py-2">Owner</th>
-              <th className="text-right px-3 py-2 sticky right-0 bg-muted/95 backdrop-blur z-10 border-l border-border shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.12)] min-w-[280px]">Actions</th>
+              <th className="text-left px-4 py-2.5 min-w-[230px]">Member</th>
+              <th className="text-left px-4 py-2.5">CoC Sent</th>
+              <th className="text-left px-4 py-2.5">Signed</th>
+              <th className="text-left px-4 py-2.5">Group Joined</th>
+              <th className="text-left px-4 py-2.5">Owner</th>
+              <th className="text-left px-4 py-2.5">Batch</th>
+              <th className="text-right px-4 py-2.5 min-w-[260px] sticky right-0 bg-off z-10">Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <EmptyRow colSpan={13} title="No members match these filters." />
+              <EmptyRow colSpan={7} title="No members match these filters." />
             ) : rows.map((r) => (
-              <tr key={r.paidLeadId} className="hover:bg-muted/30 align-middle">
-                <td className="px-3 py-2 sticky left-0 bg-background border-t border-r border-border z-[1] align-middle">
-                  <div className="font-medium truncate max-w-[220px] leading-tight">{r.name}</div>
-                  <div className="text-[11.5px] truncate max-w-[220px] leading-tight">
-                    {r.phone ? (
-                      <a href={`tel:${r.phone}`} className="text-foreground hover:underline font-medium">{r.phone}</a>
-                    ) : (
-                      <span className="text-muted-foreground italic">Phone not recorded</span>
-                    )}
+              <tr key={r.paidLeadId} className="hover:bg-off/60 align-middle">
+                <td className="px-4 py-3 border-t border-line align-middle">
+                  <div className="font-serif text-[15px] leading-tight truncate max-w-[230px]">{r.name}</div>
+                  <div className="font-sans text-[10.5px] text-muted-foreground truncate max-w-[230px] leading-tight">
+                    {r.phone ? <a href={`tel:${r.phone}`} className="hover:underline">{r.phone}</a> : "No phone"}
                   </div>
-                  <div className="text-[11px] text-muted-foreground truncate max-w-[220px] leading-tight">{r.email || "—"}</div>
+                  <div className="font-sans text-[10.5px] text-muted-foreground truncate max-w-[230px] leading-tight">{r.email || "—"}</div>
                 </td>
-                <td className="px-3 py-2 border-t border-border align-middle whitespace-nowrap">
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full ${OVERALL_STYLES[r.overall]}`}>{OVERALL_LABEL[r.overall]}</span>
+                <td className="px-4 py-3 border-t border-line align-middle whitespace-nowrap font-sans"><SentCell r={r} /></td>
+                <td className="px-4 py-3 border-t border-line align-middle whitespace-nowrap font-sans"><SignedCell r={r} /></td>
+                <td className="px-4 py-3 border-t border-line align-middle whitespace-nowrap font-sans"><GroupCell r={r} /></td>
+                <td className="px-4 py-3 border-t border-line align-middle font-sans text-xs whitespace-nowrap" title={r.ownerName || ""}>
+                  <div className="truncate max-w-[130px]">{r.ownerName || "—"}</div>
                 </td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">{WHATSAPP_LABELS[r.verification?.whatsapp_group_status || "unknown"]}</td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">{APP_LOGIN_LABELS[r.verification?.app_login_status || "unknown"]}</td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">{CALL_LABELS[r.verification?.call_status || "not_called"]}</td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">{r.verification?.call_attempt_count || 0}</td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">
-                  {r.verification?.last_called_at ? new Date(r.verification.last_called_at).toLocaleDateString() : "—"}
-                </td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">
-                  {r.verification?.next_follow_up_at ? new Date(r.verification.next_follow_up_at).toLocaleDateString() : "—"}
-                </td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle" title={r.crmStage || ""}>
-                  <div className="truncate max-w-[140px]">{r.crmStage || "—"}</div>
-                </td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap">
-                  <CoCStatusChip status={r.cocStatus} hasCrmLink={!!r.crmLeadId} />
-                </td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle" title={r.batch || ""}>
+                <td className="px-4 py-3 border-t border-line align-middle font-sans text-xs" title={r.batch || ""}>
                   <div className="truncate max-w-[180px] leading-tight">{r.batch || "—"}</div>
-                  {r.webinarDate && <div className="text-[10px] text-muted-foreground leading-tight">{r.webinarDate}</div>}
+                  {r.webinarDate && <div className="text-[10.5px] text-muted-foreground leading-tight">{r.webinarDate}</div>}
                 </td>
-                <td className="px-3 py-2 border-t border-border text-xs align-middle whitespace-nowrap" title={r.ownerName || ""}>
-                  <div className="truncate max-w-[120px]">{r.ownerName || "—"}</div>
-                </td>
-                <td className="px-3 py-2 border-t border-border text-right align-middle sticky right-0 bg-background z-[1] border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.12)]" style={{ minWidth: 280 }}>
+                <td className="px-4 py-3 border-t border-line text-right align-middle sticky right-0 bg-white z-[1]" style={{ minWidth: 260 }}>
                   <AccessRowActions
                     phone={r.phone}
                     crmLeadId={r.crmLeadId}
@@ -507,32 +363,31 @@ function MobileCards({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[]
     return <EmptyState title="No members match these filters." bordered />;
   }
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {rows.map((r) => (
-        <div key={r.paidLeadId} className="border border-border rounded-lg bg-background p-3 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="font-medium truncate">{r.name}</div>
-              <div className="text-[12px] truncate">
-                {r.phone ? (
-                  <a href={`tel:${r.phone}`} className="text-foreground hover:underline font-medium">{r.phone}</a>
-                ) : (
-                  <span className="text-muted-foreground italic">Phone not recorded</span>
-                )}
-              </div>
-              <div className="text-[11px] text-muted-foreground truncate">{r.email || "—"}</div>
+        <div key={r.paidLeadId} className="border border-line rounded-xl bg-white p-4 space-y-3">
+          <div className="min-w-0">
+            <div className="font-serif text-[15px] truncate">{r.name}</div>
+            <div className="font-sans text-[10.5px] text-muted-foreground truncate">
+              {r.phone ? <a href={`tel:${r.phone}`} className="hover:underline">{r.phone}</a> : "No phone"} · {r.email || "—"}
             </div>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full flex-shrink-0 ${OVERALL_STYLES[r.overall]}`}>{OVERALL_LABEL[r.overall]}</span>
           </div>
-          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-            <div><span className="text-muted-foreground">WhatsApp:</span> {WHATSAPP_LABELS[r.verification?.whatsapp_group_status || "unknown"]}</div>
-            <div><span className="text-muted-foreground">App:</span> {APP_LOGIN_LABELS[r.verification?.app_login_status || "unknown"]}</div>
-            <div><span className="text-muted-foreground">Call:</span> {CALL_LABELS[r.verification?.call_status || "not_called"]} · {r.verification?.call_attempt_count || 0}</div>
-            <div className="flex items-center gap-1"><span className="text-muted-foreground">CoC:</span> <CoCStatusChip status={r.cocStatus} hasCrmLink={!!r.crmLeadId} /></div>
-            <div><span className="text-muted-foreground">Last:</span> {r.verification?.last_called_at ? new Date(r.verification.last_called_at).toLocaleDateString() : "—"}</div>
-            <div><span className="text-muted-foreground">Next:</span> {r.verification?.next_follow_up_at ? new Date(r.verification.next_follow_up_at).toLocaleDateString() : "—"}</div>
-            <div className="col-span-2"><span className="text-muted-foreground">Batch:</span> {r.batch || "—"}{r.webinarDate ? ` · ${r.webinarDate}` : ""}</div>
-            <div className="col-span-2"><span className="text-muted-foreground">Stage:</span> {r.crmStage || "—"} · <span className="text-muted-foreground">Owner:</span> {r.ownerName || "—"}</div>
+          <div className="grid grid-cols-3 gap-2 font-sans">
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Sent</div>
+              <SentCell r={r} />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Signed</div>
+              <SignedCell r={r} />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Group</div>
+              <GroupCell r={r} />
+            </div>
+          </div>
+          <div className="font-sans text-[10.5px] text-muted-foreground">
+            {r.ownerName || "Unassigned"} · {r.batchLabel}
           </div>
           <AccessRowActions
             phone={r.phone}
