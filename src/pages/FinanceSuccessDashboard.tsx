@@ -123,6 +123,8 @@ export default function FinanceSuccessDashboard() {
   const [incompleteOwnerId, setIncompleteOwnerId] = useState<string>("all");
   const [incompleteBalance, setIncompleteBalance] = useState<"all" | "has" | "no">("all");
   const [incompleteDays, setIncompleteDays] = useState<"all" | "3" | "7" | "15" | "30">("all");
+  const [showStageConfig, setShowStageConfig] = useState(false);
+
 
   // Paid CRM pipelines
   const { data: paidPipelines = [] } = useQuery({
