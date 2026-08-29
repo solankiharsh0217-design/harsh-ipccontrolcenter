@@ -17,6 +17,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { logActivity } from "@/lib/auditLog";
 import { downloadCsv, toCsv } from "@/lib/operationsExport";
 import AccessFollowupTab from "@/components/access-followup/AccessFollowupTab";
+import AccessFollowupReport from "@/components/access-followup/AccessFollowupReport";
+
 
 type CrmLead = {
   id: string;
@@ -1015,6 +1017,17 @@ export default function FinanceSuccessDashboard() {
 
         <TabsContent value="analytics" className="mt-0 space-y-8">
           <div>
+            <SectionLabel>Access Follow-up Report</SectionLabel>
+            <div className="mt-3">
+              <AccessFollowupReport
+                paidLeads={paidLeads}
+                crmLeads={crmLeads.map(l => ({ ...l, stage_name: enriched.find(e => e.id === l.id)?.currentStage }))}
+                owners={owners}
+              />
+            </div>
+          </div>
+          <div>
+
             <SectionLabel>Webinar Performance & Outcomes</SectionLabel>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
               {[
