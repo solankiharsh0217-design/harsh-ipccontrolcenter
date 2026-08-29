@@ -866,6 +866,16 @@ function SumCard({ label, value, accent }: { label: string; value: string; accen
   );
 }
 
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
+      <div className="[&_select]:w-full [&>button]:w-full">{children}</div>
+    </div>
+  );
+}
+
+
 function FilterSelect({ value, onChange, label, options }: { value: string; onChange: (v: string) => void; label: string; options: { v: string; l: string }[] }) {
   return (
     <select className="h-9 border border-line rounded-md px-2 text-[12.5px]" value={value} onChange={(e) => onChange(e.target.value)}>
