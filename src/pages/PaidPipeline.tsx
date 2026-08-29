@@ -41,6 +41,8 @@ import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import PaymentDateRangeFilter from "@/components/paid-pipeline/PaymentDateRangeFilter";
 import PaidPipelineLeadDrawer from "@/components/paid-pipeline/PaidPipelineLeadDrawer";
+import { usePaidPipelineCoc } from "@/lib/paidPipelineEligibility";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export type Lead = {
   id: string;
@@ -143,6 +145,9 @@ export default function PaidPipeline() {
   const [showArchived, setShowArchived] = useState(false);
   const [payStatusFilter, setPayStatusFilter] = useState<PayStatusKey | "all">("all");
   const HIGH_BAL_THRESHOLD = 50000;
+  const [pipelineView, setPipelineView] = useState<"paid" | "awaiting">("paid");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
 
   const load = async () => {
     const archivedFilter = (q: any) => showArchived ? q.not("archived_at", "is", null) : q.is("archived_at", null);
@@ -208,6 +213,28 @@ export default function PaidPipeline() {
     || revenueStatusFilter.length > 0
     || [stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, tagFilter, ownerFilter].some(v => v !== "all");
 
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: string; label: string; clear: () => void }[] = [];
+    if (search) chips.push({ key: "search", label: `Search: ${search}`, clear: () => { setSearch(""); setSearchInput(""); } });
+    if (stageFilter !== "all") chips.push({ key: "stage", label: `Stage: ${stageFilter}`, clear: () => setStageFilter("all") });
+    if (tempFilter !== "all") chips.push({ key: "temp", label: `Priority: ${tempFilter}`, clear: () => setTempFilter("all") });
+    if (ownerFilter !== "all") chips.push({ key: "owner", label: "Owner filter", clear: () => setOwnerFilter("all") });
+    if (financeStatusFilter !== "all") chips.push({ key: "fin", label: `Finance: ${financeStatusFilter || "Not set"}`, clear: () => setFinanceStatusFilter("all") });
+    if (financePartnerFilter !== "all") chips.push({ key: "finp", label: `Partner: ${financePartnerFilter}`, clear: () => setFinancePartnerFilter("all") });
+    if (tagFilter !== "all") chips.push({ key: "tag", label: "Tag filter", clear: () => setTagFilter("all") });
+    if (followUpFilter !== "all") chips.push({ key: "fu", label: `Follow-up: ${followUpFilter}`, clear: () => setFollowUpFilter("all") });
+    if (payStatusFilter !== "all") chips.push({ key: "pay", label: `Payment: ${payStatusFilter.replace(/_/g, " ")}`, clear: () => setPayStatusFilter("all") });
+    if (insightFilter) chips.push({ key: "insight", label: insightFilter.replace(/_/g, " "), clear: () => setInsightFilter(null) });
+    if (payDateFrom || payDateTo) chips.push({ key: "dates", label: `Date: ${payDateFrom || "…"} → ${payDateTo || "…"}`, clear: () => { setPayDateFrom(""); setPayDateTo(""); } });
+    if (batchFilter.length) chips.push({ key: "batch", label: `Webinar batches (${batchFilter.length})`, clear: () => setBatchFilter([]) });
+    if (paidBatchFilter.length) chips.push({ key: "pbatch", label: `Paid batches (${paidBatchFilter.length})`, clear: () => setPaidBatchFilter([]) });
+    if (onboardingBatchFilter.length) chips.push({ key: "obatch", label: `Onboarding (${onboardingBatchFilter.length})`, clear: () => setOnboardingBatchFilter([]) });
+    if (revenueStatusFilter.length) chips.push({ key: "rev", label: `Revenue status (${revenueStatusFilter.length})`, clear: () => setRevenueStatusFilter([]) });
+    if (showArchived) chips.push({ key: "arch", label: "Archived shown", clear: () => setShowArchived(false) });
+    return chips;
+  }, [search, stageFilter, tempFilter, ownerFilter, financeStatusFilter, financePartnerFilter, tagFilter, followUpFilter, payStatusFilter, insightFilter, payDateFrom, payDateTo, batchFilter, paidBatchFilter, onboardingBatchFilter, revenueStatusFilter, showArchived]);
+
+
   const financePartnerOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_FINANCE_PARTNERS);
     leads.forEach(l => { if (l.finance_partner) set.add(l.finance_partner); });
@@ -258,10 +285,21 @@ export default function PaidPipeline() {
     return "";
   };
 
+  // ---- Paid Pipeline eligibility gate (shared CoC resolver with Access Follow-up) ----
+  const { cocByLeadId } = usePaidPipelineCoc(leads as any);
+  const eligibleLeads = useMemo(
+    () => leads.filter((l) => cocByLeadId.get(l.id)?.eligible),
+    [leads, cocByLeadId],
+  );
+  const awaitingLeads = useMemo(
+    () => leads.filter((l) => !cocByLeadId.get(l.id)?.eligible),
+    [leads, cocByLeadId],
+  );
+  const viewLeads = pipelineView === "paid" ? eligibleLeads : awaitingLeads;
 
   const filtered = useMemo(() => {
     const td = today();
-    return leads.filter(l => {
+    return viewLeads.filter(l => {
       // Webinar batch multi (OR): id match OR normalized-name fallback match
       if (batchFilter.length > 0) {
         const idHit =
@@ -330,7 +368,7 @@ export default function PaidPipeline() {
       }
       return true;
     });
-  }, [leads, batches, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, batchDateById, batchDateByName]);
+  }, [viewLeads, batches, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, batchDateById, batchDateByName]);
 
   const insights = useMemo(() => {
     let highBalCount = 0, highBalAmt = 0;
@@ -338,7 +376,7 @@ export default function PaidPipeline() {
     let noFu = 0;
     let urgentBalCount = 0, urgentBalAmt = 0;
     let tokenNoSecond = 0;
-    leads.forEach(l => {
+    viewLeads.forEach(l => {
       const bal = Number(l.balance_pending || 0);
       const fu = l.next_follow_up_date || l.follow_up_date;
       if (bal >= HIGH_BAL_THRESHOLD) { highBalCount++; highBalAmt += bal; }
@@ -352,7 +390,7 @@ export default function PaidPipeline() {
       if (tok > 0 && total <= tok && bal > 0) tokenNoSecond++;
     });
     return { highBalCount, highBalAmt, approvedNotDisbCount, approvedNotDisbAmt, noFu, urgentBalCount, urgentBalAmt, tokenNoSecond };
-  }, [leads]);
+  }, [viewLeads]);
 
   const totals = useMemo(() => {
     const td = today();
@@ -487,12 +525,11 @@ export default function PaidPipeline() {
 
 
 
-      {/* Primary metric strip (5 cards) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-3">
-        <SumCard label="Total Paid Leads" value={String(filtered.length)} accent="blue" />
+      {/* Row 1 — Primary metric strip (4 cards) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+        <SumCard label="Total Paid Members" value={String(filtered.length)} accent="blue" />
         <SumCard label="Total Collected" value={inr(totals.collectedTotal)} accent="green" />
         <SumCard label="Balance Pending" value={inr(totals.balance)} accent="gold" />
-        <SumCard label="Revenue To Be Realized" value={inr(totals.toBeRealized)} />
         <SumCard label="Follow-Ups Due Today" value={String(totals.dueToday)} accent="blue" />
       </div>
 
@@ -504,7 +541,8 @@ export default function PaidPipeline() {
           {showMoreMetrics ? "▾" : "▸"} {showMoreMetrics ? "Hide" : "More"} revenue metrics
         </button>
         {showMoreMetrics && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3 mt-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+            <SumCard label="Revenue To Be Realized" value={inr(totals.toBeRealized)} />
             <SumCard label="Total Deal Value" value={inr(totals.dealTotal)} />
             <SumCard label="Token Collected" value={inr(totals.token)} />
             <SumCard label="Revenue Realized" value={inr(totals.realized)} accent="green" />
@@ -517,165 +555,161 @@ export default function PaidPipeline() {
         )}
       </div>
 
-      {/* Operational insight chips */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        <InsightChip
-          label={`${insights.highBalCount} · High balance (${inr(insights.highBalAmt)})`}
-          active={insightFilter === "high_balance"}
-          onClick={() => setInsightFilter(insightFilter === "high_balance" ? null : "high_balance")}
-          accent="gold"
-        />
-        <InsightChip
-          label={`${insights.approvedNotDisbCount} · Approved · not disbursed`}
-          active={insightFilter === "approved_not_disbursed"}
-          onClick={() => setInsightFilter(insightFilter === "approved_not_disbursed" ? null : "approved_not_disbursed")}
-          accent="blue"
-        />
-        <InsightChip
-          label={`${insights.noFu} · No follow-up`}
-          active={insightFilter === "no_followup"}
-          onClick={() => setInsightFilter(insightFilter === "no_followup" ? null : "no_followup")}
-          accent="muted"
-        />
-        <InsightChip
-          label={`${insights.urgentBalCount} · Urgent balance`}
-          active={insightFilter === "urgent_balance"}
-          onClick={() => setInsightFilter(insightFilter === "urgent_balance" ? null : "urgent_balance")}
-          accent="red"
-        />
-        <InsightChip
-          label={`${insights.tokenNoSecond} · Token only`}
-          active={insightFilter === "token_no_second"}
-          onClick={() => setInsightFilter(insightFilter === "token_no_second" ? null : "token_no_second")}
-          accent="gold"
-        />
-      </div>
-
-      {/* Filters — compact: 2 rows, more behind popover */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-2">
+      {/* Row 2 — view toggle + search */}
+      <div className="flex flex-wrap items-center gap-3 mb-2">
+        <div className="inline-flex border border-line overflow-hidden" style={{ borderRadius: 8 }}>
+          {([
+            { k: "paid", label: `Paid Members (${eligibleLeads.length})` },
+            { k: "awaiting", label: `Awaiting Finance (${awaitingLeads.length})` },
+          ] as const).map(o => (
+            <button
+              key={o.k}
+              onClick={() => setPipelineView(o.k)}
+              className={`h-9 px-4 text-[12.5px] transition-colors ${pipelineView === o.k ? "bg-black text-white" : "bg-white text-muted-foreground hover:bg-off"}`}
+            >{o.label}</button>
+          ))}
+        </div>
         <input
-          className="h-9 border border-line rounded-md px-3 text-[13px] col-span-2"
+          className="h-9 border border-line px-3 text-[13px] flex-1 min-w-[220px]"
+          style={{ borderRadius: 8 }}
           placeholder="Search name, email, phone…"
           value={searchInput}
-          onChange={e => setSearchInput(e.target.value)}
+          onChange={e => { setSearchInput(e.target.value); if (e.target.value === "") setSearch(""); }}
           onKeyDown={e => { if (e.key === "Enter") setSearch(searchInput); }}
         />
-        <FilterSelect value={stageFilter} onChange={setStageFilter} label="All stages" options={stages.map(s => ({ v: s, l: s }))} />
-        <FilterSelect value={tempFilter} onChange={setTempFilter} label="All priorities" options={TEMPERATURES.map(t => ({ v: t, l: t }))} />
-        <FilterSelect value={ownerFilter} onChange={setOwnerFilter} label="All owners" options={[{ v: "unassigned", l: "— Unassigned —" }, ...agents.map(a => ({ v: a.id, l: a.full_name }))]} />
-        <FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Documents Received","Application Submitted","Approved","Rejected","Disbursed","Alternate Partner Needed"].map(t => ({ v: t, l: t }))} />
-        <FilterSelect value={tagFilter} onChange={setTagFilter} label="All tags" options={allTags.map(t => ({ v: t.id, l: t.name }))} />
-        <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
-          { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
-        ]} />
-        <div className="col-span-2 min-w-0">
-          <PaymentDateRangeFilter
-            dateFrom={payDateFrom}
-            dateTo={payDateTo}
-            onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }}
-            label="Webinar Date"
-          />
-        </div>
-        <button
-          onClick={() => setShowMoreFilters(v => !v)}
-          className="h-9 border border-line rounded-md px-3 text-[12.5px] hover:bg-off text-left whitespace-nowrap"
-        >{showMoreFilters ? "▾" : "▸"} More filters</button>
+        <button onClick={() => setSearch(searchInput)} className="ipc-btn ipc-btn-black !h-9">Search</button>
       </div>
-      {showMoreFilters && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2 p-2 border border-line rounded-md bg-off/30">
-          <MultiSelectFilter
-            label="Webinar batches"
-            selectedValues={batchFilter}
-            onChange={setBatchFilter}
-            options={batches.map(b => ({ value: b.id, label: b.batch_name }))}
-          />
-          <MultiSelectFilter
-            label="Paid batches"
-            selectedValues={paidBatchFilter}
-            onChange={setPaidBatchFilter}
-            options={paidBatches.map(b => ({ value: b.id, label: b.batch_name }))}
-          />
-          <MultiSelectFilter
-            label="Onboarding batches"
-            selectedValues={onboardingBatchFilter}
-            onChange={setOnboardingBatchFilter}
-            options={onboardingBatches.map(o => ({ value: o, label: o }))}
-          />
-          <FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} />
-          <MultiSelectFilter
-            label="Revenue status"
-            selectedValues={revenueStatusFilter}
-            onChange={setRevenueStatusFilter}
-            options={[
-              { value: "token", label: "Token only" },
-              { value: "partial", label: "Partially collected" },
-              { value: "full", label: "Fully collected" },
-              { value: "finance_pending", label: "Finance pending" },
-              { value: "finance_disbursed", label: "Finance disbursed" },
-              { value: "balance_pending", label: "Balance pending" },
-              { value: "dropped", label: "Dropped" },
-            ]}
-          />
+      {pipelineView === "awaiting" && (
+        <div className="text-[11.5px] text-muted-foreground mb-3">
+          These members have not yet been sent a Code of Conduct, so their finance process is not yet confirmed complete.
         </div>
       )}
-      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-        <div className="text-[12.5px] text-muted-foreground">
-          Showing <span className="font-medium text-black">{filtered.length}</span> of <span className="font-medium text-black">{leads.length}</span> paid leads
-          {anyFilterActive && <span className="ml-2 text-[11px] uppercase tracking-wider text-[#2563EB]">Filters active</span>}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowArchived(v => !v)}
-            className={`ipc-btn !h-9 !text-xs ${showArchived ? "!bg-[#FEF3C7] !text-[#92400E] border border-[#FDE68A]" : "ipc-btn-ghost"}`}
-            title={showArchived ? "Viewing archived buyers" : "Show archived buyers"}
-          >{showArchived ? "Showing archived" : "Show archived"}</button>
-          <button onClick={() => setSearch(searchInput)} className="ipc-btn ipc-btn-black !h-9">Search</button>
-          <button onClick={resetFilters} className="ipc-btn ipc-btn-ghost !h-9">Reset Filters</button>
-        </div>
-      </div>
 
-      {/* payment-status quick filters */}
+      {/* Row 3 — payment-status chips (deduplicated) */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
-
         {([
-          { k: "fully_paid",      label: "Fully Paid",       cls: "bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]" },
-          { k: "balance_pending", label: "Balance Pending",  cls: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" },
-          { k: "token_paid",      label: "Token Paid",       cls: "bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]" },
-          { k: "token_pending",   label: "Token Pending",    cls: "bg-[#FFE4E6] text-[#9F1239] border-[#FECDD3]" },
-          { k: "no_payment",      label: "No Payment",       cls: "bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]" },
-          { k: "overpaid",        label: "Overpaid · Check", cls: "bg-[#F3E8FF] text-[#6B21A8] border-[#E9D5FF]" },
+          { k: "fully_paid", label: "Fully Paid", cls: "bg-[#DCFCE7] text-[#15803D] border-[#BBF7D0]" },
+          { k: "balance_pending", label: "Balance Pending", cls: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" },
         ] as { k: PayStatusKey; label: string; cls: string }[]).map(c => {
           const active = payStatusFilter === c.k;
           return (
             <button
               key={c.k}
               onClick={() => setPayStatusFilter(active ? "all" : c.k)}
-              className={`text-[11px] px-2 py-1 rounded-full border transition-all ${c.cls} ${active ? "ring-2 ring-offset-1 ring-black/50" : "opacity-90 hover:opacity-100"}`}
+              className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${c.cls} ${active ? "ring-2 ring-offset-1 ring-black/50" : "opacity-90 hover:opacity-100"}`}
             >{c.label}</button>
           );
         })}
-        <button
-          onClick={() => setFollowUpFilter(followUpFilter === "today" ? "all" : "today")}
-          className={`text-[11px] px-2 py-1 rounded-full border bg-[#EFF6FF] text-[#1E40AF] border-[#BFDBFE] ${followUpFilter === "today" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
-        >Follow-up Due Today</button>
-        <button
-          onClick={() => setInsightFilter(insightFilter === "no_followup" ? null : "no_followup")}
-          className={`text-[11px] px-2 py-1 rounded-full border bg-[#F3F4F6] text-[#374151] border-[#E5E7EB] ${insightFilter === "no_followup" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
-        >No Follow-up</button>
-        <button
-          onClick={() => setInsightFilter(insightFilter === "high_balance" ? null : "high_balance")}
-          className={`text-[11px] px-2 py-1 rounded-full border bg-[#FEF3C7] text-[#92400E] border-[#FDE68A] ${insightFilter === "high_balance" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
-        >High Balance</button>
-        <button
-          onClick={() => setInsightFilter(insightFilter === "urgent_balance" ? null : "urgent_balance")}
-          className={`text-[11px] px-2 py-1 rounded-full border bg-[#FEE2E2] text-[#991B1B] border-[#FECACA] ${insightFilter === "urgent_balance" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
-        >Urgent Balance</button>
-        <button
-          onClick={() => setFinanceStatusFilter(financeStatusFilter === "" ? "all" : "")}
-          className={`text-[11px] px-2 py-1 rounded-full border bg-[#F3F4F6] text-[#374151] border-[#E5E7EB] ${financeStatusFilter === "" ? "ring-2 ring-offset-1 ring-black/50" : ""}`}
-          title="Leads with no finance status set"
-        >Finance Not Set</button>
+        {([
+          { k: "token_no_second", label: "Token Only", cls: "bg-gold-pale text-[#92400E] border-[#F5D78A]" },
+          { k: "urgent_balance", label: "Urgent Balance", cls: "bg-[#FEE2E2] text-[#991B1B] border-[#FECACA]" },
+          { k: "no_followup", label: "No Follow-up", cls: "bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]" },
+        ]).map(c => {
+          const active = insightFilter === c.k;
+          return (
+            <button
+              key={c.k}
+              onClick={() => setInsightFilter(active ? null : c.k)}
+              className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${c.cls} ${active ? "ring-2 ring-offset-1 ring-black/50" : "opacity-90 hover:opacity-100"}`}
+            >{c.label}</button>
+          );
+        })}
       </div>
+
+      {/* Row 4 — single Filters button + active filter chips */}
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+        <button
+          onClick={() => setFiltersOpen(true)}
+          className="h-9 px-4 border border-line bg-white hover:bg-off text-[12.5px]"
+          style={{ borderRadius: 8 }}
+        >Filters{activeFilterChips.length > 0 ? ` (${activeFilterChips.length})` : ""}</button>
+        <div className="text-[12.5px] text-muted-foreground">
+          Showing <span className="font-medium text-black">{filtered.length}</span> of <span className="font-medium text-black">{viewLeads.length}</span> members
+        </div>
+      </div>
+      {activeFilterChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          {activeFilterChips.map(c => (
+            <span key={c.key} className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-line bg-off text-foreground">
+              {c.label}
+              <button onClick={c.clear} className="text-muted-foreground hover:text-black leading-none" aria-label={`Remove ${c.label}`}>×</button>
+            </span>
+          ))}
+          <button onClick={resetFilters} className="text-[11px] text-muted-foreground hover:text-black underline ml-1">Clear all</button>
+        </div>
+      )}
+
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-[420px] overflow-y-auto flex flex-col">
+          <SheetHeader><SheetTitle className="font-serif text-[20px]">Filters</SheetTitle></SheetHeader>
+          <div className="flex-1 space-y-3 mt-4">
+            <FilterField label="Stage"><FilterSelect value={stageFilter} onChange={setStageFilter} label="All stages" options={stages.map(s => ({ v: s, l: s }))} /></FilterField>
+            <FilterField label="Priority"><FilterSelect value={tempFilter} onChange={setTempFilter} label="All priorities" options={TEMPERATURES.map(t => ({ v: t, l: t }))} /></FilterField>
+            <FilterField label="Owner"><FilterSelect value={ownerFilter} onChange={setOwnerFilter} label="All owners" options={[{ v: "unassigned", l: "— Unassigned —" }, ...agents.map(a => ({ v: a.id, l: a.full_name }))]} /></FilterField>
+            <FilterField label="Finance status"><FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Documents Received","Application Submitted","Approved","Rejected","Disbursed","Alternate Partner Needed"].map(t => ({ v: t, l: t }))} /></FilterField>
+            <FilterField label="Finance partner"><FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} /></FilterField>
+            <FilterField label="Tags"><FilterSelect value={tagFilter} onChange={setTagFilter} label="All tags" options={allTags.map(t => ({ v: t.id, l: t.name }))} /></FilterField>
+            <FilterField label="Follow-up"><FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
+              { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
+            ]} /></FilterField>
+            <FilterField label="Webinar / payment date range">
+              <PaymentDateRangeFilter
+                dateFrom={payDateFrom}
+                dateTo={payDateTo}
+                onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }}
+                label="Webinar Date"
+              />
+            </FilterField>
+            <FilterField label="Webinar batches">
+              <MultiSelectFilter label="Webinar batches" selectedValues={batchFilter} onChange={setBatchFilter} options={batches.map(b => ({ value: b.id, label: b.batch_name }))} />
+            </FilterField>
+            <FilterField label="Paid batches">
+              <MultiSelectFilter label="Paid batches" selectedValues={paidBatchFilter} onChange={setPaidBatchFilter} options={paidBatches.map(b => ({ value: b.id, label: b.batch_name }))} />
+            </FilterField>
+            <FilterField label="Onboarding batches">
+              <MultiSelectFilter label="Onboarding batches" selectedValues={onboardingBatchFilter} onChange={setOnboardingBatchFilter} options={onboardingBatches.map(o => ({ value: o, label: o }))} />
+            </FilterField>
+            <FilterField label="Revenue status">
+              <MultiSelectFilter
+                label="Revenue status"
+                selectedValues={revenueStatusFilter}
+                onChange={setRevenueStatusFilter}
+                options={[
+                  { value: "token", label: "Token only" },
+                  { value: "partial", label: "Partially collected" },
+                  { value: "full", label: "Fully collected" },
+                  { value: "finance_pending", label: "Finance pending" },
+                  { value: "finance_disbursed", label: "Finance disbursed" },
+                  { value: "balance_pending", label: "Balance pending" },
+                  { value: "dropped", label: "Dropped" },
+                ]}
+              />
+            </FilterField>
+            <FilterField label="Advanced">
+              <label className="flex items-center gap-2 text-[12.5px]">
+                <input
+                  type="checkbox"
+                  checked={insightFilter === "approved_not_disbursed"}
+                  onChange={(e) => setInsightFilter(e.target.checked ? "approved_not_disbursed" : null)}
+                />
+                Approved · not disbursed
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] mt-2">
+                <input type="checkbox" checked={insightFilter === "high_balance"} onChange={(e) => setInsightFilter(e.target.checked ? "high_balance" : null)} />
+                High balance (≥ {inr(HIGH_BAL_THRESHOLD)})
+              </label>
+              <label className="flex items-center gap-2 text-[12.5px] mt-2">
+                <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+                Show archived buyers
+              </label>
+            </FilterField>
+          </div>
+          <div className="sticky bottom-0 bg-white border-t border-line pt-3 mt-4 flex items-center gap-2">
+            <button onClick={() => setFiltersOpen(false)} className="ipc-btn ipc-btn-black !h-9 flex-1">Apply</button>
+            <button onClick={() => { resetFilters(); setShowArchived(false); }} className="ipc-btn ipc-btn-ghost !h-9">Reset all</button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
 
       {/* Bulk action bar */}
@@ -716,6 +750,8 @@ export default function PaidPipeline() {
                 ownerName={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || null}
                 tags={leadTagsMap[l.id] || []}
                 selected={selected.has(l.id)}
+                cocStatus={cocByLeadId.get(l.id)?.status ?? null}
+                cocHasCrmLink={cocByLeadId.get(l.id)?.hasCrmLink !== false}
                 onToggleSelect={() => toggleOne(l.id)}
                 onOpen={() => setOpenId(l.id)}
                 onAddPayment={() => setQuickPayId(l.id)}
@@ -831,6 +867,16 @@ function SumCard({ label, value, accent }: { label: string; value: string; accen
     </div>
   );
 }
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="text-[10.5px] uppercase tracking-[0.08em] text-muted-foreground">{label}</div>
+      <div className="[&_select]:w-full [&>button]:w-full">{children}</div>
+    </div>
+  );
+}
+
 
 function FilterSelect({ value, onChange, label, options }: { value: string; onChange: (v: string) => void; label: string; options: { v: string; l: string }[] }) {
   return (
