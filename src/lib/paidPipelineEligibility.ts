@@ -25,7 +25,7 @@ export type PaidCocInfo = {
   eligible: boolean;
 };
 
-type MinimalPaidLead = {
+export type MinimalPaidLead = {
   id: string;
   crm_lead_id?: string | null;
   code_of_conduct_status?: string | null;
@@ -53,6 +53,40 @@ async function fetchCrmCocStatuses(crmIds: string[]): Promise<Map<string, string
 /**
  * Resolves Code of Conduct state for a set of paid pipeline leads and derives
  * Paid Pipeline eligibility from it. Returns a map keyed by paid lead id.
+ *
+ * This is the single source-of-truth resolver used by both the hook below and
+ * any direct data load that needs to gate rows before they enter component
+ * state.
+ */
+export async function resolvePaidPipelineCoc(leads: MinimalPaidLead[]): Promise<Map<string, PaidCocInfo>> {
+  const paidIds = leads.map((l) => l.id);
+  const crmIds = Array.from(new Set(leads.map((l) => l.crm_lead_id).filter(Boolean) as string[]));
+
+  const [cocRequests, crmStatuses] = await Promise.all([
+    fetchCocRequests(crmIds, paidIds),
+    fetchCrmCocStatuses(crmIds),
+  ]);
+
+  const m = new Map<string, PaidCocInfo>();
+  for (const l of leads) {
+    const req = cocRequests.get(l.id) || (l.crm_lead_id ? cocRequests.get(l.crm_lead_id) : undefined) || null;
+    const status = req?.status || l.code_of_conduct_status || (l.crm_lead_id ? crmStatuses.get(l.crm_lead_id) ?? null : null) || null;
+    // A linked request is itself proof the member is CRM-linked for CoC purposes.
+    const hasCrmLink = !!l.crm_lead_id || !!req;
+    m.set(l.id, {
+      status,
+      sentAt: req?.sent_at || null,
+      signedAt: req?.signed_at || null,
+      hasCrmLink,
+      eligible: !!req?.sent_at || hasSuccessfulCocSend(status, hasCrmLink),
+    });
+  }
+  return m;
+}
+
+/**
+ * React hook wrapper around {@link resolvePaidPipelineCoc}. Use when the page
+ * wants to resolve CoC state for rows it has already loaded.
  */
 export function usePaidPipelineCoc(leads: MinimalPaidLead[]) {
   const paidIds = useMemo(() => leads.map((l) => l.id), [leads]);
@@ -81,7 +115,6 @@ export function usePaidPipelineCoc(leads: MinimalPaidLead[]) {
     for (const l of leads) {
       const req = reqs.get(l.id) || (l.crm_lead_id ? reqs.get(l.crm_lead_id) : undefined) || null;
       const status = req?.status || l.code_of_conduct_status || (l.crm_lead_id ? crm.get(l.crm_lead_id) ?? null : null) || null;
-      // A linked request is itself proof the member is CRM-linked for CoC purposes.
       const hasCrmLink = !!l.crm_lead_id || !!req;
       m.set(l.id, {
         status,
