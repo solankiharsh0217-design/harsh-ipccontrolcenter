@@ -354,7 +354,7 @@ export default function PaidPipeline() {
     let noFu = 0;
     let urgentBalCount = 0, urgentBalAmt = 0;
     let tokenNoSecond = 0;
-    leads.forEach(l => {
+    viewLeads.forEach(l => {
       const bal = Number(l.balance_pending || 0);
       const fu = l.next_follow_up_date || l.follow_up_date;
       if (bal >= HIGH_BAL_THRESHOLD) { highBalCount++; highBalAmt += bal; }
