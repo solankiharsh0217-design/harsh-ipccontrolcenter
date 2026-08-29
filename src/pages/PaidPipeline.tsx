@@ -158,13 +158,19 @@ export default function PaidPipeline() {
       supabase.from("paid_pipeline_settings").select("label").eq("setting_type", "pipeline_stage").eq("is_active", true).eq("is_deleted", false).order("sort_order"),
       getEligibleAssignees("paid_pipeline"),
     ]);
-    setLeads((l as any) || []);
+    const rawLeads: Lead[] = (l as any) || [];
+    // Gate: only members with a successfully sent Code of Conduct belong in the Paid Pipeline.
+    // This reuses the same CoC resolver as Access Follow-up.
+    const cocMap = await resolvePaidPipelineCoc(rawLeads);
+    const eligibleLeads = rawLeads.filter((lead) => cocMap.get(lead.id)?.eligible);
+    setCocByLeadId(cocMap);
+    setLeads(eligibleLeads);
     setBatches((b as any) || []);
     setPaidBatches((pb as any) || []);
     setStages(((s as any) || []).map((x: any) => x.label));
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })) as any);
     const obSet = new Set<string>();
-    ((l as any[]) || []).forEach(x => { if (x.onboarding_batch_name) obSet.add(x.onboarding_batch_name); });
+    eligibleLeads.forEach(x => { if (x.onboarding_batch_name) obSet.add(x.onboarding_batch_name); });
     setOnboardingBatches(Array.from(obSet).sort());
   };
   useEffect(() => { load(); }, [showArchived]);
