@@ -213,6 +213,28 @@ export default function PaidPipeline() {
     || revenueStatusFilter.length > 0
     || [stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, followUpFilter, tagFilter, ownerFilter].some(v => v !== "all");
 
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: string; label: string; clear: () => void }[] = [];
+    if (search) chips.push({ key: "search", label: `Search: ${search}`, clear: () => { setSearch(""); setSearchInput(""); } });
+    if (stageFilter !== "all") chips.push({ key: "stage", label: `Stage: ${stageFilter}`, clear: () => setStageFilter("all") });
+    if (tempFilter !== "all") chips.push({ key: "temp", label: `Priority: ${tempFilter}`, clear: () => setTempFilter("all") });
+    if (ownerFilter !== "all") chips.push({ key: "owner", label: "Owner filter", clear: () => setOwnerFilter("all") });
+    if (financeStatusFilter !== "all") chips.push({ key: "fin", label: `Finance: ${financeStatusFilter || "Not set"}`, clear: () => setFinanceStatusFilter("all") });
+    if (financePartnerFilter !== "all") chips.push({ key: "finp", label: `Partner: ${financePartnerFilter}`, clear: () => setFinancePartnerFilter("all") });
+    if (tagFilter !== "all") chips.push({ key: "tag", label: "Tag filter", clear: () => setTagFilter("all") });
+    if (followUpFilter !== "all") chips.push({ key: "fu", label: `Follow-up: ${followUpFilter}`, clear: () => setFollowUpFilter("all") });
+    if (payStatusFilter !== "all") chips.push({ key: "pay", label: `Payment: ${payStatusFilter.replace(/_/g, " ")}`, clear: () => setPayStatusFilter("all") });
+    if (insightFilter) chips.push({ key: "insight", label: insightFilter.replace(/_/g, " "), clear: () => setInsightFilter(null) });
+    if (payDateFrom || payDateTo) chips.push({ key: "dates", label: `Date: ${payDateFrom || "…"} → ${payDateTo || "…"}`, clear: () => { setPayDateFrom(""); setPayDateTo(""); } });
+    if (batchFilter.length) chips.push({ key: "batch", label: `Webinar batches (${batchFilter.length})`, clear: () => setBatchFilter([]) });
+    if (paidBatchFilter.length) chips.push({ key: "pbatch", label: `Paid batches (${paidBatchFilter.length})`, clear: () => setPaidBatchFilter([]) });
+    if (onboardingBatchFilter.length) chips.push({ key: "obatch", label: `Onboarding (${onboardingBatchFilter.length})`, clear: () => setOnboardingBatchFilter([]) });
+    if (revenueStatusFilter.length) chips.push({ key: "rev", label: `Revenue status (${revenueStatusFilter.length})`, clear: () => setRevenueStatusFilter([]) });
+    if (showArchived) chips.push({ key: "arch", label: "Archived shown", clear: () => setShowArchived(false) });
+    return chips;
+  }, [search, stageFilter, tempFilter, ownerFilter, financeStatusFilter, financePartnerFilter, tagFilter, followUpFilter, payStatusFilter, insightFilter, payDateFrom, payDateTo, batchFilter, paidBatchFilter, onboardingBatchFilter, revenueStatusFilter, showArchived]);
+
+
   const financePartnerOptions = useMemo(() => {
     const set = new Set<string>(DEFAULT_FINANCE_PARTNERS);
     leads.forEach(l => { if (l.finance_partner) set.add(l.finance_partner); });
