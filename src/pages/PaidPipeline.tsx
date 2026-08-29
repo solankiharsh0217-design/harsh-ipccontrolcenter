@@ -286,16 +286,8 @@ export default function PaidPipeline() {
   };
 
   // ---- Paid Pipeline eligibility gate (shared CoC resolver with Access Follow-up) ----
-  const { cocByLeadId } = usePaidPipelineCoc(leads as any);
-  const eligibleLeads = useMemo(
-    () => leads.filter((l) => cocByLeadId.get(l.id)?.eligible),
-    [leads, cocByLeadId],
-  );
-  const awaitingLeads = useMemo(
-    () => leads.filter((l) => !cocByLeadId.get(l.id)?.eligible),
-    [leads, cocByLeadId],
-  );
-  const viewLeads = pipelineView === "paid" ? eligibleLeads : awaitingLeads;
+  // Members without a successfully sent Code of Conduct are not loaded into this page.
+  // `leads` already contains only eligible members after `load()` resolves CoC status.
 
   const filtered = useMemo(() => {
     const td = today();
