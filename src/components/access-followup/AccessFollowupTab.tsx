@@ -244,7 +244,7 @@ export default function AccessFollowupTab({ paidLeads, crmLeads, owners }: Props
             <span className="font-medium text-foreground">Awaiting initial CoC send:</span>{" "}
             {awaitingInitialSendCount} member{awaitingInitialSendCount === 1 ? "" : "s"} not shown here.
           </div>
-          <a href="/finance-success?tab=incomplete" className="underline hover:no-underline whitespace-nowrap">Open Incomplete Members</a>
+          <a href="/finance-success-dashboard?tab=incomplete" className="underline hover:no-underline whitespace-nowrap">Open Incomplete Members</a>
         </div>
       )}
 
