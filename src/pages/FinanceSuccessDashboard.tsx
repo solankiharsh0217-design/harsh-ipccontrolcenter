@@ -729,7 +729,7 @@ export default function FinanceSuccessDashboard() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 mb-5">
+      <div className="flex flex-wrap items-end gap-3 mb-4">
         <div>
           <label className="block text-[11px] text-muted-foreground mb-1">Webinar date from</label>
           <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-[160px]" />
@@ -742,132 +742,156 @@ export default function FinanceSuccessDashboard() {
           <label className="block text-[11px] text-muted-foreground mb-1">Search name / email / phone / batch</label>
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" />
         </div>
-        {isAdmin && (
-          <>
-            <div className="min-w-[220px]">
-              <label className="block text-[11px] text-muted-foreground mb-1">Add success stage</label>
-              <Select
-                value=""
-                onValueChange={(v) => {
-                  if (!v) return;
-                  if (!successStageIds.includes(v)) saveSuccessStages([...successStageIds, v]);
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder="Add a success stage…" /></SelectTrigger>
-                <SelectContent>
-                  {pipelineStages
-                    .filter((s) => !successStageIds.includes(s.id))
-                    .map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-[220px]">
-              <label className="block text-[11px] text-muted-foreground mb-1">Add Dead / Refund stage</label>
-              <Select
-                value=""
-                onValueChange={(v) => {
-                  if (!v) return;
-                  if (!deadStageIds.includes(v)) saveDeadStages([...deadStageIds, v]);
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder="Add a dead/refund stage…" /></SelectTrigger>
-                <SelectContent>
-                  {pipelineStages
-                    .filter((s) => !deadStageIds.includes(s.id))
-                    .map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </>
+      </div>
+
+      {/* Top stats — 4 cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        {[
+          { label: "Active Leads", value: crmLeads.length },
+          { label: "Successful", value: summary.reached },
+          { label: "Pending", value: summary.pending },
+          { label: "Dead / Refund", value: summary.dead },
+        ].map((c) => (
+          <div key={c.label} className="rounded-xl border border-line bg-white px-4 py-3">
+            <div className="font-sans text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</div>
+            <div className="font-serif text-2xl leading-tight mt-1">{c.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Configure stages — collapsed by default */}
+      <div className="mb-5">
+        <button
+          onClick={() => setShowStageConfig((v) => !v)}
+          className="font-sans text-[11px] text-muted-foreground hover:text-foreground underline"
+        >
+          {showStageConfig ? "Hide stage configuration" : "Configure stages"}
+        </button>
+        {showStageConfig && (
+          <div className="mt-3 rounded-xl border border-line bg-white p-4 space-y-4">
+            {isAdmin && (
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[220px]">
+                  <label className="block text-[11px] text-muted-foreground mb-1">Add success stage</label>
+                  <Select
+                    value=""
+                    onValueChange={(v) => {
+                      if (!v) return;
+                      if (!successStageIds.includes(v)) saveSuccessStages([...successStageIds, v]);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Add a success stage…" /></SelectTrigger>
+                    <SelectContent>
+                      {pipelineStages
+                        .filter((s) => !successStageIds.includes(s.id))
+                        .map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="min-w-[220px]">
+                  <label className="block text-[11px] text-muted-foreground mb-1">Add Dead / Refund stage</label>
+                  <Select
+                    value=""
+                    onValueChange={(v) => {
+                      if (!v) return;
+                      if (!deadStageIds.includes(v)) saveDeadStages([...deadStageIds, v]);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Add a dead/refund stage…" /></SelectTrigger>
+                    <SelectContent>
+                      {pipelineStages
+                        .filter((s) => !deadStageIds.includes(s.id))
+                        .map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {successStageIds.length > 0 && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="text-muted-foreground">Success stages:</span>
+                {successStageIds.map((id) => {
+                  const s = pipelineStages.find((x) => x.id === id);
+                  const invalid = !s;
+                  return (
+                    <span
+                      key={id}
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${invalid ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}
+                    >
+                      {s?.name ?? "(not in selected pipeline)"}
+                      {isAdmin && (
+                        <button
+                          onClick={() => saveSuccessStages(successStageIds.filter((x) => x !== id))}
+                          className="opacity-60 hover:opacity-100"
+                          aria-label="Remove"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            {deadStageIds.length > 0 && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="text-muted-foreground">Dead / Refund stages:</span>
+                {deadStageIds.map((id) => {
+                  const s = pipelineStages.find((x) => x.id === id);
+                  const invalid = !s;
+                  return (
+                    <span
+                      key={id}
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${invalid ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}
+                    >
+                      {s?.name ?? "(not in selected pipeline)"}
+                      {isAdmin && (
+                        <button
+                          onClick={() => saveDeadStages(deadStageIds.filter((x) => x !== id))}
+                          className="opacity-60 hover:opacity-100"
+                          aria-label="Remove"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            {invalidSuccessStages.length > 0 && (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                ⚠ {invalidSuccessStages.length} saved success stage(s) do not belong to the selected pipeline. Please reselect.
+              </div>
+            )}
+            {invalidDeadStages.length > 0 && (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                ⚠ {invalidDeadStages.length} saved dead/refund stage(s) do not belong to the selected pipeline. Please reselect.
+              </div>
+            )}
+
+            {isAdmin && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs border-t border-line pt-3">
+                {[
+                  { label: "Dashboard denominator", value: summary.total },
+                  { label: "Linked paid records", value: summary.total - summary.missingPaidLink },
+                ].map((c) => (
+                  <div key={c.label}>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{c.label}</div>
+                    <div className="text-base font-semibold">{c.value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {successStageIds.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2 text-xs">
-          <span className="text-muted-foreground">Success stages:</span>
-          {successStageIds.map((id) => {
-            const s = pipelineStages.find((x) => x.id === id);
-            const invalid = !s;
-            return (
-              <span
-                key={id}
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${invalid ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}
-              >
-                {s?.name ?? "(not in selected pipeline)"}
-                {isAdmin && (
-                  <button
-                    onClick={() => saveSuccessStages(successStageIds.filter((x) => x !== id))}
-                    className="opacity-60 hover:opacity-100"
-                    aria-label="Remove"
-                  >
-                    ×
-                  </button>
-                )}
-              </span>
-            );
-          })}
-        </div>
-      )}
-      {deadStageIds.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3 text-xs">
-          <span className="text-muted-foreground">Dead / Refund stages:</span>
-          {deadStageIds.map((id) => {
-            const s = pipelineStages.find((x) => x.id === id);
-            const invalid = !s;
-            return (
-              <span
-                key={id}
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${invalid ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"}`}
-              >
-                {s?.name ?? "(not in selected pipeline)"}
-                {isAdmin && (
-                  <button
-                    onClick={() => saveDeadStages(deadStageIds.filter((x) => x !== id))}
-                    className="opacity-60 hover:opacity-100"
-                    aria-label="Remove"
-                  >
-                    ×
-                  </button>
-                )}
-              </span>
-            );
-          })}
-        </div>
-      )}
-      {invalidSuccessStages.length > 0 && (
-        <div className="mb-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          ⚠ {invalidSuccessStages.length} saved success stage(s) do not belong to the selected pipeline. Please reselect.
-        </div>
-      )}
-      {invalidDeadStages.length > 0 && (
-        <div className="mb-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          ⚠ {invalidDeadStages.length} saved dead/refund stage(s) do not belong to the selected pipeline. Please reselect.
-        </div>
-      )}
-
-      {isAdmin && (
-        <Card className="mb-5">
-          <CardContent className="p-3 grid grid-cols-2 md:grid-cols-6 gap-3 text-xs">
-            {[
-              { label: "CRM pipeline active leads", value: crmLeads.length },
-              { label: "Dashboard denominator", value: summary.total },
-              { label: "Linked paid records", value: summary.total - summary.missingPaidLink },
-              { label: "Successful", value: summary.reached },
-              { label: "Pending / Not yet", value: summary.pending },
-              { label: "Dead / Refund", value: summary.dead },
-            ].map((c) => (
-              <div key={c.label}>
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{c.label}</div>
-                <div className="text-base font-semibold">{c.value}</div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4 h-auto bg-transparent p-0 border-b border-border rounded-none w-full justify-start gap-1">
