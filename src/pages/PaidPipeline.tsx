@@ -382,7 +382,7 @@ export default function PaidPipeline() {
       if (tok > 0 && total <= tok && bal > 0) tokenNoSecond++;
     });
     return { highBalCount, highBalAmt, approvedNotDisbCount, approvedNotDisbAmt, noFu, urgentBalCount, urgentBalAmt, tokenNoSecond };
-  }, [viewLeads]);
+  }, [leads]);
 
   const totals = useMemo(() => {
     const td = today();
