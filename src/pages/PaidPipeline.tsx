@@ -145,7 +145,7 @@ export default function PaidPipeline() {
   const [showArchived, setShowArchived] = useState(false);
   const [payStatusFilter, setPayStatusFilter] = useState<PayStatusKey | "all">("all");
   const HIGH_BAL_THRESHOLD = 50000;
-  const [pipelineView, setPipelineView] = useState<"paid" | "awaiting">("paid");
+  const [cocByLeadId, setCocByLeadId] = useState<Map<string, PaidCocInfo>>(new Map());
   const [filtersOpen, setFiltersOpen] = useState(false);
 
 
