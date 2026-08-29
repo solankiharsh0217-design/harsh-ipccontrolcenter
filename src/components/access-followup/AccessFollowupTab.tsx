@@ -314,7 +314,7 @@ function DesktopTable({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[
               <th className="text-left px-4 py-2.5">Group Joined</th>
               <th className="text-left px-4 py-2.5">Owner</th>
               <th className="text-left px-4 py-2.5">Batch</th>
-              <th className="text-right px-4 py-2.5 min-w-[260px]">Actions</th>
+              <th className="text-right px-4 py-2.5 min-w-[260px] sticky right-0 bg-off z-10">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -339,7 +339,7 @@ function DesktopTable({ rows, onSelect, returnTo, onBeforeCrmNav }: { rows: Row[
                   <div className="truncate max-w-[180px] leading-tight">{r.batch || "—"}</div>
                   {r.webinarDate && <div className="text-[10.5px] text-muted-foreground leading-tight">{r.webinarDate}</div>}
                 </td>
-                <td className="px-4 py-3 border-t border-line text-right align-middle" style={{ minWidth: 260 }}>
+                <td className="px-4 py-3 border-t border-line text-right align-middle sticky right-0 bg-white z-[1]" style={{ minWidth: 260 }}>
                   <AccessRowActions
                     phone={r.phone}
                     crmLeadId={r.crmLeadId}
