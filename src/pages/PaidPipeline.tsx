@@ -41,7 +41,7 @@ import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import PaymentDateRangeFilter from "@/components/paid-pipeline/PaymentDateRangeFilter";
 import PaidPipelineLeadDrawer from "@/components/paid-pipeline/PaidPipelineLeadDrawer";
-import { usePaidPipelineCoc } from "@/lib/paidPipelineEligibility";
+import { resolvePaidPipelineCoc, type PaidCocInfo } from "@/lib/paidPipelineEligibility";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export type Lead = {
@@ -145,7 +145,7 @@ export default function PaidPipeline() {
   const [showArchived, setShowArchived] = useState(false);
   const [payStatusFilter, setPayStatusFilter] = useState<PayStatusKey | "all">("all");
   const HIGH_BAL_THRESHOLD = 50000;
-  const [pipelineView, setPipelineView] = useState<"paid" | "awaiting">("paid");
+  const [cocByLeadId, setCocByLeadId] = useState<Map<string, PaidCocInfo>>(new Map());
   const [filtersOpen, setFiltersOpen] = useState(false);
 
 
@@ -158,13 +158,19 @@ export default function PaidPipeline() {
       supabase.from("paid_pipeline_settings").select("label").eq("setting_type", "pipeline_stage").eq("is_active", true).eq("is_deleted", false).order("sort_order"),
       getEligibleAssignees("paid_pipeline"),
     ]);
-    setLeads((l as any) || []);
+    const rawLeads: Lead[] = (l as any) || [];
+    // Gate: only members with a successfully sent Code of Conduct belong in the Paid Pipeline.
+    // This reuses the same CoC resolver as Access Follow-up.
+    const cocMap = await resolvePaidPipelineCoc(rawLeads);
+    const eligibleLeads = rawLeads.filter((lead) => cocMap.get(lead.id)?.eligible);
+    setCocByLeadId(cocMap);
+    setLeads(eligibleLeads);
     setBatches((b as any) || []);
     setPaidBatches((pb as any) || []);
     setStages(((s as any) || []).map((x: any) => x.label));
     setAgents(elig.map((a) => ({ id: a.id, full_name: a.full_name })) as any);
     const obSet = new Set<string>();
-    ((l as any[]) || []).forEach(x => { if (x.onboarding_batch_name) obSet.add(x.onboarding_batch_name); });
+    eligibleLeads.forEach(x => { if (x.onboarding_batch_name) obSet.add(x.onboarding_batch_name); });
     setOnboardingBatches(Array.from(obSet).sort());
   };
   useEffect(() => { load(); }, [showArchived]);
@@ -286,20 +292,12 @@ export default function PaidPipeline() {
   };
 
   // ---- Paid Pipeline eligibility gate (shared CoC resolver with Access Follow-up) ----
-  const { cocByLeadId } = usePaidPipelineCoc(leads as any);
-  const eligibleLeads = useMemo(
-    () => leads.filter((l) => cocByLeadId.get(l.id)?.eligible),
-    [leads, cocByLeadId],
-  );
-  const awaitingLeads = useMemo(
-    () => leads.filter((l) => !cocByLeadId.get(l.id)?.eligible),
-    [leads, cocByLeadId],
-  );
-  const viewLeads = pipelineView === "paid" ? eligibleLeads : awaitingLeads;
+  // Members without a successfully sent Code of Conduct are not loaded into this page.
+  // `leads` already contains only eligible members after `load()` resolves CoC status.
 
   const filtered = useMemo(() => {
     const td = today();
-    return viewLeads.filter(l => {
+    return leads.filter(l => {
       // Webinar batch multi (OR): id match OR normalized-name fallback match
       if (batchFilter.length > 0) {
         const idHit =
@@ -366,9 +364,9 @@ export default function PaidPipeline() {
       if (payStatusFilter !== "all") {
         if (getPaymentStatus(l as any).key !== payStatusFilter) return false;
       }
-      return true;
+    return true;
     });
-  }, [viewLeads, batches, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, batchDateById, batchDateByName]);
+  }, [leads, batches, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, batchDateById, batchDateByName]);
 
   const insights = useMemo(() => {
     let highBalCount = 0, highBalAmt = 0;
@@ -376,7 +374,7 @@ export default function PaidPipeline() {
     let noFu = 0;
     let urgentBalCount = 0, urgentBalAmt = 0;
     let tokenNoSecond = 0;
-    viewLeads.forEach(l => {
+    leads.forEach(l => {
       const bal = Number(l.balance_pending || 0);
       const fu = l.next_follow_up_date || l.follow_up_date;
       if (bal >= HIGH_BAL_THRESHOLD) { highBalCount++; highBalAmt += bal; }
@@ -390,7 +388,7 @@ export default function PaidPipeline() {
       if (tok > 0 && total <= tok && bal > 0) tokenNoSecond++;
     });
     return { highBalCount, highBalAmt, approvedNotDisbCount, approvedNotDisbAmt, noFu, urgentBalCount, urgentBalAmt, tokenNoSecond };
-  }, [viewLeads]);
+  }, [leads]);
 
   const totals = useMemo(() => {
     const td = today();
@@ -486,9 +484,15 @@ export default function PaidPipeline() {
     <div className="w-full min-w-0">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-serif text-[28px] text-black">Paid Pipeline</h1>
-          <p className="font-sans text-[13px] font-light text-muted-foreground mt-1 mb-3">
+          <div className="flex items-baseline gap-3">
+            <h1 className="font-serif text-[28px] text-black">Paid Pipeline</h1>
+            <span className="text-[13px] text-muted-foreground font-medium">{leads.length} paid members</span>
+          </div>
+          <p className="font-sans text-[13px] font-light text-muted-foreground mt-1">
             Track token payments, balance recovery, finance/EMI, and final revenue realization.
+          </p>
+          <p className="font-sans text-[11.5px] text-muted-foreground/80 mt-1 mb-3">
+            Members appear here once a Code of Conduct has been sent. Members still awaiting finance completion are managed in the Calling CRM.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -555,20 +559,8 @@ export default function PaidPipeline() {
         )}
       </div>
 
-      {/* Row 2 — view toggle + search */}
+      {/* Row 2 — search */}
       <div className="flex flex-wrap items-center gap-3 mb-2">
-        <div className="inline-flex border border-line overflow-hidden" style={{ borderRadius: 8 }}>
-          {([
-            { k: "paid", label: `Paid Members (${eligibleLeads.length})` },
-            { k: "awaiting", label: `Awaiting Finance (${awaitingLeads.length})` },
-          ] as const).map(o => (
-            <button
-              key={o.k}
-              onClick={() => setPipelineView(o.k)}
-              className={`h-9 px-4 text-[12.5px] transition-colors ${pipelineView === o.k ? "bg-black text-white" : "bg-white text-muted-foreground hover:bg-off"}`}
-            >{o.label}</button>
-          ))}
-        </div>
         <input
           className="h-9 border border-line px-3 text-[13px] flex-1 min-w-[220px]"
           style={{ borderRadius: 8 }}
@@ -579,11 +571,6 @@ export default function PaidPipeline() {
         />
         <button onClick={() => setSearch(searchInput)} className="ipc-btn ipc-btn-black !h-9">Search</button>
       </div>
-      {pipelineView === "awaiting" && (
-        <div className="text-[11.5px] text-muted-foreground mb-3">
-          These members have not yet been sent a Code of Conduct, so their finance process is not yet confirmed complete.
-        </div>
-      )}
 
       {/* Row 3 — payment-status chips (deduplicated) */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -624,7 +611,7 @@ export default function PaidPipeline() {
           style={{ borderRadius: 8 }}
         >Filters{activeFilterChips.length > 0 ? ` (${activeFilterChips.length})` : ""}</button>
         <div className="text-[12.5px] text-muted-foreground">
-          Showing <span className="font-medium text-black">{filtered.length}</span> of <span className="font-medium text-black">{viewLeads.length}</span> members
+          Showing <span className="font-medium text-black">{filtered.length}</span> of <span className="font-medium text-black">{leads.length}</span> members
         </div>
       </div>
       {activeFilterChips.length > 0 && (
