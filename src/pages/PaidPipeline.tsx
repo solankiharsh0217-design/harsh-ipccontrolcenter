@@ -553,20 +553,8 @@ export default function PaidPipeline() {
         )}
       </div>
 
-      {/* Row 2 — view toggle + search */}
+      {/* Row 2 — search */}
       <div className="flex flex-wrap items-center gap-3 mb-2">
-        <div className="inline-flex border border-line overflow-hidden" style={{ borderRadius: 8 }}>
-          {([
-            { k: "paid", label: `Paid Members (${eligibleLeads.length})` },
-            { k: "awaiting", label: `Awaiting Finance (${awaitingLeads.length})` },
-          ] as const).map(o => (
-            <button
-              key={o.k}
-              onClick={() => setPipelineView(o.k)}
-              className={`h-9 px-4 text-[12.5px] transition-colors ${pipelineView === o.k ? "bg-black text-white" : "bg-white text-muted-foreground hover:bg-off"}`}
-            >{o.label}</button>
-          ))}
-        </div>
         <input
           className="h-9 border border-line px-3 text-[13px] flex-1 min-w-[220px]"
           style={{ borderRadius: 8 }}
@@ -577,11 +565,6 @@ export default function PaidPipeline() {
         />
         <button onClick={() => setSearch(searchInput)} className="ipc-btn ipc-btn-black !h-9">Search</button>
       </div>
-      {pipelineView === "awaiting" && (
-        <div className="text-[11.5px] text-muted-foreground mb-3">
-          These members have not yet been sent a Code of Conduct, so their finance process is not yet confirmed complete.
-        </div>
-      )}
 
       {/* Row 3 — payment-status chips (deduplicated) */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
