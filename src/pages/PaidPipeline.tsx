@@ -291,7 +291,7 @@ export default function PaidPipeline() {
 
   const filtered = useMemo(() => {
     const td = today();
-    return viewLeads.filter(l => {
+    return leads.filter(l => {
       // Webinar batch multi (OR): id match OR normalized-name fallback match
       if (batchFilter.length > 0) {
         const idHit =
