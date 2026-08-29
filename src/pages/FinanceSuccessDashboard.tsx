@@ -999,18 +999,16 @@ export default function FinanceSuccessDashboard() {
               </Card>
             </div>
 
-            {/* Layer 2: Today's Work (Daily Queue) */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <SectionLabel>Access Follow-up Daily Queue</SectionLabel>
-                <Link to="/analytics-center" className="text-[11px] text-muted-foreground hover:underline">View Analytics Center →</Link>
-              </div>
-              <AccessFollowupTab 
-                paidLeads={paidLeads} 
-                crmLeads={crmLeads.map(l => ({ ...l, stage_name: enriched.find(e => e.id === l.id)?.currentStage }))} 
-                owners={owners} 
-              />
+            <div className="flex items-center justify-between px-1">
+              <SectionLabel>Access Follow-up</SectionLabel>
+              <button
+                onClick={() => setActiveTab("access")}
+                className="text-[11px] text-muted-foreground hover:underline"
+              >
+                Open Access Follow-up →
+              </button>
             </div>
+
           </div>
         </TabsContent>
 
