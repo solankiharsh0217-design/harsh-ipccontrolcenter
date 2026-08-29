@@ -750,6 +750,8 @@ export default function PaidPipeline() {
                 ownerName={agents.find(a => a.id === l.assigned_sales_executive)?.full_name || null}
                 tags={leadTagsMap[l.id] || []}
                 selected={selected.has(l.id)}
+                cocStatus={cocByLeadId.get(l.id)?.status ?? null}
+                cocHasCrmLink={cocByLeadId.get(l.id)?.hasCrmLink !== false}
                 onToggleSelect={() => toggleOne(l.id)}
                 onOpen={() => setOpenId(l.id)}
                 onAddPayment={() => setQuickPayId(l.id)}
