@@ -478,9 +478,15 @@ export default function PaidPipeline() {
     <div className="w-full min-w-0">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-serif text-[28px] text-black">Paid Pipeline</h1>
-          <p className="font-sans text-[13px] font-light text-muted-foreground mt-1 mb-3">
+          <div className="flex items-baseline gap-3">
+            <h1 className="font-serif text-[28px] text-black">Paid Pipeline</h1>
+            <span className="text-[13px] text-muted-foreground font-medium">{leads.length} paid members</span>
+          </div>
+          <p className="font-sans text-[13px] font-light text-muted-foreground mt-1">
             Track token payments, balance recovery, finance/EMI, and final revenue realization.
+          </p>
+          <p className="font-sans text-[11.5px] text-muted-foreground/80 mt-1 mb-3">
+            Members appear here once a Code of Conduct has been sent. Members still awaiting finance completion are managed in the Calling CRM.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
