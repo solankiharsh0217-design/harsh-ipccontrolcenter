@@ -898,6 +898,12 @@ export default function FinanceSuccessDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4 h-auto bg-transparent p-0 border-b border-border rounded-none w-full justify-start gap-1">
           <TabsTrigger
+            value="access"
+            className="rounded-none rounded-t-md px-4 py-2 text-sm text-muted-foreground border-b-2 border-transparent hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-950 data-[state=active]:font-semibold data-[state=active]:border-amber-500 data-[state=active]:shadow-none"
+          >
+            Access Follow-up
+          </TabsTrigger>
+          <TabsTrigger
             value="work"
             className="rounded-none rounded-t-md px-4 py-2 text-sm text-muted-foreground border-b-2 border-transparent hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-950 data-[state=active]:font-semibold data-[state=active]:border-amber-500 data-[state=active]:shadow-none"
           >
@@ -918,7 +924,7 @@ export default function FinanceSuccessDashboard() {
             value="analytics"
             className="rounded-none rounded-t-md px-4 py-2 text-sm text-muted-foreground border-b-2 border-transparent hover:text-foreground hover:bg-muted/50 data-[state=active]:bg-amber-50 data-[state=active]:text-amber-950 data-[state=active]:font-semibold data-[state=active]:border-amber-500 data-[state=active]:shadow-none"
           >
-            Analytics & Reports
+            Reports
           </TabsTrigger>
           <TabsTrigger
             value="summary"
@@ -928,7 +934,16 @@ export default function FinanceSuccessDashboard() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="access" className="mt-0">
+          <AccessFollowupTab
+            paidLeads={paidLeads}
+            crmLeads={crmLeads.map(l => ({ ...l, stage_name: enriched.find(e => e.id === l.id)?.currentStage }))}
+            owners={owners}
+          />
+        </TabsContent>
+
         <TabsContent value="work" className="mt-0">
+
           <div className="space-y-6">
             {/* Layer 1: Critical Decisions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
