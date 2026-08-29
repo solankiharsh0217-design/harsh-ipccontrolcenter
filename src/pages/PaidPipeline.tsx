@@ -358,9 +358,9 @@ export default function PaidPipeline() {
       if (payStatusFilter !== "all") {
         if (getPaymentStatus(l as any).key !== payStatusFilter) return false;
       }
-      return true;
+    return true;
     });
-  }, [viewLeads, batches, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, batchDateById, batchDateByName]);
+  }, [leads, batches, batchFilter, selectedBatchNames, paidBatchFilter, onboardingBatchFilter, stageFilter, tempFilter, financePartnerFilter, financeStatusFilter, ownerFilter, followUpFilter, revenueStatusFilter, search, tagFilter, leadTagsMap, insightFilter, payStatusFilter, payDateFrom, payDateTo, batchDateById, batchDateByName]);
 
   const insights = useMemo(() => {
     let highBalCount = 0, highBalAmt = 0;
@@ -368,7 +368,7 @@ export default function PaidPipeline() {
     let noFu = 0;
     let urgentBalCount = 0, urgentBalAmt = 0;
     let tokenNoSecond = 0;
-    viewLeads.forEach(l => {
+    leads.forEach(l => {
       const bal = Number(l.balance_pending || 0);
       const fu = l.next_follow_up_date || l.follow_up_date;
       if (bal >= HIGH_BAL_THRESHOLD) { highBalCount++; highBalAmt += bal; }
