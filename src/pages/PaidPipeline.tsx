@@ -41,6 +41,8 @@ import SendPaidToOpsModal from "@/components/paid-pipeline/SendPaidToOpsModal";
 import MultiSelectFilter from "@/components/crm/MultiSelectFilter";
 import PaymentDateRangeFilter from "@/components/paid-pipeline/PaymentDateRangeFilter";
 import PaidPipelineLeadDrawer from "@/components/paid-pipeline/PaidPipelineLeadDrawer";
+import { usePaidPipelineCoc } from "@/lib/paidPipelineEligibility";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export type Lead = {
   id: string;
