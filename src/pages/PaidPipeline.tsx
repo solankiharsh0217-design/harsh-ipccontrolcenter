@@ -605,7 +605,7 @@ export default function PaidPipeline() {
           style={{ borderRadius: 8 }}
         >Filters{activeFilterChips.length > 0 ? ` (${activeFilterChips.length})` : ""}</button>
         <div className="text-[12.5px] text-muted-foreground">
-          Showing <span className="font-medium text-black">{filtered.length}</span> of <span className="font-medium text-black">{viewLeads.length}</span> members
+          Showing <span className="font-medium text-black">{filtered.length}</span> of <span className="font-medium text-black">{leads.length}</span> members
         </div>
       </div>
       {activeFilterChips.length > 0 && (
