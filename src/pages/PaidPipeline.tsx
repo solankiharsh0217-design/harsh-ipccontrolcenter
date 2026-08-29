@@ -145,6 +145,9 @@ export default function PaidPipeline() {
   const [showArchived, setShowArchived] = useState(false);
   const [payStatusFilter, setPayStatusFilter] = useState<PayStatusKey | "all">("all");
   const HIGH_BAL_THRESHOLD = 50000;
+  const [pipelineView, setPipelineView] = useState<"paid" | "awaiting">("paid");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
 
   const load = async () => {
     const archivedFilter = (q: any) => showArchived ? q.not("archived_at", "is", null) : q.is("archived_at", null);
