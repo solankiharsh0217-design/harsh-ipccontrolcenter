@@ -263,10 +263,21 @@ export default function PaidPipeline() {
     return "";
   };
 
+  // ---- Paid Pipeline eligibility gate (shared CoC resolver with Access Follow-up) ----
+  const { cocByLeadId } = usePaidPipelineCoc(leads as any);
+  const eligibleLeads = useMemo(
+    () => leads.filter((l) => cocByLeadId.get(l.id)?.eligible),
+    [leads, cocByLeadId],
+  );
+  const awaitingLeads = useMemo(
+    () => leads.filter((l) => !cocByLeadId.get(l.id)?.eligible),
+    [leads, cocByLeadId],
+  );
+  const viewLeads = pipelineView === "paid" ? eligibleLeads : awaitingLeads;
 
   const filtered = useMemo(() => {
     const td = today();
-    return leads.filter(l => {
+    return viewLeads.filter(l => {
       // Webinar batch multi (OR): id match OR normalized-name fallback match
       if (batchFilter.length > 0) {
         const idHit =
