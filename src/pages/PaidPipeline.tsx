@@ -151,6 +151,7 @@ export default function PaidPipeline() {
   const HIGH_BAL_THRESHOLD = 50000;
   const [cocByLeadId, setCocByLeadId] = useState<Map<string, PaidCocInfo>>(new Map());
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const { pinned, isPinned, toggle: togglePinned, reset: resetPinned } = usePinnedFilters();
 
 
   const load = async () => {
