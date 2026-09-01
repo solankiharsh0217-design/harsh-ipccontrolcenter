@@ -59,7 +59,7 @@ export default function PaymentDateRangeFilter({ dateFrom, dateTo, onChange, lab
         <PopoverContent
           align="start"
           sideOffset={6}
-          className="w-auto p-0 bg-white border border-line shadow-lg z-[1100]"
+          className="w-auto p-0 bg-white border border-line shadow-lg z-[1400] pointer-events-auto"
         >
           <div className="flex">
             <div className="flex flex-col border-r border-line py-3 px-2 gap-1 min-w-[140px] bg-[#FAF9F6]">
