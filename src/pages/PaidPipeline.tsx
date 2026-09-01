@@ -671,6 +671,17 @@ export default function PaidPipeline() {
         <button onClick={() => setSearch(searchInput)} className="ipc-btn ipc-btn-black !h-9">Search</button>
       </div>
 
+      {/* Row 2b — pinned (customizable) filter bar */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        {pinnedOrder.map(k => <div key={k}>{filterControls[k].inline}</div>)}
+        <button
+          onClick={() => setFiltersOpen(true)}
+          className="h-[34px] px-3 border border-line bg-white hover:bg-off text-[12px]"
+          style={{ borderRadius: 8 }}
+        >Filters{activeFilterChips.length > 0 ? ` (${activeFilterChips.length})` : ""}</button>
+        <CustomizeFilterBar pinned={pinned} onToggle={togglePinned} onReset={resetPinned} />
+      </div>
+
       {/* Row 3 — payment-status chips (deduplicated) */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         {([
