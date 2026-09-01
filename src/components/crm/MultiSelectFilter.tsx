@@ -95,7 +95,7 @@ export default function MultiSelectFilter({
         sideOffset={6}
         collisionPadding={12}
         style={{ width: panelWidth }}
-        className="z-[1100] p-0 bg-white border border-line rounded-md shadow-lg overflow-hidden"
+        className="z-[1400] pointer-events-auto p-0 bg-white border border-line rounded-md shadow-lg overflow-hidden"
       >
         {searchable && (
           <div className="p-2 border-b border-line flex items-center gap-1.5">

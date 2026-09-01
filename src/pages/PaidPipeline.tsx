@@ -939,7 +939,7 @@ function FilterField({ label, children }: { label: string; children: React.React
 
 function FilterSelect({ value, onChange, label, options }: { value: string; onChange: (v: string) => void; label: string; options: { v: string; l: string }[] }) {
   return (
-    <select className="h-9 border border-line rounded-md px-2 text-[12.5px]" value={value} onChange={(e) => onChange(e.target.value)}>
+    <select className="h-9 w-full border border-line rounded-md px-2 text-[12.5px] bg-white" value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="all">{label}</option>
       {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
     </select>
