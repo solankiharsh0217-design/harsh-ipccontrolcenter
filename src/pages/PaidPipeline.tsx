@@ -713,13 +713,8 @@ export default function PaidPipeline() {
         })}
       </div>
 
-      {/* Row 4 — single Filters button + active filter chips */}
-      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-        <button
-          onClick={() => setFiltersOpen(true)}
-          className="h-9 px-4 border border-line bg-white hover:bg-off text-[12.5px]"
-          style={{ borderRadius: 8 }}
-        >Filters{activeFilterChips.length > 0 ? ` (${activeFilterChips.length})` : ""}</button>
+      {/* Row 4 — result count + active filter chips */}
+      <div className="flex items-center justify-end flex-wrap gap-2 mb-2">
         <div className="text-[12.5px] text-muted-foreground">
           Showing <span className="font-medium text-black">{filtered.length}</span> of <span className="font-medium text-black">{leads.length}</span> members
         </div>
@@ -737,51 +732,17 @@ export default function PaidPipeline() {
       )}
 
       <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-[420px] overflow-y-auto flex flex-col">
+        <SheetContent side="right" className="w-full sm:max-w-[420px] overflow-y-auto flex flex-col !z-[1200]">
           <SheetHeader><SheetTitle className="font-serif text-[20px]">Filters</SheetTitle></SheetHeader>
-          <div className="flex-1 space-y-3 mt-4">
-            <FilterField label="Stage"><FilterSelect value={stageFilter} onChange={setStageFilter} label="All stages" options={stages.map(s => ({ v: s, l: s }))} /></FilterField>
-            <FilterField label="Priority"><FilterSelect value={tempFilter} onChange={setTempFilter} label="All priorities" options={TEMPERATURES.map(t => ({ v: t, l: t }))} /></FilterField>
-            <FilterField label="Owner"><FilterSelect value={ownerFilter} onChange={setOwnerFilter} label="All owners" options={[{ v: "unassigned", l: "— Unassigned —" }, ...agents.map(a => ({ v: a.id, l: a.full_name }))]} /></FilterField>
-            <FilterField label="Finance status"><FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={["Not Required","Documents Pending","Documents Received","Application Submitted","Approved","Rejected","Disbursed","Alternate Partner Needed"].map(t => ({ v: t, l: t }))} /></FilterField>
-            <FilterField label="Finance partner"><FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} /></FilterField>
-            <FilterField label="Tags"><FilterSelect value={tagFilter} onChange={setTagFilter} label="All tags" options={allTags.map(t => ({ v: t.id, l: t.name }))} /></FilterField>
-            <FilterField label="Follow-up"><FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={[
-              { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
-            ]} /></FilterField>
-            <FilterField label="Webinar / payment date range">
-              <PaymentDateRangeFilter
-                dateFrom={payDateFrom}
-                dateTo={payDateTo}
-                onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }}
-                label="Webinar Date"
-              />
-            </FilterField>
-            <FilterField label="Webinar batches">
-              <MultiSelectFilter label="Webinar batches" selectedValues={batchFilter} onChange={setBatchFilter} options={batches.map(b => ({ value: b.id, label: b.batch_name }))} />
-            </FilterField>
-            <FilterField label="Paid batches">
-              <MultiSelectFilter label="Paid batches" selectedValues={paidBatchFilter} onChange={setPaidBatchFilter} options={paidBatches.map(b => ({ value: b.id, label: b.batch_name }))} />
-            </FilterField>
-            <FilterField label="Onboarding batches">
-              <MultiSelectFilter label="Onboarding batches" selectedValues={onboardingBatchFilter} onChange={setOnboardingBatchFilter} options={onboardingBatches.map(o => ({ value: o, label: o }))} />
-            </FilterField>
-            <FilterField label="Revenue status">
-              <MultiSelectFilter
-                label="Revenue status"
-                selectedValues={revenueStatusFilter}
-                onChange={setRevenueStatusFilter}
-                options={[
-                  { value: "token", label: "Token only" },
-                  { value: "partial", label: "Partially collected" },
-                  { value: "full", label: "Fully collected" },
-                  { value: "finance_pending", label: "Finance pending" },
-                  { value: "finance_disbursed", label: "Finance disbursed" },
-                  { value: "balance_pending", label: "Balance pending" },
-                  { value: "dropped", label: "Dropped" },
-                ]}
-              />
-            </FilterField>
+          <div className="flex-1 space-y-3 mt-4 pb-6">
+            {unpinnedKeys.length === 0 && (
+              <div className="text-[12px] text-muted-foreground">
+                All filters are pinned to the front of the page.
+              </div>
+            )}
+            {unpinnedKeys.map(k => (
+              <FilterField key={k} label={filterControls[k].label}>{filterControls[k].panel}</FilterField>
+            ))}
             <FilterField label="Advanced">
               <label className="flex items-center gap-2 text-[12.5px]">
                 <input
@@ -807,6 +768,7 @@ export default function PaidPipeline() {
           </div>
         </SheetContent>
       </Sheet>
+
 
 
       {/* Bulk action bar */}
