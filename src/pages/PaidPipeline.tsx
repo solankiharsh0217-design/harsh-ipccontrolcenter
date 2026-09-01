@@ -485,6 +485,100 @@ export default function PaidPipeline() {
 
   const openLead = leads.find(l => l.id === openId) || null;
 
+  // ── Filter controls: same filtering logic, rendered either pinned (front) or in the slide-over ──
+  const stageOptions = stages.map(s => ({ v: s, l: s }));
+  const priorityOptions = TEMPERATURES.map(t => ({ v: t, l: t }));
+  const ownerOptions = [{ v: "unassigned", l: "— Unassigned —" }, ...agents.map(a => ({ v: a.id, l: a.full_name }))];
+  const financeStatusOptions = ["Not Required","Documents Pending","Documents Received","Application Submitted","Approved","Rejected","Disbursed","Alternate Partner Needed"].map(t => ({ v: t, l: t }));
+  const tagOptions = allTags.map(t => ({ v: t.id, l: t.name }));
+  const followUpOptions = [
+    { v: "today", l: "Due today" }, { v: "overdue", l: "Overdue" }, { v: "upcoming", l: "Upcoming" }, { v: "none", l: "No follow-up" }, { v: "urgent", l: "Hot/Urgent" },
+  ];
+  const revenueStatusOptions = [
+    { value: "token", label: "Token only" },
+    { value: "partial", label: "Partially collected" },
+    { value: "full", label: "Fully collected" },
+    { value: "finance_pending", label: "Finance pending" },
+    { value: "finance_disbursed", label: "Finance disbursed" },
+    { value: "balance_pending", label: "Balance pending" },
+    { value: "dropped", label: "Dropped" },
+  ];
+  const paymentStatusOptions = [
+    { v: "fully_paid", l: "Fully Paid" }, { v: "overpaid", l: "Overpaid · Check" }, { v: "balance_pending", l: "Balance Pending" },
+    { v: "token_paid", l: "Token Paid" }, { v: "token_pending", l: "Token Pending" }, { v: "no_payment", l: "No Payment" },
+  ];
+
+  const filterControls: Record<PinnedFilterKey, { label: string; inline: React.ReactNode; panel: React.ReactNode }> = {
+    dateRange: {
+      label: "Date range",
+      inline: <InlineDateRangeFilter from={payDateFrom} to={payDateTo} onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }} />,
+      panel: <PaymentDateRangeFilter dateFrom={payDateFrom} dateTo={payDateTo} onChange={(f, t) => { setPayDateFrom(f); setPayDateTo(t); }} label="Webinar Date" />,
+    },
+    stage: {
+      label: "Stage",
+      inline: <InlineSelectFilter label="Stage" allLabel="All stages" value={stageFilter} onChange={setStageFilter} options={stageOptions} />,
+      panel: <FilterSelect value={stageFilter} onChange={setStageFilter} label="All stages" options={stageOptions} />,
+    },
+    priority: {
+      label: "Priority",
+      inline: <InlineSelectFilter label="Priority" allLabel="All priorities" value={tempFilter} onChange={setTempFilter} options={priorityOptions} />,
+      panel: <FilterSelect value={tempFilter} onChange={setTempFilter} label="All priorities" options={priorityOptions} />,
+    },
+    owner: {
+      label: "Owner",
+      inline: <InlineSelectFilter label="Owner" allLabel="All owners" value={ownerFilter} onChange={setOwnerFilter} options={ownerOptions} />,
+      panel: <FilterSelect value={ownerFilter} onChange={setOwnerFilter} label="All owners" options={ownerOptions} />,
+    },
+    financeStatus: {
+      label: "Finance status",
+      inline: <InlineSelectFilter label="Finance status" allLabel="All finance status" value={financeStatusFilter} onChange={setFinanceStatusFilter} options={financeStatusOptions} />,
+      panel: <FilterSelect value={financeStatusFilter} onChange={setFinanceStatusFilter} label="All finance status" options={financeStatusOptions} />,
+    },
+    financePartner: {
+      label: "Finance partner",
+      inline: <InlineSelectFilter label="Finance partner" allLabel="All finance partners" value={financePartnerFilter} onChange={setFinancePartnerFilter} options={financePartnerOptions.map(p => ({ v: p, l: p }))} />,
+      panel: <FilterSelect value={financePartnerFilter} onChange={setFinancePartnerFilter} label="All finance partners" options={financePartnerOptions.map(p => ({ v: p, l: p }))} />,
+    },
+    tags: {
+      label: "Tags",
+      inline: <InlineSelectFilter label="Tags" allLabel="All tags" value={tagFilter} onChange={setTagFilter} options={tagOptions} />,
+      panel: <FilterSelect value={tagFilter} onChange={setTagFilter} label="All tags" options={tagOptions} />,
+    },
+    followUp: {
+      label: "Follow-up",
+      inline: <InlineSelectFilter label="Follow-up" allLabel="All follow-ups" value={followUpFilter} onChange={setFollowUpFilter} options={followUpOptions} />,
+      panel: <FilterSelect value={followUpFilter} onChange={setFollowUpFilter} label="All follow-ups" options={followUpOptions} />,
+    },
+    webinarBatches: {
+      label: "Webinar batches",
+      inline: <InlineMultiFilter label="Webinar batches" selectedValues={batchFilter} onChange={setBatchFilter} options={batches.map(b => ({ value: b.id, label: b.batch_name }))} />,
+      panel: <MultiSelectFilter label="Webinar batches" selectedValues={batchFilter} onChange={setBatchFilter} options={batches.map(b => ({ value: b.id, label: b.batch_name }))} />,
+    },
+    paidBatches: {
+      label: "Paid batches",
+      inline: <InlineMultiFilter label="Paid batches" selectedValues={paidBatchFilter} onChange={setPaidBatchFilter} options={paidBatches.map(b => ({ value: b.id, label: b.batch_name }))} />,
+      panel: <MultiSelectFilter label="Paid batches" selectedValues={paidBatchFilter} onChange={setPaidBatchFilter} options={paidBatches.map(b => ({ value: b.id, label: b.batch_name }))} />,
+    },
+    onboardingBatches: {
+      label: "Onboarding batches",
+      inline: <InlineMultiFilter label="Onboarding batches" selectedValues={onboardingBatchFilter} onChange={setOnboardingBatchFilter} options={onboardingBatches.map(o => ({ value: o, label: o }))} />,
+      panel: <MultiSelectFilter label="Onboarding batches" selectedValues={onboardingBatchFilter} onChange={setOnboardingBatchFilter} options={onboardingBatches.map(o => ({ value: o, label: o }))} />,
+    },
+    revenueStatus: {
+      label: "Revenue status",
+      inline: <InlineMultiFilter label="Revenue status" selectedValues={revenueStatusFilter} onChange={setRevenueStatusFilter} options={revenueStatusOptions} />,
+      panel: <MultiSelectFilter label="Revenue status" selectedValues={revenueStatusFilter} onChange={setRevenueStatusFilter} options={revenueStatusOptions} />,
+    },
+    paymentStatus: {
+      label: "Payment status",
+      inline: <InlineSelectFilter label="Payment status" allLabel="All payment status" value={payStatusFilter} onChange={(v) => setPayStatusFilter(v as PayStatusKey | "all")} options={paymentStatusOptions} />,
+      panel: <FilterSelect value={payStatusFilter} onChange={(v) => setPayStatusFilter(v as PayStatusKey | "all")} label="All payment status" options={paymentStatusOptions} />,
+    },
+  };
+  const pinnedOrder = pinned;
+  const unpinnedKeys = (Object.keys(filterControls) as PinnedFilterKey[]).filter(k => !isPinned(k));
+
+
   return (
     <div className="w-full min-w-0">
       <div className="flex items-start justify-between flex-wrap gap-3">
