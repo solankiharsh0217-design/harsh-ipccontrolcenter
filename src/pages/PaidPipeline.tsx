@@ -43,6 +43,10 @@ import PaymentDateRangeFilter from "@/components/paid-pipeline/PaymentDateRangeF
 import PaidPipelineLeadDrawer from "@/components/paid-pipeline/PaidPipelineLeadDrawer";
 import { resolvePaidPipelineCoc, type PaidCocInfo } from "@/lib/paidPipelineEligibility";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { usePinnedFilters, type PinnedFilterKey } from "@/components/paid-pipeline/pinnedFilters";
+import {
+  InlineDateRangeFilter, InlineSelectFilter, InlineMultiFilter, CustomizeFilterBar,
+} from "@/components/paid-pipeline/InlineFilterControls";
 
 export type Lead = {
   id: string;
