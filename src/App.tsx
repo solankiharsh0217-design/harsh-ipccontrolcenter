@@ -70,6 +70,7 @@ import DreamTurnoverPlanner from "./pages/DreamTurnoverPlanner";
 import AccessTemplatesAdmin from "./pages/admin/AccessTemplates";
 import TeamPerformanceAdmin from "./pages/admin/TeamPerformanceAdmin";
 import MyToday from "./pages/MyToday";
+import AccountabilityBoard from "./pages/AccountabilityBoard";
 import TeamPerformanceReview from "./pages/admin/TeamPerformanceReview";
 import TeamPerformanceRewards from "./pages/admin/TeamPerformanceRewards";
 import TeamPerformanceDashboard from "./pages/admin/TeamPerformanceDashboard";
@@ -176,6 +177,7 @@ const App = () => (
             <Route path="/team-performance/review" element={<Shell admin><TeamPerformanceReview /></Shell>} />
             <Route path="/team-performance/rewards" element={<Shell><TeamPerformanceRewards /></Shell>} />
             <Route path="/my-today" element={<Shell><MyToday /></Shell>} />
+            <Route path="/accountability-board" element={<Shell><AccountabilityBoard /></Shell>} />
             <Route path="/media-buyer-operations" element={<Shell moduleKey="media_buyer_operations"><MediaBuyerOperations /></Shell>} />
             <Route path="/operations-crm" element={<Shell moduleKey="operations_crm"><OperationsCrm /></Shell>} />
             <Route path="/operations-rewards" element={<Shell><OperationsRewards /></Shell>} />
