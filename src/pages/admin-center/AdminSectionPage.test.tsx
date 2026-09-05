@@ -26,13 +26,18 @@ const EXPECTED_ADMIN_FUNCTIONS = [
   "Master Settings", "Company Settings", "Invoice Settings", "Invoice Item Catalog", "Offer Catalog", "Service Packages / Tiers", "Lead Conversion Rules", "SAC / HSN Master",
   "Notifications", "Code of Conduct",
   "Team Performance Dashboard", "Team Performance OS", "KPI Review & Scorecard", "KPI Rewards",
+  "KRA & KPI Settings", "Graded Review Queue", "Points Rules", "Appraisal Bands", "Recognition",
   "IPC Resource Library", "Audit Log", "Lead Rescue Search", "System Refinement Checklist"
 ];
+
+// Derived, not hardcoded: this test previously repeated the count in four places
+// and went red the moment a card was added.
+const EXPECTED_COUNT = EXPECTED_ADMIN_FUNCTIONS.length;
 
 const EXPECTED_SLUGS = ["people", "business-configuration", "communication", "performance", "resources-system"];
 
 describe("AdminSectionPage Reachability", () => {
-  it("covers all 23 non-DangerZone admin functions across the five slugs", () => {
+  it("covers every non-DangerZone admin function across the five slugs", () => {
     vi.spyOn(AuthContext, "useAuth").mockReturnValue({
       isAdmin: true,
       hasModule: () => true,
@@ -47,7 +52,7 @@ describe("AdminSectionPage Reachability", () => {
     
     // Check that we have exactly the expected titles (no missing, no extra)
     expect(actualTitles.sort()).toEqual([...EXPECTED_ADMIN_FUNCTIONS].sort());
-    expect(fullInventory.length).toBe(23);
+    expect(fullInventory.length).toBe(EXPECTED_COUNT);
 
     const allRenderedDestinations = new Set<string>();
     const allRenderedLabels = new Set<string>();
@@ -66,8 +71,8 @@ describe("AdminSectionPage Reachability", () => {
       unmount();
     });
 
-    expect(allRenderedLabels.size).toBe(23);
-    expect(allRenderedDestinations.size).toBe(23);
+    expect(allRenderedLabels.size).toBe(EXPECTED_COUNT);
+    expect(allRenderedDestinations.size).toBe(EXPECTED_COUNT);
 
     fullInventory.forEach(item => {
       expect(allRenderedLabels.has(item.title)).toBe(true);
