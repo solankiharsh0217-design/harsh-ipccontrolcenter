@@ -5,6 +5,8 @@ import { Search, Bell, LogOut } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useActivityHeartbeat } from "@/hooks/useActivityHeartbeat";
+import ScoreChip from "@/components/accountability/ScoreChip";
+
 
 const Icon = ({ d, children }: { d?: string; children?: ReactNode }) => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
