@@ -207,6 +207,33 @@ export type Database = {
         }
         Relationships: []
       }
+      appraisal_bands: {
+        Row: {
+          description: string | null
+          id: string
+          is_active: boolean
+          label: string
+          min_score: number
+          sort_order: number
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          min_score: number
+          sort_order?: number
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          min_score?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
       attendance_logs: {
         Row: {
           full_name: string
@@ -3167,6 +3194,7 @@ export type Database = {
       }
       kpi_definitions: {
         Row: {
+          ai_check_enabled: boolean
           approval_required: boolean
           auto_source_key: string | null
           cadence: string
@@ -3175,14 +3203,17 @@ export type Database = {
           created_by: string | null
           department: string | null
           description: string | null
+          direction: string
           due_day_of_month: number | null
           due_day_of_week: number | null
           due_time: string | null
           id: string
           is_active: boolean
+          kra_id: string | null
           measurement_type: string
           name: string
           owner_role: string | null
+          points_allocation: number | null
           proof_required: boolean
           recurrence_rule: string | null
           reward_points: number
@@ -3192,6 +3223,7 @@ export type Database = {
           weight: number
         }
         Insert: {
+          ai_check_enabled?: boolean
           approval_required?: boolean
           auto_source_key?: string | null
           cadence: string
@@ -3200,14 +3232,17 @@ export type Database = {
           created_by?: string | null
           department?: string | null
           description?: string | null
+          direction?: string
           due_day_of_month?: number | null
           due_day_of_week?: number | null
           due_time?: string | null
           id?: string
           is_active?: boolean
+          kra_id?: string | null
           measurement_type: string
           name: string
           owner_role?: string | null
+          points_allocation?: number | null
           proof_required?: boolean
           recurrence_rule?: string | null
           reward_points?: number
@@ -3217,6 +3252,7 @@ export type Database = {
           weight?: number
         }
         Update: {
+          ai_check_enabled?: boolean
           approval_required?: boolean
           auto_source_key?: string | null
           cadence?: string
@@ -3225,14 +3261,17 @@ export type Database = {
           created_by?: string | null
           department?: string | null
           description?: string | null
+          direction?: string
           due_day_of_month?: number | null
           due_day_of_week?: number | null
           due_time?: string | null
           id?: string
           is_active?: boolean
+          kra_id?: string | null
           measurement_type?: string
           name?: string
           owner_role?: string | null
+          points_allocation?: number | null
           proof_required?: boolean
           recurrence_rule?: string | null
           reward_points?: number
@@ -3241,53 +3280,73 @@ export type Database = {
           updated_at?: string
           weight?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "kpi_definitions_kra_id_fkey"
+            columns: ["kra_id"]
+            isOneToOne: false
+            referencedRelation: "kras"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kpi_entries: {
         Row: {
           assignment_id: string
           created_at: string
+          direction_snapshot: string | null
           due_at: string | null
           generated_at: string
+          grade: string | null
           id: string
           kpi_id: string
           period_end: string
           period_start: string
           period_type: string
+          points_allocation_snapshot: number | null
           status: string
           target_value: number | null
           updated_at: string
           user_id: string
+          weight_snapshot: number | null
         }
         Insert: {
           assignment_id: string
           created_at?: string
+          direction_snapshot?: string | null
           due_at?: string | null
           generated_at?: string
+          grade?: string | null
           id?: string
           kpi_id: string
           period_end: string
           period_start: string
           period_type: string
+          points_allocation_snapshot?: number | null
           status?: string
           target_value?: number | null
           updated_at?: string
           user_id: string
+          weight_snapshot?: number | null
         }
         Update: {
           assignment_id?: string
           created_at?: string
+          direction_snapshot?: string | null
           due_at?: string | null
           generated_at?: string
+          grade?: string | null
           id?: string
           kpi_id?: string
           period_end?: string
           period_start?: string
           period_type?: string
+          points_allocation_snapshot?: number | null
           status?: string
           target_value?: number | null
           updated_at?: string
           user_id?: string
+          weight_snapshot?: number | null
         }
         Relationships: [
           {
@@ -3589,6 +3648,48 @@ export type Database = {
           name?: string
           role_label?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      kras: {
+        Row: {
+          assigned_user_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          owner_role: string | null
+          sort_order: number
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          assigned_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          owner_role?: string | null
+          sort_order?: number
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          assigned_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          owner_role?: string | null
+          sort_order?: number
+          updated_at?: string
+          weight?: number
         }
         Relationships: []
       }
@@ -7065,6 +7166,92 @@ export type Database = {
         }
         Relationships: []
       }
+      point_rules: {
+        Row: {
+          description: string | null
+          has_emitter: boolean
+          id: string
+          is_active: boolean
+          is_penalty: boolean
+          label: string
+          points: number
+          rule_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          has_emitter?: boolean
+          id?: string
+          is_active?: boolean
+          is_penalty?: boolean
+          label: string
+          points?: number
+          rule_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          has_emitter?: boolean
+          id?: string
+          is_active?: boolean
+          is_penalty?: boolean
+          label?: string
+          points?: number
+          rule_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      points_ledger: {
+        Row: {
+          awarded_by: string | null
+          created_at: string
+          id: string
+          occurred_on: string
+          points: number
+          reason: string | null
+          rule_key: string
+          source_row_id: string
+          source_table: string
+          user_id: string
+        }
+        Insert: {
+          awarded_by?: string | null
+          created_at?: string
+          id?: string
+          occurred_on?: string
+          points: number
+          reason?: string | null
+          rule_key: string
+          source_row_id: string
+          source_table: string
+          user_id: string
+        }
+        Update: {
+          awarded_by?: string | null
+          created_at?: string
+          id?: string
+          occurred_on?: string
+          points?: number
+          reason?: string | null
+          rule_key?: string
+          source_row_id?: string
+          source_table?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "points_ledger_rule_key_fkey"
+            columns: ["rule_key"]
+            isOneToOne: false
+            referencedRelation: "point_rules"
+            referencedColumns: ["rule_key"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active_for_assignment: boolean
@@ -7384,6 +7571,30 @@ export type Database = {
           sort_order?: number
           updated_at?: string
           value?: string
+        }
+        Relationships: []
+      }
+      recognitions: {
+        Row: {
+          created_at: string
+          given_by: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          given_by: string
+          id?: string
+          reason: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          given_by?: string
+          id?: string
+          reason?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -8409,6 +8620,54 @@ export type Database = {
           webinar_end_date?: string | null
           webinar_name?: string
           webinar_start_date?: string | null
+        }
+        Relationships: []
+      }
+      score_settings: {
+        Row: {
+          description: string | null
+          key: string
+          label: string | null
+          updated_at: string
+          updated_by: string | null
+          value: number
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          label?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          value: number
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          label?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
+      score_weight_overrides: {
+        Row: {
+          component: string
+          id: string
+          role: string
+          weight: number
+        }
+        Insert: {
+          component: string
+          id?: string
+          role: string
+          weight: number
+        }
+        Update: {
+          component?: string
+          id?: string
+          role?: string
+          weight?: number
         }
         Relationships: []
       }
