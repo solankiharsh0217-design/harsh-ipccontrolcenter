@@ -176,7 +176,43 @@ export function getAdminSections(isAdmin: boolean, hasModule: (m: string) => boo
           to: "/team-performance/rewards",
           show: isAdmin,
         },
+        {
+          title: "KRA & KPI Settings",
+          desc: "Create KRAs, add KPIs with target, direction, unit, cadence, weight and their share of the 1,000 points, plus the AI-check toggle.",
+          cta: "Open KRA & KPI Settings",
+          to: "/admin-center/kra-kpi-settings",
+          show: isAdmin || hasModule("kra_kpi_settings"),
+        },
+        {
+          title: "Graded Review Queue",
+          desc: "Grade submitted KPIs green, yellow or red against attainment, with the evidence in view.",
+          cta: "Open Review Queue",
+          to: "/admin-center/kpi-review-queue",
+          show: isAdmin || hasModule("kpi_review_queue"),
+        },
+        {
+          title: "Points Rules",
+          desc: "What each action is worth, and the switch that starts applying penalties. A rule set to 0 is off.",
+          cta: "Open Points Rules",
+          to: "/admin-center/point-rules",
+          show: isAdmin || hasModule("points_rules"),
+        },
+        {
+          title: "Appraisal Bands",
+          desc: "The words attached to a score out of 1,000 — where each band begins and what it means.",
+          cta: "Open Appraisal Bands",
+          to: "/admin-center/appraisal-bands",
+          show: isAdmin || hasModule("appraisal_bands"),
+        },
+        {
+          title: "Recognition",
+          desc: "Recognise a person with a written reason. Adds five points, once.",
+          cta: "Open Recognition",
+          to: "/admin-center/recognition",
+          show: isAdmin || hasModule("recognition"),
+        },
       ],
+
     },
     {
       slug: "resources-system",
