@@ -3207,19 +3207,23 @@ export type Database = {
           due_day_of_month: number | null
           due_day_of_week: number | null
           due_time: string | null
+          effective_from: string
           id: string
           is_active: boolean
           kra_id: string | null
           measurement_type: string
           name: string
           owner_role: string | null
+          parent_definition_id: string | null
           points_allocation: number | null
           proof_required: boolean
           recurrence_rule: string | null
           reward_points: number
+          superseded_by: string | null
           target_default: number | null
           target_unit: string | null
           updated_at: string
+          version: number
           weight: number
         }
         Insert: {
@@ -3236,19 +3240,23 @@ export type Database = {
           due_day_of_month?: number | null
           due_day_of_week?: number | null
           due_time?: string | null
+          effective_from?: string
           id?: string
           is_active?: boolean
           kra_id?: string | null
           measurement_type: string
           name: string
           owner_role?: string | null
+          parent_definition_id?: string | null
           points_allocation?: number | null
           proof_required?: boolean
           recurrence_rule?: string | null
           reward_points?: number
+          superseded_by?: string | null
           target_default?: number | null
           target_unit?: string | null
           updated_at?: string
+          version?: number
           weight?: number
         }
         Update: {
@@ -3265,19 +3273,23 @@ export type Database = {
           due_day_of_month?: number | null
           due_day_of_week?: number | null
           due_time?: string | null
+          effective_from?: string
           id?: string
           is_active?: boolean
           kra_id?: string | null
           measurement_type?: string
           name?: string
           owner_role?: string | null
+          parent_definition_id?: string | null
           points_allocation?: number | null
           proof_required?: boolean
           recurrence_rule?: string | null
           reward_points?: number
+          superseded_by?: string | null
           target_default?: number | null
           target_unit?: string | null
           updated_at?: string
+          version?: number
           weight?: number
         }
         Relationships: [
@@ -3286,6 +3298,20 @@ export type Database = {
             columns: ["kra_id"]
             isOneToOne: false
             referencedRelation: "kras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_definitions_parent_definition_id_fkey"
+            columns: ["parent_definition_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_definitions_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "kpi_definitions"
             referencedColumns: ["id"]
           },
         ]
