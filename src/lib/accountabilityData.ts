@@ -321,3 +321,39 @@ export async function awardPoints(args: {
   if (error && error.code !== "23505") return false;
   return !error;
 }
+
+// ── Emitter: award points when a KPI entry is graded ─────────────────
+
+/**
+ * Recompute the grade for a single KPI entry and award the matching points.
+ * Idempotent via the points_ledger unique constraint. Never throws.
+ */
+export async function awardKpiGradePoints(entryId: string): Promise<void> {
+  try {
+    const settings = await fetchScoreSettings();
+    const { data: entry } = await sb
+      .from("kpi_entries")
+      .select("id, user_id, period_start, status, target_value, grade, direction_snapshot, kpi:kpi_definitions(name, target_default, direction)")
+      .eq("id", entryId)
+      .maybeSingle();
+    if (!entry) return;
+    const { data: sub } = await sb
+      .from("kpi_submissions")
+      .select("entry_id, submitted_value, status")
+      .eq("entry_id", entryId)
+      .maybeSingle();
+    const grade = gradeEntry(entry, sub, settings);
+    if (!grade) return;
+    const ruleKey = grade === "green" ? "kpi_green" : grade === "yellow" ? "kpi_yellow" : "kpi_missed";
+    await awardPoints({
+      userId: (entry as any).user_id,
+      ruleKey,
+      sourceTable: "kpi_entries",
+      sourceRowId: entryId,
+      reason: (entry as any).kpi?.name ?? "KPI",
+      occurredOn: (entry as any).period_start,
+    });
+  } catch (e) {
+    console.warn("[accountability] awardKpiGradePoints failed", entryId, e);
+  }
+}
