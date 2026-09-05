@@ -134,7 +134,7 @@ export async function fetchGradedEntries(
     const { data: subs } = await sb
       .from("kpi_submissions")
       .select("entry_id, submitted_value, status")
-      .in("id_placeholder_removed" in {} ? "entry_id" : "entry_id", ids.slice(i, i + 500));
+      .in("entry_id", ids.slice(i, i + 500));
     (subs ?? []).forEach((s: any) => subMap.set(s.entry_id, s));
   }
 
