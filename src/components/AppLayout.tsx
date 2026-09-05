@@ -5,6 +5,8 @@ import { Search, Bell, LogOut } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useActivityHeartbeat } from "@/hooks/useActivityHeartbeat";
+import ScoreChip from "@/components/accountability/ScoreChip";
+
 
 const Icon = ({ d, children }: { d?: string; children?: ReactNode }) => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -13,6 +15,7 @@ const Icon = ({ d, children }: { d?: string; children?: ReactNode }) => (
 );
 
 const PAGE_TITLES: Record<string, string> = {
+  "/accountability-board": "Accountability Board",
   "/": "Dashboard",
   "/founder-dashboard": "Founder Dashboard",
   "/announcements": "Announcements",
@@ -162,6 +165,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Icon><><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6h12M5 1v3M11 1v3"/></></Icon>
             My Today
           </NavItem>
+          <NavItem to="/accountability-board" show={isAdmin || hasModule("accountability_board")}>
+            <Icon><><path d="M3 13V8M8 13V3M13 13V6"/><path d="M1 15h14"/></></Icon>
+            Accountability Board
+          </NavItem>
+
           <NavItem to="/announcements" badge show={hasModule("announcements")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></></Icon>
             Announcements
@@ -281,7 +289,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="h-14 border-b border-line flex items-center justify-between px-10 bg-white sticky top-0 z-50">
           <div className="font-serif text-[19px] font-normal text-black">{title}</div>
           <div className="flex items-center gap-2.5">
-            <div className="font-sans text-xs text-muted-foreground mr-1.5">{formatDateLong()}</div>
+            <ScoreChip />
+            <div className="hidden sm:block font-sans text-xs text-muted-foreground mr-1.5">{formatDateLong()}</div>
+
             <button className="w-8 h-8 border border-line rounded-md bg-white flex items-center justify-center text-muted-foreground hover:text-black hover:border-[#bbb] transition-colors">
               <Search className="w-3.5 h-3.5" />
             </button>

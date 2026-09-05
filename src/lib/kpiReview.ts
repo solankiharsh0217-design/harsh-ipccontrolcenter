@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/auditLog";
+import { awardKpiGradePoints } from "@/lib/accountabilityData";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 
 const sb: any = supabase;
@@ -182,6 +183,8 @@ export async function approveSubmission(params: {
   const { error: e2 } = await sb.from("kpi_entries").update({ status: "approved" }).eq("id", entryId);
   if (e2) throw e2;
 
+  await awardKpiGradePoints(entryId);
+
   try {
     await logActivity({
       ...MOD,
@@ -236,6 +239,8 @@ export async function rejectSubmission(params: {
 
   const { error: e2 } = await sb.from("kpi_entries").update({ status: "rejected" }).eq("id", entryId);
   if (e2) throw e2;
+
+  await awardKpiGradePoints(entryId);
 
   try {
     await logActivity({

@@ -8,6 +8,13 @@
       "when": 1787984415137,
       "tag": "0000_restrict_public_role_policies_to_authenticated",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788590232192,
+      "tag": "0001_accountability_phase1_schema",
+      "breakpoints": true
     }
   ]
 }
