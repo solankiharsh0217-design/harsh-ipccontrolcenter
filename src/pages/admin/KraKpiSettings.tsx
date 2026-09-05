@@ -113,7 +113,7 @@ export default function KraKpiSettings() {
             </button>
           </div>
           {kras.length === 0 ? (
-            <EmptyState title="No KRAs yet" description="Start with the handful of areas each role is truly responsible for." />
+            <EmptyState title="No KRAs yet" hint="Start with the handful of areas each role is truly responsible for." />
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
               {kras.map((k) => (
@@ -147,7 +147,7 @@ export default function KraKpiSettings() {
             </button>
           </div>
           {kpis.length === 0 ? (
-            <EmptyState title="No KPIs yet" description="Add measures under a KRA, each with a target and a share of the 1,000 points." />
+            <EmptyState title="No KPIs yet" hint="Add measures under a KRA, each with a target and a share of the 1,000 points." />
           ) : (
             <div className="rounded-lg border border-[hsl(var(--line))] bg-white overflow-x-auto">
               <table className="w-full min-w-[720px]">
