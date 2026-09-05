@@ -26,7 +26,8 @@ export type ModuleKey =
   | "operations_crm"
   | "offline_seminar_roas"
   | "tasks"
-  | "team_performance";
+  | "team_performance"
+  | "accountability_board";
 
 
 
@@ -54,6 +55,7 @@ export const MODULES: { key: ModuleKey; label: string; group: string }[] = [
   { key: "webinar_performance", label: "Webinar Performance", group: "Tools" },
   { key: "tasks", label: "Task Manager", group: "Tools" },
   { key: "team_performance", label: "Team Performance", group: "People" },
+  { key: "accountability_board", label: "Accountability Board", group: "Overview" },
   { key: "profit-statement", label: "Profit Statement", group: "Tools" },
   { key: "team", label: "Team Directory", group: "People" },
   { key: "admin", label: "Admin Panel", group: "People" },
