@@ -281,7 +281,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="h-14 border-b border-line flex items-center justify-between px-10 bg-white sticky top-0 z-50">
           <div className="font-serif text-[19px] font-normal text-black">{title}</div>
           <div className="flex items-center gap-2.5">
-            <div className="font-sans text-xs text-muted-foreground mr-1.5">{formatDateLong()}</div>
+            <ScoreChip />
+            <div className="hidden sm:block font-sans text-xs text-muted-foreground mr-1.5">{formatDateLong()}</div>
+
             <button className="w-8 h-8 border border-line rounded-md bg-white flex items-center justify-center text-muted-foreground hover:text-black hover:border-[#bbb] transition-colors">
               <Search className="w-3.5 h-3.5" />
             </button>
