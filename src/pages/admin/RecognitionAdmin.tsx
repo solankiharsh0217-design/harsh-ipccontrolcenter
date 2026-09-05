@@ -33,8 +33,12 @@ export default function RecognitionAdmin() {
     if (!user?.id) return;
     setSaving(true);
     try {
-      await giveRecognition({ userId: personId, reason, actorId: user.id });
-      toast.success("Recognition given");
+      const { duplicate } = await giveRecognition({ userId: personId, reason, actorId: user.id });
+      toast.success(
+        duplicate
+          ? "Already recognised for this today — nothing added twice."
+          : "Recognition given",
+      );
       setPersonId(""); setReason("");
       load();
     } catch (e: any) { toast.error(e?.message || "Could not give the recognition"); }

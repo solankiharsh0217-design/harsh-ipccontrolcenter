@@ -332,29 +332,88 @@ export async function updateBand(id: string, patch: Partial<BandRow>): Promise<v
 
 // ── Recognition ─────────────────────────────────────────────────────
 
+/**
+ * Normalise a reason for comparison: trim, collapse inner whitespace, lowercase.
+ * Must stay in step with the generated `reason_key` column in the database —
+ * see migration 20260905090000_recognition_idempotency.sql.
+ */
+export function recognitionReasonKey(reason: string): string {
+  return reason.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+async function findRecognitionId(
+  userId: string,
+  actorId: string,
+  reasonKey: string,
+  onDate: string,
+): Promise<string | null> {
+  const { data } = await sb
+    .from("recognitions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("given_by", actorId)
+    .eq("reason_key", reasonKey)
+    .eq("recognized_on", onDate)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+/**
+ * Give a recognition, once.
+ *
+ * Same person, same giver, same reason, same day is one recognition — a second
+ * attempt returns the original row instead of writing a duplicate. Points are
+ * awarded against that row id, so the ledger keeps exactly one row per award
+ * however many times this is called. A genuine repeat on a later day is fine.
+ *
+ * Two layers, deliberately: the lookup gives the caller a useful answer, and the
+ * unique index behind it is what actually holds when two submits race.
+ */
 export async function giveRecognition(args: {
   userId: string;
   reason: string;
   actorId: string;
-}): Promise<void> {
+  onDate?: string;
+}): Promise<{ id: string; duplicate: boolean }> {
   const reason = args.reason.trim();
   if (!reason) throw new Error("A reason is required.");
+  const reasonKey = recognitionReasonKey(reason);
+  const onDate = args.onDate ?? new Date().toISOString().slice(0, 10);
 
-  const { data: rec, error } = await sb
-    .from("recognitions")
-    .insert({ user_id: args.userId, given_by: args.actorId, reason })
-    .select("id")
-    .single();
-  if (error) throw error;
+  let id = await findRecognitionId(args.userId, args.actorId, reasonKey, onDate);
+  let duplicate = id != null;
 
+  if (id == null) {
+    const { data, error } = await sb
+      .from("recognitions")
+      .insert({ user_id: args.userId, given_by: args.actorId, reason, recognized_on: onDate })
+      .select("id")
+      .single();
+
+    if (error) {
+      // 23505 = the unique index caught a submit that raced ours. Not a failure:
+      // the recognition exists, we just did not win the insert.
+      if (error.code !== "23505") throw error;
+      id = await findRecognitionId(args.userId, args.actorId, reasonKey, onDate);
+      if (id == null) throw error;
+      duplicate = true;
+    } else {
+      id = data.id;
+    }
+  }
+
+  // Keyed to the recognition row, so this is a no-op the second time round.
   await awardPoints({
     userId: args.userId,
     ruleKey: "manager_recognition",
     sourceTable: "recognitions",
-    sourceRowId: rec.id,
+    sourceRowId: id,
     reason,
     awardedBy: args.actorId,
+    occurredOn: onDate,
   });
+
+  return { id, duplicate };
 }
 
 export interface RecognitionRow {
