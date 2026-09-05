@@ -432,3 +432,5 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+<!-- sync-test: 2026-09-05T00:00:00Z — Lovable↔GitHub sync check -->
