@@ -159,6 +159,10 @@ export async function generateKpiEntriesForDate(targetDateStr: string): Promise<
       period_end: p.period_end,
       due_at: p.due_at,
       target_value: p.target_value,
+      // Snapshots: frozen at generation time so later KPI edits never rewrite history.
+      weight_snapshot: p.kpi.weight ?? 1,
+      direction_snapshot: p.kpi.direction ?? "higher_is_better",
+      points_allocation_snapshot: p.kpi.points_allocation ?? 0,
       status: "pending",
     };
     const { data, error } = await sb.from("kpi_entries").insert(row).select("id").single();

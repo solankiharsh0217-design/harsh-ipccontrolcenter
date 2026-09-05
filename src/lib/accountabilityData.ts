@@ -98,8 +98,10 @@ export interface GradedEntry {
 function gradeEntry(e: any, sub: any, settings: ScoreSettings): Grade | null {
   if (e.status === "waived") return null;
   if (e.grade) return e.grade as Grade;
-  const target = e.target_value ?? e.kpi?.target_default ?? null;
-  const direction: Direction = (e.direction_snapshot ?? e.kpi?.direction ?? "higher_is_better") as Direction;
+  // Snapshots only — never join live to kpi_definitions, or editing a KPI
+  // target would silently rewrite the score of every past period.
+  const target = e.target_value ?? null;
+  const direction: Direction = (e.direction_snapshot ?? "higher_is_better") as Direction;
   const actual = sub?.submitted_value ?? null;
   if (target != null && actual != null) {
     return gradeFromAttainment(
@@ -120,7 +122,7 @@ export async function fetchGradedEntries(
 ): Promise<GradedEntry[]> {
   let q = sb
     .from("kpi_entries")
-    .select("id, user_id, period_start, status, target_value, grade, direction_snapshot, kpi_id, kpi:kpi_definitions(name, target_default, direction)")
+    .select("id, user_id, period_start, status, target_value, grade, direction_snapshot, weight_snapshot, points_allocation_snapshot, kpi_id, kpi:kpi_definitions(name)")
     .gte("period_start", start)
     .lte("period_start", end);
   if (userIds) q = q.in("user_id", userIds);
@@ -333,7 +335,7 @@ export async function awardKpiGradePoints(entryId: string): Promise<void> {
     const settings = await fetchScoreSettings();
     const { data: entry } = await sb
       .from("kpi_entries")
-      .select("id, user_id, period_start, status, target_value, grade, direction_snapshot, kpi:kpi_definitions(name, target_default, direction)")
+      .select("id, user_id, period_start, status, target_value, grade, direction_snapshot, weight_snapshot, points_allocation_snapshot, kpi:kpi_definitions(name)")
       .eq("id", entryId)
       .maybeSingle();
     if (!entry) return;
