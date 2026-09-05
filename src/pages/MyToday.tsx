@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format, formatDistanceStrict } from "date-fns";
+import ScoreHero from "@/components/accountability/ScoreHero";
+
 import { ExternalLink, Bell, Check, X } from "lucide-react";
 import {
   fetchMyAttendance, checkIn, checkOut, fetchMyTodayEntries,
