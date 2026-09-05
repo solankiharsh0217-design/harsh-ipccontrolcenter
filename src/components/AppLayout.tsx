@@ -16,6 +16,12 @@ const Icon = ({ d, children }: { d?: string; children?: ReactNode }) => (
 
 const PAGE_TITLES: Record<string, string> = {
   "/accountability-board": "Accountability Board",
+  "/admin-center/kra-kpi-settings": "KRA & KPI Settings",
+  "/admin-center/kpi-review-queue": "KPI Review Queue",
+  "/admin-center/point-rules": "Points Rules",
+  "/admin-center/appraisal-bands": "Appraisal Bands",
+  "/admin-center/recognition": "Recognition",
+
   "/": "Dashboard",
   "/founder-dashboard": "Founder Dashboard",
   "/announcements": "Announcements",

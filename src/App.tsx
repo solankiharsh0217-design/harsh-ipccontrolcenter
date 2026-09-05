@@ -69,6 +69,11 @@ import ResourceLibraryAdmin from "./pages/admin/ResourceLibraryAdmin";
 import DreamTurnoverPlanner from "./pages/DreamTurnoverPlanner";
 import AccessTemplatesAdmin from "./pages/admin/AccessTemplates";
 import TeamPerformanceAdmin from "./pages/admin/TeamPerformanceAdmin";
+import KraKpiSettings from "./pages/admin/KraKpiSettings";
+import KpiReviewQueue from "./pages/admin/KpiReviewQueue";
+import PointRulesEditor from "./pages/admin/PointRulesEditor";
+import AppraisalBandsEditor from "./pages/admin/AppraisalBandsEditor";
+import RecognitionAdmin from "./pages/admin/RecognitionAdmin";
 import MyToday from "./pages/MyToday";
 import AccountabilityBoard from "./pages/AccountabilityBoard";
 import TeamPerformanceReview from "./pages/admin/TeamPerformanceReview";
@@ -174,6 +179,11 @@ const App = () => (
             <Route path="/admin-center/access-templates" element={<Shell admin><AccessTemplatesAdmin /></Shell>} />
             <Route path="/team-performance" element={<Shell admin><TeamPerformanceDashboard /></Shell>} />
             <Route path="/team-performance/admin" element={<Shell admin><TeamPerformanceAdmin /></Shell>} />
+            <Route path="/admin-center/kra-kpi-settings" element={<Shell admin><KraKpiSettings /></Shell>} />
+            <Route path="/admin-center/kpi-review-queue" element={<Shell admin><KpiReviewQueue /></Shell>} />
+            <Route path="/admin-center/point-rules" element={<Shell admin><PointRulesEditor /></Shell>} />
+            <Route path="/admin-center/appraisal-bands" element={<Shell admin><AppraisalBandsEditor /></Shell>} />
+            <Route path="/admin-center/recognition" element={<Shell admin><RecognitionAdmin /></Shell>} />
             <Route path="/team-performance/review" element={<Shell admin><TeamPerformanceReview /></Shell>} />
             <Route path="/team-performance/rewards" element={<Shell><TeamPerformanceRewards /></Shell>} />
             <Route path="/my-today" element={<Shell><MyToday /></Shell>} />
