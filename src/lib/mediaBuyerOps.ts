@@ -63,6 +63,83 @@ export interface MBCase {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  // From the "start my ads" form (null on cases created by hand)
+  source_module?: string | null;
+  source_paid_pipeline_lead_id?: string | null;
+  form_submitted_at?: string | null;
+  form_raw?: Record<string, unknown> | null;
+  brand_name?: string | null;
+  brand_website?: string | null;
+  brand_instagram?: string | null;
+  ad_platforms?: "meta" | "google" | "both" | null;
+  preferred_start_text?: string | null;
+  annual_revenue_text?: string | null;
+  has_gmb?: boolean | null;
+  target_locations?: string | null;
+  bajaj_answer?: string | null;
+  finance_check?: FinanceCheck | null;
+  call_booked_with_id?: string | null;
+  call_booked_at?: string | null;
+  call_scheduled_for?: string | null;
+}
+
+export type FinanceCheck = "verified" | "pending" | "dropped" | "not_found";
+
+export const FINANCE_CHECK_LABEL: Record<FinanceCheck, string> = {
+  verified: "Payment verified",
+  pending: "Payment in progress",
+  dropped: "Dropped / refunded",
+  not_found: "Not in Paid Pipeline",
+};
+
+/** Stages, in order. The first two are the form/booking front of the funnel. */
+export const CASE_STAGES = [
+  "form_submitted", "call_booked",
+  "assigned", "call_pending", "called", "not_picked", "email_followup_sent",
+  "ad_access_requested", "ad_access_received", "campaign_setup_in_progress",
+  "ads_launched", "ads_paused_by_student", "ads_stopped_by_student", "ads_resumed",
+  "service_completed", "escalation", "closed",
+];
+
+/** Requests waiting longer than this without a media buyer are flagged to admins. */
+export const UNCLAIMED_SLA_HOURS = 48;
+
+export function isUnclaimedRequest(c: Pick<MBCase, "assigned_media_buyer_id" | "is_active" | "is_deleted">): boolean {
+  return !c.assigned_media_buyer_id && c.is_active && !c.is_deleted;
+}
+
+/** Hours since the student submitted (falls back to case creation for hand-made cases). */
+export function hoursWaiting(c: Pick<MBCase, "form_submitted_at" | "created_at">, now = Date.now()): number {
+  const from = new Date(c.form_submitted_at ?? c.created_at).getTime();
+  return Math.max(0, Math.floor((now - from) / 3_600_000));
+}
+
+/** wa.me link from a stored 10-digit Indian number. */
+export function whatsappLink(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 10) return null;
+  return `https://wa.me/${digits.length === 10 ? "91" + digits : digits}`;
+}
+
+type UntypedRpc = {
+  rpc(fn: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message?: string } | null }>;
+};
+
+/**
+ * "This student booked with me." Atomic on the server: if two media buyers click at
+ * once, one wins and the other gets "Already taken by <name>".
+ */
+export async function claimCase(caseId: string, scheduledFor: string | null) {
+  // Not in the generated types until the migration is applied and types.ts regenerates.
+  const { data, error } = await (supabase as unknown as UntypedRpc).rpc("claim_media_buyer_case", {
+    p_case_id: caseId,
+    p_scheduled_for: scheduledFor,
+  });
+  if (error) throw new Error(error.message || "Could not take this request.");
+  const c = data as MBCase;
+  logActivity({ module_key: "media_buyer_operations", action_type: "media_buyer_case_self_claimed", entity_type: "media_buyer_case", entity_id: c.id, entity_label: c.student_name, summary: `${c.assigned_media_buyer_name ?? "Media buyer"} took ${c.student_name}'s ads request.` });
+  return c;
 }
 
 export interface MBServicePeriod {

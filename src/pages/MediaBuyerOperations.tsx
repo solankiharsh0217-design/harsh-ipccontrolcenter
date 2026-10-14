@@ -5,11 +5,13 @@ import { useAuth } from "@/context/AuthContext";
 import { PageHead, SectionLabel, LoadingRow, EmptyRow } from "@/components/ui-bits";
 import { getEligibleAssignees, type EligibleAssignee } from "@/lib/eligibleAssignees";
 import type { MBCase } from "@/lib/mediaBuyerOps";
-import { autoAssignRoundRobin, createCase, SERVICE_DURATION_PRESETS, CALL_SLA_DAYS } from "@/lib/mediaBuyerOps";
+import { autoAssignRoundRobin, createCase, SERVICE_DURATION_PRESETS, CALL_SLA_DAYS, CASE_STAGES, UNCLAIMED_SLA_HOURS, isUnclaimedRequest, hoursWaiting } from "@/lib/mediaBuyerOps";
 import CaseDrawer from "@/components/mbo/CaseDrawer";
+import RequestsQueue from "@/components/mbo/RequestsQueue";
 import { toast } from "sonner";
 
 type ViewMode = "admin" | "buyer";
+type Tab = "requests" | "cases";
 
 const DAY_MS = 86400000;
 
@@ -31,11 +33,14 @@ export default function MediaBuyerOperations() {
   const [search, setSearch] = useState("");
 
   const viewMode: ViewMode = isAdmin ? "admin" : "buyer";
+  const tab: Tab = params.get("tab") === "cases" ? "cases" : params.get("tab") === "requests" ? "requests" : (isAdmin ? "cases" : "requests");
+  const setTab = (t: Tab) => { params.set("tab", t); setParams(params, { replace: true }); };
 
   async function load() {
     setLoading(true);
     let q: any = (supabase as any).from("media_buyer_cases").select("*").eq("is_deleted", false).order("created_at", { ascending: false });
-    if (viewMode === "buyer" && user?.id) q = q.eq("assigned_media_buyer_id", user.id);
+    // Buyers see their own cases plus the shared queue of unclaimed requests.
+    if (viewMode === "buyer" && user?.id) q = q.or(`assigned_media_buyer_id.eq.${user.id},assigned_media_buyer_id.is.null`);
     const { data, error } = await q;
     if (error) {
       console.error(error);
@@ -58,16 +63,27 @@ export default function MediaBuyerOperations() {
     if (c) setOpenId(c);
   }, [params]);
 
+  const requests = useMemo(
+    () => cases.filter(isUnclaimedRequest).sort((a, b) => hoursWaiting(b) - hoursWaiting(a)),
+    [cases],
+  );
+  // A buyer's "cases" are only the ones they own; the queue lives on its own tab.
+  const myCases = useMemo(
+    () => (viewMode === "buyer" ? cases.filter((c) => c.assigned_media_buyer_id === user?.id) : cases),
+    [cases, viewMode, user?.id],
+  );
+
   // Admin preview filter (read-only — just filters)
   const effectiveCases = useMemo(() => {
-    let list = cases;
+    let list = myCases;
     if (isAdmin && previewBuyerId) list = list.filter((c) => c.assigned_media_buyer_id === previewBuyerId);
     if (filterBuyer !== "all") list = list.filter((c) => c.assigned_media_buyer_id === filterBuyer);
     if (filterStage !== "all") list = list.filter((c) => c.case_stage === filterStage);
     if (filterAds !== "all") list = list.filter((c) => c.ads_status === filterAds);
     if (filterAccess !== "all") list = list.filter((c) => c.ad_access_status === filterAccess);
     const now = Date.now();
-    if (quick === "call_pending") list = list.filter((c) => c.call_status === "not_called" && c.first_call_due_at);
+    if (quick === "call_booked") list = list.filter((c) => c.case_stage === "call_booked");
+    else if (quick === "call_pending") list = list.filter((c) => c.call_status === "not_called" && c.first_call_due_at);
     else if (quick === "call_overdue") list = list.filter((c) => c.call_status === "not_called" && c.first_call_due_at && new Date(c.first_call_due_at).getTime() < now);
     else if (quick === "not_picked") list = list.filter((c) => c.call_status === "not_picked");
     else if (quick === "access_pending") list = list.filter((c) => ["not_requested", "requested", "pending_from_student"].includes(c.ad_access_status));
@@ -80,11 +96,15 @@ export default function MediaBuyerOperations() {
       list = list.filter((c) => c.student_name.toLowerCase().includes(s) || (c.student_email ?? "").toLowerCase().includes(s) || (c.student_phone ?? "").toLowerCase().includes(s));
     }
     return list;
-  }, [cases, isAdmin, previewBuyerId, filterBuyer, filterStage, filterAds, filterAccess, quick, search]);
+  }, [myCases, isAdmin, previewBuyerId, filterBuyer, filterStage, filterAds, filterAccess, quick, search]);
 
   const stats = useMemo(() => {
     const now = Date.now();
+    const cases = myCases;
     return {
+      newRequests: requests.length,
+      waitingTooLong: requests.filter((c) => hoursWaiting(c, now) >= UNCLAIMED_SLA_HOURS).length,
+      callBooked: cases.filter((c) => c.case_stage === "call_booked").length,
       total: cases.filter((c) => c.is_active).length,
       assignedToday: cases.filter((c) => c.assigned_at && now - new Date(c.assigned_at).getTime() < DAY_MS).length,
       callPending: cases.filter((c) => c.call_status === "not_called" && c.first_call_due_at && new Date(c.first_call_due_at).getTime() >= now).length,
@@ -94,7 +114,7 @@ export default function MediaBuyerOperations() {
       adsActive: cases.filter((c) => c.ads_status === "active").length,
       adsPaused: cases.filter((c) => c.ads_status === "paused").length,
     };
-  }, [cases]);
+  }, [myCases, requests]);
 
   // Media buyer performance (admin only)
   const performance = useMemo(() => {
@@ -137,6 +157,9 @@ export default function MediaBuyerOperations() {
       {/* Stat cards */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         {[
+          ["New Requests", stats.newRequests],
+          [`Waiting > ${UNCLAIMED_SLA_HOURS}h`, stats.waitingTooLong],
+          ["Call Booked", stats.callBooked],
           ["Active Cases", stats.total],
           ["Assigned Today", stats.assignedToday],
           ["Call Pending", stats.callPending],
@@ -145,7 +168,7 @@ export default function MediaBuyerOperations() {
           ["Ads Launched", stats.adsLaunched],
           ["Ads Active", stats.adsActive],
           ["Ads Paused", stats.adsPaused],
-        ].map(([label, val]) => (
+        ].filter(([label]) => isAdmin || !String(label).startsWith("Waiting")).map(([label, val]) => (
           <div key={label as string} className="border border-line rounded-xl bg-white p-4">
             <div className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
             <div className="font-serif text-2xl text-black">{val as number}</div>
@@ -153,10 +176,36 @@ export default function MediaBuyerOperations() {
         ))}
       </div>
 
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-line mb-4">
+        {([["requests", `New requests${requests.length ? ` (${requests.length})` : ""}`], ["cases", isAdmin ? "All cases" : "My cases"]] as [Tab, string][]).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={`px-4 py-2 -mb-px font-sans text-[13px] border-b-2 transition-colors ${tab === k ? "border-black text-black" : "border-transparent text-muted-foreground hover:text-black"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "requests" && (
+        <RequestsQueue
+          requests={requests}
+          loading={loading}
+          isAdmin={isAdmin}
+          buyers={buyers}
+          onOpen={(id) => setOpenId(id)}
+          onChanged={load}
+        />
+      )}
+
+      {tab === "cases" && (<>
       {/* Quick filters */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         {[
           ["all", "All"],
+          ["call_booked", "Call Booked"],
           ["call_pending", "Call Pending"],
           ["call_overdue", "Call Overdue"],
           ["not_picked", "Not Picked"],
@@ -195,7 +244,7 @@ export default function MediaBuyerOperations() {
         )}
         <select className="ipc-input h-9" value={filterStage} onChange={(e) => setFilterStage(e.target.value)}>
           <option value="all">All stages</option>
-          {["assigned","call_pending","called","not_picked","email_followup_sent","ad_access_requested","ad_access_received","campaign_setup_in_progress","ads_launched","ads_paused_by_student","ads_stopped_by_student","ads_resumed","service_completed","escalation","closed"].map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
+          {CASE_STAGES.map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
         </select>
         <select className="ipc-input h-9" value={filterAds} onChange={(e) => setFilterAds(e.target.value)}>
           <option value="all">All ads statuses</option>
@@ -259,6 +308,8 @@ export default function MediaBuyerOperations() {
           </table>
         </div>
       </div>
+
+      </>)}
 
       {/* Performance table for admin */}
       {isAdmin && (
