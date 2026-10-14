@@ -9,6 +9,8 @@ import {
   setAdAccessStatus, requestAccessEmail, launchAds, pauseAds, resumeAds, stopAds,
   completeService, addCaseNote, assignCase, autoAssignRoundRobin,
 } from "@/lib/mediaBuyerOps";
+import { whatsappLink } from "@/lib/mediaBuyerOps";
+import { FinanceBadge } from "@/components/mbo/RequestsQueue";
 
 const CALL_OUTCOMES = ["Connected", "Not Picked", "Switched Off", "Wrong Number", "Will Share Access", "Needs Help", "Asked to Email", "Not Interested", "Escalate to Admin"];
 const ACCESS_STATUSES = ["not_requested", "requested", "pending_from_student", "received", "partial_received", "issue", "revoked", "not_required"];
@@ -70,6 +72,9 @@ export default function CaseDrawer({ caseId, onClose, canEdit, isAdmin, buyers }
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-black">✕</button>
         </div>
+
+        {/* What the student asked for (cases opened from the ads form) */}
+        {c.form_submitted_at && <RequestDetails c={c} />}
 
         {/* Assignment / Reassign */}
         {isAdmin && (
@@ -210,5 +215,55 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="text-[12px] text-black capitalize">{value}</div>
     </div>
+  );
+}
+
+const PLATFORM_LABEL: Record<string, string> = { meta: "Meta", google: "Google", both: "Meta + Google" };
+
+function RequestDetails({ c }: { c: MBCase }) {
+  const [showRaw, setShowRaw] = useState(false);
+  const wa = whatsappLink(c.student_phone);
+  const link = (v: string | null | undefined) => {
+    if (!v) return "—";
+    const href = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+    return <a href={href} target="_blank" rel="noreferrer" className="underline break-all">{v}</a>;
+  };
+  return (
+    <Section title="Ads request">
+      <div className="grid grid-cols-2 gap-3 mb-3 text-[12px]">
+        <Stat label="Submitted" value={new Date(c.form_submitted_at!).toLocaleString()} />
+        <Stat label="Brand" value={c.brand_name ?? "—"} />
+        <div className="border border-line rounded-md px-3 py-2 bg-off"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Website</div><div className="text-[12px] text-black">{link(c.brand_website)}</div></div>
+        <div className="border border-line rounded-md px-3 py-2 bg-off"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">Instagram</div><div className="text-[12px] text-black">{link(c.brand_instagram)}</div></div>
+        <Stat label="Ads" value={c.ad_platforms ? PLATFORM_LABEL[c.ad_platforms] : "—"} />
+        <Stat label="Wants to start" value={c.preferred_start_text ?? "—"} />
+        <Stat label="Yearly revenue" value={c.annual_revenue_text ?? "—"} />
+        <Stat label="Google My Business" value={c.has_gmb == null ? "—" : c.has_gmb ? "Yes" : "No"} />
+        <div className="col-span-2"><Stat label="Cities / states" value={c.target_locations ?? "—"} /></div>
+        <div className="col-span-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Payment</div>
+          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+            <FinanceBadge status={c.finance_check ?? "not_found"} />
+            {c.bajaj_answer && <span className="text-muted-foreground">Student said: “{c.bajaj_answer}”</span>}
+            {c.source_paid_pipeline_lead_id && <a href="/paid-pipeline" className="underline">Paid Pipeline</a>}
+          </div>
+        </div>
+        {c.call_scheduled_for && <Stat label="Call booked for" value={new Date(c.call_scheduled_for).toLocaleString()} />}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {wa && <a href={wa} target="_blank" rel="noreferrer" className="ipc-btn">WhatsApp</a>}
+        {c.form_raw && <button className="ipc-btn" onClick={() => setShowRaw((v) => !v)}>{showRaw ? "Hide" : "Show"} full form answers</button>}
+      </div>
+      {showRaw && c.form_raw && (
+        <dl className="mt-3 space-y-2 text-[12px] font-sans">
+          {Object.entries(c.form_raw).map(([q, a]) => (
+            <div key={q}>
+              <dt className="text-muted-foreground">{q.split("\n")[0]}</dt>
+              <dd className="text-black whitespace-pre-wrap">{Array.isArray(a) ? a.join(", ") : String(a ?? "") || "—"}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </Section>
   );
 }

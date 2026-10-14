@@ -41,6 +41,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/follow-up-board": "Follow-up Board",
   "/payment-recovery": "Payment Recovery",
   "/operations-crm": "Operations CRM",
+  "/media-buyer-operations": "Media Buyer Desk",
   "/webinar-performance": "Webinar Performance",
   "/team": "Team Directory",
   "/admin": "Admin Panel",
@@ -239,6 +240,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <NavItem to="/operations-crm" show={!isAdmin && hasModule("operations_crm")}>
             <Icon><><circle cx="8" cy="8" r="6"/><path d="M5 8l2 2 4-5"/></></Icon>
             Operations CRM
+          </NavItem>
+          <NavItem to="/media-buyer-operations" show={isAdmin || hasModule("media_buyer_operations")}>
+            <Icon><><path d="M2 5l9-3v12L2 11z"/><path d="M11 6h2a1 1 0 011 1v2a1 1 0 01-1 1h-2"/><path d="M4 11l1 3h2l-1-3"/></></Icon>
+            Media Buyer Desk
           </NavItem>
           <NavItem to="/operations-rewards" show={isAdmin || hasModule("operations_crm") || hasModule("media_buyer_operations")}>
             <Icon><><path d="M4 2h8v3a4 4 0 01-8 0z"/><path d="M6 8h4v3H6z"/><path d="M5 13h6"/></></Icon>

@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.admin-team-auth]
 verify_jwt = false
+
+[functions.media-buyer-form-intake]
+verify_jwt = false
